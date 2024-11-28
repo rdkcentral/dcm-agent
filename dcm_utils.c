@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <dirent.h>
+#include <stdlib.h>
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
