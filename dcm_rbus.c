@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <vector>
 
 #include "rbus.h"
 #include "dcm_types.h"
