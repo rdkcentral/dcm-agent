@@ -58,10 +58,10 @@ cd safeclib
 
 autoreconf -i
 ./configure  && make && make install
-
+cd $ROOT
 git clone https://mtirum011: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@github.com/djbclark/directfb-core-DirectFB.git
 
-cp /usr/directfb-core-DirectFB/lib/fusiondale/fusiondale.h /usr/local/include/directfb
+#cp /usr/directfb-core-DirectFB/lib/fusiondale/fusiondale.h /usr/local/include/directfb
 
 ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h /usr/iarmbus/core 
 #cd ${ROOT}/safeclib
