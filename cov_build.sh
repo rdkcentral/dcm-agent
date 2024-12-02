@@ -33,11 +33,11 @@ apt-get install -y libcjson-dev
 cd $INSTALL_DIR
 apt-get install -y libdirectfb-dev
 
-ls -l /usr/directfb/
+#ls -l /usr/directfb/
 
-ls -l /usr/include/directfb
+#ls -l /usr/include/directfb
 #mv /usr/include/directfb /usr/local/include/
-ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h
+#ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h
 
 cd $ROOT
 #Build rbus
