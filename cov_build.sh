@@ -63,7 +63,7 @@ git clone https://mtirum011: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@github.com/
 
 #cp /usr/directfb-core-DirectFB/lib/fusiondale/fusiondale.h /usr/local/include/directfb
 
-ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h /usr/iarmbus/core 
+#ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h /usr/iarmbus/core 
 #cd ${ROOT}/safeclib
 
 #autoreconf --install
