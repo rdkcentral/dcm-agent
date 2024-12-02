@@ -20,4 +20,4 @@ jobs:
       - name: native build
         run: |
           chmod +x cov_build.sh
-          sh cov_build.sh
+          sh -e cov_build.sh
