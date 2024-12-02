@@ -3,7 +3,7 @@ name: Build Component in Native Environment
 
 on:
   push:
-    branches: [ feature/RDK-52982  ]
+    branches: [ develop  ]
     paths: ['**/*.c', '**/*.cpp', '**/*.cc', '**/*.cxx', '**/*.h', '**/*.hpp']
     
 jobs:
