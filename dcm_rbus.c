@@ -29,6 +29,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <vector>
 #include <unistd.h>
 #include <signal.h>
 
