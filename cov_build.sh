@@ -69,10 +69,10 @@ ls -l /usr/ssa-cpc/safec_lib/include/libsafec/safec_lib.h /usr/iarmbus/core
 #autoreconf --install
 #./configure --prefix=${INSTALL_DIR} && make && make install
 
-
+cd $ROOT
 git clone https://mtirum011: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@github.com/rdk-e/iarmbus.git
 
-cd ${ROOT}/iarmbus
+cd iarmbus
 
 autoupdate
 autoreconf -fi
