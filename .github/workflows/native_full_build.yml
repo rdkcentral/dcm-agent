@@ -8,7 +8,7 @@ on:
     
 jobs:
   build-systemtimemgr-on-pr:
-    name: Build systemtimemgr component in github rdkcentral
+    name: Build dcm-agent component in github rdkcentral
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rdkcentral/docker-rdk-ci:latest
