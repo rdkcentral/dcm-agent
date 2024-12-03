@@ -59,14 +59,10 @@ cd iarmbus
 autoupdate
 autoreconf -fi
 
-#export CFLAGS="-I/usr/ssa-cpc/safec_lib/include/libsafec/ -I/usr/include/glib-2.0/ -I/usr/lib/x86_64-linux-gnu/glib-2.0/include/ -I/usr/include/dbus-1.0/ -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include/ -I/usr//ssa-cpc/safec_lib/include/libsafec/ -I/usr/directfb-core-DirectFB/lib/fusiondale/"
-
 export LDFLAGS="-lsafec"
 ./configure 
-#CFLAGS="-I${ROOT}/ssa-cpc/safec_lib/include/libsafec/ -I${ROOT}/include/glib-2.0/ -I${ROOT}/lib/x86_64-linux-gnu/glib-2.0/include/ -I${ROOT}/include/dbus-1.0/ -I${ROOT}/lib/x86_64-linux-gnu/dbus-1.0/include/ -I${ROOT}/ssa-cpc/safec_lib/include/libsafec/ -I/usr/directfb-core-DirectFB/lib/fusiondale/ -I/usr/include/directfb"
 
 make CFLAGS="-I${ROOT}/ssa-cpc/safec_lib/include/libsafec/ -I${ROOT}/include/glib-2.0/ -I${ROOT}/lib/x86_64-linux-gnu/glib-2.0/include/ -I${ROOT}/include/dbus-1.0/ -I${ROOT}/lib/x86_64-linux-gnu/dbus-1.0/include/ -I${ROOT}/ssa-cpc/safec_lib/include/libsafec/ -I/usr/directfb-core-DirectFB/lib/fusiondale/ -I${ROOT}/include/directfb/ -I./include/ " && make install
-
 
 cd $WORKDIR
 
