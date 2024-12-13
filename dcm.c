@@ -225,7 +225,7 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
     dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
     dcmSchedUnInit();
 
-    memset(pdcmHandle, 0, sizeof(DCMDHandle));
+    memset(pdcmHandle, 0, 10*sizeof(DCMDHandle));
 }
 
 /** @brief Main function
