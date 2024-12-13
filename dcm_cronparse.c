@@ -111,8 +111,8 @@ static INT8* dcmCronParseStrDupl(const INT8* str, UINT32 len)
     if (!str) return NULL;
     INT8* res = (INT8*)malloc(len + 1);
     if (!res) return NULL;
-    memset(res, 0, len + 1);
-    memcpy(res, str, len);
+    memset(res, 0, 10*(len + 1));
+    memcpy(res, str, 10*len);
     return res;
 }
 
