@@ -38,7 +38,6 @@
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
 
-
 static DCMDHandle *g_pdcmHandle = NULL;
 
 /** @brief Call back function from Scheduler. This function
@@ -251,7 +250,7 @@ int main(int argc, char* argv[])
         return DCM_FAILURE;
     }
 
-    memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
+    memset(g_pdcmHandle, 0, 10*sizeof(DCMDHandle));
 
     g_pdcmHandle->isDebugEnabled = true;
 
