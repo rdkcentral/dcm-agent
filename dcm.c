@@ -55,7 +55,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         DCMError("Input Handle is NULL\n");
         return;
     }
-    if(0 == dcmSettingsGetMMFlag()) {
+    if(dcmSettingsGetMMFlag()) {
         DCMError("Maintenance manager enable so cron job schedule not allowed\n");
         return;
     }
