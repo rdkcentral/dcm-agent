@@ -55,6 +55,10 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         DCMError("Input Handle is NULL\n");
         return;
     }
+    if(0 == dcmSettingsGetMMFlag()) {
+        DCMError("Maintenance manager enable so cron job schedule not allowed\n");
+        return;
+    }
 
     INT8 *pRDKPath = dcmSettingsGetRDKPath(pdcmHandle->pDcmSetHandle);
     INT8 *pExecBuff = pdcmHandle->pExecBuff;
@@ -81,7 +85,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 0 1 0 %s %s &",
                                                pRDKPath, DCM_LOG_TFTP, pPrctl, pURL);
     }// maintenance manager is not enable then schedule firmware update
-    else if((0 == dcmSettingsGetMMFlag()) && (strcmp(profileName, DCM_DIFD_SCHED) == 0)) {
+    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
