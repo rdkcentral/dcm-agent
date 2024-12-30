@@ -84,7 +84,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         DCMInfo("\nStart log upload Script\n");
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 0 1 0 %s %s &",
                                                pRDKPath, DCM_LOG_TFTP, pPrctl, pURL);
-    }// maintenance manager is not enable then schedule firmware update
+    }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
