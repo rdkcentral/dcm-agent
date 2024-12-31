@@ -56,7 +56,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         return;
     }
     if(dcmSettingsGetMMFlag()) {
-        DCMError("Maintenance manager enable so cron job schedule not allowed\n");
+        DCMInfo("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled\n");
         return;
     }
 
