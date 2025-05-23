@@ -21,7 +21,7 @@
 
 [Unit]
 Description=To start dcm daemon
-Before= telemetry2_0.service dcm-log.service
+Before= telemetry2_0.service
 After= rbus.service iarmbusd.service network-online.target tr69hostif.service
 
 [Service]
