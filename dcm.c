@@ -55,6 +55,10 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         DCMError("Input Handle is NULL\n");
         return;
     }
+    if(dcmSettingsGetMMFlag()) {
+        DCMInfo("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled\n");
+        return;
+    }
 
     INT8 *pRDKPath = dcmSettingsGetRDKPath(pdcmHandle->pDcmSetHandle);
     INT8 *pExecBuff = pdcmHandle->pExecBuff;
@@ -83,7 +87,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
-        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/deviceInitiatedFWDnld.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
+        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
     }
 
