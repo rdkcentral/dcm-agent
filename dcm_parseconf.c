@@ -527,12 +527,14 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     bool uploadTriggered = false;
 
     if(uploadCheck == 1 && pdcmSetHandle->bRebootFlag == 0) {
+        DCMInfo("Upload trigger for uploadcheck=1 \n");
         snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 1 %s %s &",
                                                  pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
         dcmUtilsSysCmdExec(pExBuff);
         uploadTriggered = true;
     }
     else if (uploadCheck == 0 && pdcmSetHandle->bRebootFlag == 0) {
+        DCMInfo("Upload trigger for uploadcheck=0 \n");
         snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
                                                  pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
         dcmUtilsSysCmdExec(pExBuff);
