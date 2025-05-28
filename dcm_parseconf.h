@@ -64,4 +64,8 @@ INT8*  dcmSettingsGetUploadURL(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetRDKPath(VOID *pdcmSetHandle);
 INT32  dcmSettingsGetMMFlag();
 
+#ifdef DCM_DEFAULT_BOOTCONFIG
+INT32 dcmSettingDefaultBoot(INT8 *defaultConfig);
+#endif //DCM_DEFAULT_BOOTCONFIG
+
 #endif //_DCM_PARSECONF_H_

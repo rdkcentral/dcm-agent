@@ -694,3 +694,25 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
         DCMError("Input Handle is NULL\n");
     }
 }
+
+#ifdef DCM_DEFAULT_BOOTCONFIG
+/** @brief This Function Parses the default config file post bootup.
+ *
+ *  @param[]  None
+ *
+ *  @return  Returns the status of the operation.
+ *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
+ */
+
+ INT32 dcmSettingDefaultBoot(INT8 *defaultConfig)
+ {
+    if (defaultConfig == NULL) {
+        DCMError("Input defaultConfig is NULL\n");
+        return DCM_FAILURE;
+    }
+    else {
+        return dcmSettingStoreTempConf(defaultConfig, DCM_TMP_CONF, DCM_OPT_CONF);
+    }
+ }
+ #endif //DCM_DEFAULT_BOOTCONFIG
+ 

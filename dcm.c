@@ -303,6 +303,14 @@ int main(int argc, char* argv[])
 
     DCMDebug("Initializing DCM Component Done\n");
 
+    #ifdef DCM_DEFAULT_BOOTCONFIG
+    DCMInfo("Loading the Default config from : %s\n",DCM_DEFAULT_BOOTCONFIG);
+    ret = dcmSettingDefaultBoot(DCM_DEFAULT_BOOTCONFIG);
+    if(ret != DCM_SUCCESS) {
+        DCMError("Failed to load default config file\n");
+    }
+    #endif
+
     while(1) {
         if(count > 10) {
             DCMInfo("Waiting for Telemetry to up and running to Subscribe the events\n");
