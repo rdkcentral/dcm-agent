@@ -40,6 +40,9 @@
 #define INCLUDE_PROP_FILE            "/etc/include.properties"
 #define DCM_TMP_CONF                 "/tmp/DCMSettings.conf"
 #define DCM_OPT_CONF                 "/opt/.DCMSettings.conf"
+#define DCM_RESPONSE_PATH            "/.t2persistentfolder/DCMresponse.txt"
+#define PERSISTENT_ENTRY             "PERSISTENT_PATH"
+#define DEFAULT_PERSISTENT_PATH      "/opt"
 
 #ifndef DCM_LOG_TFTP // please define your log upload url
 #define DCM_LOG_TFTP                 "Fallbacklogupload"
@@ -111,6 +114,7 @@ VOID  dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len);
 INT32 dcmUtilsCheckDaemonStatus();
 VOID  dcmUtilsRemovePIDfile();
 INT32 dcmUtilsFilePresentCheck(const INT8 *file_name);
+INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry);
 
 void DCMLOGInit();
 
