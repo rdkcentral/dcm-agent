@@ -303,13 +303,13 @@ int main(int argc, char* argv[])
 
     DCMDebug("Initializing DCM Component Done\n");
 
-    #ifdef DCM_DEFAULT_BOOTCONFIG
-    DCMInfo("Loading the Default config from : %s\n",DCM_DEFAULT_BOOTCONFIG);
-    ret = dcmSettingDefaultBoot(DCM_DEFAULT_BOOTCONFIG);
+    //#ifdef DCM_DEFAULT_BOOTCONFIG // make this default as this is inline with legacy implementation
+    DCMInfo("Loading the Default config\n");
+    ret = dcmSettingDefaultBoot();
     if(ret != DCM_SUCCESS) {
         DCMError("Failed to load default config file\n");
     }
-    #endif
+    //#endif
 
     while(1) {
         if(count > 10) {

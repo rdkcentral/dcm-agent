@@ -695,7 +695,6 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
     }
 }
 
-#ifdef DCM_DEFAULT_BOOTCONFIG
 /** @brief This Function Parses the default config file post bootup.
  *
  *  @param[]  None
@@ -704,15 +703,23 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 
- INT32 dcmSettingDefaultBoot(INT8 *defaultConfig)
+ INT32 dcmSettingDefaultBoot()
  {
-    if (defaultConfig == NULL) {
-        DCMError("Input defaultConfig is NULL\n");
+    char* persistentPath = dcmUtilsGetFileEntry(INCLUDE_PROP_FILE,PERSISTENT_ENTRY);
+    if(persistentPath == NULL)
+    {
+        persistentPath = strdup(DEFAULT_PERSISTENT_PATH);
+        DCMError("Error in fetching %s from %s, using default path:%s\n",PERSISTENT_ENTRY,INCLUDE_PROP_FILE,persistentPath);
+    }
+    char defaultConfig[512];
+    snprintf(defaultConfig,sizeof(defaultConfig),"%s%s",persistentPath,DCM_RESPONSE_PATH);
+    free(persistentPath);
+    DCMInfo("Fetching the Default Boot config from %s\n",defaultConfig);
+    if(dcmUtilsFilePresentCheck(defaultConfig)!= DCM_SUCCESS)
+    {
+        DCMError("DCMResponse File is not present, skip default boot config\n");
         return DCM_FAILURE;
     }
-    else {
-        return dcmSettingStoreTempConf(defaultConfig, DCM_TMP_CONF, DCM_OPT_CONF);
-    }
+    return dcmSettingStoreTempConf(defaultConfig, DCM_TMP_CONF, DCM_OPT_CONF);
  }
- #endif //DCM_DEFAULT_BOOTCONFIG
  
