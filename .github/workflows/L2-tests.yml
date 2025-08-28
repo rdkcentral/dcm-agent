@@ -1,0 +1,87 @@
+name: L2 Integration Tests
+
+on:
+  pull_request:
+    branches: [ develop ]
+
+env:
+  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
+  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
+
+jobs:
+  execute-L2-tests-on-pr:
+    name: Execute L2 test suite in L2 container environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install C astyle
+        run: |
+          sudo apt-get update
+          sudo apt-get install astyle -y
+
+      - name: Check for formatting errors
+        run: |
+          find . -name '*.c' -o -name '*.h' | xargs astyle --options=.astylerc
+          find . -name '*.orig' -type f -delete
+          git diff --name-only --exit-code
+          if [ $? -ne 0 ]; then
+            echo " !!! WARNING !!! "
+            echo "Code formatting errors found. Please run below code to clang-format in your local workspace and commit"
+            echo "find . -name '*.c' -o -name '*.h' | xargs astyle --options=.astylerc"
+            echo "find . -name '*.orig' -type f -delete"
+            exit 1
+          else
+            echo "Code formatting errors not found."
+          fi
+
+      - name: Pull docker images
+        run: |
+          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+          docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Start mock-xconf service
+        run: |
+          docker run -d --name mockxconf -p 50050:50050 -p 50051:50051 -p 50052:50052 -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
+
+      - name: Start l2-container service
+        run: |
+          docker run -d --name native-platform --link mockxconf -v ${{ github.workspace }}:/mnt/L2_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Build dcm-agent and Run L2 inside Native Platform Container
+        run: |
+          docker exec -i native-platform /bin/bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME/ && sh ./cov_build.sh && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/lib/aarch64-linux-gnu:/usr/local/lib && sh test/run_l2.sh"
+      - name: Copy l2 test results to runner
+        run: |
+          docker cp native-platform:/tmp/l2_test_report /tmp/L2_TEST_RESULTS
+          ls -l
+          ls -l /tmp/L2_TEST_RESULTS
+  upload-test-results:
+    name: Upload L2 test results to automatic test result management system
+    needs: execute-L2-tests-on-pr
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+      volumes:
+        - /tmp/L2_TEST_RESULTS:/tmp/L2_TEST_RESULTS
+    steps:
+      - name: Upload results
+        if: github.repository_owner == 'rdkcentral'
+        run: |
+            echo "Contents in workspace directory"
+            ls -l
+            echo "==============================="
+            echo "Contents in /tmp/L2_TEST_RESULTS"
+            ls -l /tmp/L2_TEST_RESULTS
+            echo "==============================="
+            git config --global --add safe.directory `pwd`
+            gtest-json-result-push.py /tmp/L2_TEST_RESULTS https://rdkeorchestrationservice.apps.cloud.comcast.net/rdke_orchestration_api/push_unit_test_results `pwd`
