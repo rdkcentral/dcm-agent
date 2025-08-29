@@ -17,10 +17,11 @@
 # limitations under the License.
 ##################################################################################
 
-Feature: dcm-agent process is started and triggers logupload when uploadOnReboot is false
+Feature: dcm-agent process is started and triggers logupload and swupdate scripts when UploadOnReboot is false
 
-  Scenario: dcm-agent triggers logupload when uploadOnReboot is false
+  Scenario: dcm-agent triggers logupload and swupdate scripts
     Given When the dcm-agent started running
     Then subscribe to Device.DCM.Setconfig and Device.DCM.Processconfig and register reloadConfig event 
     Then receive the events data from Telemetry2_0
-    Then dcm-agent should be triggering uploadSTBLogs.sh script
+    Then parse the data from the DCMresponse conf file and schedule logupload and swupdate job
+    Then dcm-agent should be triggering uploadSTBLogs.sh and swupdate scripts based on the schedule

@@ -32,5 +32,5 @@ Feature: dcm-agent bootup sequence
     When Telemetry sends the event data successfully
     Then Receive data for events Device.DCM.Setconfig event and Device.DCM.Processconfig
     Then the conf files are created
-    Then scheduler starts
-    Then parse the data and start the logupload and fwupdate script based on the schedule given
+    Then scheduling will start
+    Then parse the data from conf file and start the logupload and fwupdate script based on the cron schedule given

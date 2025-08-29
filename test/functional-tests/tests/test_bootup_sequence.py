@@ -63,7 +63,7 @@ def test_parser():
     assert "https://secure.s3.bucket.test.url" in grep_dcmdlogs("Log Upload URL:")
     assert "UTC" in grep_dcmdlogs("TimeZone :")
     assert "1" in grep_dcmdlogs("DCM_LOGUPLOAD_REBOOT:")
-    assert "*/3" in grep_dcmdlogs("DCM_LOGUPLOAD_CRON:")
+    assert "*/7" in grep_dcmdlogs("DCM_LOGUPLOAD_CRON:")
     assert "*/5" in grep_dcmdlogs("DCM_DIFD_CRON")
 
 
