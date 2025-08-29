@@ -28,7 +28,7 @@ import json
 def test_upload_cron_present():
     kill_dcmd(9)
     kill_telemetry(9)
-    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader6/getT2DCMSettings")
+    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader5/getT2DCMSettings")
     run_dcmd()
     run_telemetry()
     sleep(20)
