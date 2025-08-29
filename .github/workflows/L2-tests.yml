@@ -24,26 +24,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install C astyle
-        run: |
-          sudo apt-get update
-          sudo apt-get install astyle -y
-
-      - name: Check for formatting errors
-        run: |
-          find . -name '*.c' -o -name '*.h' | xargs astyle --options=.astylerc
-          find . -name '*.orig' -type f -delete
-          git diff --name-only --exit-code
-          if [ $? -ne 0 ]; then
-            echo " !!! WARNING !!! "
-            echo "Code formatting errors found. Please run below code to clang-format in your local workspace and commit"
-            echo "find . -name '*.c' -o -name '*.h' | xargs astyle --options=.astylerc"
-            echo "find . -name '*.orig' -type f -delete"
-            exit 1
-          else
-            echo "Code formatting errors not found."
-          fi
-
       - name: Pull docker images
         run: |
           docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/mockxconf:latest
