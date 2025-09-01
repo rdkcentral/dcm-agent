@@ -35,4 +35,13 @@ def test_DCMSettings_file_presence():
         assert os.path.isfile(file_path), f"{file_path} does not exist."
 
 
+@pytest.mark.run(order=2)
+def test_rdk_maintenance_file_presence():
+    file_path = '/opt/rdk_maintenance.conf'
+    required_strings = ["start_hr", "start_min", "tz_mode"]
 
+    with open(file_path, "r") as f:
+        contents = f.read()
+
+    for s in required_strings:
+        assert s in contents, f"'{s}' not found in {file_path}"

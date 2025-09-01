@@ -26,6 +26,7 @@ import json
 
 @pytest.mark.run(order=1)
 def test_upload_cron_present():
+    run_shell_silent("tail -F /opt/logs/dcmd.log.0 &")
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
 @pytest.mark.run(order=2)

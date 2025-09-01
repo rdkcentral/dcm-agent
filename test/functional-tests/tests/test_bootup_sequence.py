@@ -67,14 +67,3 @@ def test_parser():
     assert "*/5" in grep_dcmdlogs("DCM_DIFD_CRON")
     sleep(5)
 
-
-@pytest.mark.run(order=8)
-def test_rdk_maintenance_file_presence():
-    file_path = '/opt/rdk_maintenance.conf'
-    required_strings = ["start_hr", "start_min", "tz_mode"]
-
-    with open(file_path, "r") as f:
-        contents = f.read()
-
-    for s in required_strings:
-        assert s in contents, f"'{s}' not found in {file_path}"
