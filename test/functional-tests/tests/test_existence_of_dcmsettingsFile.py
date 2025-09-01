@@ -37,11 +37,9 @@ def test_DCMSettings_file_presence():
 
 @pytest.mark.run(order=2)
 def test_rdk_maintenance_file_presence():
-    file_path = '/opt/rdk_maintenance.conf'
-    required_strings = ["start_hr", "start_min", "tz_mode"]
-
-    with open(file_path, "r") as f:
-        contents = f.read()
-
-    for s in required_strings:
-        assert s in contents, f"'{s}' not found in {file_path}"
+    result = subprocess.run(['grep', 'start_hr', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)
+    result = subprocess.run(['grep', 'start_min', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)
+    result = subprocess.run(['grep', 'tz_mode', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)

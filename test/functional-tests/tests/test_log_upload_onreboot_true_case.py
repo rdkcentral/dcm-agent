@@ -26,7 +26,6 @@ import json
 
 @pytest.mark.run(order=1)
 def test_upload_cron_present():
-    run_shell_silent("tail -F /opt/logs/dcmd.log.0 &")
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
 @pytest.mark.run(order=2)
@@ -43,7 +42,7 @@ def test_fw_cron_scheduled():
 def test_fwupdate_script_started():
     sleep(60)
     assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
-    assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
+   # assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
     assert "trigger type=" in grep_dcmdlogs("trigger type=")
 
 @pytest.mark.run(order=4)

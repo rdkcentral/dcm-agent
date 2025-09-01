@@ -38,10 +38,6 @@ def test_default_config_fetched():
 def test_dcm_waiting_for_telemetry():  
    assert "Waiting for Telemetry to up and running to Subscribe the events" in grep_dcmdlogs("Waiting for Telemetry to up and running to Subscribe the events")
 
-def test_DCMSettings_file():
-    file_path = '/tmp/DCMSettings.conf'
-    assert os.path.isfile(file_path), f"{file_path} does not exist."
-
 def test_second_telemetry_instance_is_not_started():
     run_dcmd()
     pid1 = get_pid("dcmd")

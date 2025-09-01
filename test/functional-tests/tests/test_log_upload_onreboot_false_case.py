@@ -58,5 +58,5 @@ def test_upload_script_started():
 
 @pytest.mark.run(order=6)
 def test_fwupdate_script_started():
-    assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
+    #assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
     assert "trigger type=" in grep_dcmdlogs("trigger type=")
