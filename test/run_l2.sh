@@ -40,9 +40,9 @@ pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/boo
 
 pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/file_existence.json test/functional-tests/tests/test_existence_of_dcmsettingsFile.py
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_false_test.json test/functional-tests/tests/test_log_upload_onreboot_true_case.py
+pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_true_test.json test/functional-tests/tests/test_log_upload_onreboot_true_case.py
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_true_test.json test/functional-tests/tests/test_log_upload_onreboot_false_case.py
+pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_false_test.json test/functional-tests/tests/test_log_upload_onreboot_false_case.py
 
 if ! grep -q "ENABLE_MAINTENANCE=" /etc/device.properties; then
     echo "ENABLE_MAINTENANCE=true" >> /etc/device.properties

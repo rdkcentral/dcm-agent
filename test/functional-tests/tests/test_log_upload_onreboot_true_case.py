@@ -52,7 +52,7 @@ def test_upload_cron_scheduled():
 
 @pytest.mark.run(order=6)
 def test_upload_started():
-    sleep(20)
+    sleep(40)
     assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
     assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")

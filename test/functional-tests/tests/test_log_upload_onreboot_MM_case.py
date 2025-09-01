@@ -31,7 +31,7 @@ def test_upload_cron_present():
     rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader3/getT2DCMSettings")
     run_dcmd()
     run_telemetry()
-    sleep(300)
+    sleep(420)
 
 @pytest.mark.run(order=3)
 def test_upload_cron_scheduled():

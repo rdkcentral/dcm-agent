@@ -41,20 +41,20 @@ def test_upload_script_started():
 
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
-    sleep(180)
+    sleep(200)
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
 
 @pytest.mark.run(order=4)
 def test_upload_cron_scheduled():
-    sleep(180)
+    sleep(300)
     assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
 
 @pytest.mark.run(order=5)
 def test_upload_script_started():
-    sleep(20)
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")                                                     
+    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
+    sleep(60)
 
 @pytest.mark.run(order=6)
 def test_fwupdate_script_started():

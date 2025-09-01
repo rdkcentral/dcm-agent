@@ -65,14 +65,10 @@ def test_parser():
     assert "1" in grep_dcmdlogs("DCM_LOGUPLOAD_REBOOT:")
     assert "*/7" in grep_dcmdlogs("DCM_LOGUPLOAD_CRON:")
     assert "*/5" in grep_dcmdlogs("DCM_DIFD_CRON")
+    sleep(5)
 
 
 @pytest.mark.run(order=8)
-def test_rdk_maintenance_file_presence():
-    file_path = '/opt/rdk_maintenance.conf'
-    assert os.path.isfile(file_path), f"{file_path} does not exist."
-
-@pytest.mark.run(order=9)
 def test_rdk_maintenance_file_presence():
     file_path = '/opt/rdk_maintenance.conf'
     required_strings = ["start_hr", "start_min", "tz_mode"]
