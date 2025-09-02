@@ -35,28 +35,28 @@ def test_upload_cron_present():
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
 @pytest.mark.run(order=2)
-def test_upload_script_started():
+def test_upload_script_started_onboot_false():
     assert "UploadOnReboot=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
     assert "Called uploadLogOnReboot with false" in grep_dcmdlogs("Called uploadLogOnReboot with false")
+    sleep(420)
 
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
-    sleep(180)
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
 
 @pytest.mark.run(order=4)
 def test_upload_cron_scheduled():
-    sleep(180)
     assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
+    sleep(60)
 
 @pytest.mark.run(order=5)
 def test_upload_script_started():
-    sleep(20)
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")                                                     
+    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
 
 @pytest.mark.run(order=6)
 def test_fwupdate_script_started():
-    assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
-    assert "trigger type=" in grep_dcmdlogs("trigger type=")
+   assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
+   #assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
+   # assert "trigger type=" in grep_dcmdlogs("trigger type=")

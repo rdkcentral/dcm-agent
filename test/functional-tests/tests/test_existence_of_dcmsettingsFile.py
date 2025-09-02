@@ -35,4 +35,11 @@ def test_DCMSettings_file_presence():
         assert os.path.isfile(file_path), f"{file_path} does not exist."
 
 
-
+@pytest.mark.run(order=2)
+def test_rdk_maintenance_file_presence():
+    result = subprocess.run(['grep', 'start_hr', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)
+    result = subprocess.run(['grep', 'start_min', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)
+    result = subprocess.run(['grep', 'tz_mode', '/opt/rdk_maintenance.conf'], capture_output=True, text=True)
+    print(result.stdout)

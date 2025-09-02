@@ -29,15 +29,11 @@ def test_check_dcmd_is_starting():
     rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader3/getT2DCMSettings")
     run_dcmd()
     assert get_pid("dcmd") != ""
-    sleep(15)
+    sleep(20)
 
 def test_default_config_fetched():
     assert "Loading the Default config" in grep_dcmdlogs("Loading the Default config")
     assert "/opt//.t2persistentfolder/DCMresponse.txt" in grep_dcmdlogs("Fetching the Default Boot config from")
-
-def test_DCMSettings_file():
-    file_path = '/tmp/DCMSettings.conf'
-    assert os.path.isfile(file_path), f"{file_path} does not exist."
 
 def test_dcm_waiting_for_telemetry():  
    assert "Waiting for Telemetry to up and running to Subscribe the events" in grep_dcmdlogs("Waiting for Telemetry to up and running to Subscribe the events")

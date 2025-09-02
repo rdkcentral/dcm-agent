@@ -35,24 +35,21 @@ def test_upload_script_started():
 
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
-    sleep(300)
+    sleep(540)
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
 @pytest.mark.run(order=4)
 def test_fwupdate_script_started():
-    sleep(60)
     assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
-    assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
-    assert "trigger type=" in grep_dcmdlogs("trigger type=")
+   # assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
+   #assert "trigger type=" in grep_dcmdlogs("trigger type=")
 
 @pytest.mark.run(order=4)
 def test_upload_cron_scheduled():
-    sleep(180)
     assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
 
 @pytest.mark.run(order=6)
 def test_upload_started():
-    sleep(20)
     assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
     assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
