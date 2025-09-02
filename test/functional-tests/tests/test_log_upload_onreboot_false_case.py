@@ -35,7 +35,7 @@ def test_upload_cron_present():
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
 @pytest.mark.run(order=2)
-def test_upload_script_started():
+def test_upload_script_started_onboot_false():
     assert "UploadOnReboot=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
     assert "Called uploadLogOnReboot with false" in grep_dcmdlogs("Called uploadLogOnReboot with false")
     sleep(420)
