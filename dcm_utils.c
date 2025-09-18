@@ -201,3 +201,55 @@ INT32 dcmIARMEvntSend(INT32 status)
     INT32 ret = DCM_SUCCESS;
     return ret;
 }
+
+
+/**
+ * @brief Fetch the value of a given entry from a file (simple key=value format).
+ *
+ * This function searches for a line in the form "key=value" within the specified file and returns
+ * a heap-allocated string containing the associated value for the given key.
+ *
+ * @param[in] fileName      Path to the file to search (must not be NULL).
+ * @param[in] searchEntry   Entry key to search for (must not be NULL).
+ *
+ * @return  Pointer to a heap-allocated string containing the entry value (must be freed by the caller),
+ *          or NULL if the entry is not found or if an error occurs.
+ *
+ * @note This function expects:
+ *       - The file contains lines in the format "key=value" (no comments).
+ *       - There is no whitespace before or after the '=' character.
+ *       - The search is case-sensitive.
+ */
+
+INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry)
+{
+    if(fileName == NULL || searchEntry == NULL)
+    {
+        return NULL;
+    }
+    FILE *fp = NULL;
+    char* entryValue = NULL;
+
+    fp = fopen(fileName, "r");
+    if(NULL != fp)
+    {
+        char line[512];
+        size_t entryLen = strlen(searchEntry);
+        while (fgets(line, sizeof(line), fp))
+        {
+            if (line[entryLen] == '=' && strncmp(line, searchEntry, entryLen) == 0 )
+            {
+                char *value = line + entryLen + 1;
+                char *checkNewline = strpbrk(value, "\r\n"); // just a saftey check
+                if (checkNewline)
+                {
+                    *checkNewline = '\0';
+                }
+                entryValue = strdup(value);
+                break;
+            }
+        }
+        fclose(fp);
+    }
+    return entryValue;
+}

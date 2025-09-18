@@ -63,5 +63,6 @@ INT8*  dcmSettingsGetUploadProtocol(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetUploadURL(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetRDKPath(VOID *pdcmSetHandle);
 INT32  dcmSettingsGetMMFlag();
+INT32 dcmSettingDefaultBoot();
 
 #endif //_DCM_PARSECONF_H_
