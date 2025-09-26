@@ -40,5 +40,17 @@ export top_builddir=`pwd`
 
 autoreconf --install
 
-./configure --prefix=${INSTALL_DIR}
+cd ${ROOT}
+rm -rf iarmmgrs
+git clone https://github.com/rdkcentral/iarmmgrs.git
+
+cd ${ROOT}
+rm -rf telemetry
+git clone https://github.com/rdkcentral/telemetry.git
+cd telemetry
+sh  build_inside_container.sh 
+
+
+cd $WORKDIR
+./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -I$ROOT/iarmmgrs/maintenance/include"
 make && make install
