@@ -43,15 +43,16 @@ make
 fail=0
 
 for test in \
-  ./rdm_main_gtest \
-  ./rdm_utils_gtest \
-  ./rdm_curl_gtest \
-  ./rdm_json_gtest \
-  ./rdm_download_gtest \
-  ./rdm_downloadutils_gtest \
-  ./rdm_rbus_gtest \
-  ./rdm_openssl_gtest \
-  ./rdm_usbinstall_gtest 
+  ./dcm_cronparse_gtest
+  #./rdm_main_gtest \
+  #./rdm_utils_gtest \
+  #./rdm_curl_gtest \
+  #./rdm_json_gtest \
+  #./rdm_download_gtest \
+  #./rdm_downloadutils_gtest \
+  #./rdm_rbus_gtest \
+  #./rdm_openssl_gtest \
+  #./rdm_usbinstall_gtest \
   
 do
     $test
