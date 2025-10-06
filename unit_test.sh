@@ -68,7 +68,7 @@ if [ $fail -ne 0 ]; then
 fi
 
 echo "********************"
-echo "**** CAPTURE RDM-AGENT COVERAGE DATA ****"
+echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
 echo "********************"
 if [ "$ENABLE_COV" = true ]; then
     echo "Generating coverage report"
