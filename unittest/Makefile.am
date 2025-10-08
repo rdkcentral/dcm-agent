@@ -30,7 +30,7 @@ AM_CPPFLAGS =  -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_sr
 AM_CXXFLAGS = -std=c++14
 
 # Common libraries
-COMMON_LDADD = -lgtest -lgtest_main -lgmock -lgmock_main \
+COMMON_LDADD = -lgtest -lgmock\
                -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov
 
 # Common compiler flags
