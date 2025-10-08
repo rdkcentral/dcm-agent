@@ -53,7 +53,7 @@ using ::testing::DoAll;
 using ::testing::StrEq;
 
 //extern static INT32 dcmCronParseToUpper(INT8* str);
-class dcmCronParseToUpperTest : public ::testing::Test {
+class DCMUtilsTest: public ::testing::Test {
 protected:
     void SetUp() override {
     }
@@ -62,7 +62,25 @@ protected:
     }
 };
 
+#include "dcm_utils.h"
 
+// Helper: create a file with given content
+void CreateFile(const char* filename, const char* content) {
+    std::ofstream ofs(filename);
+    ofs << content;
+}
+
+void RemoveFile(const char* filename) {
+    std::remove(filename);
+}
+
+// Test dcmUtilsFilePresentCheck
+TEST(DCMUtilsTest, FilePresentCheck_ValidFile) {
+    const char* fname = "/tmp/dcm_testfile_present";
+    CreateFile(fname, "test");
+    EXPECT_EQ(dcmUtilsFilePresentCheck(fname), DCM_SUCCESS);
+    RemoveFile(fname);
+}
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
