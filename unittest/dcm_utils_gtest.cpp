@@ -52,7 +52,7 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
 
-extern static INT32 dcmCronParseToUpper(INT8* str);
+//extern static INT32 dcmCronParseToUpper(INT8* str);
 class dcmCronParseToUpperTest : public ::testing::Test {
 protected:
     void SetUp() override {
