@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
-bin_PROGRAMS = dcm_cronparse_gtest
+bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I../mocks -I../src -I../include    \
@@ -37,7 +37,9 @@ COMMON_LDADD = -lgtest -lgmock\
 COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage
 
 # Define source files for each test
-dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
+#dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
+dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ./dcm_utils.c
+
 #rdm_main_gtest_SOURCES = rdm_main_gtest.cpp ../rdm_main.c 
 #rdm_curl_gtest_SOURCES = rdm_curl_gtest.cpp  ../src/rdm_curldownload.c
 #rdm_utils_gtest_SOURCES = rdm_utils_gtest.cpp mocks/mock_iarm_bus.cpp  ../src/rdm_utils.c
@@ -52,7 +54,13 @@ dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
 dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
 dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-dcm_cronparse_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+dcm_cronparse_gtest_CFLAGS = 
+
+
+dcm_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_utils_gtest_LDADD = $(COMMON_LDADD)
+dcm_utils_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_utils_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 #rdm_main_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 #rdm_main_gtest_LDADD = $(COMMON_LDADD)
