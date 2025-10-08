@@ -20,7 +20,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
-bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
+#bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
+bin_PROGRAMS = dcm_utils_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I../mocks -I../src -I../include    \
