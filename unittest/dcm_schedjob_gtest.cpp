@@ -137,7 +137,7 @@ TEST(DcmSchedJobStandaloneTest, RemoveJobWithNullHandleDoesNothing) {
 }
 
 //
-
+/*
 extern "C" {
 INT32 dcmCronParseExp(INT8 *pattern, dcmCronParseData *parseData) {
     // Simulate success for a valid pattern, failure for "fail"
@@ -147,6 +147,7 @@ INT32 dcmCronParseExp(INT8 *pattern, dcmCronParseData *parseData) {
     return DCM_SUCCESS;
 }
 }
+*/
 
 class DcmSchedStartJobTest : public ::testing::Test {
 protected:
