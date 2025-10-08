@@ -20,6 +20,7 @@
 #include <gmock/gmock.h>
 #include <cstring>
 #include <stdio.h>
+#include <fstream>
 
 extern "C" {
 #include "dcm_cronparse.h"
