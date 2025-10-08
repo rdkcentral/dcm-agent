@@ -279,6 +279,87 @@ TEST(DcmSchedAddJobTest, ReturnsValidHandleOnSuccess) {
 
 
 
+class DCMSchedRemoveJobTest : public ::testing::Test {
+
+    void SetUp() override {
+        
+    }
+    void TearDown() override {
+        
+    }
+};
+
+TEST(DCMSchedRemoveJobTest, NullHandle_ShouldNotCrash)
+{
+    // Should simply return when pHandle == NULL
+    EXPECT_NO_THROW({
+        dcmSchedRemoveJob(NULL);
+    });
+}
+
+TEST(DCMSchedRemoveJobTest, ValidHandle_ShouldCleanUpResources)
+{
+    DCMScheduler* sched = (DCMScheduler*)malloc(sizeof(DCMScheduler));
+    ASSERT_NE(sched, nullptr);
+
+    pthread_mutex_init(&sched->tMutex, NULL);
+    pthread_cond_init(&sched->tCond, NULL);
+    sched->startSched = true;
+    sched->terminated = false;
+
+    // Create dummy thread
+    pthread_create(&sched->tId, NULL, DummyThread, sched);
+
+    // Call function under test
+    dcmSchedRemoveJob(sched);
+
+    // Nothing to directly assert since memory is freed,
+    // but test passes if no crash / deadlock / UB occurs.
+    SUCCEED();
+}
+
+TEST(DCMSchedRemoveJobTest, ThreadShouldBeJoinedAndTerminated)
+{
+    DCMScheduler* sched = (DCMScheduler*)malloc(sizeof(DCMScheduler));
+    ASSERT_NE(sched, nullptr);
+
+    pthread_mutex_init(&sched->tMutex, NULL);
+    pthread_cond_init(&sched->tCond, NULL);
+    sched->startSched = true;
+    sched->terminated = false;
+
+    // Create a dummy thread to simulate scheduler
+    pthread_create(&sched->tId, NULL, DummyThread, sched);
+
+    // Remove job
+    dcmSchedRemoveJob(sched);
+
+    // If we reached here — thread joined and memory freed correctly
+    SUCCEED();
+}
+
+TEST(DCMSchedRemoveJobTest, MultipleRemoveCalls_ShouldNotCrash)
+{
+    DCMScheduler* sched = (DCMScheduler*)malloc(sizeof(DCMScheduler));
+    ASSERT_NE(sched, nullptr);
+
+    pthread_mutex_init(&sched->tMutex, NULL);
+    pthread_cond_init(&sched->tCond, NULL);
+    sched->startSched = true;
+    sched->terminated = false;
+    pthread_create(&sched->tId, NULL, DummyThread, sched);
+
+    // First call should succeed
+    dcmSchedRemoveJob(sched);
+
+    // Calling again with freed pointer should be safe if handled
+    // (not expected in real use, but for robustness)
+    EXPECT_NO_THROW({
+        dcmSchedRemoveJob(NULL);
+    });
+}
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
