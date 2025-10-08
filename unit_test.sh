@@ -43,8 +43,9 @@ make
 fail=0
 
 for test in \
-  #./dcm_cronparse_gtest \
   ./dcm_utils_gtest
+  #./dcm_cronparse_gtest \
+  
   #./rdm_main_gtest \
   #./rdm_utils_gtest \
   #./rdm_curl_gtest \
