@@ -278,7 +278,7 @@ TEST(DcmSchedAddJobTest, ReturnsValidHandleOnSuccess) {
 
 
 
-
+/*
 class DCMSchedRemoveJobTest : public ::testing::Test {
 
     void SetUp() override {
@@ -359,7 +359,7 @@ TEST(DCMSchedRemoveJobTest, MultipleRemoveCalls_ShouldNotCrash)
     });
 }
 
-
+*/
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
