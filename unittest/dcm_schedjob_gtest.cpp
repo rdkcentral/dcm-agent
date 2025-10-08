@@ -53,18 +53,88 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
+#include "dcm_schedjob.h"
 
-//extern static INT32 dcmCronParseToUpper(INT8* str);
-class DCMshedjobTest: public ::testing::Test {
+
+// Mock callback function for scheduler
+void MockCallback(INT8 *name, VOID *userData) {
+    int *callbackHit = static_cast<int*>(userData);
+    (*callbackHit)++;
+}
+
+// Fixture for scheduler tests
+class DcmSchedJobTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    VOID *schedHandle = nullptr;
+    int callbackHit = 0;
+
+    virtual void SetUp() override {
+        schedHandle = dcmSchedAddJob((INT8*)"TestJob", MockCallback, &callbackHit);
+        ASSERT_NE(schedHandle, nullptr);
     }
 
-    void TearDown() override {
+    virtual void TearDown() override {
+        if (schedHandle) {
+            dcmSchedRemoveJob(schedHandle);
+            schedHandle = nullptr;
+        }
     }
 };
 
-#include "dcm_schedjob.h"
+TEST_F(DcmSchedJobTest, AddJobAndRemoveJob) {
+    // Job was added in SetUp, should be non-null
+    ASSERT_NE(schedHandle, nullptr);
+    // RemoveJob called in TearDown, should not crash
+}
+
+TEST_F(DcmSchedJobTest, StartJobWithInvalidCronPatternFails) {
+    // Should fail with invalid cron pattern
+    INT32 ret = dcmSchedStartJob(schedHandle, (INT8*)"invalid pattern");
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST_F(DcmSchedJobTest, StartAndStopJobWithValidCronPattern) {
+    // A valid cron pattern (e.g., every minute: "* * * * *")
+    INT32 ret = dcmSchedStartJob(schedHandle, (INT8*)"* * * * *");
+    EXPECT_EQ(ret, DCM_SUCCESS);
+
+    ret = dcmSchedStopJob(schedHandle);
+    EXPECT_EQ(ret, DCM_SUCCESS);
+}
+
+TEST_F(DcmSchedJobTest, SchedulerCallbackIsCalledOnTimeout) {
+    // Use a cron pattern that triggers almost immediately for the test
+    INT32 ret = dcmSchedStartJob(schedHandle, (INT8*)"* * * * *"); // every minute
+    EXPECT_EQ(ret, DCM_SUCCESS);
+
+    // Wait a bit longer than a second to allow the callback to be triggered
+    // (Depending on cron parser implementation, you may need to adjust this)
+    sleep(2);
+
+    EXPECT_GT(callbackHit, 0);
+
+    dcmSchedStopJob(schedHandle);
+}
+
+TEST(DcmSchedJobStandaloneTest, AddJobWithNullNameReturnsNull) {
+    VOID *handle = dcmSchedAddJob(nullptr, MockCallback, nullptr);
+    EXPECT_EQ(handle, nullptr);
+}
+
+TEST(DcmSchedJobStandaloneTest, StartJobWithNullHandleFails) {
+    INT32 ret = dcmSchedStartJob(nullptr, (INT8*)"* * * * *");
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST(DcmSchedJobStandaloneTest, StopJobWithNullHandleFails) {
+    INT32 ret = dcmSchedStopJob(nullptr);
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST(DcmSchedJobStandaloneTest, RemoveJobWithNullHandleDoesNothing) {
+    // Should not crash
+    dcmSchedRemoveJob(nullptr);
+}
 
 
 
