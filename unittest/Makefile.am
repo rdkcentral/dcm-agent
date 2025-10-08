@@ -52,10 +52,10 @@ dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ./dcm_utils.c
 #rdm_usbinstall_gtest_SOURCES = rdm_usbinstall_gtest.cpp ../src/rdm_usbinstall.c
 #dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
 
-dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
-dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-dcm_cronparse_gtest_CFLAGS = 
+#dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+#dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
+#dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+#dcm_cronparse_gtest_CFLAGS = 
 
 
 dcm_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
