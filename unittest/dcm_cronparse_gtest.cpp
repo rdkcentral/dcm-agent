@@ -50,7 +50,7 @@ using ::testing::DoAll;
 using ::testing::StrEq;
 
 
-class DCMTest : public ::testing::Test {
+class dcmCronParseToUpperTest : public ::testing::Test {
 protected:
     void SetUp() override {
     }
@@ -58,6 +58,55 @@ protected:
     void TearDown() override {
     }
 };
+
+TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
+    EXPECT_EQ(dcmCronParseToUpper(nullptr), 1);
+}
+
+TEST(dcmCronParseToUpperTest, EmptyStringNoChange) {
+    INT8 input[] = "";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "");
+}
+
+TEST(dcmCronParseToUpperTest, AllLowercase) {
+    INT8 input[] = "abcdef";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "ABCDEF");
+}
+
+TEST(dcmCronParseToUpperTest, MixedCase) {
+    INT8 input[] = "aBcDeF";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "ABCDEF");
+}
+
+TEST(dcmCronParseToUpperTest, AlreadyUppercase) {
+    INT8 input[] = "ABCDEF";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "ABCDEF");
+}
+
+TEST(dcmCronParseToUpperTest, StringWithDigitsAndSymbols) {
+    INT8 input[] = "abc123!@#XYZ";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "ABC123!@#XYZ");
+}
+
+TEST(dcmCronParseToUpperTest, StringWithSpaces) {
+    INT8 input[] = "a b c D E F";
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    EXPECT_STREQ(input, "A B C D E F");
+}
+
+TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
+    // Depending on locale, toupper may not handle Unicode. Here, just check ASCII is uppercased and others remain.
+    INT8 input[] = "abc\xC3\xA9\xC3\xB1"; // "abcéñ" in UTF-8 (may not be handled well, but for demonstration)
+    EXPECT_EQ(dcmCronParseToUpper(input), 0);
+    // Only 'a', 'b', 'c' should be uppercased; rest should remain.
+    EXPECT_TRUE(strncmp(input, "ABC", 3) == 0);
+}
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
