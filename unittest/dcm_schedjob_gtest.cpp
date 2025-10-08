@@ -136,7 +136,56 @@ TEST(DcmSchedJobStandaloneTest, RemoveJobWithNullHandleDoesNothing) {
     dcmSchedRemoveJob(nullptr);
 }
 
+//
 
+extern "C" {
+INT32 dcmCronParseExp(INT8 *pattern, dcmCronParseData *parseData) {
+    // Simulate success for a valid pattern, failure for "fail"
+    if (strcmp((const char *)pattern, "fail") == 0) {
+        return DCM_FAILURE;
+    }
+    return DCM_SUCCESS;
+}
+}
+
+class DcmSchedStartJobTest : public ::testing::Test {
+protected:
+    DCMScheduler sched;
+
+    void SetUp() override {
+        memset(&sched, 0, sizeof(sched));
+        pthread_mutex_init(&sched.tMutex, nullptr);
+        pthread_cond_init(&sched.tCond, nullptr);
+    }
+    void TearDown() override {
+        pthread_mutex_destroy(&sched.tMutex);
+        pthread_cond_destroy(&sched.tCond);
+    }
+};
+
+TEST_F(DcmSchedStartJobTest, NullHandleReturnsFailure) {
+    INT32 ret = dcmSchedStartJob(nullptr, (INT8*)"* * * * *");
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST_F(DcmSchedStartJobTest, NullPatternReturnsFailure) {
+    INT32 ret = dcmSchedStartJob(&sched, nullptr);
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST_F(DcmSchedStartJobTest, CronParseSuccessSetsStartSchedAndSignals) {
+    sched.startSched = 0;
+    INT32 ret = dcmSchedStartJob(&sched, (INT8*)"* * * * *");
+    EXPECT_EQ(ret, DCM_SUCCESS);
+    EXPECT_EQ(sched.startSched, 1);
+}
+
+TEST_F(DcmSchedStartJobTest, CronParseFailUnsetsStartSched) {
+    sched.startSched = 1;
+    INT32 ret = dcmSchedStartJob(&sched, (INT8*)"fail");
+    EXPECT_EQ(ret, DCM_FAILURE);
+    EXPECT_EQ(sched.startSched, 0);
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
