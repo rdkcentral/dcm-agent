@@ -217,6 +217,67 @@ TEST_F(DcmSchedStopJobTest, StopJobSetsStartSchedToZeroAndReturnsSuccess) {
 
 
 
+// Mock callback
+void* mockCallback(void* arg) { return NULL; }
+
+// 1. Null job name
+TEST(DcmSchedAddJobTest, ReturnsNullWhenJobNameIsNull) {
+    void* result = dcmSchedAddJob(NULL, mockCallback, NULL);
+    EXPECT_EQ(result, nullptr);
+}
+
+// 2. Memory allocation failure
+TEST(DcmSchedAddJobTest, ReturnsNullWhenMallocFails) {
+    // Simulate malloc failure (if you have wrapper/mocking infra)
+    void* result = dcmSchedAddJob((INT8*)"Job1", mockCallback, NULL);
+    // Expected NULL if malloc fails internally
+    EXPECT_EQ(result, nullptr);
+}
+
+// 3. Mutex initialization failure
+TEST(DcmSchedAddJobTest, ReturnsNullWhenMutexInitFails) {
+    // Simulate pthread_mutex_init failure
+    void* result = dcmSchedAddJob((INT8*)"Job2", mockCallback, NULL);
+    EXPECT_EQ(result, nullptr);
+}
+
+// 4. Condition variable initialization failure
+TEST(DcmSchedAddJobTest, ReturnsNullWhenCondInitFails) {
+    // Simulate pthread_cond_init failure
+    void* result = dcmSchedAddJob((INT8*)"Job3", mockCallback, NULL);
+    EXPECT_EQ(result, nullptr);
+}
+
+// 5. Thread creation failure
+TEST(DcmSchedAddJobTest, ReturnsNullWhenThreadCreationFails) {
+    // Simulate pthread_create failure
+    void* result = dcmSchedAddJob((INT8*)"Job4", mockCallback, NULL);
+    EXPECT_EQ(result, nullptr);
+}
+
+// 6. Successful creation
+TEST(DcmSchedAddJobTest, ReturnsValidHandleOnSuccess) {
+    void* handle = dcmSchedAddJob((INT8*)"Job5", mockCallback, (void*)1234);
+    ASSERT_NE(handle, nullptr);
+
+    DCMScheduler* sched = (DCMScheduler*)handle;
+    EXPECT_STREQ(sched->name, "Job5");
+    EXPECT_EQ(sched->pDcmCB, mockCallback);
+    EXPECT_EQ(sched->pUserData, (void*)1234);
+    EXPECT_FALSE(sched->terminated);
+    EXPECT_FALSE(sched->startSched);
+
+    // Cleanup (important to avoid leaks or threads left running)
+    pthread_cancel(sched->tId);
+    pthread_join(sched->tId, NULL);
+    pthread_mutex_destroy(&sched->tMutex);
+    pthread_cond_destroy(&sched->tCond);
+    free(sched);
+}
+
+
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
