@@ -83,6 +83,85 @@ TEST(DCMUtilsTest, FilePresentCheck_ValidFile) {
     EXPECT_EQ(dcmUtilsFilePresentCheck(fname), DCM_SUCCESS);
     RemoveFile(fname);
 }
+
+TEST(DCMUtilsTest, FilePresentCheck_NullPtr) {
+    EXPECT_EQ(dcmUtilsFilePresentCheck(NULL), DCM_FAILURE);
+}
+
+TEST(DCMUtilsTest, FilePresentCheck_FileNotExist) {
+    const char* fname = "/tmp/dcm_testfile_not_exist";
+    RemoveFile(fname);
+    EXPECT_EQ(dcmUtilsFilePresentCheck(fname), DCM_FAILURE);
+}
+
+// Test dcmUtilsCopyCommandOutput
+TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
+    char output[128];
+    dcmUtilsCopyCommandOutput((INT8*)"echo hello", (INT8*)output, sizeof(output));
+    EXPECT_STREQ(output, "hello");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_NullOut) {
+    // Should not crash or segfault
+    dcmUtilsCopyCommandOutput((INT8*)"echo test", NULL, 0);
+}
+
+// Test dcmUtilsSysCmdExec
+TEST(DCMUtilsTest, SysCmdExec_Valid) {
+    EXPECT_EQ(dcmUtilsSysCmdExec((INT8*)"echo test"), DCM_SUCCESS);
+}
+
+TEST(DCMUtilsTest, SysCmdExec_Null) {
+    EXPECT_EQ(dcmUtilsSysCmdExec(NULL), DCM_FAILURE);
+}
+
+// Test dcmUtilsGetFileEntry
+TEST(DCMUtilsTest, GetFileEntry_ValidKey) {
+    const char* fname = "/tmp/dcm_test_kv";
+    CreateFile(fname, "key1=value1\nkey2=value2\n");
+    INT8* result = dcmUtilsGetFileEntry(fname, "key2");
+    ASSERT_NE(result, nullptr);
+    EXPECT_STREQ(result, "value2");
+    free(result);
+    RemoveFile(fname);
+}
+
+TEST(DCMUtilsTest, GetFileEntry_KeyNotFound) {
+    const char* fname = "/tmp/dcm_test_kv";
+    CreateFile(fname, "key1=value1\n");
+    INT8* result = dcmUtilsGetFileEntry(fname, "key2");
+    EXPECT_EQ(result, nullptr);
+    RemoveFile(fname);
+}
+
+TEST(DCMUtilsTest, GetFileEntry_NullArgs) {
+    EXPECT_EQ(dcmUtilsGetFileEntry(NULL, "key"), nullptr);
+    EXPECT_EQ(dcmUtilsGetFileEntry("file", NULL), nullptr);
+}
+
+// Test dcmUtilsRemovePIDfile
+TEST(DCMUtilsTest, RemovePIDfile_Existing) {
+    // Create a fake PID file
+    CreateFile(DCM_PID_FILE, "1234\n");
+    dcmUtilsRemovePIDfile();
+    // Now file should not exist
+    std::ifstream ifs(DCM_PID_FILE);
+    EXPECT_FALSE(ifs.good());
+}
+
+// Test dcmUtilsCheckDaemonStatus (basic functionality)
+TEST(DCMUtilsTest, CheckDaemonStatus_NewFile) {
+    RemoveFile(DCM_PID_FILE);
+    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_SUCCESS);
+    RemoveFile(DCM_PID_FILE);
+}
+
+// Test dcmIARMEvntSend (does nothing)
+TEST(DCMUtilsTest, IARMEvntSend) {
+    EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
+}
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
@@ -97,3 +176,5 @@ GTEST_API_ int main(int argc, char *argv[]){
     cout << "Starting DCM GTEST ===================>" << endl;
     return RUN_ALL_TESTS();
 }
+
+
