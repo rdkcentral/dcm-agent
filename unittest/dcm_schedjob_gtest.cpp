@@ -187,6 +187,36 @@ TEST_F(DcmSchedStartJobTest, CronParseFailUnsetsStartSched) {
     EXPECT_EQ(sched.startSched, 0);
 }
 
+class DcmSchedStopJobTest : public ::testing::Test {
+protected:
+    DCMScheduler sched;
+
+    void SetUp() override {
+        memset(&sched, 0, sizeof(sched));
+        pthread_mutex_init(&sched.tMutex, nullptr);
+        pthread_cond_init(&sched.tCond, nullptr);
+        sched.startSched = 1;
+    }
+    void TearDown() override {
+        pthread_mutex_destroy(&sched.tMutex);
+        pthread_cond_destroy(&sched.tCond);
+    }
+};
+
+TEST_F(DcmSchedStopJobTest, NullHandleReturnsFailure) {
+    INT32 ret = dcmSchedStopJob(nullptr);
+    EXPECT_EQ(ret, DCM_FAILURE);
+}
+
+TEST_F(DcmSchedStopJobTest, StopJobSetsStartSchedToZeroAndReturnsSuccess) {
+    sched.startSched = 1;
+    INT32 ret = dcmSchedStopJob(&sched);
+    EXPECT_EQ(ret, DCM_SUCCESS);
+    EXPECT_EQ(sched.startSched, 0);
+}
+
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
