@@ -20,11 +20,15 @@
 #include <gmock/gmock.h>
 #include <cstring>
 #include <stdio.h>
+#include <climits>
+#include <cerrno>
+
 
 extern "C" {
 #include "dcm_cronparse.h"
 #include "../dcm_types.h"
 INT32 (*getdcmCronParseToUpper(void)) (INT8*);
+UINT32 (*getdcmCronParseTest(void)) (const INT8*, INT32*);
 }
 
 
@@ -55,7 +59,7 @@ using ::testing::DoAll;
 using ::testing::StrEq;
 
 //extern static INT32 dcmCronParseToUpper(INT8* str);
-class dcmCronParseToUpperTest : public ::testing::Test {
+class dcmCronParseTest : public ::testing::Test {
 protected:
     void SetUp() override {
     }
@@ -64,7 +68,7 @@ protected:
     }
 };
 
-TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
+TEST(dcmCronParseTest , NullPointerReturnsError) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8* str = NULL;
 
@@ -72,7 +76,7 @@ TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
     EXPECT_EQ(result, 1);
 }
 
-TEST(dcmCronParseToUpperTest, EmptyStringNoChange) {
+TEST(dcmCronParseTest , EmptyStringNoChange) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8 input[] = "";
 
@@ -81,7 +85,7 @@ TEST(dcmCronParseToUpperTest, EmptyStringNoChange) {
     EXPECT_STREQ(input, "");
 }
 
-TEST(dcmCronParseToUpperTest, AllLowercase) {
+TEST(dcmCronParseTest , AllLowercase) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8 input[] = "abcdef";
 
@@ -90,7 +94,7 @@ TEST(dcmCronParseToUpperTest, AllLowercase) {
     EXPECT_STREQ(input, "ABCDEF");
 }
 
-TEST(dcmCronParseToUpperTest, MixedCase) {
+TEST(dcmCronParseTest , MixedCase) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8 input[] = "aBcDeF";
 
@@ -99,7 +103,7 @@ TEST(dcmCronParseToUpperTest, MixedCase) {
     EXPECT_STREQ(input, "ABCDEF");
 }
 
-TEST(dcmCronParseToUpperTest, AlreadyUppercase) {
+TEST(dcmCronParseTest , AlreadyUppercase) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8 input[] = "ABCDEF";
     INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
@@ -107,7 +111,7 @@ TEST(dcmCronParseToUpperTest, AlreadyUppercase) {
     EXPECT_STREQ(input, "ABCDEF");   
 }
 
-TEST(dcmCronParseToUpperTest, StringWithDigitsAndSymbols) {
+TEST(dcmCronParseTest , StringWithDigitsAndSymbols) {
     INT8 input[] = "abc123!@#XYZ";
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
@@ -115,7 +119,7 @@ TEST(dcmCronParseToUpperTest, StringWithDigitsAndSymbols) {
     EXPECT_STREQ(input, "ABC123!@#XYZ");
 }
 
-TEST(dcmCronParseToUpperTest, StringWithSpaces) {
+TEST(dcmCronParseTest , StringWithSpaces) {
     INT8 input[] = "a b c D E F";
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
@@ -131,6 +135,64 @@ TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
     EXPECT_TRUE(strncmp(input, "ABC", 3) == 0);
 }
 */
+
+
+
+TEST(dcmCronParseTest , ValidNumber) {
+    INT32 errcode;
+    UINT32 result = dcmCronParseParseUint("12345", &errcode);
+    EXPECT_EQ(result, 12345u);
+    EXPECT_EQ(errcode, 0);
+}
+
+Test(dcmCronParseTest , ZeroValue) {
+    INT32 errcode;
+    UINT32 result = dcmCronParseParseUint("0", &errcode);
+    EXPECT_EQ(result, 0u);
+    EXPECT_EQ(errcode, 0);
+}
+
+TEST(dcmCronParseTest , NegativeNumber) {
+    INT32 errcode;
+    UINT32 result = dcmCronParseParseUint("-123", &errcode);
+    EXPECT_EQ(result, 0u);
+    EXPECT_EQ(errcode, 1);
+}
+
+TEST(dcmCronParseTest , NonNumericString) {
+    INT32 errcode;
+    UINT32 result = dcmCronParseParseUint("abc", &errcode);
+    EXPECT_EQ(result, 0u);
+    EXPECT_EQ(errcode, 1);
+}
+
+TEST(dcmCronParseTest , MixedAlphaNumeric) {
+    INT32 errcode;
+    UINT32 result = dcmCronParseParseUint("123abc", &errcode);
+    EXPECT_EQ(result, 0u);
+    EXPECT_EQ(errcode, 1);
+}
+
+TEST(dcmCronParseTest , OverflowValue) {
+    INT32 errcode;
+    char bigNum[32];
+    snprintf(bigNum, sizeof(bigNum), "%lld", (long long)INT_MAX + 1);
+    UINT32 result = dcmCronParseParseUint(bigNum, &errcode);
+    EXPECT_EQ(result, 0u);
+    EXPECT_EQ(errcode, 1);
+}
+
+TEST(dcmCronParseTest , MaxIntValue) {
+    INT32 errcode;
+    char maxIntStr[32];
+    snprintf(maxIntStr, sizeof(maxIntStr), "%d", INT_MAX);
+    UINT32 result = dcmCronParseParseUint(maxIntStr, &errcode);
+    EXPECT_EQ(result, static_cast<UINT32>(INT_MAX));
+    EXPECT_EQ(errcode, 0);
+}
+
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
