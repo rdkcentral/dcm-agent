@@ -942,7 +942,7 @@ INT32 (*getdcmCronParseToUpper(void)) (INT8*)
 {
 	return &dcmCronParseToUpper;
 }
-UINT32 (*getdcmCronParseTest(void)) (const INT8*, INT32*) 
+UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*) 
 {
 	return &dcmCronParseParseUint;
 }
