@@ -197,7 +197,12 @@ TEST(dcmCronParseTest , MaxIntValue) {
     EXPECT_EQ(errcode, 0);
 }
 
-
+TEST(dcmCronParseTest, ParseValidExpression) {
+    dcmCronExpr expr = {};
+    const INT8* cron = "* * * * * *"; // Example: every second
+    INT32 result = dcmCronParseExp(cron, &expr);
+    EXPECT_EQ(result, 0); // Adjust expected value based on implementation
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
