@@ -61,10 +61,10 @@ using ::testing::StrEq;
 //extern static INT32 dcmCronParseToUpper(INT8* str);
 class dcmCronParseTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp(){
     }
 
-    void TearDown() override {
+    void TearDown(){
     }
 };
 
@@ -135,7 +135,6 @@ TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
     EXPECT_TRUE(strncmp(input, "ABC", 3) == 0);
 }
 */
-
 
 
 TEST(dcmCronParseTest , ValidNumber) {
