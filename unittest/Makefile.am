@@ -40,6 +40,7 @@ COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive
 #dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
 dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ../dcm_utils.c
 dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
+dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
 
 #rdm_main_gtest_SOURCES = rdm_main_gtest.cpp ../rdm_main.c 
 #rdm_curl_gtest_SOURCES = rdm_curl_gtest.cpp  ../src/rdm_curldownload.c
