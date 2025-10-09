@@ -18,7 +18,7 @@
 # limitations under the License.
 ####################################################################################
 
-export top_srcdir=`pwd`
+export top_srcdir=`pwd` 
 RESULT_DIR="/tmp/l2_test_report"
 LOCAL_DIR="/usr/local"
 RBUS_INSTALL_DIR="/usr/local"
