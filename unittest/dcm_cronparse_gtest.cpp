@@ -66,7 +66,7 @@ TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8* str = NULL;
 
-    INT_32 result = myFunctionPtr(str); // Indirectly calls performRequest
+    INT32 result = myFunctionPtr(str); // Indirectly calls performRequest
     EXPECT_EQ(result, 1);
 }
 /*
