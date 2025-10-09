@@ -20,7 +20,7 @@ jobs:
           sh unit_test.sh --enable-cov
       - name: Caculate the code coverage summary
         run: |
-          cd ./src/unittest
+          cd ./unittest
           lcov --list coverage.info | grep "Lines\|Total" > /tmp/coverage_summary.txt
           cd -
         
