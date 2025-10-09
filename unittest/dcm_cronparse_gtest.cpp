@@ -208,7 +208,7 @@ TEST(dcmCronParseTest, ParseInvalidExpression) {
     dcmCronExpr expr = {};
     const INT8* cron = NULL;
     INT32 result = dcmCronParseExp(cron, &expr);
-    EXPECT_EQ(result, 1); // Should fail
+    EXPECT_EQ(result, CRON_FAILURE); // Should fail
 }
 
 TEST(dcmCronParseTest, GetNextTime) {
