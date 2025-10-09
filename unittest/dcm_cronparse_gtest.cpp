@@ -145,14 +145,15 @@ TEST(dcmCronParseTest , ValidNumber) {
     EXPECT_EQ(result, 12345u);
     EXPECT_EQ(errcode, 0);
 }
-/*
+
 Test(dcmCronParseTest , ZeroValue) {
     INT32 errcode;
-    UINT32 result = dcmCronParseParseUint("0", &errcode);
+    auto myFunctionPtr = getdcmCronParseParseUint();
+    UINT32 result = myFunctionPtr("0", &errcode);
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 0);
 }
-
+/*
 TEST(dcmCronParseTest , NegativeNumber) {
     INT32 errcode;
     UINT32 result = dcmCronParseParseUint("-123", &errcode);
