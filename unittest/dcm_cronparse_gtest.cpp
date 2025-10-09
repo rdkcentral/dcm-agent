@@ -24,8 +24,10 @@
 extern "C" {
 #include "dcm_cronparse.h"
 #include "../dcm_types.h"
-
+INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 }
+
+
 //#include "../dcm_cronparse.c"
 
 /*#include "rdm_types.h"
