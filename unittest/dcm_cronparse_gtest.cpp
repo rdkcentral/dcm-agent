@@ -152,24 +152,27 @@ TEST(dcmCronParseTest , ZeroValue) {
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 0);
 }
-/*
+
 TEST(dcmCronParseTest , NegativeNumber) {
     INT32 errcode;
-    UINT32 result = dcmCronParseParseUint("-123", &errcode);
+    auto myFunctionPtr = getdcmCronParseParseUint();
+    UINT32 result = myFunctionPtr("-123", &errcode);
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 1);
 }
 
 TEST(dcmCronParseTest , NonNumericString) {
     INT32 errcode;
-    UINT32 result = dcmCronParseParseUint("abc", &errcode);
+    auto myFunctionPtr = getdcmCronParseParseUint();
+    UINT32 result = myFunctionPtr("abc", &errcode);
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 1);
 }
 
 TEST(dcmCronParseTest , MixedAlphaNumeric) {
     INT32 errcode;
-    UINT32 result = dcmCronParseParseUint("123abc", &errcode);
+    auto myFunctionPtr = getdcmCronParseParseUint();
+    UINT32 result = myFunctionPtr("123abc", &errcode);
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 1);
 }
@@ -177,8 +180,9 @@ TEST(dcmCronParseTest , MixedAlphaNumeric) {
 TEST(dcmCronParseTest , OverflowValue) {
     INT32 errcode;
     char bigNum[32];
+    auto myFunctionPtr = getdcmCronParseParseUint();
     snprintf(bigNum, sizeof(bigNum), "%lld", (long long)INT_MAX + 1);
-    UINT32 result = dcmCronParseParseUint(bigNum, &errcode);
+    UINT32 result = myFunctionPtr(bigNum, &errcode);
     EXPECT_EQ(result, 0u);
     EXPECT_EQ(errcode, 1);
 }
@@ -186,12 +190,13 @@ TEST(dcmCronParseTest , OverflowValue) {
 TEST(dcmCronParseTest , MaxIntValue) {
     INT32 errcode;
     char maxIntStr[32];
+    auto myFunctionPtr = getdcmCronParseParseUint();
     snprintf(maxIntStr, sizeof(maxIntStr), "%d", INT_MAX);
-    UINT32 result = dcmCronParseParseUint(maxIntStr, &errcode);
+    UINT32 result = myFunctionPtr(maxIntStr, &errcode);
     EXPECT_EQ(result, static_cast<UINT32>(INT_MAX));
     EXPECT_EQ(errcode, 0);
 }
-*/
+
 
 
 GTEST_API_ int main(int argc, char *argv[]){
