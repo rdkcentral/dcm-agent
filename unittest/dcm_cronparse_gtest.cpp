@@ -145,7 +145,7 @@ TEST(dcmCronParseTest , ValidNumber) {
     EXPECT_EQ(errcode, 0);
 }
 
-Test(dcmCronParseTest , ZeroValue) {
+TEST(dcmCronParseTest , ZeroValue) {
     INT32 errcode;
     auto myFunctionPtr = getdcmCronParseParseUint();
     UINT32 result = myFunctionPtr("0", &errcode);
