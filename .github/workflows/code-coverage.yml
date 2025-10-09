@@ -44,7 +44,7 @@ jobs:
             });
       - name: Generate the html report
         run: |
-          cd ./src/unittest
+          cd ./unittest
           genhtml coverage.info --output-directory /tmp/coverage_report
           cd -
       - name: Upload the coverage report to Pull request using actions
