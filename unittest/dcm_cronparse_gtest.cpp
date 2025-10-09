@@ -68,7 +68,7 @@ TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8* str = NULL;
 
-    INT32 result = myFunctionPtr(str); // Indirectly calls performRequest
+    INT32 result = myFunctionPtr(str); 
     EXPECT_EQ(result, 1);
 }
 
@@ -76,7 +76,7 @@ TEST(dcmCronParseToUpperTest, EmptyStringNoChange) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8 input[] = "";
 
-    INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
+    INT32 result = myFunctionPtr(input); 
     EXPECT_EQ(result, 0);
     EXPECT_STREQ(input, "");
 }
@@ -87,7 +87,7 @@ TEST(dcmCronParseToUpperTest, AllLowercase) {
 
     INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
     EXPECT_EQ(result, 0);
-    EXPECT_STREQ(input, "abcdef");
+    EXPECT_STREQ(input, "ABCDEF");
 }
 
 TEST(dcmCronParseToUpperTest, MixedCase) {
@@ -96,7 +96,7 @@ TEST(dcmCronParseToUpperTest, MixedCase) {
 
     INT32 result = myFunctionPtr(input); // Indirectly calls performRequest
     EXPECT_EQ(result, 0);
-    EXPECT_STREQ(input, "aBcDeF");
+    EXPECT_STREQ(input, "ABCDEF");
 }
 
 TEST(dcmCronParseToUpperTest, AlreadyUppercase) {
