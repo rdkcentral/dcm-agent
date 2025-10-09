@@ -61,11 +61,15 @@ protected:
     void TearDown() override {
     }
 };
-/*
-TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
-    EXPECT_EQ(dcmCronParseToUpper(nullptr), 1);
-}
 
+TEST(dcmCronParseToUpperTest, NullPointerReturnsError) {
+    auto myFunctionPtr = getdcmCronParseToUpper();
+    INT8* str = NULL;
+
+    INT_32 result = myFunctionPtr(str); // Indirectly calls performRequest
+    EXPECT_EQ(result, 1);
+}
+/*
 TEST(dcmCronParseToUpperTest, EmptyStringNoChange) {
     INT8 input[] = "";
     EXPECT_EQ(dcmCronParseToUpper(input), 0);
