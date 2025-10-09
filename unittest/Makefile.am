@@ -21,7 +21,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
 #bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
-bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest
+bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I../mocks -I../src -I../include    \
                   -I/usr/include/gtest -I/usr/local/include/gtest -DGTEST_ENABLE 
@@ -52,11 +52,10 @@ dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 #rdm_usbinstall_gtest_SOURCES = rdm_usbinstall_gtest.cpp ../src/rdm_usbinstall.c
 #dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
 
-#dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-#dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
-#dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-#dcm_cronparse_gtest_CFLAGS = 
-
+dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
+dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_cronparse_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 dcm_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_utils_gtest_LDADD = $(COMMON_LDADD)
