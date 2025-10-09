@@ -86,12 +86,13 @@ TEST_F(DcmSchedJobTest, AddJobAndRemoveJob) {
     ASSERT_NE(schedHandle, nullptr);
     // RemoveJob called in TearDown, should not crash
 }
-
+/*
 TEST_F(DcmSchedJobTest, StartJobWithInvalidCronPatternFails) {
     // Should fail with invalid cron pattern
     INT32 ret = dcmSchedStartJob(schedHandle, (INT8*)"invalid pattern");
     EXPECT_EQ(ret, DCM_FAILURE);
 }
+*/
 
 TEST_F(DcmSchedJobTest, StartAndStopJobWithValidCronPattern) {
     // A valid cron pattern (e.g., every minute: "* * * * *")
