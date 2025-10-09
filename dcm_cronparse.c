@@ -938,3 +938,6 @@ return_res:
     return ret;
 }
 
+INT32 (*getdcmCronParseToUpper(void)) (INT8*) {
+	return &dcmCronParseToUpper;
+}
