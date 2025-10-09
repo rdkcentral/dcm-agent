@@ -204,6 +204,21 @@ TEST(dcmCronParseTest, ParseValidExpression) {
     EXPECT_EQ(result, 0); // Adjust expected value based on implementation
 }
 
+TEST(dcmCronParseTest, ParseInvalidExpression) {
+    dcmCronExpr expr = {};
+    const INT8* cron = "invalid cron";
+    INT32 result = dcmCronParseExp(cron, &expr);
+    EXPECT_NE(result, 0); // Should fail
+}
+
+TEST(dcmCronParseTest, GetNextTime) {
+    dcmCronExpr expr = {};
+    const INT8* cron = "* * * * * *";
+    dcmCronParseExp(cron, &expr);
+    time_t now = time(nullptr);
+    time_t next = dcmCronParseGetNext(&expr, now);
+    EXPECT_GT(next, now); // Next time should be in the future
+}
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
