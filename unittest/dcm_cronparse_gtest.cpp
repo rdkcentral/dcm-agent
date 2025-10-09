@@ -28,7 +28,7 @@ extern "C" {
 #include "dcm_cronparse.h"
 #include "../dcm_types.h"
 INT32 (*getdcmCronParseToUpper(void)) (INT8*);
-UINT32 (*getdcmCronParseTest(void)) (const INT8*, INT32*);
+UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 }
 
 
