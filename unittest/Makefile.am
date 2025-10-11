@@ -21,7 +21,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
 #bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
-bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest
+bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I../mocks -I../src -I../include    \
                   -I/usr/include/gtest -I/usr/local/include/gtest -DGTEST_ENABLE 
@@ -42,6 +42,7 @@ dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ../dcm_utils.c
 dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 #../dcm_cronparse.c
+dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp ../dcm_parseconf.c
 
 #rdm_main_gtest_SOURCES = rdm_main_gtest.cpp ../rdm_main.c 
 #rdm_curl_gtest_SOURCES = rdm_curl_gtest.cpp  ../src/rdm_curldownload.c
@@ -69,11 +70,10 @@ dcm_schedjob_gtest_LDADD = $(COMMON_LDADD)
 dcm_schedjob_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 dcm_schedjob_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-
-#rdm_main_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-#rdm_main_gtest_LDADD = $(COMMON_LDADD)
-#rdm_main_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-#rdm_main_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+dcm_parseconf_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_parseconf_gtest_LDADD = $(COMMON_LDADD)
+dcm_parseconf_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_parseconf_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 #rdm_curl_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 #rdm_curl_gtest_LDADD = $(COMMON_LDADD)
