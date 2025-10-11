@@ -26,7 +26,7 @@
 
 extern "C" {
 #include "dcm_types.h"
-#include "dcm_parseconf.h"
+//#include "dcm_parseconf.h"
 }
 #include "dcm_parseconf.c"
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
