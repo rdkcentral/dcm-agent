@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <climits>
 #include <cerrno>
+#include <fstream>
 #include "./mocks/mockRbus.h"
 
 /*extern "C" {
@@ -79,7 +80,7 @@ protected:
         RemoveFile("/opt/dcm_settings.conf");
         RemoveDirectory("/tmp/persistent");
         RemoveDirectory("/opt/persistent");
-        RemoveDirectory("/custom/path"); */
+        RemoveDirectory("/custom/path"); 
     }
 };
 
