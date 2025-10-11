@@ -99,7 +99,6 @@ typedef void* rbusHandle_t;
 typedef void* rbusValue_t;
 typedef void* rbusObject_t;
 typedef void* rbusFilter_t;
-typedef int BOOL;
 
 // Event structures
 typedef struct {
