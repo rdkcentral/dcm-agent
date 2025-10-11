@@ -142,7 +142,17 @@ TEST(dcmParseConfTest, GetUploadURL_NullHandle_ReturnsNull) {
     EXPECT_EQ(url, nullptr);
 }
 
+TEST_F(dcmParseConfTest, UnInit_ValidHandle_Success) {
+    DCMSettingsHandle* handle = CreateTestHandle();
+    EXPECT_NE(handle, nullptr);
+    // Should not crash and handle should be freed
+    dcmSettingsUnInit(handle);
+}
 
+TEST_F(dcmParseConfTest, UnInit_NullHandle_NoError) {
+    // Should handle gracefully without crashing
+    dcmSettingsUnInit(nullptr);
+}
 
 
 
