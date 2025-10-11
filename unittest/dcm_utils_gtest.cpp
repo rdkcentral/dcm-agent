@@ -212,7 +212,7 @@ TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
 }
 
-TEST_F(DCMUtilsTest, LogInit_Success_EnablesLogger) {
+TEST(DCMUtilsTest, LogInit_Success_EnablesLogger) {
     //mock_rdk_logger_init_return_value = 0; // Success
     
     DCMLOGInit();
