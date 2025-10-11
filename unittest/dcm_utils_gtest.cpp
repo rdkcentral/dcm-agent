@@ -157,7 +157,7 @@ TEST(DCMUtilsTest, CheckDaemonStatus_NewFile) {
     RemoveFile(DCM_PID_FILE);
 }
 
-TEST_F(DCMUtilsTest, CheckDaemonStatus_PidFileExists_ProcessNotRunning) {
+TEST(DCMUtilsTest, CheckDaemonStatus_PidFileExists_ProcessNotRunning) {
     // Create PID file with a PID that doesn't exist (99999)
     CreateFile(DCM_PID_FILE, "99999");
     
