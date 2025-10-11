@@ -24,6 +24,7 @@
 #include <gmock/gmock.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "dcm_types.h"
 
 #ifdef __cplusplus
 extern "C" {
