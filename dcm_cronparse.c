@@ -946,3 +946,8 @@ UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*)
 {
 	return &dcmCronParseParseUint;
 }
+UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*)
+{
+    return &dcmCronParseNextSetBit;
+}
+
