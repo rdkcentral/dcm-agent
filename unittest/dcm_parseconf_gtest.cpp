@@ -206,6 +206,20 @@ TEST_F(DcmSettingsInitTest, MissingRDKPath) {
     EXPECT_STREQ(dcmHandle->cRdkPath, DCM_LIB_PATH);
 }
 
+// Test initialization without ENABLE_MAINTENANCE in properties
+TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
+    CleanupTestFiles();
+    CreateTestPropertyFilesWithoutMaintenance();
+    
+    INT32 result = dcmSettingsInit(&handle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+    
+    // Maintenance manager flag should be 0 when property is missing
+    EXPECT_EQ(dcmSettingsGetMMFlag(), 0);
+}
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
