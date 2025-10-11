@@ -211,7 +211,7 @@ TEST(DCMUtilsTest, CannotOverwriteReadOnlyPidFile_ReturnsFailure) {
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
 }
-
+#ifdef RDK_LOGGER_ENABLED
 TEST(DCMUtilsTest, LogInit_Success_EnablesLogger) {
     //mock_rdk_logger_init_return_value = 0; // Success
     
@@ -219,7 +219,7 @@ TEST(DCMUtilsTest, LogInit_Success_EnablesLogger) {
     
     //EXPECT_EQ(g_rdk_logger_enabled, 1);
 }
-
+#endif
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
