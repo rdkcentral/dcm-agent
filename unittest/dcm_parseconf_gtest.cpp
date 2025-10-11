@@ -27,6 +27,7 @@
 extern "C" {
 //#include "dcm_types.h"
 //#include "dcm_parseconf.h"
+#include "dcm_parseconf.c"
 }
 #include "dcm_types.h"
 //#include "dcm_parseconf.c"
