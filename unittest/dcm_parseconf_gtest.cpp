@@ -25,7 +25,7 @@
 #include "./mocks/mockRbus.h"
 
 extern "C" {
-#include "dcm_parseconf.c"
+//#include "dcm_parseconf.c"
 #include "dcm_parseconf.h"
 }
 
