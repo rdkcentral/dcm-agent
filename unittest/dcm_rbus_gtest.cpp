@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "mock_rbus.h"
+#include "./mocks/mock_rbus.h"
 
 extern "C" {
 #include "dcm_rbus.h"
