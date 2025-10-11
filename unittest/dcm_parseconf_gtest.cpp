@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <climits>
 #include <cerrno>
-#include "mockRbus.h"
+#include "./mocks/mockRbus.h"
 
 extern "C" {
 #include "dcm_parseconf.c"
