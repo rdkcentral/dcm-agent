@@ -215,7 +215,7 @@ TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
     std::remove("/tmp/test_valid_settings.json");
 }
 
-TEST_F(DcmParseConfTest, ParseConf_EmptyJSON_Success) {
+TEST(dcmParseConfTest, ParseConf_EmptyJSON_Success) {
     const char* emptyJson = "{}";
     
     CreateTestJSONFile("/tmp/test_empty_settings.json", emptyJson);
