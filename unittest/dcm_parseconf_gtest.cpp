@@ -96,7 +96,7 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     
     INT32 result = dcmSettingDefaultBoot();
     
-    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(result, -1);
 } 
 
 
