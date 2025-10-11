@@ -107,6 +107,21 @@ TEST(DCMUtilsTest, CopyCommandOutput_NullOut) {
     dcmUtilsCopyCommandOutput((INT8*)"echo test", NULL, 0);
 }
 
+// Test to hit the popen() failure case
+TEST(DCMUtilsTest, CopyCommandOutput_InvalidCommand_PopenFails) {
+    INT8 output[64];
+    output[0] = 'X'; // Set initial value to verify it gets cleared
+    
+    // Use a command that will cause popen() to fail
+    // This command tries to execute a non-existent binary
+    dcmUtilsCopyCommandOutput((INT8*)"/nonexistent/invalid/command/that/does/not/exist", 
+                             output, sizeof(output));
+    
+    // The output buffer should be cleared even if popen fails
+    EXPECT_EQ(output[0], '\0');
+}
+
+
 // Test dcmUtilsSysCmdExec
 TEST(DCMUtilsTest, SysCmdExec_Valid) {
     EXPECT_EQ(dcmUtilsSysCmdExec((INT8*)"echo test"), DCM_SUCCESS);
