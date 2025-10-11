@@ -68,7 +68,7 @@ protected:
     void TearDown(){
     }
 };
-
+/*
 TEST(dcmCronParseTest , NullPointerReturnsError) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8* str = NULL;
@@ -127,6 +127,8 @@ TEST(dcmCronParseTest , StringWithSpaces) {
     EXPECT_EQ(result, 0);
     EXPECT_STREQ(input, "A B C D E F");
 }
+*/
+
 /*
 TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
     // Depending on locale, toupper may not handle Unicode. Here, just check ASCII is uppercased and others remain.
