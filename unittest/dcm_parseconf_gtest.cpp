@@ -93,9 +93,6 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     CreateDirectory("/opt/persistent");
     CreateFile("/opt/persistent/DCMresponse.json", 
                "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}");
-    CreateDirectory("/.t2persistentfolder/DCMresponse.txt");
-    CreateFile("/.t2persistentfolder/DCMresponse.txt", 
-               "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}");
     
     INT32 result = dcmSettingDefaultBoot();
     
