@@ -6,7 +6,7 @@ extern "C" {
 #include "dcm_rbus.h"
 #include "dcm_types.h"
 }
-
+#include "dcm_rbus.c"
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
