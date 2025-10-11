@@ -46,7 +46,7 @@ for test in \
   ./dcm_utils_gtest \
   ./dcm_schedjob_gtest \
   ./dcm_cronparse_gtest \
-  ./dcm_cronparse_gtest
+  ./dcm_parseconf_gtest
   
   #./rdm_main_gtest \
   #./rdm_utils_gtest \
