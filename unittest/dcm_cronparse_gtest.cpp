@@ -232,9 +232,9 @@ TEST(dcmCronParseTest, GetNextTime) {
 // Test with NULL bits parameter
 TEST(dcmCronParseTest, NextSetBit_NullBits_ReturnsNotFound) {
     INT32 notfound = 0;
-    
-    UINT32 result = dcmCronParseNextSetBit(NULL, 64, 0, &notfound);
-    
+    auto myFunctionPtr = getdcmCronParseNextSetBit();
+    UINT32 INT32 result = myFunctionPtr(NULL, 64, 0, &notfound); 
+
     EXPECT_EQ(result, 0);
     EXPECT_EQ(notfound, 1);
 }
