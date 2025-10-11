@@ -31,7 +31,6 @@ INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 }
-#include "../dcm_cronparse.c"
 
 /*#include "rdm_types.h"
 #include "rdm.h"
@@ -244,7 +243,7 @@ TEST(dcmCronParseTest, GetNext_NullExpression_ReturnsInvalidInstant) {
     
     time_t result = dcmCronParseGetNext(NULL, date);
     
-    EXPECT_EQ(result, CRON_INVALID_INSTANT);
+    EXPECT_EQ(result, -1);
 }
 
 GTEST_API_ int main(int argc, char *argv[]){
