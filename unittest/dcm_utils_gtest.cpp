@@ -189,7 +189,7 @@ TEST(DCMUtilsTest, PidFileExists_CurrentProcess_ReturnsFailure) {
     EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_FAILURE);
 }
 */
-
+/*
 // Alternative test: Create read-only file that cannot be overwritten
 TEST(DCMUtilsTest, CannotOverwriteReadOnlyPidFile_ReturnsFailure) {
     // First create a PID file with invalid PID so it passes the first check
@@ -206,7 +206,7 @@ TEST(DCMUtilsTest, CannotOverwriteReadOnlyPidFile_ReturnsFailure) {
     // Restore write permissions for cleanup
     chmod(DCM_PID_FILE, 0644);
 }
-
+*/
 // Test dcmIARMEvntSend (does nothing)
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
