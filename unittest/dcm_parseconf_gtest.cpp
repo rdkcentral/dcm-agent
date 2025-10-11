@@ -44,10 +44,10 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
-/*
+
 
 void CreateFile(const char* filename, const char* content) {
-    //std::ofstream ofs(filename);
+    std::ofstream ofs(filename);
     ofs << content;
 }
 
@@ -62,14 +62,14 @@ void CreateDirectory(const char* dirname) {
 void RemoveDirectory(const char* dirname) {
     rmdir(dirname);
 }
-*/
+
 class dcmParseConfTest : public ::testing::Test {
 protected:
     void SetUp(){
     }
 
     void TearDown(){
-        /*
+        
         // Clean up test files
         RemoveFile("/etc/include.properties");
         RemoveFile("/opt/persistent/DCMresponse.json");
@@ -82,7 +82,7 @@ protected:
         RemoveDirectory("/custom/path"); */
     }
 };
-/*
+
 // Test when /etc/include.properties doesn't exist - uses default path
 TEST_F(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     // Ensure /etc/include.properties doesn't exist
@@ -96,7 +96,7 @@ TEST_F(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     INT32 result = dcmSettingDefaultBoot();
     
     EXPECT_EQ(result, DCM_SUCCESS);
-} */
+} 
 
 
 GTEST_API_ int main(int argc, char *argv[]){
