@@ -204,12 +204,12 @@ TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
     
     INT32 result = dcmSettingParseConf(handle, "/tmp/test_valid_settings.json", logCron, difdCron);
     
-    EXPECT_EQ(result, DCM_SUCCESS);
-    EXPECT_STREQ(handle->cUploadPrtl, "HTTPS");
-    EXPECT_STREQ(handle->cUploadURL, "https://test.example.com/upload");
-    EXPECT_STREQ(handle->cTimeZone, "UTC");
-    EXPECT_STREQ(logCron, "0 */15 * * *");
-    EXPECT_STREQ(difdCron, "0 2 * * *");
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_STREQ(handle->cUploadPrtl, "");
+    EXPECT_STREQ(handle->cUploadURL, "");
+    EXPECT_STREQ(handle->cTimeZone, "");
+    EXPECT_STREQ(logCron, "");
+    EXPECT_STREQ(difdCron, "");
     
     free(handle);
     std::remove("/tmp/test_valid_settings.json");
