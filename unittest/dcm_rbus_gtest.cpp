@@ -6,7 +6,7 @@ extern "C" {
 #include "dcm_rbus.h"
 #include "dcm_types.h"
 //#include "mockrbus.h‎"
-#include "mockrbus.cpp"
+//#include "mockrbus.cpp"
 }
 #include "mockrbus.h‎"
 #include "dcm_rbus.c"
