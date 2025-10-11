@@ -75,10 +75,5 @@ dcm_schedjob_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 dcm_parseconf_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_parseconf_gtest_LDADD = $(COMMON_LDADD)
 dcm_parseconf_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-dcm_parseconf_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
-#rdm_curl_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-#rdm_curl_gtest_LDADD = $(COMMON_LDADD)
-#rdm_curl_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-#rdm_curl_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+dcm_parseconf_gtest_CFLAGS = $(COMMON_CXXFLAGS) -Wno-jump-misses-init
 
