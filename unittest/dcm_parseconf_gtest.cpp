@@ -215,6 +215,30 @@ TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
     std::remove("/tmp/test_valid_settings.json");
 }
 
+TEST_F(DcmParseConfTest, ParseConf_EmptyJSON_Success) {
+    const char* emptyJson = "{}";
+    
+    CreateTestJSONFile("/tmp/test_empty_settings.json", emptyJson);
+    
+    DCMSettingsHandle* handle = CreateTestHandle();
+    INT8 logCron[256] = {0};
+    INT8 difdCron[256] = {0};
+    
+    INT32 result = dcmSettingParseConf(handle, "/tmp/test_empty_settings.json", logCron, difdCron);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    // Should use default values
+    EXPECT_STREQ(handle->cUploadPrtl, "HTTP");
+    EXPECT_STREQ(handle->cUploadURL, DCM_DEF_LOG_URL);
+    EXPECT_STREQ(handle->cTimeZone, DCM_DEF_TIMEZONE);
+    EXPECT_STREQ(logCron, "");
+    EXPECT_STREQ(difdCron, "");
+    
+    free(handle);
+    std::remove("/tmp/test_empty_settings.json");
+}
+
+
 
 
 
