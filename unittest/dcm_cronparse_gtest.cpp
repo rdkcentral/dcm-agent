@@ -66,7 +66,7 @@ protected:
     void TearDown(){
     }
 };
-/*
+
 TEST(dcmCronParseTest , NullPointerReturnsError) {
     auto myFunctionPtr = getdcmCronParseToUpper();
     INT8* str = NULL;
@@ -125,7 +125,6 @@ TEST(dcmCronParseTest , StringWithSpaces) {
     EXPECT_EQ(result, 0);
     EXPECT_STREQ(input, "A B C D E F");
 }
-*/
 
 /*
 TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
