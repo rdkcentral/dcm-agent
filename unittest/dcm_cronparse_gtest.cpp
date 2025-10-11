@@ -241,6 +241,13 @@ TEST(dcmCronParseTest, NextSetBit_NullBits_ReturnsNotFound) {
     EXPECT_EQ(notfound, 1);
 }
 
+TEST(dcmCronParseTest, GetNext_NullExpression_ReturnsInvalidInstant) {
+    time_t date = time(NULL);
+    
+    time_t result = dcmCronParseGetNext(NULL, date);
+    
+    EXPECT_EQ(result, CRON_INVALID_INSTANT);
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
