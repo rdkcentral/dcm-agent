@@ -155,7 +155,23 @@ TEST(dcmParseConfTest, UnInit_NullHandle_NoError) {
 }
 
 
+TEST_F(dcmParseConfTest, GetRDKPath_ValidHandle_ReturnsPath) {
+    DCMSettingsHandle* handle = CreateTestHandle();
+    strcpy(handle->cRdkPath, "/usr/bin");
+    
+    INT8* path = dcmSettingsGetRDKPath(handle);
+    
+    EXPECT_NE(path, nullptr);
+    EXPECT_STREQ(path, "/usr/bin");
+    
+    free(handle);
+}
 
+TEST_F(dcmParseConfTest, GetRDKPath_NullHandle_ReturnsNull) {
+    INT8* path = dcmSettingsGetRDKPath(nullptr);
+    
+    EXPECT_EQ(path, nullptr);
+}
 
 
 
