@@ -117,7 +117,11 @@ TEST(dcmParseConfTest, GetUploadProtocol_ValidHandle_ReturnsProtocol) {
     
     free(handle);
 }
-
+TEST(dcmParseConfTest, GetUploadProtocol_NullHandle_ReturnsNull) {
+    INT8* protocol = dcmSettingsGetUploadProtocol(nullptr);
+    
+    EXPECT_EQ(protocol, nullptr);
+}
 
 
 
