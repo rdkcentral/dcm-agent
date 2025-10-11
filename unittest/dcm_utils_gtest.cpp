@@ -168,7 +168,7 @@ TEST(DCMUtilsTest, CheckDaemonStatus_PidFileExists_ProcessNotRunning) {
 }
 
 // Test when PID file exists and process appears to be running
-TEST_F(DCMUtilsDaemonStatusTest, PidFileExists_ProcessRunning_ReturnsFailure) {
+TEST(DCMUtilsTest, PidFileExists_ProcessRunning_ReturnsFailure) {
     // Use PID 1 (init process) which should always exist on Linux systems
     CreateFile(DCM_PID_FILE, "1");
     
