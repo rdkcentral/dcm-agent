@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-//#include "./mocks/mockrbus.h‎"
-#include "./mocks/mockrbus.cpp"
+
 
 extern "C" {
 #include "dcm_rbus.h"
 #include "dcm_types.h"
+#include "./mocks/mockrbus.h‎"
+#include "./mocks/mockrbus.cpp"
 }
 #include "dcm_rbus.c"
 using ::testing::_;
