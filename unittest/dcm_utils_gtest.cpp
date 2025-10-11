@@ -178,6 +178,17 @@ TEST(DCMUtilsTest, PidFileExists_ProcessRunning_ReturnsFailure) {
     EXPECT_EQ(dcmUtilsFilePresentCheck(DCM_PID_FILE), DCM_SUCCESS);
 }
 
+// Test when PID file exists with current process PID (self-detection)
+TEST(DCMUtilsTest, PidFileExists_CurrentProcess_ReturnsFailure) {
+    // Create PID file with current process PID
+    pid_t currentPid = getpid();
+    char pidStr[32];
+    snprintf(pidStr, sizeof(pidStr), "%d", currentPid);
+    CreateFile(DCM_PID_FILE, pidStr);
+    
+    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_FAILURE);
+}
+
 // Test dcmIARMEvntSend (does nothing)
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
