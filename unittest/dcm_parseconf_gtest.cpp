@@ -180,7 +180,14 @@ TEST_F(DcmSettingsInitTest, SuccessfulInitialization) {
     // Check if maintenance manager flag is set
     EXPECT_EQ(dcmSettingsGetMMFlag(), 1);
 }
-
+// Test initialization with null handle pointer
+TEST_F(DcmSettingsInitTest, NullHandlePointer) {
+    INT32 result = dcmSettingsInit(nullptr);
+    
+    // Should handle gracefully or return failure
+    // This depends on your implementation - adjust based on expected behavior
+    EXPECT_EQ(result, DCM_FAILURE);
+}
 
 
 GTEST_API_ int main(int argc, char *argv[]){
