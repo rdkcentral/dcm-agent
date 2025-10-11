@@ -31,9 +31,7 @@ INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 }
-
-
-//#include "../dcm_cronparse.c"
+#include "../dcm_cronparse.c"
 
 /*#include "rdm_types.h"
 #include "rdm.h"
