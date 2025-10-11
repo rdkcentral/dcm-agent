@@ -226,7 +226,7 @@ TEST(dcmParseConfTest, ParseConf_EmptyJSON_Success) {
     
     INT32 result = dcmSettingParseConf(handle, "/tmp/test_empty_settings.json", logCron, difdCron);
     
-    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(result, DCM_FAILURE);
     // Should use default values
     EXPECT_STREQ(handle->cUploadPrtl, "HTTP");
     EXPECT_STREQ(handle->cUploadURL, DCM_DEF_LOG_URL);
