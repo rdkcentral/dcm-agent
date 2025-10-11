@@ -95,6 +95,38 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success)
     EXPECT_EQ(result, 0);
 } 
 
+
+
+// Helper function to create a test handle
+DCMSettingsHandle* CreateTestHandle() {
+    DCMSettingsHandle* handle = (DCMSettingsHandle*)malloc(sizeof(DCMSettingsHandle));
+    memset(handle, 0, sizeof(DCMSettingsHandle));
+    return handle;
+}
+
+// ==================== dcmSettingsGetUploadProtocol Tests ====================
+
+TEST(dcmParseConfTest, GetUploadProtocol_ValidHandle_ReturnsProtocol) {
+    DCMSettingsHandle* handle = CreateTestHandle();
+    strcpy(handle->cUploadPrtl, "HTTPS");
+    
+    INT8* protocol = dcmSettingsGetUploadProtocol(handle);
+    
+    EXPECT_NE(protocol, nullptr);
+    EXPECT_STREQ(protocol, "HTTPS");
+    
+    free(handle);
+}
+
+
+
+
+
+
+
+
+
+
 class DcmSettingsInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -219,6 +251,8 @@ TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
     // Maintenance manager flag should be 0 when property is missing
     EXPECT_EQ(dcmSettingsGetMMFlag(), 0);
 }
+
+
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
