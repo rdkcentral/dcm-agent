@@ -29,6 +29,7 @@ extern "C" {
 #include "../dcm_types.h"
 INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
+UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 }
 
 
@@ -226,6 +227,19 @@ TEST(dcmCronParseTest, GetNextTime) {
     time_t next = dcmCronParseGetNext(&expr, now);
     EXPECT_GT(next, now); // Next time should be in the future
 }
+
+
+// Test with NULL bits parameter
+TEST(dcmCronParseTest, NextSetBit_NullBits_ReturnsNotFound) {
+    INT32 notfound = 0;
+    
+    UINT32 result = dcmCronParseNextSetBit(NULL, 64, 0, &notfound);
+    
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(notfound, 1);
+}
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
