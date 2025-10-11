@@ -21,7 +21,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
 #bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
-bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest
+bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest dcm_rbus_gtest
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I../mocks -I../src -I../include    \
                   -I/usr/include/gtest -I/usr/local/include/gtest -DGTEST_ENABLE 
@@ -44,6 +44,7 @@ dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 #../dcm_cronparse.c
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
+dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp
 #../dcm_parseconf.c
 
 #rdm_main_gtest_SOURCES = rdm_main_gtest.cpp ../rdm_main.c 
