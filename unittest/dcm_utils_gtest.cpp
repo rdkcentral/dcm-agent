@@ -157,6 +157,16 @@ TEST(DCMUtilsTest, CheckDaemonStatus_NewFile) {
     RemoveFile(DCM_PID_FILE);
 }
 
+TEST_F(DCMUtilsTest, CheckDaemonStatus_PidFileExists_ProcessNotRunning) {
+    // Create PID file with a PID that doesn't exist (99999)
+    CreateFile(DCM_PID_FILE, "99999");
+    
+    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_SUCCESS);
+    
+    // Verify new PID file was created with current process ID
+    EXPECT_EQ(dcmUtilsFilePresentCheck(DCM_PID_FILE), DCM_SUCCESS);
+}
+
 // Test dcmIARMEvntSend (does nothing)
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
