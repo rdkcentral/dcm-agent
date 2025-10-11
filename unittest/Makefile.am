@@ -34,7 +34,7 @@ COMMON_LDADD = -lgtest -lgmock\
                -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov
 
 # Common compiler flags
-COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result
+COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result -Wno-jump-misses-init
 
 # Define source files for each test
 #dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp ../dcm_cronparse.c
