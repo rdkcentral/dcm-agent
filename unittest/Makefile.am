@@ -78,3 +78,8 @@ dcm_parseconf_gtest_LDADD = $(COMMON_LDADD)
 dcm_parseconf_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 dcm_parseconf_gtest_CFLAGS = $(COMMON_CXXFLAGS) -Wno-jump-misses-init
 
+dcm_rbus_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_rbus_gtest_LDADD = $(COMMON_LDADD)
+dcm_rbus_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_rbus_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
