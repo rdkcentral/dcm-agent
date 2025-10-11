@@ -167,6 +167,17 @@ TEST(DCMUtilsTest, CheckDaemonStatus_PidFileExists_ProcessNotRunning) {
     EXPECT_EQ(dcmUtilsFilePresentCheck(DCM_PID_FILE), DCM_SUCCESS);
 }
 
+// Test when PID file exists and process appears to be running
+TEST_F(DCMUtilsDaemonStatusTest, PidFileExists_ProcessRunning_ReturnsFailure) {
+    // Use PID 1 (init process) which should always exist on Linux systems
+    CreateFile(DCM_PID_FILE, "1");
+    
+    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_FAILURE);
+    
+    // Original PID file should still exist
+    EXPECT_EQ(dcmUtilsFilePresentCheck(DCM_PID_FILE), DCM_SUCCESS);
+}
+
 // Test dcmIARMEvntSend (does nothing)
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
