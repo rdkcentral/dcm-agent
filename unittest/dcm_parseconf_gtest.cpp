@@ -42,11 +42,54 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
 
-class dcmCronParseTest : public ::testing::Test {
+// Helper functions
+void CreateFile(const char* filename, const char* content) {
+    std::ofstream ofs(filename);
+    ofs << content;
+}
+
+void RemoveFile(const char* filename) {
+    std::remove(filename);
+}
+
+void CreateDirectory(const char* dirname) {
+    mkdir(dirname, 0755);
+}
+
+void RemoveDirectory(const char* dirname) {
+    rmdir(dirname);
+}
+
+class dcmParseConfTest : public ::testing::Test {
 protected:
     void SetUp(){
     }
 
     void TearDown(){
+        // Clean up test files
+        RemoveFile("/etc/include.properties");
+        RemoveFile("/opt/persistent/DCMresponse.json");
+        RemoveFile("/tmp/persistent/DCMresponse.json");
+        RemoveFile("/custom/path/DCMresponse.json");
+        RemoveFile("/tmp/dcm_settings.conf");
+        RemoveFile("/opt/dcm_settings.conf");
+        RemoveDirectory("/tmp/persistent");
+        RemoveDirectory("/opt/persistent");
+        RemoveDirectory("/custom/path");
     }
 };
+
+// Test when /etc/include.properties doesn't exist - uses default path
+TEST_F(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
+    // Ensure /etc/include.properties doesn't exist
+    RemoveFile("/etc/include.properties");
+    
+    // Create default persistent directory and DCM response file
+    CreateDirectory("/opt/persistent");
+    CreateFile("/opt/persistent/DCMresponse.json", 
+               "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}");
+    
+    INT32 result = dcmSettingDefaultBoot();
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+}
