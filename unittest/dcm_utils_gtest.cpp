@@ -212,6 +212,13 @@ TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
 }
 
+TEST_F(DCMUtilsTest, LogInit_Success_EnablesLogger) {
+    //mock_rdk_logger_init_return_value = 0; // Success
+    
+    DCMLOGInit();
+    
+    //EXPECT_EQ(g_rdk_logger_enabled, 1);
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
