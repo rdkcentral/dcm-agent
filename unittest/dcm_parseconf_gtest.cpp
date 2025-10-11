@@ -175,6 +175,51 @@ TEST_F(dcmParseConfTest, GetRDKPath_NullHandle_ReturnsNull) {
 
 
 
+// Helper function to create test JSON file
+void CreateTestJSONFile(const char* filename, const char* content) {
+    std::ofstream ofs(filename);
+    if (ofs.is_open()) {
+        ofs << content;
+        ofs.close();
+    }
+}
+
+// ==================== dcmSettingParseConf Tests ====================
+
+TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
+    const char* validJson = R"({
+        "uploadRepository:uploadProtocol": "HTTPS",
+        "uploadRepository:URL": "https://test.example.com/upload",
+        "urn:settings:TelemetryProfile:timeZone": "UTC",
+        "urn:settings:LogUploadSettings:UploadOnReboot": true,
+        "urn:settings:LogUploadSettings:PeriodicUpload": "0 */15 * * *",
+        "urn:settings:FirmwareDownload:difdCron": "0 2 * * *"
+    })";
+    
+    CreateTestJSONFile("/tmp/test_valid_settings.json", validJson);
+    
+    DCMSettingsHandle* handle = CreateTestHandle();
+    INT8 logCron[256] = {0};
+    INT8 difdCron[256] = {0};
+    
+    INT32 result = dcmSettingParseConf(handle, "/tmp/test_valid_settings.json", logCron, difdCron);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_STREQ(handle->cUploadPrtl, "HTTPS");
+    EXPECT_STREQ(handle->cUploadURL, "https://test.example.com/upload");
+    EXPECT_STREQ(handle->cTimeZone, "UTC");
+    EXPECT_STREQ(logCron, "0 */15 * * *");
+    EXPECT_STREQ(difdCron, "0 2 * * *");
+    
+    free(handle);
+    std::remove("/tmp/test_valid_settings.json");
+}
+
+
+
+
+
+
 class DcmSettingsInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
