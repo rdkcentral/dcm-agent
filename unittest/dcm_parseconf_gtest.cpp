@@ -104,7 +104,7 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success)
     RemoveFile("/etc/include.properties");
     
     // Create default persistent directory and DCM response file
-    CreateDirectory("/opt/persistent");
+    CreateDirectory("/opt/.t2persistentfolder");
     CreateFile("/opt/.t2persistentfolder/DCMresponse.txt", 
                "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}"); 
     
