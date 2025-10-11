@@ -85,7 +85,7 @@ protected:
 };
 
 // Test when /etc/include.properties doesn't exist - uses default path
-TEST_F(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
+TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     // Ensure /etc/include.properties doesn't exist
     RemoveFile("/etc/include.properties");
     
