@@ -124,7 +124,7 @@ TEST(dcmParseConfTest, GetUploadProtocol_NullHandle_ReturnsNull) {
 }
 
 
-TEST_F(dcmParseConfTest, GetUploadURL_ValidHandle_ReturnsURL) {
+TEST(dcmParseConfTest, GetUploadURL_ValidHandle_ReturnsURL) {
     DCMSettingsHandle* handle = CreateTestHandle();
     strcpy(handle->cUploadURL, "https://test.example.com/upload");
     
@@ -136,7 +136,7 @@ TEST_F(dcmParseConfTest, GetUploadURL_ValidHandle_ReturnsURL) {
     free(handle);
 }
 
-TEST_F(dcmParseConfTest, GetUploadURL_NullHandle_ReturnsNull) {
+TEST(dcmParseConfTest, GetUploadURL_NullHandle_ReturnsNull) {
     INT8* url = dcmSettingsGetUploadURL(nullptr);
     
     EXPECT_EQ(url, nullptr);
