@@ -95,6 +95,94 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success)
     EXPECT_EQ(result, 0);
 } 
 
+class DcmSettingsInitTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        handle = nullptr;
+        // Create test property files
+        CreateTestPropertyFiles();
+    }
+
+    void TearDown() override {
+        if (handle) {
+            dcmSettingsUnInit(handle);
+            handle = nullptr;
+        }
+        // Clean up test files
+        CleanupTestFiles();
+    }
+
+    void CreateTestPropertyFiles() {
+        // Create include.properties with RDK_PATH
+        CreateFile(INCLUDE_PROP_FILE, 
+            "RDK_PATH=/usr/bin\n"
+            "PERSISTENT_ENTRY=/opt/persistent\n"
+            "OTHER_PROP=value\n");
+
+        // Create device.properties with ENABLE_MAINTENANCE
+        CreateFile(DEVICE_PROP_FILE,
+            "ENABLE_MAINTENANCE=true\n"
+            "DEVICE_TYPE=STB\n"
+            "MODEL=TestModel\n");
+    }
+
+    void CreateTestPropertyFilesWithoutMaintenance() {
+        // Create include.properties with RDK_PATH
+        CreateFile(INCLUDE_PROP_FILE, 
+            "RDK_PATH=/usr/bin\n"
+            "PERSISTENT_ENTRY=/opt/persistent\n");
+
+        // Create device.properties without ENABLE_MAINTENANCE
+        CreateFile(DEVICE_PROP_FILE,
+            "DEVICE_TYPE=STB\n"
+            "MODEL=TestModel\n");
+    }
+
+    void CreateTestPropertyFilesWithoutRDKPath() {
+        // Create include.properties without RDK_PATH
+        CreateFile(INCLUDE_PROP_FILE, 
+            "PERSISTENT_ENTRY=/opt/persistent\n"
+            "OTHER_PROP=value\n");
+
+        // Create device.properties with ENABLE_MAINTENANCE
+        CreateFile(DEVICE_PROP_FILE,
+            "ENABLE_MAINTENANCE=true\n"
+            "DEVICE_TYPE=STB\n");
+    }
+
+    void CreateFile(const char* filename, const char* content) {
+        std::ofstream ofs(filename);
+        if (ofs.is_open()) {
+            ofs << content;
+            ofs.close();
+        }
+    }
+
+    void CleanupTestFiles() {
+        std::remove(INCLUDE_PROP_FILE);
+        std::remove(DEVICE_PROP_FILE);
+    }
+
+    VOID* handle;
+};
+
+// Test successful initialization with all properties present
+TEST_F(DcmSettingsInitTest, SuccessfulInitialization) {
+    INT32 result = dcmSettingsInit(&handle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_NE(handle, nullptr);
+    
+    // Verify handle contains expected values
+    DCMSettingsHandle* dcmHandle = (DCMSettingsHandle*)handle;
+    EXPECT_STREQ(dcmHandle->cRdkPath, "/usr/bin");
+    
+    // Check if maintenance manager flag is set
+    EXPECT_EQ(dcmSettingsGetMMFlag(), 1);
+}
+
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
