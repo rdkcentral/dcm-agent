@@ -233,7 +233,7 @@ TEST(dcmCronParseTest, GetNextTime) {
 TEST(dcmCronParseTest, NextSetBit_NullBits_ReturnsNotFound) {
     INT32 notfound = 0;
     auto myFunctionPtr = getdcmCronParseNextSetBit();
-    UINT32 INT32 result = myFunctionPtr(NULL, 64, 0, &notfound); 
+    UINT32 result = myFunctionPtr(NULL, 64, 0, &notfound); 
 
     EXPECT_EQ(result, 0);
     EXPECT_EQ(notfound, 1);
