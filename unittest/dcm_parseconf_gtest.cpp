@@ -90,15 +90,28 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {
     RemoveFile("/etc/include.properties");
     
     // Create default persistent directory and DCM response file
-    CreateDirectory("/opt/persistent");
+  /*  CreateDirectory("/opt/persistent");
     CreateFile("/opt/persistent/DCMresponse.json", 
-               "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}");
+               "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}"); */
     
     INT32 result = dcmSettingDefaultBoot();
     
     EXPECT_EQ(result, -1);
 } 
 
+TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success) {
+    // Ensure /etc/include.properties doesn't exist
+    RemoveFile("/etc/include.properties");
+    
+    // Create default persistent directory and DCM response file
+    CreateDirectory("/opt/persistent");
+    CreateFile("/opt/.t2persistentfolder/DCMresponse.txt", 
+               "{\"logUploadSettings\":{\"uploadRepository:URL\":\"https://test.com\"}}"); 
+    
+    INT32 result = dcmSettingDefaultBoot();
+    
+    EXPECT_EQ(result, 0);
+} 
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
