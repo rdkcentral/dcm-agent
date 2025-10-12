@@ -336,6 +336,8 @@ TEST_F(DcmRbusTest, SubscribeEvents_FirstSubscription_failure) {
 TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
     char versionBuffer[256];
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
     memset(versionBuffer, 0, sizeof(versionBuffer));
     EXPECT_CALL(*mockRBus, rbus_get(
         dcmHandle.pRbusHandle,
