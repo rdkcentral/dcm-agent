@@ -107,7 +107,7 @@ void mock_rbus_trigger_async_callback(rbusEventSubAsyncHandler_t handler, rbusHa
 extern "C" {
 
 // RBUS API Mock Implementations
-rbusError_t rbus_checkStatus(void) {
+rbusStatus_t rbus_checkStatus(void) {
     if (g_mockRBus) {
         return g_mockRBus->rbus_checkStatus();
     }
