@@ -275,7 +275,8 @@ TEST_F(DcmRbusTest, SubscribeEvents_rbus_regDataElements_failure) {
         1,
         _))  // &g_dataElements
         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
-    
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+            .WillOnce(Return(RBUS_ERROR_SUCCESS));
     INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
     
     EXPECT_EQ(result, DCM_FAILURE);
@@ -304,8 +305,11 @@ TEST_F(DcmRbusTest, SubscribeEvents_secondSubscription_failure) {
         &dcmHandle,
         0))
         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
     
     INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
+
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
