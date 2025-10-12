@@ -217,40 +217,19 @@ TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-class DcmRbusSubscribeEventsTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        mockRBus = new StrictMock<MockRBus>();
-        mock_rbus_set_global_mock(mockRBus);
-        mock_rbus_reset();
-        
-        // Setup valid DCM handle
-        dcmHandle.pRbusHandle = (rbusHandle_t)0x12345678;
-        strcpy(dcmHandle.confPath, "/tmp/test.conf");
-        dcmHandle.eventSub = 0;
-        dcmHandle.schedJob = 0;
-    }
-    
-    void TearDown() override {
-        mock_rbus_clear_global_mock();
-        delete mockRBus;
-    }
-    
-    MockRBus* mockRBus;
-    DCMRBusHandle dcmHandle;
-};
+
 
 // ==================== Positive Test Cases ====================
 
-TEST_F(DcmRbusSubscribeEventsTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
-    InSequence seq;
-    
+TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
     // First subscription: DCM_RBUS_SETCONF_EVENT
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
         dcmHandle.pRbusHandle,
-        _,  // DCM_RBUS_SETCONF_EVENT
-        _,  // rbusSetConf callback
-        _,  // rbusAsyncSubCB callback
+        _,  
+        _,  
+        _,  
         &dcmHandle,
         0))
         .WillOnce(Return(RBUS_ERROR_SUCCESS));
@@ -258,9 +237,9 @@ TEST_F(DcmRbusSubscribeEventsTest, SubscribeEvents_AllSubscriptionsSucceed_Succe
     // Second subscription: DCM_RBUS_PROCCONF_EVENT
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
         dcmHandle.pRbusHandle,
-        _,  // DCM_RBUS_PROCCONF_EVENT
-        _,  // rbusProcConf callback
-        _,  // rbusAsyncSubCB callback
+        _,  
+        _, 
+        _,  
         &dcmHandle,
         0))
         .WillOnce(Return(RBUS_ERROR_SUCCESS));
