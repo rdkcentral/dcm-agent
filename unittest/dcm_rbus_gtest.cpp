@@ -9,11 +9,19 @@ extern "C" {
 }
 //#include "dcm_rbus.c"
 #include "mockrbus.h‎"
+#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
+#define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
+#define GTEST_REPORT_FILEPATH_SIZE 256
+
+
+using namespace testing;
+using namespace std;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
-using ::testing::StrictMock;
+using ::testing::StrEq;
+
 
 class DcmRbusTest : public ::testing::Test {
 protected:
