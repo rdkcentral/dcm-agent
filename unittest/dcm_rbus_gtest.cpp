@@ -224,6 +224,9 @@ TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure
 TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
     DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    strcpy(dcmHandle.confPath, "/tmp/test.conf");
+    dcmHandle.eventSub = 0;
+    dcmHandle.schedJob = 0;
     // First subscription: DCM_RBUS_SETCONF_EVENT
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
         dcmHandle.pRbusHandle,
