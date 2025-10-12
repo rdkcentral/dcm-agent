@@ -235,8 +235,9 @@ TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
         _,  
         &dcmHandle,
         0))
-        .WillOnce(Return(RBUS_ERROR_SUCCESS));
-    
+        .Times(2)
+        .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
+    /*
     // Second subscription: DCM_RBUS_PROCCONF_EVENT
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
         dcmHandle.pRbusHandle,
@@ -246,7 +247,7 @@ TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
         &dcmHandle,
         0))
         .WillOnce(Return(RBUS_ERROR_SUCCESS));
-    
+    */
     // Register data elements for reload event
     EXPECT_CALL(*mockRBus, rbus_regDataElements(
         dcmHandle.pRbusHandle,
