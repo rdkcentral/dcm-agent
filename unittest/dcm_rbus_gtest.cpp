@@ -8,7 +8,7 @@ extern "C" {
 //#include "mockrbus.cpp"
 }
 //#include "dcm_rbus.c"
-#include "./mocks/mockrbus.h‎"
+#include "mockrbus.h‎"
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
