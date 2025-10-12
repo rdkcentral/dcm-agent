@@ -138,6 +138,41 @@ TEST_F(DcmRbusTest, dcmRbusInit_rbusopen_failure) {
     
 }
 
+TEST_F(DcmRbusTest, dcmRbusSendEvent_Success) {
+    // Setup mock DCM handle
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Init(_))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusValue_SetString(_, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbusObject_Init(_, _))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusObject_SetValue(_, _, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_Publish(_, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Release(_))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusObject_Release(_))
+        .Times(1);
+    
+    // Set global event subscription flag
+    extern int g_eventsub;
+    g_eventsub = 1;
+    
+    int result = dcmRbusSendEvent(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+}
+
 
 /*
 #include <gtest/gtest.h>
