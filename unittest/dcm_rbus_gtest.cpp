@@ -315,7 +315,27 @@ TEST_F(DcmRbusTest, SubscribeEvents_secondSubscription_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
+TEST_F(DcmRbusTest, SubscribeEvents_FirstSubscription_failure) {
+    InSequence seq;
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    // First subscription: DCM_RBUS_SETCONF_EVENT
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
+        dcmHandle.pRbusHandle,
+        _,  
+        _, 
+        _,  
+        &dcmHandle,
+        0))
+        .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
 
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
