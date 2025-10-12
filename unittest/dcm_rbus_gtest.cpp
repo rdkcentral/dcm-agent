@@ -281,7 +281,8 @@ TEST_F(DcmRbusTest, SubscribeEvents_rbus_regDataElements_failure) {
     EXPECT_EQ(result, DCM_SUCCESS);
 }
 
-TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
+TEST_F(DcmRbusTest, SubscribeEvents_secondSubscription_failure) {
+    InSequence seq;
     DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
     // First subscription: DCM_RBUS_SETCONF_EVENT
