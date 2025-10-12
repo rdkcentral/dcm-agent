@@ -31,7 +31,7 @@ export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
 
 cd unittest/
-
+cp mocks/mockrbus.h /usr/local/include
 automake --add-missing
 autoreconf --install
 
