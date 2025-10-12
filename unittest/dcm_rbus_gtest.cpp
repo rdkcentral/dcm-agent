@@ -23,8 +23,8 @@
 #include <climits>
 #include <cerrno>
 #include <fstream>
-//#include "./mocks/mockRbus.h"
 #include "./mocks/mockrbus.h"
+#include "./mocks/mockrbus.cpp"
 
 /*extern "C" {
 //#include "dcm_types.h"
@@ -85,6 +85,8 @@ TEST_F(DcmRbusTest, dcmRbusInit_Success) {
     void* handle = nullptr;
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
     
+    //EXPECT_CALL(*mockRBus, rbus_checkStatus())
+    //   .WillOnce(Return(RBUS_ENABLED));
     
     EXPECT_CALL(*mockRBus, rbus_open(_, _))
         .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
