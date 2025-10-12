@@ -41,7 +41,7 @@ dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ../dcm_utils.c
 dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
-dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp  mocks/mockrbus.cpp
+dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp  ./mocks/mockrbus.cpp
 dcm_rbus_gtest_DEPENDENCIES = mocks/mockrbus.h
 
 
