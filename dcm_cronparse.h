@@ -21,7 +21,7 @@
 
 #ifndef _DCM_CRONPARSE_H_
 #define _DCM_CRONPARSE_H_
-//#include "dcm_types.h"
+#include "dcm_types.h"
 /**
  * Parsed cron expression
  */
