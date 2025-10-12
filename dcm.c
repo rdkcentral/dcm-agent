@@ -239,6 +239,7 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
  *  @return  status.
  *  @retval  status.
  */
+#ifndef GTEST_ENABLE
 int main(int argc, char* argv[])
 {
     pid_t process_id       = 0;
@@ -386,3 +387,4 @@ exit2:
     }
     return ret;
 }
+#endif
