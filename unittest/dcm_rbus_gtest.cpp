@@ -218,9 +218,6 @@ TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure
 }
 
 
-
-// ==================== Positive Test Cases ====================
-
 TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
     DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
@@ -254,6 +251,58 @@ TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
         1,
         _))  // &g_dataElements
         .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+}
+TEST_F(DcmRbusTest, SubscribeEvents_rbus_regDataElements_failure) {
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    // First subscription: DCM_RBUS_SETCONF_EVENT
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
+        dcmHandle.pRbusHandle,
+        _,  
+        _,  
+        _,  
+        &dcmHandle,
+        0))
+        .Times(2)
+        .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
+    // Register data elements for reload event
+    EXPECT_CALL(*mockRBus, rbus_regDataElements(
+        dcmHandle.pRbusHandle,
+        1,
+        _))  // &g_dataElements
+        .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
+    
+    INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+}
+
+TEST_F(DcmRbusTest, SubscribeEvents_AllSubscriptionsSucceed_Success) {
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    // First subscription: DCM_RBUS_SETCONF_EVENT
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
+        dcmHandle.pRbusHandle,
+        _,  
+        _, 
+        _,  
+        &dcmHandle,
+        0))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    // Second subscription: DCM_RBUS_PROCCONF_EVENT
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(
+        dcmHandle.pRbusHandle,
+        _,  
+        _, 
+        _,  
+        &dcmHandle,
+        0))
+        .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
     
     INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
     
