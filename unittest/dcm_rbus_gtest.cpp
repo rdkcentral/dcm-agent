@@ -110,6 +110,39 @@ TEST_F(DcmRbusTest, dcmRbusInit_Success) {
     }
 }
 
+TEST_F(DcmRbusTest, dcmRbusInit_rbuscheckstatus_failure) {
+    void* handle = nullptr;
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+       .WillOnce(Return(RBUS_DISABLED));
+    
+    int result = dcmRbusInit(&handle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_NE(handle, nullptr);
+    
+    }
+}
+
+TEST_F(DcmRbusTest, dcmRbusInit_rbusopen_failure) {
+    void* handle = nullptr;
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+       .WillOnce(Return(RBUS_ENABLED));
+    
+    EXPECT_CALL(*mockRBus, rbus_open(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_BUS_ERROR)));
+    int result = dcmRbusInit(&handle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_NE(handle, nullptr);
+    
+    }
+}
+
+
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
