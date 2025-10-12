@@ -139,7 +139,6 @@ TEST_F(DcmRbusTest, dcmRbusInit_rbusopen_failure) {
     EXPECT_EQ(result, DCM_FAILURE);
     EXPECT_NE(handle, nullptr);
     
-    }
 }
 
 
