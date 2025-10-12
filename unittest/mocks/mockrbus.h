@@ -16,9 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#pragma once
-#ifndef MOCK_RBUS_H
-#define MOCK_RBUS_H
+//#pragma once
+//#ifndef MOCK_RBUS_H
+//#define MOCK_RBUS_H
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -240,7 +240,7 @@ rbusHandle_t mock_rbus_get_mock_handle();
 rbusValue_t mock_rbus_create_string_value(const char* str);
 rbusObject_t mock_rbus_create_object(const char* name);
 
-#endif // MOCK_RBUS_H
+//#endif // MOCK_RBUS_H
 
 
 
