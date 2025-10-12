@@ -20,8 +20,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
-#bin_PROGRAMS = dcm_cronparse_gtest dcm_utils_gtest
-bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest dcm_rbus_gtest
+bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest dcm_rbus_gtest dcm_gtest
+
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks\
                   -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE 
@@ -42,7 +42,8 @@ dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
 dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp ./mocks/mockrbus.cpp
-dcm_rbus_gtest_DEPENDENCIES = mocks/mockrbus.h
+#dcm_rbus_gtest_DEPENDENCIES = mocks/mockrbus.h
+dcm_gtest_SOURCES = dcm_gtest.cpp ../dcm.c
 
 
 dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
@@ -69,4 +70,9 @@ dcm_rbus_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_rbus_gtest_LDADD = $(COMMON_LDADD)
 dcm_rbus_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 dcm_rbus_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+dcm_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_gtest_LDADD = $(COMMON_LDADD)
+dcm_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
