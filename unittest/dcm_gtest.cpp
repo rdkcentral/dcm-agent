@@ -36,6 +36,8 @@
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
 #include "dcm.c"
+#include "dcm_schedjob.c"
+#include "dcm_cronparse.c"
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
