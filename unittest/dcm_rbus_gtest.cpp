@@ -8,7 +8,7 @@ extern "C" {
 //#include "mockrbus.h‎"
 //#include "mockrbus.cpp"
 }
-//#include "mockrbus.h‎"
+#include "mockrbus.h‎"
 #include "dcm_rbus.c"
 using ::testing::_;
 using ::testing::Return;
