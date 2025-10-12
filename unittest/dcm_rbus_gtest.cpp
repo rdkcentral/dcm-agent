@@ -5,11 +5,10 @@
 extern "C" {
 #include "dcm_rbus.h"
 #include "dcm_types.h"
-#include "mockrbus.h‎"
 //#include "mockrbus.cpp"
 }
-#include "dcm_rbus.c"
-//#include "./mocks/mockrbus.h‎"
+//#include "dcm_rbus.c"
+#include "./mocks/mockrbus.h‎"
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
