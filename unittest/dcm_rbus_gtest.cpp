@@ -187,7 +187,7 @@ TEST_F(DcmRbusTest, SendEvent_NullRbusHandle_Failure) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-TEST_F(DcmRbusSendEventTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure) {
+TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure) {
     EXPECT_CALL(*mockRBus, rbusValue_Init(_))
         .Times(1);
     
