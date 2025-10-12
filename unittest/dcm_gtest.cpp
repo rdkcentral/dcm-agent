@@ -31,7 +31,7 @@ extern "C" {
 //#include "dcm_types.h"
 //#include "dcm_parseconf.h"
 
-}*/
+}
 //#include "../dcm_utils.c"
 #include "dcm_types.h"
 #include "dcm_rbus.c"
