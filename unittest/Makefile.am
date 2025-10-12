@@ -43,7 +43,7 @@ dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
 dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp ./mocks/mockrbus.cpp
 #dcm_rbus_gtest_DEPENDENCIES = mocks/mockrbus.h
-dcm_gtest_SOURCES = dcm_gtest.cpp
+dcm_gtest_SOURCES = dcm_gtest.cpp ./mocks/mockrbus.cpp
 
 
 dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
