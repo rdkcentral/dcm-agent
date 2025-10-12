@@ -173,7 +173,46 @@ TEST_F(DcmRbusTest, dcmRbusSendEvent_Success) {
     EXPECT_EQ(result, DCM_SUCCESS);
 }
 
+TEST_F(DcmRbusTest, SendEvent_NullHandle_Failure) {
+    INT32 result = dcmRbusSendEvent(NULL);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
 
+TEST_F(DcmRbusTest, SendEvent_NullRbusHandle_Failure) {
+    dcmHandle.pRbusHandle = NULL;
+    
+    INT32 result = dcmRbusSendEvent(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmRbusSendEventTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure) {
+    EXPECT_CALL(*mockRBus, rbusValue_Init(_))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusValue_SetString(_, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbusObject_Init(_, _))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusObject_SetValue(_, _, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_Publish(_, _))
+        .WillOnce(Return(RBUS_ERROR_BUS_ERROR)); // Publish fails
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Release(_))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusObject_Release(_))
+        .Times(1);
+    
+    INT32 result = dcmRbusSendEvent(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
