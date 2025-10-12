@@ -24,7 +24,7 @@ ACLOCAL_AMFLAGS = -I m4
 bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest dcm_rbus_gtest
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I./include  -I../ -I../../ -I/usr/include -I../include -I./mocks  -I../include    \
-                  -I/usr/include/gtest -I/usr/local/include/gtest -DGTEST_ENABLE 
+                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE 
 
 AM_CPPFLAGS =  -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_srcdir)/mocks -I$(top_srcdir) -I/usr/include 
 AM_CXXFLAGS = -std=c++14
