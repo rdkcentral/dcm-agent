@@ -65,14 +65,20 @@ void RemoveDirectory(const char* dirname) {
     rmdir(dirname);
 }
 
-class dcmRbusTest : public ::testing::Test {
+class DcmRbusTest : public ::testing::Test {
 protected:
-    void SetUp(){
+    void SetUp() override {
+        mockRBus = new StrictMock<MockRBus>();
+        mock_rbus_set_global_mock(mockRBus);
+        mock_rbus_reset();
     }
-
-    void TearDown(){
-
+    
+    void TearDown() override {
+        mock_rbus_clear_global_mock();
+        delete mockRBus;
     }
+    
+    MockRBus* mockRBus;
 };
 
 /*
