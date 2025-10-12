@@ -64,9 +64,6 @@ protected:
         memset(&dcmHandle, 0, sizeof(DCMDHandle));
         dcmHandle.isDCMRunning = false;
         
-        // Create temporary PID file for testing
-        pidFilePath = "/tmp/test_dcm.pid";
-        removePIDFile();
     }
     
     void TearDown() override {
@@ -74,22 +71,17 @@ protected:
         delete mockRBus;
         
         // Cleanup
-        removePIDFile();
         cleanupDCMHandle();
     }
     
-    void removePIDFile() {
-        if (access(pidFilePath, F_OK) == 0) {
-            unlink(pidFilePath);
-        }
+    // Helper: create a file with given content
+    void CreateFile(const char* filename, const char* content) {
+        std::ofstream ofs(filename);
+        ofs << content;
     }
-    
-    void createPIDFile() {
-        FILE* fp = fopen(pidFilePath, "w");
-        if (fp) {
-            fprintf(fp, "%d\n", getpid() + 1000); // Different PID
-            fclose(fp);
-        }
+
+    void RemoveFile(const char* filename) {
+        std::remove(filename);
     }
     
     void cleanupDCMHandle() {
@@ -122,6 +114,9 @@ protected:
 TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
     // Setup successful RBUS mocks
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    // Use PID 1 (init process) which should always exist on Linux systems
+    CreateFile(DCM_PID_FILE, "1");
     
     // RBUS initialization sequence
     EXPECT_CALL(*mockRBus, rbus_checkStatus())
