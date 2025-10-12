@@ -85,7 +85,7 @@ echo "********************"
 #fi
 if [ "$ENABLE_COV" = true ]; then
     echo "Generating coverage report"
-    lcov --directory --capture . --output-file coverage.info
+    lcov --capture --directory . --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     #lcov --remove coverage.info "$HOME/usr/*" --output-file coverage.info
     lcov --remove coverage.info "/usr/*" --output-file coverage.info
