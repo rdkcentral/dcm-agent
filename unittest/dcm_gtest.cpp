@@ -114,9 +114,7 @@ protected:
 TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
     // Setup successful RBUS mocks
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
-    
-    // Use PID 1 (init process) which should always exist on Linux systems
-    CreateFile(DCM_PID_FILE, "1");
+    RemoveFile(DCM_PID_FILE);
     
     // RBUS initialization sequence
     EXPECT_CALL(*mockRBus, rbus_checkStatus())
