@@ -25,17 +25,16 @@
 #include <fstream>
 #include "./mocks/mockrbus.h"
 //#include "./mocks/mockrbus.cpp"
-/*
+
 extern "C" {
  
-  dcm.h
-//#include "dcm_types.h"
-//#include "dcm_parseconf.h"
+  VOID (*getdcmRunJobs(void)) (const INT8*, VOID);
+  #include "dcm.c"
+  #include "dcm.h"
 
-} */
+} 
 //#include "../dcm_utils.c"
-#include "dcm.c"
-#include "dcm.h"
+
 #include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
