@@ -157,7 +157,7 @@ typedef struct {
 class MockRBus {
 public:
     // Core RBUS functions
-    MOCK_METHOD(rbusError_t, rbus_checkStatus, (), ());
+    MOCK_METHOD(rbusStatus_t, rbus_checkStatus, (), ());
     MOCK_METHOD(rbusError_t, rbus_open, (rbusHandle_t* handle, const char* componentName), ());
     MOCK_METHOD(rbusError_t, rbus_close, (rbusHandle_t handle), ());
     MOCK_METHOD(rbusError_t, rbus_get, (rbusHandle_t handle, const char* paramName, rbusValue_t* paramValue), ());
