@@ -180,6 +180,7 @@ TEST_F(DcmRbusTest, SendEvent_NullHandle_Failure) {
 }
 
 TEST_F(DcmRbusTest, SendEvent_NullRbusHandle_Failure) {
+    DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = NULL;
     
     INT32 result = dcmRbusSendEvent(&dcmHandle);
@@ -188,6 +189,8 @@ TEST_F(DcmRbusTest, SendEvent_NullRbusHandle_Failure) {
 }
 
 TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure) {
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
     EXPECT_CALL(*mockRBus, rbusValue_Init(_))
         .Times(1);
     
