@@ -278,7 +278,7 @@ TEST_F(DcmRbusTest, SubscribeEvents_rbus_regDataElements_failure) {
     
     INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
     
-    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(result, DCM_FAILURE);
 }
 
 TEST_F(DcmRbusTest, SubscribeEvents_secondSubscription_failure) {
@@ -307,7 +307,7 @@ TEST_F(DcmRbusTest, SubscribeEvents_secondSubscription_failure) {
     
     INT32 result = dcmRbusSubscribeEvents(&dcmHandle);
     
-    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(result, DCM_FAILURE);
 }
 
 /*
