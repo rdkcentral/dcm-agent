@@ -191,7 +191,7 @@ extern "C" {
 #endif
 
 // C wrapper function declarations - RBUS functions only
-rbusError_t rbus_checkStatus(void);
+rbusStatus_t rbus_checkStatus(void);
 rbusError_t rbus_open(rbusHandle_t* handle, const char* componentName);
 rbusError_t rbus_close(rbusHandle_t handle);
 rbusError_t rbus_get(rbusHandle_t handle, const char* paramName, rbusValue_t* paramValue);
