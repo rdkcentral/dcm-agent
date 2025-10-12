@@ -26,7 +26,8 @@
 #include "./mocks/mockrbus.h"
 //#include "./mocks/mockrbus.cpp"
 
-/*extern "C" {
+extern "C" {
+  #include "dcm.c"
 //#include "dcm_types.h"
 //#include "dcm_parseconf.h"
 
@@ -35,7 +36,6 @@
 #include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
-#include "dcm.c"
 #include "dcm_schedjob.c"
 #include "dcm_cronparse.c"
 #include "dcm_utils.c"
