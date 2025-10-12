@@ -53,15 +53,115 @@ using ::testing::DoAll;
 using ::testing::StrEq;
 
 
-class DcmRbusTest : public ::testing::Test {
+class DcmDaemonMainInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        mockRBus = new StrictMock<MockRBus>();
+        mock_rbus_set_global_mock(mockRBus);
+        mock_rbus_reset();
+        
+        // Initialize DCM handle
+        memset(&dcmHandle, 0, sizeof(DCMDHandle));
+        dcmHandle.isDCMRunning = false;
+        
+        // Create temporary PID file for testing
+        pidFilePath = "/tmp/test_dcm.pid";
+        removePIDFile();
     }
     
-    void TearDown() override {   
+    void TearDown() override {
+        mock_rbus_clear_global_mock();
+        delete mockRBus;
+        
+        // Cleanup
+        removePIDFile();
+        cleanupDCMHandle();
     }
     
+    void removePIDFile() {
+        if (access(pidFilePath, F_OK) == 0) {
+            unlink(pidFilePath);
+        }
+    }
+    
+    void createPIDFile() {
+        FILE* fp = fopen(pidFilePath, "w");
+        if (fp) {
+            fprintf(fp, "%d\n", getpid() + 1000); // Different PID
+            fclose(fp);
+        }
+    }
+    
+    void cleanupDCMHandle() {
+        if (dcmHandle.pExecBuff) {
+            free(dcmHandle.pExecBuff);
+            dcmHandle.pExecBuff = NULL;
+        }
+        if (dcmHandle.pDcmSetHandle) {
+            dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
+        }
+        if (dcmHandle.pRbusHandle) {
+            dcmRbusUnInit(dcmHandle.pRbusHandle);
+        }
+        if (dcmHandle.pLogSchedHandle) {
+            dcmSchedRemoveJob(dcmHandle.pLogSchedHandle);
+        }
+        if (dcmHandle.pDifdSchedHandle) {
+            dcmSchedRemoveJob(dcmHandle.pDifdSchedHandle);
+        }
+        dcmSchedUnInit();
+    }
+    
+    MockRBus* mockRBus;
+    DCMDHandle dcmHandle;
+    const char* pidFilePath;
 };
+
+// ==================== Positive Test Cases ====================
+
+TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
+    // Setup successful RBUS mocks
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    // RBUS initialization sequence
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+        .WillOnce(Return(RBUS_ENABLED));
+    
+    EXPECT_CALL(*mockRBus, rbus_open(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
+    
+    // T2 version retrieval
+    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
+    EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_GetType(mockValue))
+        .WillOnce(Return(RBUS_STRING));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, NULL, 0))
+        .WillOnce(Return(strdup("2.1.5")));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
+    
+    // Event subscription
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
+        .Times(2)
+        .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbus_regDataElements(_, _, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_FALSE(dcmHandle.isDCMRunning);
+    EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
+    EXPECT_NE(dcmHandle.pRbusHandle, nullptr);
+    EXPECT_NE(dcmHandle.pExecBuff, nullptr);
+    EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
+    EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
