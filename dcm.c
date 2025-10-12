@@ -388,3 +388,7 @@ exit2:
     return ret;
 }
 #endif
+VOID (*getdcmRunJobs(void)) (const INT8*, VOID) 
+{
+	return &dcmRunJobs;
+}
