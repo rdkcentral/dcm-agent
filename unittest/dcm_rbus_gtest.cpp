@@ -376,13 +376,12 @@ TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     memset(&testEvent, 0, sizeof(rbusEvent_t));
     testEvent.name = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
     testEvent.type = RBUS_EVENT_GENERAL;
-    testEvent.data = nullptr; // ProcConf doesn't use event data
+    testEvent.data = nullptr;
         
         // Initialize subscription structure
     memset(&testSubscription, 0, sizeof(rbusEventSubscription_t));
     testSubscription.eventName = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
     testSubscription.userData = dcmRbusHandle;
-    testSubscription.handler = rbusProcConf;
     
     // Call the function
     get_rbusProcConf(mockHandle, &testEvent, &testSubscription);
