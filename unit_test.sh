@@ -80,19 +80,20 @@ if [ "$ENABLE_COV" = true ]; then
     echo "Generating coverage report"
     lcov --capture --directory . --output-file coverage.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
-    lcov --remove coverage.info "${PWD}/unittest/*" --output-file coverage.info
+    #lcov --remove coverage.info "${PWD}/unittest/*" --output-file coverage.info
     lcov --list coverage.info
 fi
-if [ "$ENABLE_COV" = true ]; then
-    echo "Generating coverage report"
-    lcov --capture --directory . --output-file coverage.info
+
+#if [ "$ENABLE_COV" = true ]; then
+#    echo "Generating coverage report"
+#    lcov --capture --directory . --output-file coverage.info
     #lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     #lcov --remove coverage.info "$HOME/usr/*" --output-file coverage.info
     #lcov --remove coverage.info "/usr/*" --output-file coverage.info
-    lcov --extract coverage.info "*/dcm*.c" -o newcov.info
-    lcov --list coverage.info
-    lcov --list newcov.info
-fi
+#    lcov --extract coverage.info "*/dcm*.c" -o newcov.info
+#    lcov --list coverage.info
+#    lcov --list newcov.info
+#fi
 
 
 
