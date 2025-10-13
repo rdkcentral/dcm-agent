@@ -404,7 +404,7 @@ protected:
         memset(dcmRbusHandle, 0, sizeof(DCMRBusHandle));
         
         dcmRbusHandle->pRbusHandle = mockHandle;
-        dcmRbusHandle->eventSub = 1;
+        dcmRbusHandle->eventSub = 0;
         dcmRbusHandle->schedJob = 0; // Initially not scheduled
         strcpy(dcmRbusHandle->confPath, "/etc/dcm.conf");
         
@@ -478,10 +478,11 @@ TEST_F(RbusProcConfTest, ProcConf_NullUserData_ReturnsEarlyWithoutCrash) {
 
 
 TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_success) {
-    rbusError_t RBUS_ERROR_SUCCESS;
-    
+    rbusError_t error = RBUS_ERROR_SUCCESS;
+    EXPECT_EQ(dcmRbusHandle->eventSub, 0);
     // Call the function
     get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
+    EXPECT_EQ(dcmRbusHandle->eventSub, 1);
     
 }
 
