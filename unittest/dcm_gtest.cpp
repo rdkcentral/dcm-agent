@@ -328,6 +328,9 @@ protected:
         
         // Setup minimal components that might be cleaned up
         setupMinimalComponents();
+        mockRBus = new StrictMock<MockRBus>();
+        mock_rbus_set_global_mock(mockRBus);
+        mock_rbus_reset();
         
     }
     
@@ -339,6 +342,8 @@ protected:
             free(g_pdcmHandle);
             g_pdcmHandle = nullptr;
         }
+        mock_rbus_clear_global_mock();
+        delete mockRBus;
     }
     
     void setupMinimalComponents() {
@@ -369,11 +374,19 @@ protected:
             }
         }
     }
+    MockRBus* mockRBus;
 };
 
 // ==================== Handled Signals Test Cases ====================
 
 TEST_F(SigHandlerTest, SigHandler_SIGINT_SendsEventAndExits) {
+        EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+            .Times(2)
+            .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
+        EXPECT_CALL(*mockRBus, rbus_unregDataElements(_, _, _))
+            .WillOnce(Return(RBUS_ERROR_SUCCESS));
+        EXPECT_CALL(*mockRBus, rbus_close(_))
+            .WillOnce(Return(RBUS_ERROR_SUCCESS));
     get_sig_handler(SIGINT);
 }
 
