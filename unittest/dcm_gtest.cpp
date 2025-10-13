@@ -214,7 +214,7 @@ TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     
     // Call the function with log upload profile
     //test_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
-    getdcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
+    get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
     
 }
 
