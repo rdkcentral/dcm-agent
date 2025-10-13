@@ -358,7 +358,7 @@ TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_STREQ(versionBuffer, "2.1.5");
 }
-
+/*
 TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     // Verify initial state
    // EXPECT_EQ(dcmRbusHandle->schedJob, 0);
@@ -389,6 +389,65 @@ TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     // Verify schedJob flag is set
     EXPECT_EQ(dcmRbusHandle->schedJob, 1);
 }
+*/
+
+class RbusProcConfTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize mock RBUS handle
+        mockHandle = (rbusHandle_t)0x12345678;
+        
+        // Initialize DCM RBUS handle
+        dcmRbusHandle = (DCMRBusHandle*)malloc(sizeof(DCMRBusHandle));
+        ASSERT_NE(dcmRbusHandle, nullptr);
+        memset(dcmRbusHandle, 0, sizeof(DCMRBusHandle));
+        
+        dcmRbusHandle->pRbusHandle = mockHandle;
+        dcmRbusHandle->eventSub = 1;
+        dcmRbusHandle->schedJob = 0; // Initially not scheduled
+        strcpy(dcmRbusHandle->confPath, "/etc/dcm.conf");
+        
+        // Initialize event structure
+        memset(&testEvent, 0, sizeof(rbusEvent_t));
+        testEvent.name = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
+        testEvent.type = RBUS_EVENT_GENERAL;
+        testEvent.data = nullptr; // ProcConf doesn't use event data
+        
+        // Initialize subscription structure
+        memset(&testSubscription, 0, sizeof(rbusEventSubscription_t));
+        testSubscription.eventName = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
+        testSubscription.userData = dcmRbusHandle;
+        testSubscription.handler = rbusProcConf;
+    }
+    
+    void TearDown() override {
+        if (dcmRbusHandle) {
+            free(dcmRbusHandle);
+            dcmRbusHandle = nullptr;
+        }
+    }
+    
+    rbusHandle_t mockHandle;
+    DCMRBusHandle* dcmRbusHandle;
+    rbusEvent_t testEvent;
+    rbusEventSubscription_t testSubscription;
+};
+
+// ==================== Valid Input Test Cases ====================
+
+TEST_F(RbusProcConfTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
+    // Verify initial state
+    EXPECT_EQ(dcmRbusHandle->schedJob, 0);
+    
+    // Call the function
+    rbusProcConf(mockHandle, &testEvent, &testSubscription);
+    
+    // Verify schedJob flag is set
+    EXPECT_EQ(dcmRbusHandle->schedJob, 1);
+}
+
+
+
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
