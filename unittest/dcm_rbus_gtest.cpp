@@ -155,7 +155,7 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_NE(handle, nullptr);
-    
+    if (handle) {
     EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
         .Times(2)
         .WillRepeatedly(Return(RBUS_ERROR_BUS_ERROR));
@@ -164,7 +164,7 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     EXPECT_CALL(*mockRBus, rbus_close(_))
         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
     dcmRbusUnInit(handle);
-
+    }
         // Cleanup
     if (handle) {
         EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
