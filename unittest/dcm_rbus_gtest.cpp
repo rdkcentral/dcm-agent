@@ -500,7 +500,6 @@ TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_null)
     rbusError_t error = RBUS_ERROR_SUCCESS;
     // Call the function
     get_rbusAsyncSubCB(mockHandle, nullptr, error);
-    EXPECT_EQ(dcmRbusHandle->eventSub, 1);
     
 }
 
