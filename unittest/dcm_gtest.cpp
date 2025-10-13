@@ -28,7 +28,8 @@
 
 extern "C" {
  
-  VOID (*getdcmRunJobs(void)) (const INT8*, VOID*);
+  //VOID (*getdcmRunJobs(void)) (const INT8*, VOID*);
+  void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
   #include "dcm.c"
   #include "dcm.h"
 
