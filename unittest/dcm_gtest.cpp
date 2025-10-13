@@ -263,7 +263,7 @@ echo "URL: $4" >> /tmp/test_upload_output.txt
 exit 0
 )";
         
-        system("echo '" + std::string(uploadScript) + "' > /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        //system("echo '" + std::string(uploadScript) + "' > /tmp/test_dcm_scripts/uploadSTBLogs.sh");
         system("chmod +x /tmp/test_dcm_scripts/uploadSTBLogs.sh");
         
         // Create test swupdate_utility.sh script
@@ -274,7 +274,7 @@ echo "Type: $2" >> /tmp/test_swupdate_output.txt
 exit 0
 )";
         
-        system("echo '" + std::string(swupdateScript) + "' > /tmp/test_dcm_scripts/swupdate_utility.sh");
+        //system("echo '" + std::string(swupdateScript) + "' > /tmp/test_dcm_scripts/swupdate_utility.sh");
         system("chmod +x /tmp/test_dcm_scripts/swupdate_utility.sh");
     }
     
