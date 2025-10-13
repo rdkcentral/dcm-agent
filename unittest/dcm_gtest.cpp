@@ -173,6 +173,8 @@ TEST_F(DcmDaemonMainInitTest, MainInit_rbus_int_failure) {
     
     EXPECT_CALL(*mockRBus, rbus_checkStatus())
         .WillOnce(Return(RBUS_DISABLED));
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
+ 
     EXPECT_EQ(result, DCM_FAILURE);
 
 }
