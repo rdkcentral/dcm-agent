@@ -37,8 +37,7 @@ COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings
 
 # Define source files for each test
 
-dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp 
-#../dcm_utils.c
+dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp ../dcm_utils.c
 dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp ../dcm_schedjob.c
 dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
