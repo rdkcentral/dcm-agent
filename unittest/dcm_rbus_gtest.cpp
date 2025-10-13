@@ -147,8 +147,6 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     dcmRbusUnInit(&handle);
     
 }
-EXPECT_CALL(*mockRBus, rbus_open(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_BUS_ERROR)));
 
 TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_close_fail) {
     void* handle = nullptr;
@@ -156,7 +154,7 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_close_fail) {
     
     EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
        .WillOnce(Return(RBUS_ERROR_SUCCESS));
-    EXPECT_CALL(*mockRBus, rbus_close(_, _))
+    EXPECT_CALL(*mockRBus, rbus_close(_))
         .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_BUS_ERROR)));
     dcmRbusUnInit(&handle);
     
