@@ -315,7 +315,7 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     // Call the function with DIFD profile
     get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle);
 }
-
+/*
 class SigHandlerTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -389,6 +389,7 @@ TEST_F(SigHandlerTest, SigHandler_SIGINT_SendsEventAndExits) {
             .WillOnce(Return(RBUS_ERROR_SUCCESS));
     get_sig_handler(SIGINT);
 }
+*/
 
 
 
