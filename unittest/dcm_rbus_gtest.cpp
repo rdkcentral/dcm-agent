@@ -445,8 +445,34 @@ TEST_F(RbusProcConfTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     // Verify schedJob flag is set
     EXPECT_EQ(dcmRbusHandle->schedJob, 1);
 }
+TEST_F(RbusProcConfTest, ProcConf_NullEvent_ReturnsEarlyWithoutCrash) {
+    // Store original schedJob value
+    INT32 originalSchedJob = dcmRbusHandle->schedJob;
+    
+    // Call with NULL event
+    get_rbusProcConf(mockHandle, nullptr, &testSubscription);
+    
+    // Verify schedJob is not modified
+    EXPECT_EQ(dcmRbusHandle->schedJob, originalSchedJob);
+}
 
-
+TEST_F(RbusProcConfTest, ProcConf_NullSubscription_ReturnsEarlyWithoutCrash) {
+    // Store original schedJob value
+    INT32 originalSchedJob = dcmRbusHandle->schedJob;
+    
+    // Call with NULL subscription
+    get_rbusProcConf(mockHandle, &testEvent, nullptr);
+    
+    // Verify schedJob is not modified
+    EXPECT_EQ(dcmRbusHandle->schedJob, originalSchedJob);
+}
+TEST_F(RbusProcConfTest, ProcConf_NullUserData_ReturnsEarlyWithoutCrash) {
+    // Set userData to NULL
+    testSubscription.userData = nullptr;
+    
+    // Call function - should return early due to NULL userData
+    EXPECT_NO_THROW(get_rbusProcConf(mockHandle, &testEvent, &testSubscription));
+}
 
 /*
 #include <gtest/gtest.h>
