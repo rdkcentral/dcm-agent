@@ -358,7 +358,7 @@ protected:
         // Mock scheduler handles (pointers to indicate they exist)
         g_pdcmHandle->pLogSchedHandle = (VOID*)0x12345678;
         g_pdcmHandle->pDifdSchedHandle = (VOID*)0x87654321;
-        g_pdcmHandle->pRbusHandle = (VOID*)0x87654322;
+        //g_pdcmHandle->pRbusHandle = (VOID*)0x87654322;
     }
     
     void cleanupComponents() {
