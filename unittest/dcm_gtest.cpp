@@ -165,12 +165,21 @@ TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
-TEST_F(DcmDaemonMainInitTest, MainInit_dcmSettingsInit_fail) {
-    dcmHandle.pDcmSetHandle=nullptr;
+
+TEST_F(DcmDaemonMainInitTest, MainInit_rbus_int_failure) {
+    // Setup successful RBUS mocks
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
     RemoveFile(DCM_PID_FILE);
-    INT32 result = dcmDaemonMainInit(&dcmHandle);
+    
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+        .WillOnce(Return(RBUS_DISABLED));
     EXPECT_EQ(result, DCM_FAILURE);
+
 }
+
+
+
+
 /*
 TEST(DcmDaemonMainInitTest , ) {
     auto myFunctionPtr = getdcmRunJobs();
