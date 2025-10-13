@@ -485,6 +485,32 @@ TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_success) {
     EXPECT_EQ(dcmRbusHandle->eventSub, 1);
     
 }
+TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_event_failure {
+    rbusError_t error = RBUS_ERROR_BUS_ERROR;
+    EXPECT_EQ(dcmRbusHandle->eventSub, 0);
+    // Call the function
+    get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
+    EXPECT_EQ(dcmRbusHandle->eventSub, 0);
+    
+}
+
+TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_null) {
+    rbusError_t error = RBUS_ERROR_SUCCESS;
+    // Call the function
+    get_rbusAsyncSubCB(mockHandle, nullptr, error);
+    EXPECT_EQ(dcmRbusHandle->eventSub, 1);
+    
+}
+
+TEST_F(RbusProcConfTest, rbusAsyncSubCB_with_userdata_null) {
+    rbusError_t error = RBUS_ERROR_SUCCESS;
+    // Set userData to NULL
+    testSubscription.userData = nullptr;
+    // Call the function
+    get_rbusAsyncSubCB(mockHandle, nullptr, error);
+    
+}
+
 
 
 /*
