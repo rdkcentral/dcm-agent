@@ -38,7 +38,7 @@ extern "C" {
 #include "../dcm_utils.c"
 #include "dcm_utils.h"
 #include "dcm_cronparse.h"
-#include "../dcm_types.h
+#include "../dcm_types.h"
   
 /*#include "rdm_types.h"
 #include "rdm.h"
