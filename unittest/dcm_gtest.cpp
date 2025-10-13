@@ -163,6 +163,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
 TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
     
     INT32 result = dcmDaemonMainInit(&dcmHandle);
+    EXPECT_EQ(result, DCM_FAILURE);
 }
 
 /*
