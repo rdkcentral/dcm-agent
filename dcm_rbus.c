@@ -560,3 +560,9 @@ VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSu
 {
      rbusProcConf(handle, event, subscription);
 }
+
+void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error)
+{
+     rbusAsyncSubCB(handle, subscription, error);
+}
+
