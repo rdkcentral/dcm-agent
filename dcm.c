@@ -395,7 +395,7 @@ void get_dcmRunJobs(const INT8* profileName, VOID *pHandle)
 }
 void get_sig_handler(INT32 sig)
 {
-     sig_handler(INT32 sig);	
+     sig_handler(sig);	
 }
 
 
