@@ -26,11 +26,10 @@
 #include "./mocks/mockrbus.h"
 //#include "./mocks/mockrbus.cpp"
 
-/*extern "C" {
-//#include "dcm_types.h"
-//#include "dcm_parseconf.h"
+extern "C" {
+VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
+}
 
-}*/
 //#include "../dcm_utils.c"
 #include "dcm_types.h"
 #include "dcm_rbus.c"
