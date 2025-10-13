@@ -371,7 +371,7 @@ TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     dcmRbusHandle->eventSub = 1;
     dcmRbusHandle->schedJob = 0; // Initially not scheduled
     strcpy(dcmRbusHandle->confPath, "/etc/dcm.conf");
-        
+    
         // Initialize event structure
     memset(&testEvent, 0, sizeof(rbusEvent_t));
     testEvent.name = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
@@ -381,7 +381,7 @@ TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
         // Initialize subscription structure
     memset(&testSubscription, 0, sizeof(rbusEventSubscription_t));
     testSubscription.eventName = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
-    testSubscription.userData = dcmRbusHandle;
+    testSubscription.userData = nullptr;
     
     // Call the function
     get_rbusProcConf(mockHandle, &testEvent, &testSubscription);
