@@ -417,7 +417,7 @@ protected:
         memset(&testSubscription, 0, sizeof(rbusEventSubscription_t));
         testSubscription.eventName = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
         testSubscription.userData = dcmRbusHandle;
-        testSubscription.handler = rbusProcConf;
+        //testSubscription.handler = rbusProcConf;
     }
     
     void TearDown() override {
@@ -440,7 +440,7 @@ TEST_F(RbusProcConfTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     EXPECT_EQ(dcmRbusHandle->schedJob, 0);
     
     // Call the function
-    rbusProcConf(mockHandle, &testEvent, &testSubscription);
+    get_rbusProcConf(mockHandle, &testEvent, &testSubscription);
     
     // Verify schedJob flag is set
     EXPECT_EQ(dcmRbusHandle->schedJob, 1);
