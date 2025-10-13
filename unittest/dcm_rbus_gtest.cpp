@@ -519,8 +519,8 @@ TEST_F( RbusProcConfTest, rbusAsyncSubCB_with_userdata_null)
     
 }
 
-TEST_F(RbusProcConfTest, SetConf_ValidConfigPath_UpdatesConfPath) {
-    
+TEST_F(RbusProcConfTest, rbusSetConf_success) 
+{    
     rbusValue_t mockConfigValue;
     const char* newConfigPath = "/etc/test.conf";
     
@@ -534,7 +534,19 @@ TEST_F(RbusProcConfTest, SetConf_ValidConfigPath_UpdatesConfPath) {
     
 }
 
-
+TEST_F(RbusProcConfTest, rbusSetConf_event_handler_null) 
+{
+    get_rbusSetConf(mockHandle, nullptr, &testSubscription);    
+}
+TEST_F(RbusProcConfTest, rbusSetConf_subscription_null) 
+{
+    get_rbusSetConf(mockHandle, &testEvent, nullptr);    
+}
+TEST_F(RbusProcConfTest, rbusSetConf_with_userdata_null) 
+{
+    testSubscription.userData = nullptr;
+    get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
+}
 
 /*
 #include <gtest/gtest.h>
