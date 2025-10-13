@@ -159,6 +159,12 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
     EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
 }
+
+TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
+    
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
+}
+
 /*
 TEST(DcmDaemonMainInitTest , ) {
     auto myFunctionPtr = getdcmRunJobs();
