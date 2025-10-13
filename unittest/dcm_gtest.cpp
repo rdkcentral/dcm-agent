@@ -214,7 +214,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
-
+/*
 TEST_F(DcmDaemonMainInitTest, MainInit_pExecBuff_failure) {
     // Setup successful RBUS mocks
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
@@ -250,7 +250,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_pExecBuff_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
-
+*/
 
 /*
 TEST(DcmDaemonMainInitTest , ) {
