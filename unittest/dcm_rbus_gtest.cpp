@@ -144,7 +144,6 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     InSequence seq;
     void* handle = nullptr;
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
-    if (handle) {
     EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
         .Times(2)
         .WillRepeatedly(Return(RBUS_ERROR_BUS_ERROR));
@@ -153,7 +152,6 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     EXPECT_CALL(*mockRBus, rbus_close(_))
         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
     dcmRbusUnInit(handle);
-    }
     
 }
 
