@@ -146,7 +146,7 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
        .WillOnce(Return(RBUS_ENABLED));
     
     EXPECT_CALL(*mockRBus, rbus_open(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
     
     int result = dcmRbusInit(&handle);
     
