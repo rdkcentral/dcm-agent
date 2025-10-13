@@ -566,3 +566,8 @@ void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscripti
      rbusAsyncSubCB(handle, subscription, error);
 }
 
+VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
+{
+     rbusSetConf(handle, rbusEvent_t const* event, subscription);
+}
+
