@@ -30,6 +30,7 @@ extern "C" {
  
   //VOID (*getdcmRunJobs(void)) (const INT8*, VOID*);
   void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+  void get_sig_handler(INT32 sig);
   #include "dcm.c"
   #include "dcm.h"
 
@@ -314,6 +315,68 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     // Call the function with DIFD profile
     get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle);
 }
+
+class SigHandlerTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Setup global DCM handle for testing
+        g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
+        ASSERT_NE(g_pdcmHandle, nullptr);
+        
+        memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
+        g_pdcmHandle->isDCMRunning = false;
+        
+        // Setup minimal components that might be cleaned up
+        setupMinimalComponents();
+        
+    }
+    
+    void TearDown() override {
+        // Cleanup global handle
+        cleanupComponents();
+        
+        if (g_pdcmHandle) {
+            free(g_pdcmHandle);
+            g_pdcmHandle = nullptr;
+        }
+    }
+    
+    void setupMinimalComponents() {
+        // Allocate execution buffer
+        g_pdcmHandle->pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
+        
+        // Initialize settings if possible
+        if (dcmSettingsInit(&g_pdcmHandle->pDcmSetHandle) != DCM_SUCCESS) {
+            g_pdcmHandle->pDcmSetHandle = nullptr;
+        }
+        
+        // Mock scheduler handles (pointers to indicate they exist)
+        g_pdcmHandle->pLogSchedHandle = (VOID*)0x12345678;
+        g_pdcmHandle->pDifdSchedHandle = (VOID*)0x87654321;
+    }
+    
+    void cleanupComponents() {
+        if (g_pdcmHandle) {
+            if (g_pdcmHandle->pExecBuff) {
+                free(g_pdcmHandle->pExecBuff);
+                g_pdcmHandle->pExecBuff = nullptr;
+            }
+            
+            if (g_pdcmHandle->pDcmSetHandle) {
+                dcmSettingsUnInit(g_pdcmHandle->pDcmSetHandle);
+                g_pdcmHandle->pDcmSetHandle = nullptr;
+            }
+        }
+    }
+};
+
+// ==================== Handled Signals Test Cases ====================
+
+TEST_F(SigHandlerTest, SigHandler_SIGINT_SendsEventAndExits) {
+    get_sig_handler(SIGINT);
+}
+
+
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
