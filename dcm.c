@@ -388,7 +388,11 @@ exit2:
     return ret;
 }
 #endif
+/*
 VOID (*getdcmRunJobs(void)) (const INT8*, VOID*) 
 {
 	return &dcmRunJobs;
+} */
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) {
+    dcmRunJobs(profileName, pHandle);
 }
