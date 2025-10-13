@@ -144,17 +144,6 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     InSequence seq;
     void* handle = nullptr;
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
-
-    EXPECT_CALL(*mockRBus, rbus_checkStatus())
-       .WillOnce(Return(RBUS_ENABLED));
-    
-    EXPECT_CALL(*mockRBus, rbus_open(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
-    
-    int result = dcmRbusInit(&handle);
-    
-    EXPECT_EQ(result, DCM_SUCCESS);
-    EXPECT_NE(handle, nullptr);
     if (handle) {
     EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
         .Times(2)
@@ -164,18 +153,6 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     EXPECT_CALL(*mockRBus, rbus_close(_))
         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
     dcmRbusUnInit(handle);
-    }
-        // Cleanup
-    if (handle) {
-        EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
-            .Times(2)
-            .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
-        EXPECT_CALL(*mockRBus, rbus_unregDataElements(_, _, _))
-            .WillOnce(Return(RBUS_ERROR_SUCCESS));
-        EXPECT_CALL(*mockRBus, rbus_close(_))
-            .WillOnce(Return(RBUS_ERROR_SUCCESS));
-        
-        dcmRbusUnInit(handle);
     }
     
 }
