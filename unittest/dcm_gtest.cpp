@@ -299,8 +299,6 @@ exit 0
     const char* originalPath;
 };
 
-
-
 TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     // Set RDK path to our test directory
     setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
@@ -308,6 +306,17 @@ TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     // Call the function with log upload profile
     //test_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
     get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
+    usleep(100000); // 100ms
+    
+    // Verify the script was executed
+    EXPECT_TRUE(fileExists("/tmp/test_upload_output.txt"));
+    
+    std::string output = readFile("/tmp/test_upload_output.txt");
+    EXPECT_FALSE(output.empty());
+    EXPECT_NE(output.find("Upload script called"), std::string::npos);
+    
+    // Cleanup
+    unlink("/tmp/test_upload_output.txt");
     
 }
 
