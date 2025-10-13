@@ -166,6 +166,7 @@ TEST(DcmDaemonMainInitTest , ) {
     EXPECT_EQ(errcode, 0);
 }
 */
+/*
 class DcmRunJobsTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -207,10 +208,102 @@ protected:
     DCMDHandle dcmHandle;
     const char* originalPath;
 };
+*/
+
+class DcmRunJobsTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize DCM handle
+        memset(&dcmHandle, 0, sizeof(DCMDHandle));
+        
+        // Allocate execution buffer
+        dcmHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
+        ASSERT_NE(dcmHandle.pExecBuff, nullptr);
+        
+        // Initialize settings handle
+        INT32 ret = dcmSettingsInit(&dcmHandle.pDcmSetHandle);
+        if (ret != DCM_SUCCESS) {
+            // If settings init fails, create a minimal mock handle
+            dcmHandle.pDcmSetHandle = malloc(64);
+            ASSERT_NE(dcmHandle.pDcmSetHandle, nullptr);
+        }
+        
+        // Store original environment
+        originalPath = getenv("PATH");
+        
+        // Create test directories
+        system("mkdir -p /tmp/test_dcm_scripts");
+        createTestScripts();
+    }
+    
+    void TearDown() override {
+        // Cleanup
+        if (dcmHandle.pExecBuff) {
+            free(dcmHandle.pExecBuff);
+        }
+        if (dcmHandle.pDcmSetHandle) {
+            dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
+        }
+        
+        // Cleanup test files
+        system("rm -rf /tmp/test_dcm_scripts");
+        
+        // Restore environment
+        if (originalPath) {
+            setenv("PATH", originalPath, 1);
+        }
+    }
+    
+    void createTestScripts() {
+        // Create test uploadSTBLogs.sh script
+        const char* uploadScript = R"(#!/bin/bash
+echo "Upload script called with args: $*" > /tmp/test_upload_output.txt
+echo "Protocol: $3" >> /tmp/test_upload_output.txt
+echo "URL: $4" >> /tmp/test_upload_output.txt
+exit 0
+)";
+        
+        system("echo '" + std::string(uploadScript) + "' > /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        system("chmod +x /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        
+        // Create test swupdate_utility.sh script
+        const char* swupdateScript = R"(#!/bin/bash
+echo "SW Update script called with args: $*" > /tmp/test_swupdate_output.txt
+echo "Mode: $1" >> /tmp/test_swupdate_output.txt
+echo "Type: $2" >> /tmp/test_swupdate_output.txt
+exit 0
+)";
+        
+        system("echo '" + std::string(swupdateScript) + "' > /tmp/test_dcm_scripts/swupdate_utility.sh");
+        system("chmod +x /tmp/test_dcm_scripts/swupdate_utility.sh");
+    }
+    
+    bool fileExists(const char* filename) {
+        return access(filename, F_OK) == 0;
+    }
+    
+    std::string readFile(const char* filename) {
+        FILE* file = fopen(filename, "r");
+        if (!file) return "";
+        
+        char buffer[1024];
+        std::string content;
+        while (fgets(buffer, sizeof(buffer), file)) {
+            content += buffer;
+        }
+        fclose(file);
+        return content;
+    }
+    
+    DCMDHandle dcmHandle;
+    const char* originalPath;
+};
+
+
 
 TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     // Set RDK path to our test directory
-    //setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
+    setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
     
     // Call the function with log upload profile
     //test_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
