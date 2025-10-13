@@ -28,6 +28,7 @@
 
 extern "C" {
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
+void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error);
 }
 
 //#include "../dcm_utils.c"
@@ -473,6 +474,19 @@ TEST_F(RbusProcConfTest, ProcConf_NullUserData_ReturnsEarlyWithoutCrash) {
     // Call function - should return early due to NULL userData
     EXPECT_NO_THROW(get_rbusProcConf(mockHandle, &testEvent, &testSubscription));
 }
+
+
+
+TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_success) {
+    rbusError_t RBUS_ERROR_SUCCESS;
+    
+    // Call the function
+    get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
+    
+    // Verify schedJob flag is set
+    EXPECT_EQ(pDCMRbusHandle->eventSub, 1);
+}
+
 
 /*
 #include <gtest/gtest.h>
