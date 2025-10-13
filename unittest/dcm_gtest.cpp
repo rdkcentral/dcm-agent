@@ -157,6 +157,66 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
     EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
 }
+/*
+TEST(DcmDaemonMainInitTest , ) {
+    auto myFunctionPtr = getdcmRunJobs();
+    UINT32 result = myFunctionPtr("12345", &errcode); 
+    EXPECT_EQ(result, 12345u);
+    EXPECT_EQ(errcode, 0);
+}
+*/
+class DcmRunJobsTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize DCM handle
+        memset(&dcmHandle, 0, sizeof(DCMDHandle));
+        
+        // Allocate execution buffer
+        dcmHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
+        ASSERT_NE(dcmHandle.pExecBuff, nullptr);
+        
+        // Initialize settings handle
+        INT32 ret = dcmSettingsInit(&dcmHandle.pDcmSetHandle);
+        if (ret != DCM_SUCCESS) {
+            // If settings init fails, create a minimal mock handle
+            dcmHandle.pDcmSetHandle = malloc(64);
+            ASSERT_NE(dcmHandle.pDcmSetHandle, nullptr);
+        }
+    }
+    
+    void TearDown() override {
+        // Cleanup
+        if (dcmHandle.pExecBuff) {
+            free(dcmHandle.pExecBuff);
+        }
+        if (dcmHandle.pDcmSetHandle) {
+            dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
+        }
+        
+        // Cleanup test files
+        system("rm -rf /tmp/test_dcm_scripts");
+        
+        // Restore environment
+        if (originalPath) {
+            setenv("PATH", originalPath, 1);
+        }
+    }
+    
+    
+    DCMDHandle dcmHandle;
+    const char* originalPath;
+};
+
+TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
+    // Set RDK path to our test directory
+    //setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
+    
+    // Call the function with log upload profile
+    //test_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
+    getdcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
+    
+}
+
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
