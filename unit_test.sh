@@ -88,7 +88,7 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --capture --directory . --output-file coverage.info
     #lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     #lcov --remove coverage.info "$HOME/usr/*" --output-file coverage.info
-    lcov --remove coverage.info "/usr/*" --output-file coverage.info
+    #lcov --remove coverage.info "/usr/*" --output-file coverage.info
     lcov --extract coverage.info "*/dcm*.c" -o newcov.info
     lcov --list coverage.info
     lcov --list newcov.info
