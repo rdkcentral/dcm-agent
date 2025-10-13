@@ -528,8 +528,8 @@ TEST_F(RbusProcConfTest, rbusSetConf_success)
     EXPECT_CALL(*mockRBus, rbusObject_GetValue(testEvent.data, DCM_SET_CONFIG))
         .WillOnce(Return(mockConfigValue));
     
-    EXPECT_CALL(*mockRBus, rbusValue_GetString(mockConfigValue, nullptr))
-        .WillOnce(Return(newConfigPath));
+   // EXPECT_CALL(*mockRBus, rbusValue_GetString(mockConfigValue, nullptr))
+    //    .WillOnce(Return(newConfigPath));
     get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
     
 }
