@@ -556,3 +556,7 @@ VOID dcmRbusUnInit (VOID *pDCMRbusHandle)
 
 }
 
+VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
+{
+     rbusProcConf(handle, event, subscription);
+}
