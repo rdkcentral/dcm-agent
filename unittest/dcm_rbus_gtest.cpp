@@ -507,7 +507,7 @@ TEST_F( RbusProcConfTest, rbusAsyncSubCB_with_userdata_null)
 {
     rbusError_t error = RBUS_ERROR_SUCCESS; 
     testSubscription.userData = nullptr;
-    get_rbusAsyncSubCB(mockHandle, nullptr, error);
+    get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
     
 }
 
