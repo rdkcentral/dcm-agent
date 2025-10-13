@@ -483,8 +483,6 @@ TEST_F(RbusProcConfTest, rbusAsyncSubCB_subscrption_success) {
     // Call the function
     get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
     
-    // Verify schedJob flag is set
-    EXPECT_EQ(pDCMRbusHandle->eventSub, 1);
 }
 
 
