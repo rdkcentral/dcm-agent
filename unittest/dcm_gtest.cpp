@@ -207,8 +207,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
     
     // Event subscription
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
-        .Times(2)
-        .WillRepeatedly(Return(RBUS_ERROR_BUS_ERROR));
+         .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
     
     
     INT32 result = dcmDaemonMainInit(&dcmHandle);
