@@ -165,7 +165,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
-TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
+TEST_F(DcmDaemonMainInitTest, MainInit_dcmSettingsInit_fail) {
     dcmHandle.pDcmSetHandle=nullptr;
     RemoveFile(DCM_PID_FILE);
     INT32 result = dcmDaemonMainInit(&dcmHandle);
