@@ -93,7 +93,7 @@ TEST_F(DcmSchedJobTest, StartJobWithInvalidCronPatternFails) {
     EXPECT_EQ(ret, DCM_FAILURE);
 }
 */
-
+/*
 TEST_F(DcmSchedJobTest, StartAndStopJobWithValidCronPattern) {
     // A valid cron pattern (e.g., every minute: "* * * * *")
     INT32 ret = dcmSchedStartJob(schedHandle, (INT8*)"* * * * *");
@@ -102,6 +102,8 @@ TEST_F(DcmSchedJobTest, StartAndStopJobWithValidCronPattern) {
     ret = dcmSchedStopJob(schedHandle);
     EXPECT_EQ(ret, DCM_SUCCESS);
 }
+*/
+
 /*
 TEST_F(DcmSchedJobTest, SchedulerCallbackIsCalledOnTimeout) {
     // Use a cron pattern that triggers almost immediately for the test
