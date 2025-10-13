@@ -391,6 +391,91 @@ TEST_F(SigHandlerTest, SigHandler_SIGINT_SendsEventAndExits) {
 }
 */
 
+class DcmDaemonMainUnInitTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize test handle
+        memset(&testHandle, 0, sizeof(DCMDHandle));
+        
+        // Create test files/directories if needed
+        system("mkdir -p /tmp/test_dcm");
+        
+        // Initialize components for testing
+        setupTestComponents();
+    }
+    
+    void TearDown() override {
+        // Cleanup test files
+        system("rm -rf /tmp/test_dcm");
+        system("rm -f /var/run/dcm.pid");
+        
+        // Cleanup any allocated memory
+        cleanupTestComponents();
+    }
+    
+    void setupTestComponents() {
+        // Allocate execution buffer
+        testHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
+        if (testHandle.pExecBuff) {
+            memset(testHandle.pExecBuff, 0, EXECMD_BUFF_SIZE);
+            strcpy(testHandle.pExecBuff, "test command");
+        }
+        
+        // Initialize settings handle (may fail, that's OK for testing)
+        if (dcmSettingsInit(&testHandle.pDcmSetHandle) != DCM_SUCCESS) {
+            testHandle.pDcmSetHandle = nullptr;
+        }
+        
+        // Initialize scheduler
+        if (dcmSchedInit() == DCM_SUCCESS) {
+            // Add dummy scheduler jobs
+            testHandle.pLogSchedHandle = dcmSchedAddJob("test_log", nullptr, nullptr);
+            testHandle.pDifdSchedHandle = dcmSchedAddJob("test_difd", nullptr, nullptr);
+        }
+        
+        // Initialize RBUS handle (may fail, that's OK for testing)
+        if (dcmRbusInit(&testHandle.pRbusHandle) != DCM_SUCCESS) {
+            testHandle.pRbusHandle = nullptr;
+        }
+    }
+    
+    void cleanupTestComponents() {
+        // Cleanup scheduler if initialized
+        if (testHandle.pLogSchedHandle || testHandle.pDifdSchedHandle) {
+            dcmSchedUnInit();
+        }
+    }
+    
+    void createPIDFile() {
+        FILE* pidFile = fopen("/var/run/dcm.pid", "w");
+        if (pidFile) {
+            fprintf(pidFile, "%d\n", getpid());
+            fclose(pidFile);
+        }
+    }
+    
+    bool pidFileExists() {
+        return access("/var/run/dcm.pid", F_OK) == 0;
+    }
+    
+    DCMDHandle testHandle;
+};
+
+// ==================== Valid Handle Test Cases ====================
+
+TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
+    testHandle.isDCMRunning = true; // Won't remove PID file
+    
+    // Should complete without crashing
+    EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
+    
+    // Verify handle is cleared
+    EXPECT_EQ(testHandle.pExecBuff, nullptr);
+    EXPECT_EQ(testHandle.pDcmSetHandle, nullptr);
+    EXPECT_EQ(testHandle.pRbusHandle, nullptr);
+    EXPECT_EQ(testHandle.pLogSchedHandle, nullptr);
+    EXPECT_EQ(testHandle.pDifdSchedHandle, nullptr);
+}
 
 
 GTEST_API_ int main(int argc, char *argv[]){
