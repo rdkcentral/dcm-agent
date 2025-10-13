@@ -29,6 +29,7 @@
 extern "C" {
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error);
+VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 }
 
 //#include "../dcm_utils.c"
@@ -419,6 +420,10 @@ protected:
         testSubscription.eventName = "Device.X_RDKCENTRAL-COM_T2.ProcessConfig";
         testSubscription.userData = dcmRbusHandle;
         //testSubscription.handler = rbusProcConf;
+
+        mockRBus = new StrictMock<MockRBus>();
+        mock_rbus_set_global_mock(mockRBus);
+        mock_rbus_reset();
     }
     
     void TearDown() override {
@@ -426,12 +431,15 @@ protected:
             free(dcmRbusHandle);
             dcmRbusHandle = nullptr;
         }
+        mock_rbus_clear_global_mock();
+        delete mockRBus;
     }
     
     rbusHandle_t mockHandle;
     DCMRBusHandle* dcmRbusHandle;
     rbusEvent_t testEvent;
     rbusEventSubscription_t testSubscription;
+    MockRBus* mockRBus;
 };
 
 // ==================== Valid Input Test Cases ====================
@@ -508,6 +516,21 @@ TEST_F( RbusProcConfTest, rbusAsyncSubCB_with_userdata_null)
     rbusError_t error = RBUS_ERROR_SUCCESS; 
     testSubscription.userData = nullptr;
     get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
+    
+}
+
+TEST_F(RbusProcConfTest, SetConf_ValidConfigPath_UpdatesConfPath) {
+    
+    rbusValue_t mockConfigValue;
+    const char* newConfigPath = "/etc/test.conf";
+    
+    // Setup expectations - rbusObject_GetValue returns rbusValue_t
+    EXPECT_CALL(*mockRbus, rbusObject_GetValue(testEvent.data, DCM_SET_CONFIG))
+        .WillOnce(Return(mockConfigValue));
+    
+    EXPECT_CALL(*mockRbus, rbusValue_GetString(mockConfigValue, nullptr))
+        .WillOnce(Return(newConfigPath));
+    get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
     
 }
 
