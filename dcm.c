@@ -388,11 +388,15 @@ exit2:
     return ret;
 }
 #endif
-/*
-VOID (*getdcmRunJobs(void)) (const INT8*, VOID*) 
+
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) 
 {
-	return &dcmRunJobs;
-} */
-void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) {
     dcmRunJobs(profileName, pHandle);
 }
+void get_sig_handler(INT32 sig)
+{
+     sig_handler(INT32 sig);	
+}
+
+
+
