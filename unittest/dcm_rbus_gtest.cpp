@@ -138,6 +138,40 @@ TEST_F(DcmRbusTest, dcmRbusInit_rbusopen_failure) {
     EXPECT_EQ(result, DCM_FAILURE);
     
 }
+TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
+    void* handle = nullptr;
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+       .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
+    dcmRbusUnInit(&handle);
+    
+}
+EXPECT_CALL(*mockRBus, rbus_open(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_BUS_ERROR)));
+
+TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_close_fail) {
+    void* handle = nullptr;
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+       .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    EXPECT_CALL(*mockRBus, rbus_close(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_BUS_ERROR)));
+    dcmRbusUnInit(&handle);
+    
+}
+
+TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_unsubscribe_fail) {
+    void* handle = nullptr;
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
+        .Times(2)
+        .WillRepeatedly(Return(RBUS_ERROR_BUS_ERROR));
+    dcmRbusUnInit(&handle);
+    
+}
 
 TEST_F(DcmRbusTest, dcmRbusSendEvent_Success) {
     // Setup mock DCM handle
