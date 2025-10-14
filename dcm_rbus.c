@@ -30,8 +30,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-
-//#include "rbus.h"
+#ifndef GTEST_ENABLE
+#include "rbus.h"
+#endif
 #include "dcm_types.h"
 #include "dcm_rbus.h"
 #include "dcm_utils.h"
@@ -574,6 +575,7 @@ rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action
 {
      return rbusSendEventCB( handle, action, eventName, filter, interval, autoPublish);
 }
+
 
 
 
