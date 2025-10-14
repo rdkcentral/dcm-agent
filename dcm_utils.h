@@ -27,10 +27,12 @@
 #include "maintenanceMGR.h"
 #endif
 
+#ifndef GTEST_ENABLE
+#include "rbus.h"
+#endif 
 
 #ifdef RDK_LOGGER_ENABLED
 #include "rdk_debug.h"
-#include "rbus.h"
 #endif
 
 #define DCM_LIB_PATH                 "/lib/rdk"
@@ -119,6 +121,7 @@ INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry);
 void DCMLOGInit();
 
 #endif //_DCM_UTILS_H
+
 
 
 
