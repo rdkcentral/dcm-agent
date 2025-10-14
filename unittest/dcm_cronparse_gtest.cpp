@@ -204,14 +204,14 @@ TEST(dcmCronParseTest, ParseValidExpression) {
     EXPECT_EQ(result, 0); // Adjust expected value based on implementation
 }
 
-TEST(dcmCronParseTest, ParseInvalidExpression) {
+TEST(dcmCronParseTest, dcmCronParseExpInvalidTarget) {
     dcmCronExpr expr = {};
-    const INT8* cron = NULL;
-    INT32 result = dcmCronParseExp(cron, &expr);
+    const INT8* cron = "* * * * * *";
+    INT32 result = dcmCronParseExp(cron, NULL);
     EXPECT_EQ(result, -1); // Should fail
 }
 
-TEST(dcmCronParseTest, ParseInvalidExpression1) {
+TEST(dcmCronParseTest, dcmCronParseExpInvalidExpression) {
     //dcmCronExpr expr = NULL;
     dcmCronExpr* expr = NULL;
     const INT8* cron = NULL;
