@@ -630,7 +630,7 @@ TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_success)
 }
 TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_dcmrbus_handle_null)
 {
-    dcmRbusSchedResetStatus(dcmRbusHandle);
+    EXPECT_NO_THROW(dcmRbusSchedResetStatus(nullptr));
 }
 TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_success)
 {
