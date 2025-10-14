@@ -419,10 +419,17 @@ TEST_F(DcmCronParseResetMinTest, ResetMin_YearField_ResetsToZero) {
     EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
 }
 
-TEST_F(DcmCronParseResetMinTest, ResetMin_YearField_ResetsToZero) {
+TEST_F(DcmCronParseResetMinTest, ResetMin_default_field) {
     auto myFunctionPtr = getdcmCronParseResetMin();
     // Reset year field
     INT32 result = myFunctionPtr(&testCalendar, 8);
+    // Verify success
+    EXPECT_EQ(result, 1);
+}
+TEST_F(DcmCronParseResetMinTest, ResetMin_invalid_field) {
+    auto myFunctionPtr = getdcmCronParseResetMin();
+    // Reset year field
+    INT32 result = myFunctionPtr(&testCalendar, -1);
     // Verify success
     EXPECT_EQ(result, 1);
 }
