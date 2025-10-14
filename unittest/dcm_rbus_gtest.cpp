@@ -558,7 +558,7 @@ TEST_F( RbusProcConfTest, rbusAsyncSubCB_with_userdata_null)
     get_rbusAsyncSubCB(mockHandle, &testSubscription, error);
     
 }
-/*
+
 TEST_F(RbusProcConfTest, rbusSetConf_success) 
 {    
     rbusValue_t mockConfigValue;
@@ -568,15 +568,18 @@ TEST_F(RbusProcConfTest, rbusSetConf_success)
     EXPECT_CALL(*mockRBus, rbusObject_GetValue(_, _))
         .WillOnce(Return(mockConfigValue));
     
-    EXPECT_CALL(*mockRBus, rbusValue_GetString(_ , _))
-        .WillOnce(Return(newConfigPath)); 
+    //EXPECT_CALL(*mockRBus, rbusValue_GetString(_ , _))
+    //    .WillOnce(Return(newConfigPath)); 
+
+    EXPECT_CALL(*mockRBus, rbusValue_GetString(_, _))
+        .Times(1);
     
    // EXPECT_CALL(*mockRBus, rbusValue_GetString(mockConfigValue, nullptr))
     //    .WillOnce(Return(newConfigPath));
     get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
     
 }
-*/
+
 
 TEST_F(RbusProcConfTest, rbusSetConf_event_handler_null) 
 {
