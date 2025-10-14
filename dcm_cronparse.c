@@ -955,3 +955,7 @@ INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32)
 {
     return &dcmCronParseResetMin;
 }
+INT32 getdcmCronParseResetAllMin(struct tm*, INT32*)
+{
+    return &dcmCronParseResetAllMin;
+}
