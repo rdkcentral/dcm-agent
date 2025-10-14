@@ -400,6 +400,35 @@ TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_STREQ(versionBuffer, "2.1.5");
 }
+
+TEST_F(DcmRbusTest, GetT2Version_with_dcm_rbushandle_null) 
+{
+    char versionBuffer[256];
+    DCMRBusHandle dcmHandle = nullptr;
+    memset(versionBuffer, 0, sizeof(versionBuffer));
+    
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+TEST_F(DcmRbusTest, GetT2Version_with_t2version_null) 
+{
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();    
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmRbusTest, GetT2Version_with_rbushandle_null) 
+{
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = NULL;  
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
 /*
 TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     // Verify initial state
@@ -567,15 +596,6 @@ TEST_F(RbusProcConfTest, rbusSetConf_success)
     // Setup expectations - rbusObject_GetValue returns rbusValue_t
     EXPECT_CALL(*mockRBus, rbusObject_GetValue(_, _))
         .WillOnce(Return(mockConfigValue));
-    
-    //EXPECT_CALL(*mockRBus, rbusValue_GetString(_ , _))
-    //    .WillOnce(Return(newConfigPath)); 
-
-    //EXPECT_CALL(*mockRBus, rbusValue_GetString(_, _))
-       // .Times(1);
-    
-   // EXPECT_CALL(*mockRBus, rbusValue_GetString(mockConfigValue, nullptr))
-    //    .WillOnce(Return(newConfigPath));
     get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
     
 }
