@@ -30,6 +30,7 @@ extern "C" {
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error);
 VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
+rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish)
 }
 
 //#include "../dcm_utils.c"
@@ -707,6 +708,12 @@ TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_dcm_rbus_null)
     EXPECT_EQ(result,0);
 }
 
+TEST_F(RbusProcConfTest , rbusSendEventCB_success)
+{
+    const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
+    rbusError_t result = get_rbusSendEventCB(mockHandle, NULL, &eventName, NULL, NULL, NULL);
+    EXPECT_EQ(result, RBUS_ERROR_SUCCESS);
+}
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
