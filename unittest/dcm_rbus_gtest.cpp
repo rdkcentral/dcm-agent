@@ -404,10 +404,9 @@ TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
 TEST_F(DcmRbusTest, GetT2Version_with_dcm_rbushandle_null) 
 {
     char versionBuffer[256];
-    DCMRBusHandle dcmHandle = nullptr;
     memset(versionBuffer, 0, sizeof(versionBuffer));
     
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(nullptr, versionBuffer);
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
