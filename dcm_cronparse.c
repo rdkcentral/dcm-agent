@@ -938,6 +938,7 @@ return_res:
     return ret;
 }
 
+#ifdef GTEST_ENABLE
 INT32 (*getdcmCronParseToUpper(void)) (INT8*) 
 {
 	return &dcmCronParseToUpper;
@@ -963,3 +964,4 @@ INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32)
 {
 	return &dcmCronParseSetField;
 }
+#endif
