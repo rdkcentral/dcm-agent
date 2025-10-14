@@ -607,6 +607,23 @@ TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_success) {
     dcmRbusHandle->eventSub = 127;
     EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), 127);
 }
+TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_dcmhandle_null) {
+    
+    EXPECT_EQ(dcmRbusGetEventSubStatus(nullptr), NULL);
+
+}
+TEST_F(RbusProcConfTest , dcmRbusGetConfPath_success)
+{
+    strcpy(dcmRbusHandle->confPath, "/etc/dcm.conf");
+    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), dcmRbusHandle->confPath);
+    EXPECT_STREQ(dcmRbusHandle->confPath, "/etc/dcm.conf");
+}
+TEST_F(RbusProcConfTest , dcmRbusGetConfPath_success)
+{
+    EXPECT_EQ(dcmRbusGetEventSubStatus(nullptr), NULL);
+}
+
+
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
