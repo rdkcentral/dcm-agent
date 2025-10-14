@@ -711,7 +711,7 @@ TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_dcm_rbus_null)
 TEST_F(RbusProcConfTest , rbusSendEventCB_success)
 {
     const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
-    rbusError_t result = get_rbusSendEventCB(mockHandle, NULL, &eventName, NULL, NULL, NULL);
+    rbusError_t result = get_rbusSendEventCB(mockHandle, NULL, eventName, NULL, NULL, NULL);
     EXPECT_EQ(result, RBUS_ERROR_SUCCESS);
 }
 /*
