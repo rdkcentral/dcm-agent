@@ -951,3 +951,7 @@ UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*)
     return &dcmCronParseNextSetBit;
 }
 
+INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32)
+{
+    return &dcmCronParseResetMin;
+}
