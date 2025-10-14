@@ -23,8 +23,10 @@
 #define _DCM_UTILS_H_
 
 #ifdef HAS_MAINTENANCE_MANAGER
+#ifndef GTEST_ENABLE
 #include "libIBus.h"
 #include "maintenanceMGR.h"
+#endif
 #endif
 
 #ifndef GTEST_ENABLE
@@ -121,5 +123,6 @@ INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry);
 void DCMLOGInit();
 
 #endif //_DCM_UTILS_H
+
 
 
