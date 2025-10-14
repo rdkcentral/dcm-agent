@@ -444,12 +444,23 @@ TEST_F(DcmCronParseResetMinTest, ResetMin_NullCalendar_ReturnsFailure) {
     EXPECT_EQ(result, 1);
 }
 
-/*
 TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_success) {
+    INT32 testFields[CRON_CF_ARR_LEN];
+    memset(emptyFields, -1, sizeof(emptyFields));
+    testFields[0] = CRON_CF_SECOND;
     auto myFunctionPtr = getdcmCronParseResetAllMin();
-    INT32 result = myFunctionPtr(&testCalendar, 3);
+    INT32 result = myFunctionPtr(&testCalendar, testFields);
     EXPECT_EQ(result, 0);
-} */
+    // Verify seconds field is reset to 0
+    EXPECT_EQ(testCalendar.tm_sec, 0);
+
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+} 
 TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_fail) {
     auto myFunctionPtr = getdcmCronParseResetAllMin();
     INT32 result = myFunctionPtr(nullptr, 2);
