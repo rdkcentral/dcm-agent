@@ -430,6 +430,25 @@ TEST_F(DcmRbusTest, GetT2Version_with_rbushandle_null)
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
+TEST_F(DcmRbusTest, GetT2Version_rbusget_fail) {
+    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
+    char versionBuffer[256];
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    memset(versionBuffer, 0, sizeof(versionBuffer));
+    EXPECT_CALL(*mockRBus, rbus_get(
+        dcmHandle.pRbusHandle,
+        _,  // DCM_RBUS_T2_VERSION
+        _))
+        .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_BUS_ERROR)));
+    
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+
+
 /*
 TEST_F(DcmRbusTest, ProcConf_ValidInputs_SetsScheduleJobFlag) {
     // Verify initial state
