@@ -32,7 +32,8 @@ INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32);
-INT32 getdcmCronParseResetAllMin(struct tm*, INT32*);
+INT32 (*getdcmCronParseResetAllMin(void)) (struct tm*, INT32*);
+INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32);
 }
 
 /*#include "rdm_types.h"
