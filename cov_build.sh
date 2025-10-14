@@ -46,7 +46,7 @@ git clone https://github.com/rdkcentral/iarmmgrs.git
 
 cd ${ROOT}
 rm -rf telemetry
-git clone https://github.com/rdkcentral/telemetry.git -b feature/dcm
+git clone https://github.com/rdkcentral/telemetry.git
 cd telemetry
 sh  build_inside_container.sh 
 
