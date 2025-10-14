@@ -31,9 +31,9 @@
 //#include "dcm_parseconf.h"
 
 }*/
-#include "../dcm_utils.c"
+
 #include "dcm_types.h"
-#include "dcm_parseconf.c"
+
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
