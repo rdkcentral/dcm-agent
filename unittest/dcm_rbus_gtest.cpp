@@ -711,7 +711,7 @@ TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_dcm_rbus_null)
 TEST_F(RbusProcConfTest , rbusSendEventCB_success)
 {
     const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
-    BOOL autoPublishFlag = TRUE;
+    BOOL autoPublishFlag = 1;
     int32_t testInterval = 10;
     rbusFilter_t mockFilter;
     mockFilter = (rbusFilter_t)0x87654321;
@@ -719,10 +719,10 @@ TEST_F(RbusProcConfTest , rbusSendEventCB_success)
     EXPECT_EQ(result, RBUS_ERROR_SUCCESS);
 }
 
-TEST_F(RbusProcConfTest , rbusSendEventCB_success)
+TEST_F(RbusProcConfTest , rbusSendEventCB_Eventname_null)
 {
     const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
-    BOOL autoPublishFlag = TRUE;
+    BOOL autoPublishFlag = 1;
     int32_t testInterval = 10;
     rbusFilter_t mockFilter;
     mockFilter = (rbusFilter_t)0x87654321;
