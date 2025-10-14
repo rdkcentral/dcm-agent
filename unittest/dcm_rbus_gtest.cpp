@@ -607,7 +607,7 @@ TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_success) {
     dcmRbusHandle->eventSub = 127;
     EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), 127);
 }
-TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_dcmhandle_null) {
+TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_dcmrbus_handle_null) {
     
     EXPECT_EQ(dcmRbusGetEventSubStatus(nullptr), NULL);
 
@@ -618,11 +618,30 @@ TEST_F(RbusProcConfTest , dcmRbusGetConfPath_success)
     EXPECT_EQ(dcmRbusGetConfPath(dcmRbusHandle),dcmRbusHandle->confPath );
     EXPECT_STREQ(dcmRbusHandle->confPath, "/etc/dcm.conf");
 }
-TEST_F(RbusProcConfTest , dcmRbusGetConfPath_dcmhandle_null)
+TEST_F(RbusProcConfTest , dcmRbusGetConfPath_dcmrbus_handle_null)
 {
     EXPECT_EQ(dcmRbusGetConfPath(nullptr), NULL);
 }
+TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_success)
+{
+    dcmRbusSchedResetStatus(dcmRbusHandle);
+    EXPECT_EQ(plDCMRbusHandle->schedJob,0);
+}
+TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_dcmrbus_handle_null)
+{
+    dcmRbusSchedResetStatus(dcmRbusHandle);
+}
+TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_success)
+{
+    INT32 result = dcmRbusSchedJobStatus(dcmRbusHandle);
+    EXPECT_EQ(result,0);
+}
 
+TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_dcm_rbus_null)
+{
+    INT32 result = dcmRbusSchedJobStatus(nullptr);
+    EXPECT_EQ(result,0);
+}
 
 /*
 #include <gtest/gtest.h>
