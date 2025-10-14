@@ -247,6 +247,57 @@ TEST(dcmCronParseTest, GetNext_NullExpression_ReturnsInvalidInstant) {
     EXPECT_EQ(result, -1);
 }
 
+class DcmCronParseResetMinTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Initialize test calendar with specific values
+        memset(&testCalendar, 0, sizeof(struct tm));
+        
+        // Set to a specific date: 2024-03-15 14:30:45 (Friday)
+        testCalendar.tm_year = 2024 - 1900; // tm_year is years since 1900
+        testCalendar.tm_mon = 2;            // March (0-based)
+        testCalendar.tm_mday = 15;          // 15th day
+        testCalendar.tm_hour = 14;          // 2 PM
+        testCalendar.tm_min = 30;           // 30 minutes
+        testCalendar.tm_sec = 45;           // 45 seconds
+        testCalendar.tm_wday = 5;           // Friday (0=Sunday)
+        testCalendar.tm_yday = 74;          // Day of year
+        testCalendar.tm_isdst = 0;          // No DST
+        
+        // Store original values for comparison
+        originalCalendar = testCalendar;
+    }
+    
+    void TearDown() override {
+    }
+    
+    struct tm testCalendar;
+    struct tm originalCalendar;
+};
+
+
+TEST_F(DcmCronParseResetMinTest, ResetMin_SecondField_ResetsToZero) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_sec, 45);
+    auto myFunctionPtr = getdcmCronParseResetMin();
+    // Reset seconds field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_SECOND);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify seconds field is reset to 0
+    EXPECT_EQ(testCalendar.tm_sec, 0);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
