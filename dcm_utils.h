@@ -123,5 +123,3 @@ void DCMLOGInit();
 #endif //_DCM_UTILS_H
 
 
-
-
