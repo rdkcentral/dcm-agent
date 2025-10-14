@@ -624,8 +624,9 @@ TEST_F(RbusProcConfTest , dcmRbusGetConfPath_dcmrbus_handle_null)
 }
 TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_success)
 {
+    dcmRbusHandle->schedJob = 1;
     dcmRbusSchedResetStatus(dcmRbusHandle);
-    EXPECT_EQ(plDCMRbusHandle->schedJob,0);
+    EXPECT_EQ(dcmRbusHandle->schedJob,0);
 }
 TEST_F(RbusProcConfTest , dcmRbusSchedResetStatus_dcmrbus_handle_null)
 {
