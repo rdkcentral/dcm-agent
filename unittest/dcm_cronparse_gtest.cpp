@@ -35,7 +35,7 @@ INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32);
 INT32 (*getdcmCronParseResetAllMin(void)) (struct tm*, INT32*);
 INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32);
 }
-
+#include "dcm_cronparse.c"
 /*#include "rdm_types.h"
 #include "rdm.h"
 #include "rdm_utils.h"
