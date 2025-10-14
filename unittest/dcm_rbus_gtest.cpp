@@ -140,7 +140,7 @@ TEST_F(DcmRbusTest, dcmRbusInit_rbusopen_failure) {
     EXPECT_EQ(result, DCM_FAILURE);
     
 }
-/*
+
 TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     InSequence seq;
     void* handle = nullptr;
@@ -155,7 +155,7 @@ TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_event_subscribe_fail) {
     dcmRbusUnInit(handle);
     
 }
-*/
+
 /*
 TEST_F(DcmRbusTest, dcmRbusUnInit_rbus_close_fail) {
     void* handle = nullptr;
