@@ -736,7 +736,7 @@ TEST_F(RbusProcConfTest , rbusSendEventCB_Eventname_DCM_RBUS_PROCCONF_EVENT)
     int32_t testInterval = 10;
     rbusFilter_t mockFilter;
     mockFilter = (rbusFilter_t)0x87654321;
-    rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, NULL, mockFilter, testInterval, &autoPublishFlag);
+    rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, eventName, mockFilter, testInterval, &autoPublishFlag);
     EXPECT_EQ(result, RBUS_ERROR_SUCCESS); 
 }
 
