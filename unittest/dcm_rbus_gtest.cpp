@@ -30,7 +30,7 @@ extern "C" {
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error);
 VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
-rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish)
+rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish);
 }
 
 //#include "../dcm_utils.c"
@@ -729,6 +729,18 @@ TEST_F(RbusProcConfTest , rbusSendEventCB_Eventname_null)
     rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, NULL, mockFilter, testInterval, &autoPublishFlag);
     EXPECT_EQ(result, RBUS_ERROR_BUS_ERROR);
 }
+TEST_F(RbusProcConfTest , rbusSendEventCB_Eventname_DCM_RBUS_PROCCONF_EVENT)
+{
+    const INT8* eventName = DCM_RBUS_PROCCONF_EVENT;
+    BOOL autoPublishFlag = 1;
+    int32_t testInterval = 10;
+    rbusFilter_t mockFilter;
+    mockFilter = (rbusFilter_t)0x87654321;
+    rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, NULL, mockFilter, testInterval, &autoPublishFlag);
+    EXPECT_EQ(result, RBUS_ERROR_SUCCESS); 
+}
+
+
 
 /*
 #include <gtest/gtest.h>
