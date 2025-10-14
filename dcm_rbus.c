@@ -572,7 +572,8 @@ VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSub
 }
 rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish)
 {
-     rbusSendEventCB( handle, action, eventName, filter, interval, autoPublish);
+     return rbusSendEventCB( handle, action, eventName, filter, interval, autoPublish);
 }
+
 
 
