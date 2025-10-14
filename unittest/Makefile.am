@@ -24,7 +24,7 @@ bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parsec
 
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks\
-                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE 
+                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE -DHAS_MAINTENANCE_MANAGER
 
 AM_CPPFLAGS =  -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_srcdir)/mocks -I$(top_srcdir) -I/usr/include 
 AM_CXXFLAGS = -std=c++14
