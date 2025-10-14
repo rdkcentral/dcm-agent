@@ -622,7 +622,7 @@ TEST_F(DcmCronParseResetMinTest, dcmCronParseSetField_NullCalendar_ReturnsFailur
 TEST_F(DcmCronParseResetMinTest, dcmCronParseSetField_default_field) {
     auto myFunctionPtr = getdcmCronParseSetField();
     // Reset year field
-    INT32 result = myFunctionPtr(&testCalendar, 8);
+    INT32 result = myFunctionPtr(&testCalendar, 8, 25);
     // Verify success
     EXPECT_EQ(result, 1);
 }
