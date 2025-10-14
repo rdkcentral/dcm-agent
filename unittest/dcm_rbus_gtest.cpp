@@ -464,7 +464,9 @@ TEST_F(DcmRbusTest, GetT2Version_rbusvaluetostring_fail) {
     
     EXPECT_CALL(*mockRBus, rbusValue_ToString(_ , _, _))
         .WillOnce(Return(NULL));
-    
+
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
     INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
     
     EXPECT_EQ(result, DCM_FAILURE);
