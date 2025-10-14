@@ -32,6 +32,7 @@ INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32);
+INT32 getdcmCronParseResetAllMin(struct tm*, INT32*);
 }
 
 /*#include "rdm_types.h"
@@ -434,8 +435,6 @@ TEST_F(DcmCronParseResetMinTest, ResetMin_invalid_field) {
     EXPECT_EQ(result, 1);
 }
 
-// ==================== Invalid Parameter Test Cases ====================
-
 TEST_F(DcmCronParseResetMinTest, ResetMin_NullCalendar_ReturnsFailure) {
     // Test with NULL calendar
     auto myFunctionPtr = getdcmCronParseResetMin();
@@ -443,6 +442,20 @@ TEST_F(DcmCronParseResetMinTest, ResetMin_NullCalendar_ReturnsFailure) {
     // Verify failure
     EXPECT_EQ(result, 1);
 }
+
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_success) {
+    auto myFunctionPtr = getdcmCronParseResetAllMin();
+    INT32 result = myFunctionPtr(&testCalendar, 2);
+    EXPECT_EQ(result, 0);
+}
+TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_fail) {
+    auto myFunctionPtr = getdcmCronParseResetAllMin();
+    INT32 result = myFunctionPtr(nullptr, 2);
+    EXPECT_EQ(result, 1);
+}
+
+
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
