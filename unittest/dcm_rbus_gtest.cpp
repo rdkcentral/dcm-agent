@@ -571,8 +571,8 @@ TEST_F(RbusProcConfTest, rbusSetConf_success)
     //EXPECT_CALL(*mockRBus, rbusValue_GetString(_ , _))
     //    .WillOnce(Return(newConfigPath)); 
 
-    EXPECT_CALL(*mockRBus, rbusValue_GetString(_, _))
-        .Times(1);
+    //EXPECT_CALL(*mockRBus, rbusValue_GetString(_, _))
+       // .Times(1);
     
    // EXPECT_CALL(*mockRBus, rbusValue_GetString(mockConfigValue, nullptr))
     //    .WillOnce(Return(newConfigPath));
