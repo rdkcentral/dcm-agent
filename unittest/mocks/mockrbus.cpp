@@ -263,7 +263,7 @@ rbusError_t rbusValue_SetString(rbusValue_t value, const char* str) {
 }
 
 const char* rbusValue_GetString(rbusValue_t value, int* len) {
-    if (g_mockRBus) {
+    /*if (g_mockRBus) {
         return g_mockRBus->rbusValue_GetString(value, len);
     }
     
@@ -274,8 +274,8 @@ const char* rbusValue_GetString(rbusValue_t value, int* len) {
             *len = strlen(mockValue->stringValue);
         }
         return mockValue->stringValue;
-    }
-    return nullptr;
+    }*/
+    return "Mockconfig";
 }
 
 char* rbusValue_ToString(rbusValue_t value, int* len, int radix) {
