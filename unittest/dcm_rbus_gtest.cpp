@@ -718,6 +718,18 @@ TEST_F(RbusProcConfTest , rbusSendEventCB_success)
     rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, eventName, mockFilter, testInterval, &autoPublishFlag);
     EXPECT_EQ(result, RBUS_ERROR_SUCCESS);
 }
+
+TEST_F(RbusProcConfTest , rbusSendEventCB_success)
+{
+    const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
+    BOOL autoPublishFlag = TRUE;
+    int32_t testInterval = 10;
+    rbusFilter_t mockFilter;
+    mockFilter = (rbusFilter_t)0x87654321;
+    rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, NULL, mockFilter, testInterval, &autoPublishFlag);
+    EXPECT_EQ(result, RBUS_ERROR_BUS_ERROR);
+}
+
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
