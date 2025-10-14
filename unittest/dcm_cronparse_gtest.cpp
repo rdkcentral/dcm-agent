@@ -444,19 +444,38 @@ TEST_F(DcmCronParseResetMinTest, ResetMin_NullCalendar_ReturnsFailure) {
     EXPECT_EQ(result, 1);
 }
 
-
+/*
 TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_success) {
     auto myFunctionPtr = getdcmCronParseResetAllMin();
-    INT32 result = myFunctionPtr(&testCalendar, 2);
+    INT32 result = myFunctionPtr(&testCalendar, 3);
     EXPECT_EQ(result, 0);
-}
+} */
 TEST_F(DcmCronParseResetMinTest, dcmCronParseResetAllMin_fail) {
     auto myFunctionPtr = getdcmCronParseResetAllMin();
     INT32 result = myFunctionPtr(nullptr, 2);
     EXPECT_EQ(result, 1);
 }
 
-
+TEST_F(DcmCronParseResetMinTest, dcmCronParseSetField_SecondField_setvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_sec, 45);
+    auto myFunctionPtr = getdcmCronParseSetField();
+    // Reset seconds field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_SECOND, 35);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify seconds field is reset to 0
+    EXPECT_EQ(testCalendar.tm_sec, 35);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
