@@ -422,8 +422,10 @@ TEST_F(DcmRbusTest, GetT2Version_with_t2version_null)
 TEST_F(DcmRbusTest, GetT2Version_with_rbushandle_null) 
 {
     DCMRBusHandle dcmHandle;
+    char versionBuffer[256];
+    memset(versionBuffer, 0, sizeof(versionBuffer));
     dcmHandle.pRbusHandle = NULL;  
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
