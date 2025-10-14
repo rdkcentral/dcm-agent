@@ -594,7 +594,19 @@ TEST_F(RbusProcConfTest, rbusSetConf_with_userdata_null)
     testSubscription.userData = nullptr;
     get_rbusSetConf(mockHandle, &testEvent, &testSubscription);
 }
+TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_success) {
+    dcmRbusHandle->eventSub = 0;
+    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), 0);
 
+    dcmRbusHandle->eventSub = 1;
+    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), 1);
+
+    dcmRbusHandle->eventSub = -1;
+    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), -1);
+
+    dcmRbusHandle->eventSub = 127;
+    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), 127);
+}
 /*
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
