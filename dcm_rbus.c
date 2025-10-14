@@ -557,6 +557,7 @@ VOID dcmRbusUnInit (VOID *pDCMRbusHandle)
 
 }
 
+#ifdef GTEST_ENABLE
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
 {
      rbusProcConf(handle, event, subscription);
@@ -575,7 +576,5 @@ rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action
 {
      return rbusSendEventCB( handle, action, eventName, filter, interval, autoPublish);
 }
-
-
-
+#endif
 
