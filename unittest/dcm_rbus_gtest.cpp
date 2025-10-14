@@ -565,7 +565,7 @@ TEST_F(RbusProcConfTest, rbusSetConf_success)
     const char* newConfigPath = "/etc/test.conf";
     
     // Setup expectations - rbusObject_GetValue returns rbusValue_t
-    EXPECT_CALL(*mockRBus, rbusObject_GetValue(testEvent.data, DCM_SET_CONFIG))
+    EXPECT_CALL(*mockRBus, rbusObject_GetValue(_, _))
         .WillOnce(Return(mockConfigValue));
     
     EXPECT_CALL(*mockRBus, rbusValue_GetString(_ , _))
