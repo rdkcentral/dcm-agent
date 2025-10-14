@@ -711,7 +711,11 @@ TEST_F(RbusProcConfTest , dcmRbusSchedJobStatus_dcm_rbus_null)
 TEST_F(RbusProcConfTest , rbusSendEventCB_success)
 {
     const INT8* eventName = DCM_RBUS_RELOAD_EVENT;
-    rbusError_t result = get_rbusSendEventCB(mockHandle, NULL, eventName, NULL, NULL, NULL);
+    BOOL autoPublishFlag = TRUE;
+    int32_t testInterval = 10;
+    rbusFilter_t mockFilter;
+    mockFilter = (rbusFilter_t)0x87654321;
+    rbusError_t result = get_rbusSendEventCB(mockHandle, RBUS_EVENT_ACTION_SUBSCRIBE, eventName, mockFilter, testInterval, &autoPublishFlag);
     EXPECT_EQ(result, RBUS_ERROR_SUCCESS);
 }
 /*
