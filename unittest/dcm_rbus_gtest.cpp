@@ -615,12 +615,12 @@ TEST_F(RbusProcConfTest ,dcmRbusGetEventSubStatus_dcmhandle_null) {
 TEST_F(RbusProcConfTest , dcmRbusGetConfPath_success)
 {
     strcpy(dcmRbusHandle->confPath, "/etc/dcm.conf");
-    EXPECT_EQ(dcmRbusGetEventSubStatus(dcmRbusHandle), NULL);
+    EXPECT_EQ(dcmRbusGetConfPath(dcmRbusHandle),dcmRbusHandle->confPath );
     EXPECT_STREQ(dcmRbusHandle->confPath, "/etc/dcm.conf");
 }
 TEST_F(RbusProcConfTest , dcmRbusGetConfPath_dcmhandle_null)
 {
-    EXPECT_EQ(dcmRbusGetEventSubStatus(nullptr), NULL);
+    EXPECT_EQ(dcmRbusGetConfPath(nullptr), NULL);
 }
 
 
