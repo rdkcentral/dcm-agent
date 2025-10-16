@@ -724,4 +724,9 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
     return dcmSettingStoreTempConf(defaultConfig, DCM_TMP_CONF, DCM_OPT_CONF);
  }
 
- 
+#ifdef GTEST_ENABLE
+INT32 (*getdcmSettingSaveMaintenance(void))(INT8, INT8*)
+{
+    return &dcmSettingSaveMaintenance;
+}
+#endif
