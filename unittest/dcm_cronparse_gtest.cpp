@@ -616,6 +616,140 @@ TEST_F(DcmCronParseResetMinTest, dcmCronParseSetField_default_field) {
     EXPECT_EQ(result, 1);
 }
 
+
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_MinuteField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_min, 30);
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset minutes field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_MINUTE, 5);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify minutes field is set to 35
+    EXPECT_EQ(testCalendar.tm_min, 35);
+    
+    // Verify other fields remain unchanged (except those normalized by mktime)
+    EXPECT_EQ(testCalendar.tm_sec, originalCalendar.tm_sec);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_HourField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_hour, 14);
+    auto myFunctionPtr = getdcmCronParseSetField();
+    // Reset hour field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_HOUR_OF_DAY, 5);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify hour field is set to 19
+    EXPECT_EQ(testCalendar.tm_hour, 19);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_sec, originalCalendar.tm_sec);
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_DayOfWeekField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_wday, 5); // Friday
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset day of week field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_DAY_OF_WEEK, 3);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+  
+}
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_DayOfMonthField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_mday, 15);
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset day of month field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_DAY_OF_MONTH, 5);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify day of month field is set to 20
+    EXPECT_EQ(testCalendar.tm_mday, 20);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_sec, originalCalendar.tm_sec);
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
+
+TEST_F(DcmCronParseResetMinTest, getdcmCronParseAddToField_MonthField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_mon, 2); // March
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset month field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_MONTH, 6);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify month field is reset to 6 (January)
+    EXPECT_EQ(testCalendar.tm_mon, 8);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_sec, originalCalendar.tm_sec);
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_year, originalCalendar.tm_year);
+}
+
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_YearField_addvalue) {
+    // Verify initial state
+    EXPECT_EQ(testCalendar.tm_year, 124); 
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset year field
+    INT32 result = myFunctionPtr(&testCalendar, CRON_CF_YEAR, 1);
+    
+    // Verify success
+    EXPECT_EQ(result, 0);
+    
+    // Verify year field is set to 1
+    EXPECT_EQ(testCalendar.tm_year, 125);
+    
+    // Verify other fields remain unchanged
+    EXPECT_EQ(testCalendar.tm_sec, originalCalendar.tm_sec);
+    EXPECT_EQ(testCalendar.tm_min, originalCalendar.tm_min);
+    EXPECT_EQ(testCalendar.tm_hour, originalCalendar.tm_hour);
+    EXPECT_EQ(testCalendar.tm_mday, originalCalendar.tm_mday);
+    EXPECT_EQ(testCalendar.tm_mon, originalCalendar.tm_mon);
+}
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_NullCalendar_ReturnsFailure) {
+    // Test with NULL calendar
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    INT32 result = myFunctionPtr(nullptr, CRON_CF_SECOND, 20);
+    // Verify failure
+    EXPECT_EQ(result, 1);
+}
+TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_default) {
+    auto myFunctionPtr = getdcmCronParseAddToField();
+    // Reset year field
+    INT32 result = myFunctionPtr(&testCalendar, 8, 25);
+    // Verify success
+    EXPECT_EQ(result, 1);
+}
+
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
