@@ -964,7 +964,7 @@ INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32)
 {
 	return &dcmCronParseSetField;
 }
-INT32 (*getdcmCronParseAddToField)(struct tm*, INT32, INT32)
+INT32 (*getdcmCronParseAddToField(void))(struct tm*, INT32, INT32)
 {
     return &dcmCronParseAddToField;
 }
