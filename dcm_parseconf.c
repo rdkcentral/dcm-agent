@@ -726,11 +726,12 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
  }
 
 #ifdef GTEST_ENABLE
-INT32 (*getdcmSettingSaveMaintenance(void))(INT8, INT8*)
+INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
 {
     return &dcmSettingSaveMaintenance;
 }
 #endif
+
 
 
 
