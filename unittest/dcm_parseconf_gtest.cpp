@@ -413,7 +413,7 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
     INT8 cronPattern[] = "30 2 * * *";  // 30 minutes, 2 hours
     INT8 timezone[] = "EST";
     auto myFunctionPtr = getdcmSettingSaveMaintenance();
-    INT32 result = myFunctionPtr(cronPattern, timezone);
+    INT32 result = myFunctionPtr(&cronPattern, &timezone);
     
     EXPECT_EQ(result, DCM_SUCCESS);
    // EXPECT_TRUE(fileExists(testFilePath));
