@@ -36,17 +36,6 @@ INT32 (*getdcmCronParseResetAllMin(void)) (struct tm*, INT32*);
 INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32);
 }
 
-/*#include "rdm_types.h"
-#include "rdm.h"
-#include "rdm_utils.h"
-*/
-/*
-  #include "mocks/mock_curl.h"
-extern "C" {
-    #include "rdm_curldownload.h"
-}
-*/
-
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
@@ -60,7 +49,6 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
 
-//extern static INT32 dcmCronParseToUpper(INT8* str);
 class dcmCronParseTest : public ::testing::Test {
 protected:
     void SetUp(){
@@ -128,17 +116,6 @@ TEST(dcmCronParseTest , StringWithSpaces) {
     EXPECT_EQ(result, 0);
     EXPECT_STREQ(input, "A B C D E F");
 }
-
-/*
-TEST(dcmCronParseToUpperTest, UnicodeCharactersUnaffected) {
-    // Depending on locale, toupper may not handle Unicode. Here, just check ASCII is uppercased and others remain.
-    INT8 input[] = "abc\xC3\xA9\xC3\xB1"; // "abcéñ" in UTF-8 (may not be handled well, but for demonstration)
-    EXPECT_EQ(dcmCronParseToUpper(input), 0);
-    // Only 'a', 'b', 'c' should be uppercased; rest should remain.
-    EXPECT_TRUE(strncmp(input, "ABC", 3) == 0);
-}
-*/
-
 
 TEST(dcmCronParseTest , ValidNumber) {
     INT32 errcode;
@@ -615,8 +592,6 @@ TEST_F(DcmCronParseResetMinTest, dcmCronParseSetField_default_field) {
     // Verify success
     EXPECT_EQ(result, 1);
 }
-
-
 
 TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_MinuteField_addvalue) {
     // Verify initial state
