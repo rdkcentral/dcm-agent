@@ -21,7 +21,7 @@
 
 #ifndef _DCM_CRONPARSE_H_
 #define _DCM_CRONPARSE_H_
-#ifndef GTEST_ENABLE
+#ifdef GTEST_ENABLE
 #include "dcm_types.h"
 #endif
 /**
