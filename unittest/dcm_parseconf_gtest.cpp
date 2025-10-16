@@ -367,6 +367,64 @@ TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
     EXPECT_EQ(dcmSettingsGetMMFlag(), 0);
 }
 
+class DcmSettingSaveMaintenanceTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        
+        // Create a temporary test file path
+        testFilePath = "/tmp/test_maintenance.conf";
+        
+        // Remove any existing test file
+        remove(testFilePath.c_str());
+    }
+    
+    void TearDown() override {
+        // Clean up test file
+        remove(testFilePath.c_str());
+        lastErrorMessage.clear();
+    }
+    
+    std::string testFilePath;
+    
+    // Helper function to read file contents
+    std::string readFileContents(const std::string& filepath) {
+        std::ifstream file(filepath);
+        if (!file.is_open()) {
+            return "";
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    }
+    
+    // Helper function to check if file exists
+    bool fileExists(const std::string& filepath) {
+        std::ifstream file(filepath);
+        return file.good();
+    }
+};
+
+// ==================== Valid Input Test Cases ====================
+
+TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_WritesCorrectly) {
+    // Override DCM_MAINT_CONF_PATH for testing
+    #undef DCM_MAINT_CONF_PATH
+    #define DCM_MAINT_CONF_PATH testFilePath.c_str()
+    
+    INT8 cronPattern[] = "30 2 * * *";  // 30 minutes, 2 hours
+    INT8 timezone[] = "EST";
+    
+    INT32 result = getdcmSettingSaveMaintenance(cronPattern, timezone);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_TRUE(fileExists(testFilePath));
+    
+    std::string fileContent = readFileContents(testFilePath);
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"2\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"30\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\""));
+    EXPECT_TRUE(lastErrorMessage.empty());
+}
 
 
 GTEST_API_ int main(int argc, char *argv[]){
