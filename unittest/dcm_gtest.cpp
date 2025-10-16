@@ -254,24 +254,21 @@ protected:
     void createTestScripts() {
         // Create test uploadSTBLogs.sh script
         const char* uploadScript = R"(#!/bin/bash
-echo "Upload script called with args: $*" > /tmp/test_upload_output.txt
-echo "Protocol: $3" >> /tmp/test_upload_output.txt
-echo "URL: $4" >> /tmp/test_upload_output.txt
-exit 0
-)";
-        
-        //system("echo '" + std::string(uploadScript) + "' > /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        echo "Upload script called with args: $*" > /tmp/test_upload_output.txt
+        echo "Protocol: $3" >> /tmp/test_upload_output.txt
+        echo "URL: $4" >> /tmp/test_upload_output.txt
+        exit 0
+        )";
         system("chmod +x /tmp/test_dcm_scripts/uploadSTBLogs.sh");
         
         // Create test swupdate_utility.sh script
         const char* swupdateScript = R"(#!/bin/bash
-echo "SW Update script called with args: $*" > /tmp/test_swupdate_output.txt
-echo "Mode: $1" >> /tmp/test_swupdate_output.txt
-echo "Type: $2" >> /tmp/test_swupdate_output.txt
-exit 0
-)";
-        
-        //system("echo '" + std::string(swupdateScript) + "' > /tmp/test_dcm_scripts/swupdate_utility.sh");
+        echo "SW Update script called with args: $*" > /tmp/test_swupdate_output.txt
+        echo "Mode: $1" >> /tmp/test_swupdate_output.txt
+        echo "Type: $2" >> /tmp/test_swupdate_output.txt
+        exit 0
+        )";
+    
         system("chmod +x /tmp/test_dcm_scripts/swupdate_utility.sh");
     }
     
