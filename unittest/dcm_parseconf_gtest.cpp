@@ -23,15 +23,12 @@
 #include <climits>
 #include <cerrno>
 #include <fstream>
-//#include "./mocks/mockRbus.h"
 #include "./mocks/mockrbus.h"
 
-/*extern "C" {
-//#include "dcm_types.h"
-//#include "dcm_parseconf.h"
-
-}*/
-#include "../dcm_utils.c"
+extern "C" {
+INT32 (*getdcmSettingSaveMaintenance(void))(INT8, INT8*);
+}
+#include "dcm_utils.c"
 #include "dcm_types.h"
 #include "dcm_parseconf.c"
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
