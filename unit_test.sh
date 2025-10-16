@@ -49,16 +49,7 @@ for test in \
   ./dcm_parseconf_gtest \
   ./dcm_rbus_gtest \
   ./dcm_gtest
-  #./rdm_main_gtest \
-  #./rdm_utils_gtest \
-  #./rdm_curl_gtest \
-  #./rdm_json_gtest \
-  #./rdm_download_gtest \
-  #./rdm_downloadutils_gtest \
-  #./rdm_rbus_gtest \
-  #./rdm_openssl_gtest \
-  #./rdm_usbinstall_gtest \
-  
+ 
 do
     $test
     status=$?
@@ -79,25 +70,8 @@ echo "********************"
 if [ "$ENABLE_COV" = true ]; then
     echo "Generating coverage report"
     lcov --capture --directory . --output-file coverage.info
-    lcov --extract coverage.info "*/dcm*.c" -o newcov.info
-    lcov --list newcov.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
-    lcov --list coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
 fi
-
-#if [ "$ENABLE_COV" = true ]; then
-#    echo "Generating coverage report"
-#    lcov --capture --directory . --output-file coverage.info
-    #lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
-    #lcov --remove coverage.info "$HOME/usr/*" --output-file coverage.info
-    #lcov --remove coverage.info "/usr/*" --output-file coverage.info
-#    lcov --extract coverage.info "*/dcm*.c" -o newcov.info
-#    lcov --list coverage.info
-#    lcov --list newcov.info
-#fi
-
-
-
 cd $TOP_DIR
