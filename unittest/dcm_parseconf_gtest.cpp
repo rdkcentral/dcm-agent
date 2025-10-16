@@ -26,7 +26,7 @@
 #include "./mocks/mockrbus.h"
 
 extern "C" {
-INT32 (*getdcmSettingSaveMaintenance(void))(INT8, INT8*);
+INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
 }
 #include "dcm_utils.c"
 #include "dcm_types.h"
@@ -406,12 +406,8 @@ protected:
 // ==================== Valid Input Test Cases ====================
 
 TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_WritesCorrectly) {
-    // Override DCM_MAINT_CONF_PATH for testing
-    //#undef DCM_MAINT_CONF_PATH
-    //#define DCM_MAINT_CONF_PATH testFilePath.c_str()
-
-    INT8 cronPattern[5] = {1,' ',2, 3, 5}; 
-    INT8 timezone[3] = {1, 2, 3};
+    INT8 cronPattern[] = "3 10 * * *";
+    INT8 timezone[] = "EST";
     auto myFunctionPtr = getdcmSettingSaveMaintenance();
     INT32 result = myFunctionPtr(cronPattern, timezone);
     
