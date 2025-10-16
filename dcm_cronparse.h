@@ -21,7 +21,9 @@
 
 #ifndef _DCM_CRONPARSE_H_
 #define _DCM_CRONPARSE_H_
-//#include "dcm_types.h"
+#ifndef GTEST_ENABLE
+#include "dcm_types.h"
+#endif
 /**
  * Parsed cron expression
  */
