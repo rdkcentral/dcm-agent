@@ -21,7 +21,6 @@
 #include <cstring>
 #include <stdio.h>
 #include <fstream>
-#include "dcm_utils.h"
 #include "../dcm_types.h"
 #include "../dcm_utils.c"
 
@@ -47,7 +46,7 @@ protected:
     void TearDown() override {
     }
 };
-
+#include "dcm_utils.h"
 // Helper: create a file with given content
 void CreateFile(const char* filename, const char* content) {
     std::ofstream ofs(filename);
