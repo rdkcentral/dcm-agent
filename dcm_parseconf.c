@@ -410,7 +410,6 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
         DCMError("Unable to open %s\n", DCM_MAINT_CONF_PATH);
         return DCM_FAILURE;
     }
-    DCMError("Reaching here");
 
     ptr = buffmin;
     for(i = 0; i < strlen(pCronptr); i++) {
@@ -731,3 +730,4 @@ INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
     return &dcmSettingSaveMaintenance;
 }
 #endif
+
