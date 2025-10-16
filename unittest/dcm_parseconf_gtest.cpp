@@ -381,7 +381,6 @@ protected:
     void TearDown() override {
         // Clean up test file
         remove(testFilePath.c_str());
-        lastErrorMessage.clear();
     }
     
     std::string testFilePath;
