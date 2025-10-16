@@ -410,7 +410,7 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
     //#undef DCM_MAINT_CONF_PATH
     //#define DCM_MAINT_CONF_PATH testFilePath.c_str()
     
-    INT8 cronPattern[] = "30 2 * * *";  // 30 minutes, 2 hours
+    INT8 cronPattern[] = "30 2";  // 30 minutes, 2 hours
     INT8 timezone[] = "EST";
     auto myFunctionPtr = getdcmSettingSaveMaintenance();
     INT32 result = myFunctionPtr(cronPattern, timezone);
