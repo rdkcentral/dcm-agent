@@ -642,7 +642,7 @@ TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_MinuteField_addvalue) {
 TEST_F(DcmCronParseResetMinTest, dcmCronParseAddToField_HourField_addvalue) {
     // Verify initial state
     EXPECT_EQ(testCalendar.tm_hour, 14);
-    auto myFunctionPtr = getdcmCronParseSetField();
+    auto myFunctionPtr = getdcmCronParseAddToField();
     // Reset hour field
     INT32 result = myFunctionPtr(&testCalendar, CRON_CF_HOUR_OF_DAY, 5);
     
