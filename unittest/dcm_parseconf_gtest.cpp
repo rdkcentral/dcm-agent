@@ -415,9 +415,19 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
    // EXPECT_TRUE(fileExists(testFilePath));
  
     std::string fileContent = readFileContents(DCM_MAINT_CONF_PATH);
-    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"3\""));
-    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"10\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"10\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"3\""));
     EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); 
+}
+TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_fileopen_fail) {
+    INT8 cronPattern[] = "3 10 * * *";
+    INT8 timezone[] = "EST";
+    remove(DCM_MAINT_CONF_PATH);
+    RemoveDirectory("/opt");
+    auto myFunctionPtr = getdcmSettingSaveMaintenance();
+    INT32 result = myFunctionPtr(cronPattern, timezone);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
 }
 
 
