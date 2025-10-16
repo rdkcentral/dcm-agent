@@ -731,7 +731,3 @@ INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
     return &dcmSettingSaveMaintenance;
 }
 #endif
-
-
-
-
