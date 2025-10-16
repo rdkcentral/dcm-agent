@@ -407,8 +407,8 @@ protected:
 
 TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_WritesCorrectly) {
     // Override DCM_MAINT_CONF_PATH for testing
-    //#undef DCM_MAINT_CONF_PATH
-    //#define DCM_MAINT_CONF_PATH testFilePath.c_str()
+    #undef DCM_MAINT_CONF_PATH
+    #define DCM_MAINT_CONF_PATH testFilePath.c_str()
     
     INT8 cronPattern[] = "30 2 * * *";  // 30 minutes, 2 hours
     INT8 timezone[] = "EST";
