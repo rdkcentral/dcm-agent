@@ -411,7 +411,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
         return DCM_FAILURE;
     }
     DCMError("Reaching here");
-/*
+
     ptr = buffmin;
     for(i = 0; i < strlen(pCronptr); i++) {
         if(pCronptr[i] == ' ') {
@@ -428,7 +428,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
     fprintf(fp, "start_hr=\"%d\"\n", atoi(buffhr));
     fprintf(fp, "start_min=\"%d\"\n", atoi(buffmin));
     fprintf(fp, "tz_mode=\"%s\"\n", pTimeZone);
-*/
+
     fclose(fp);
 
     return DCM_SUCCESS;
@@ -731,5 +731,6 @@ INT32 (*getdcmSettingSaveMaintenance(void))(INT8, INT8*)
     return &dcmSettingSaveMaintenance;
 }
 #endif
+
 
 
