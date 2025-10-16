@@ -413,11 +413,11 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
     
     EXPECT_EQ(result, DCM_SUCCESS);
    // EXPECT_TRUE(fileExists(testFilePath));
-    /*
-    std::string fileContent = readFileContents(testFilePath);
-    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"2\""));
-    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"30\""));
-    EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); */
+ 
+    std::string fileContent = readFileContents(DCM_MAINT_CONF_PATH);
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"3\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"10\""));
+    EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); 
 }
 
 
