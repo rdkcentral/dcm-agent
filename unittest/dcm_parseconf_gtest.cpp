@@ -372,15 +372,15 @@ protected:
     void SetUp() override {
         
         // Create a temporary test file path
-        testFilePath = "/tmp/test_maintenance.conf";
-        
+        //testFilePath = DCM_MAINT_CONF_PATH;
+        CreateDirectory("/opt");
         // Remove any existing test file
-        remove(testFilePath.c_str());
+        CreateFile(DCM_MAINT_CONF_PATH, " ");
     }
     
     void TearDown() override {
         // Clean up test file
-        remove(testFilePath.c_str());
+        remove(DCM_MAINT_CONF_PATH);
     }
     
     std::string testFilePath;
@@ -407,8 +407,8 @@ protected:
 
 TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_WritesCorrectly) {
     // Override DCM_MAINT_CONF_PATH for testing
-    #undef DCM_MAINT_CONF_PATH
-    #define DCM_MAINT_CONF_PATH testFilePath.c_str()
+    //#undef DCM_MAINT_CONF_PATH
+    //#define DCM_MAINT_CONF_PATH testFilePath.c_str()
     
     INT8 cronPattern[] = "30 2 * * *";  // 30 minutes, 2 hours
     INT8 timezone[] = "EST";
