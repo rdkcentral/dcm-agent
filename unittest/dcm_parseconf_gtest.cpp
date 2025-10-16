@@ -93,16 +93,12 @@ TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success)
     EXPECT_EQ(result, 0);
 } 
 
-
-
 // Helper function to create a test handle
 DCMSettingsHandle* CreateTestHandle() {
     DCMSettingsHandle* handle = (DCMSettingsHandle*)malloc(sizeof(DCMSettingsHandle));
     memset(handle, 0, sizeof(DCMSettingsHandle));
     return handle;
 }
-
-// ==================== dcmSettingsGetUploadProtocol Tests ====================
 
 TEST(dcmParseConfTest, GetUploadProtocol_ValidHandle_ReturnsProtocol) {
     DCMSettingsHandle* handle = CreateTestHandle();
@@ -152,7 +148,6 @@ TEST(dcmParseConfTest, UnInit_NullHandle_NoError) {
     dcmSettingsUnInit(nullptr);
 }
 
-
 TEST(dcmParseConfTest, GetRDKPath_ValidHandle_ReturnsPath) {
     DCMSettingsHandle* handle = CreateTestHandle();
     strcpy(handle->cRdkPath, "/usr/bin");
@@ -171,8 +166,6 @@ TEST(dcmParseConfTest, GetRDKPath_NullHandle_ReturnsNull) {
     EXPECT_EQ(path, nullptr);
 }
 
-
-
 // Helper function to create test JSON file
 void CreateTestJSONFile(const char* filename, const char* content) {
     std::ofstream ofs(filename);
@@ -181,8 +174,6 @@ void CreateTestJSONFile(const char* filename, const char* content) {
         ofs.close();
     }
 }
-
-// ==================== dcmSettingParseConf Tests ====================
 
 TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
     const char* validJson = R"({
@@ -235,12 +226,6 @@ TEST(dcmParseConfTest, ParseConf_EmptyJSON_Success) {
     free(handle);
     std::remove("/tmp/test_empty_settings.json");
 }
-
-
-
-
-
-
 
 class DcmSettingsInitTest : public ::testing::Test {
 protected:
