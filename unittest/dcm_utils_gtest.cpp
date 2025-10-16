@@ -21,35 +21,10 @@
 #include <cstring>
 #include <stdio.h>
 #include <fstream>
-/*
-extern "C" {
-#include "dcm_cronparse.h"
-//#include "dcm_cronparse.c"
-#include "../dcm_types.h"
-
-#include "dcm_cronparse.c"
-#include "../dcm_types.h"
-#include "../dcm_utils.c" 
-} 
-*/
-
-//#include "dcm_cronparse.h"
+#include "dcm_utils.h"
 #include "../dcm_types.h"
 #include "../dcm_utils.c"
-//#include "dcm_utils.h"
-//#include "dcm_cronparse.h"
-//#include "../dcm_types.h"
-  
-/*#include "rdm_types.h"
-#include "rdm.h"
-#include "rdm_utils.h"
-*/
-/*
-  #include "mocks/mock_curl.h"
-extern "C" {
-    #include "rdm_curldownload.h"
-}
-*/
+
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
@@ -64,7 +39,6 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::StrEq;
 
-//extern static INT32 dcmCronParseToUpper(INT8* str);
 class DCMUtilsTest: public ::testing::Test {
 protected:
     void SetUp() override {
@@ -73,8 +47,6 @@ protected:
     void TearDown() override {
     }
 };
-
-#include "dcm_utils.h"
 
 // Helper: create a file with given content
 void CreateFile(const char* filename, const char* content) {
@@ -187,37 +159,7 @@ TEST(DCMUtilsTest, PidFileExists_ProcessRunning_ReturnsFailure) {
     // Original PID file should still exist
     EXPECT_EQ(dcmUtilsFilePresentCheck(DCM_PID_FILE), DCM_SUCCESS);
 }
-/*
-// Test when PID file exists with current process PID (self-detection)
-TEST(DCMUtilsTest, PidFileExists_CurrentProcess_ReturnsFailure) {
-    // Create PID file with current process PID
-    pid_t currentPid = getpid();
-    char pidStr[32];
-    snprintf(pidStr, sizeof(pidStr), "%d", currentPid);
-    CreateFile(DCM_PID_FILE, pidStr);
-    
-    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_FAILURE);
-}
-*/
-/*
-// Alternative test: Create read-only file that cannot be overwritten
-TEST(DCMUtilsTest, CannotOverwriteReadOnlyPidFile_ReturnsFailure) {
-    // First create a PID file with invalid PID so it passes the first check
-    std::ofstream ofs(DCM_PID_FILE);
-    ofs << "99999";  // Non-existent PID
-    ofs.close();
-    
-    // Make the file read-only (no write permissions)
-    ASSERT_EQ(chmod(DCM_PID_FILE, 0444), 0) << "Failed to make file read-only";
-    
-    // This should fail when trying to open for writing
-    EXPECT_EQ(dcmUtilsCheckDaemonStatus(), DCM_FAILURE);
-    
-    // Restore write permissions for cleanup
-    chmod(DCM_PID_FILE, 0644);
-}
-*/
-// Test dcmIARMEvntSend (does nothing)
+
 TEST(DCMUtilsTest, IARMEvntSend) {
     EXPECT_EQ(dcmIARMEvntSend(0), DCM_SUCCESS);
 }
