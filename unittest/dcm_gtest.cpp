@@ -24,19 +24,13 @@
 #include <cerrno>
 #include <fstream>
 #include "./mocks/mockrbus.h"
-//#include "./mocks/mockrbus.cpp"
 
 extern "C" {
- 
-  //VOID (*getdcmRunJobs(void)) (const INT8*, VOID*);
   void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
   void get_sig_handler(INT32 sig);
   #include "dcm.c"
   #include "dcm.h"
-
 } 
-//#include "../dcm_utils.c"
-
 #include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
@@ -112,8 +106,6 @@ protected:
     DCMDHandle dcmHandle;
     const char* pidFilePath;
 };
-
-// ==================== Positive Test Cases ====================
 
 TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
     // Setup successful RBUS mocks
@@ -214,95 +206,6 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
-/*
-TEST_F(DcmDaemonMainInitTest, MainInit_pExecBuff_failure) {
-    // Setup successful RBUS mocks
-    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
-    RemoveFile(DCM_PID_FILE);
-    
-    // RBUS initialization sequence
-    EXPECT_CALL(*mockRBus, rbus_checkStatus())
-        .WillOnce(Return(RBUS_ENABLED));
-    
-    EXPECT_CALL(*mockRBus, rbus_open(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
-    
-    // T2 version retrieval
-    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
-    EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
-    
-    EXPECT_CALL(*mockRBus, rbusValue_GetType(mockValue))
-        .WillOnce(Return(RBUS_STRING));
-    
-    EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, NULL, 0))
-        .WillOnce(Return(strdup("2.1.5")));
-    
-    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
-        .Times(1);
-    
-    // Event subscription
-    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
-         .WillOnce(Return(RBUS_ERROR_SUCCESS));
-    dcmHandle.pExecBuff = nullptr;
-    
-    INT32 result = dcmDaemonMainInit(&dcmHandle);
-    
-    EXPECT_EQ(result, DCM_FAILURE);
-}
-*/
-
-/*
-TEST(DcmDaemonMainInitTest , ) {
-    auto myFunctionPtr = getdcmRunJobs();
-    UINT32 result = myFunctionPtr("12345", &errcode); 
-    EXPECT_EQ(result, 12345u);
-    EXPECT_EQ(errcode, 0);
-}
-*/
-/*
-class DcmRunJobsTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // Initialize DCM handle
-        memset(&dcmHandle, 0, sizeof(DCMDHandle));
-        
-        // Allocate execution buffer
-        dcmHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
-        ASSERT_NE(dcmHandle.pExecBuff, nullptr);
-        
-        // Initialize settings handle
-        INT32 ret = dcmSettingsInit(&dcmHandle.pDcmSetHandle);
-        if (ret != DCM_SUCCESS) {
-            // If settings init fails, create a minimal mock handle
-            dcmHandle.pDcmSetHandle = malloc(64);
-            ASSERT_NE(dcmHandle.pDcmSetHandle, nullptr);
-        }
-    }
-    
-    void TearDown() override {
-        // Cleanup
-        if (dcmHandle.pExecBuff) {
-            free(dcmHandle.pExecBuff);
-        }
-        if (dcmHandle.pDcmSetHandle) {
-            dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
-        }
-        
-        // Cleanup test files
-        system("rm -rf /tmp/test_dcm_scripts");
-        
-        // Restore environment
-        if (originalPath) {
-            setenv("PATH", originalPath, 1);
-        }
-    }
-    
-    
-    DCMDHandle dcmHandle;
-    const char* originalPath;
-};
-*/
 
 class DcmRunJobsTest : public ::testing::Test {
 protected:
@@ -408,81 +311,6 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     // Call the function with DIFD profile
     get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle);
 }
-/*
-class SigHandlerTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // Setup global DCM handle for testing
-        g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
-        ASSERT_NE(g_pdcmHandle, nullptr);
-        
-        memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
-        g_pdcmHandle->isDCMRunning = false;
-        
-        // Setup minimal components that might be cleaned up
-        setupMinimalComponents();
-        mockRBus = new StrictMock<MockRBus>();
-        mock_rbus_set_global_mock(mockRBus);
-        mock_rbus_reset();
-        
-    }
-    
-    void TearDown() override {
-        // Cleanup global handle
-        cleanupComponents();
-        
-        if (g_pdcmHandle) {
-            free(g_pdcmHandle);
-            g_pdcmHandle = nullptr;
-        }
-        mock_rbus_clear_global_mock();
-        delete mockRBus;
-    }
-    
-    void setupMinimalComponents() {
-        // Allocate execution buffer
-        g_pdcmHandle->pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
-        
-        // Initialize settings if possible
-        if (dcmSettingsInit(&g_pdcmHandle->pDcmSetHandle) != DCM_SUCCESS) {
-            g_pdcmHandle->pDcmSetHandle = nullptr;
-        }
-        
-        // Mock scheduler handles (pointers to indicate they exist)
-        g_pdcmHandle->pLogSchedHandle = (VOID*)0x12345678;
-        g_pdcmHandle->pDifdSchedHandle = (VOID*)0x87654321;
-        //g_pdcmHandle->pRbusHandle = (VOID*)0x87654322;
-    }
-    
-    void cleanupComponents() {
-        if (g_pdcmHandle) {
-            if (g_pdcmHandle->pExecBuff) {
-                free(g_pdcmHandle->pExecBuff);
-                g_pdcmHandle->pExecBuff = nullptr;
-            }
-            
-            if (g_pdcmHandle->pDcmSetHandle) {
-                dcmSettingsUnInit(g_pdcmHandle->pDcmSetHandle);
-                g_pdcmHandle->pDcmSetHandle = nullptr;
-            }
-        }
-    }
-    MockRBus* mockRBus;
-};
-
-// ==================== Handled Signals Test Cases ====================
-
-TEST_F(SigHandlerTest, SigHandler_SIGINT_SendsEventAndExits) {
-        EXPECT_CALL(*mockRBus, rbusEvent_Unsubscribe(_, _))
-            .Times(2)
-            .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
-        EXPECT_CALL(*mockRBus, rbus_unregDataElements(_, _, _))
-            .WillOnce(Return(RBUS_ERROR_SUCCESS));
-        EXPECT_CALL(*mockRBus, rbus_close(_))
-            .WillOnce(Return(RBUS_ERROR_SUCCESS));
-    get_sig_handler(SIGINT);
-}
-*/
 
 class DcmDaemonMainUnInitTest : public ::testing::Test {
 protected:
@@ -554,8 +382,6 @@ protected:
     DCMDHandle testHandle;
 };
 
-// ==================== Valid Handle Test Cases ====================
-
 TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
     testHandle.isDCMRunning = true; // Won't remove PID file
     
@@ -576,10 +402,6 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
     EXPECT_TRUE(pidFileExists());
     
     dcmDaemonMainUnInit(&testHandle);
-    
-    // PID file should be removed when isDCMRunning is false
-    // Note: This depends on dcmUtilsRemovePIDfile() implementation
-    // We can only test that the function completes without error
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
 }
 
