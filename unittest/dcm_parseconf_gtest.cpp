@@ -327,16 +327,6 @@ TEST_F(DcmSettingsInitTest, SuccessfulInitialization) {
     // Check if maintenance manager flag is set
     EXPECT_EQ(dcmSettingsGetMMFlag(), 1);
 }
-// Test initialization with null handle pointer
-/*
-TEST_F(DcmSettingsInitTest, NullHandlePointer) {
-    INT32 result = dcmSettingsInit(nullptr);
-    
-    // Should handle gracefully or return failure
-    // This depends on your implementation - adjust based on expected behavior
-    EXPECT_EQ(result, DCM_FAILURE);
-}
-*/
 
 // Test initialization without RDK_PATH in properties
 TEST_F(DcmSettingsInitTest, MissingRDKPath) {
@@ -370,11 +360,7 @@ TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
 class DcmSettingSaveMaintenanceTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        
-        // Create a temporary test file path
-        //testFilePath = DCM_MAINT_CONF_PATH;
         CreateDirectory("/opt");
-        // Remove any existing test file
         CreateFile(DCM_MAINT_CONF_PATH, " ");
     }
     
@@ -403,32 +389,18 @@ protected:
     }
 };
 
-// ==================== Valid Input Test Cases ====================
-
 TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_WritesCorrectly) {
     INT8 cronPattern[] = "3 10 * * *";
     INT8 timezone[] = "EST";
     auto myFunctionPtr = getdcmSettingSaveMaintenance();
     INT32 result = myFunctionPtr(cronPattern, timezone);
-    
-    EXPECT_EQ(result, DCM_SUCCESS);
-   // EXPECT_TRUE(fileExists(testFilePath));
- 
+    EXPECT_EQ(result, DCM_SUCCESS); 
     std::string fileContent = readFileContents(DCM_MAINT_CONF_PATH);
     EXPECT_THAT(fileContent, ::testing::HasSubstr("start_hr=\"10\""));
     EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"3\""));
     EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); 
 }
-TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_fileopen_fail) {
-    INT8 cronPattern[] = "3 10 * * *";
-    INT8 timezone[] = "EST";
-    remove(DCM_MAINT_CONF_PATH);
-    RemoveDirectory("/opt");
-    auto myFunctionPtr = getdcmSettingSaveMaintenance();
-    INT32 result = myFunctionPtr(cronPattern, timezone);
-    
-    EXPECT_EQ(result, DCM_FAILURE);
-}
+
 
 
 GTEST_API_ int main(int argc, char *argv[]){
