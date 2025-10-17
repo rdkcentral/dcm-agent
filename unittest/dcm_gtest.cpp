@@ -314,6 +314,7 @@ protected:
         system("rm -rf /tmp/test_dcm");
         system("rm -f /var/run/dcm.pid");
         cleanupTestComponents();
+        delete mockSettings;
     }
     
     void setupTestComponents() {
