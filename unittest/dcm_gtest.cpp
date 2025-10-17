@@ -297,7 +297,6 @@ TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
     
     // Call the function with log upload profile
-    //test_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
     get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle);
 }
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
@@ -306,6 +305,11 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     
     // Call the function with DIFD profile
     get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle);
+}
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript_handle_null) {    
+    EXPECT_NO_THROW({
+        get_dcmRunJobs(DCM_DIFD_SCHED, NULL);
+    });
 }
 
 class DcmDaemonMainUnInitTest : public ::testing::Test {
