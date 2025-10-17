@@ -336,8 +336,7 @@ protected:
             testHandle.pRbusHandle = nullptr;
         }
     }
-    EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
-        .WillOnce(DoAll(SetArgPointee<0>((void*)0x12345678), Return(DCM_SUCCESS)));
+
     void cleanupTestComponents() {
         if (testHandle.pLogSchedHandle || testHandle.pDifdSchedHandle) {
             dcmSchedUnInit();
@@ -363,7 +362,8 @@ public:  // Make public for test access
 
 TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
     testHandle.isDCMRunning = true;
-    
+    EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
+        .WillOnce(Return(DCM_FAILURE));
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
     
     EXPECT_EQ(testHandle.pExecBuff, nullptr);
@@ -376,7 +376,8 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
 TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
     testHandle.isDCMRunning = false;
     createPIDFile();
-    
+    EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
+        .WillOnce(Return(DCM_FAILURE));
     EXPECT_TRUE(pidFileExists());
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
 }
