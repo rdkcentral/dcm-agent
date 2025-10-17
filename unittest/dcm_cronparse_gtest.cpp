@@ -24,17 +24,17 @@
 #include <cerrno>
 
 
-//extern "C" {
+extern "C" {
 #include "dcm_cronparse.h"
 #include "../dcm_types.h"
 #include "dcm_cronparse.c"
+}
 INT32 (*getdcmCronParseToUpper(void)) (INT8*);
 UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*);
 UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*);
 INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32);
 INT32 (*getdcmCronParseResetAllMin(void)) (struct tm*, INT32*);
 INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32);
-//}
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
