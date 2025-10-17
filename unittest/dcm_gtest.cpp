@@ -447,16 +447,8 @@ TEST_F(DcmDaemonMainUnInitTest, SigHandler_SIGKILL_LogsCorrectMessage) {
 
 TEST_F(DcmDaemonMainUnInitTest, SigHandler_UnknownSignal_NoExit) {
     // Test that unknown signals don't cause exit
-    g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
-    memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
     EXPECT_NO_THROW({
         get_sig_handler(SIGUSR1);  
-    });
-}
-TEST_F(DcmDaemonMainUnInitTest, SigHandler_UnknownSignal_NoExit) {
-    // Test that unknown signals don't cause exit
-    EXPECT_NO_THROW({
-        get_sig_handler(SIGKILL);  
     });
 }
 GTEST_API_ int main(int argc, char *argv[]){
