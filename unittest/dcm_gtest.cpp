@@ -16,16 +16,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Copyright 2023 Comcast Cable Communications Management, LLC
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/**
- * Copyright 2023 Comcast Cable Communications Management, LLC
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
@@ -33,30 +23,29 @@
 #include <climits>
 #include <cerrno>
 #include <fstream>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/wait.h>
-
-#include "dcm_types.h"
+#include "./mocks/mockrbus.h"
+#include "dcm.c"
 #include "dcm.h"
+#include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
 #include "dcm_schedjob.c"
 #include "dcm_cronparse.c"
 #include "dcm_utils.c"
-#include "dcm.c"
-#include "./mocks/mockrbus.h"
+#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
+#define GTEST_DEFAULT_RESULT_FILENAME "dcm_gtest_report.json"
+#define GTEST_REPORT_FILEPATH_SIZE 256
 
 void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
 void get_sig_handler(INT32 sig);
 
-
 using namespace testing;
 using namespace std;
-
-#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
-#define GTEST_DEFAULT_RESULT_FILENAME "dcm_gtest_report.json"
-#define GTEST_REPORT_FILEPATH_SIZE 256
+using ::testing::_;
+using ::testing::Return;
+using ::testing::SetArgPointee;
+using ::testing::DoAll;
+using ::testing::StrEq;
 
 // ======================= DCM Main Init Tests =======================
 class DcmDaemonMainInitTest : public ::testing::Test {
