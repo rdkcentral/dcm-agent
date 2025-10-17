@@ -21,28 +21,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * Copyright 2023 Comcast Cable Communications Management, LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
 #include <stdio.h>
+#include <climits>
+#include <cerrno>
+#include <fstream>
 #include <signal.h>
 #include <unistd.h>
-#include <fstream>
+#include <sys/wait.h>
+
 #include "dcm_types.h"
 #include "dcm.h"
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+void get_sig_handler(INT32 sig);
 #include "dcm.c"
 #include "./mocks/mockrbus.h"
 
 using namespace testing;
 using namespace std;
 
-// ======================= Test Configuration =======================
-#define TEST_REPORT_DIR "/tmp/Gtest_Report/"
-#define TEST_REPORT_FILE "dcm_test_report.json"
-#define REPORT_PATH_SIZE 256
+#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
+#define GTEST_DEFAULT_RESULT_FILENAME "dcm_gtest_report.json"
+#define GTEST_REPORT_FILEPATH_SIZE 256
 
 // ======================= DCM Main Init Tests =======================
-class DcmMainInitTest : public ::testing::Test {
+class DcmDaemonMainInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
         mockRBus = new StrictMock<MockRBus>();
@@ -54,13 +64,16 @@ protected:
     }
     
     void TearDown() override {
-        cleanupHandle();
+        cleanupDCMHandle();
         mock_rbus_clear_global_mock();
         delete mockRBus;
     }
     
-private:
-    void cleanupHandle() {
+    void RemoveFile(const char* filename) {
+        std::remove(filename);
+    }
+    
+    void cleanupDCMHandle() {
         if (dcmHandle.pExecBuff) {
             free(dcmHandle.pExecBuff);
             dcmHandle.pExecBuff = nullptr;
@@ -71,25 +84,30 @@ private:
         if (dcmHandle.pRbusHandle) {
             dcmRbusUnInit(dcmHandle.pRbusHandle);
         }
+        if (dcmHandle.pLogSchedHandle) {
+            dcmSchedRemoveJob(dcmHandle.pLogSchedHandle);
+        }
+        if (dcmHandle.pDifdSchedHandle) {
+            dcmSchedRemoveJob(dcmHandle.pDifdSchedHandle);
+        }
         dcmSchedUnInit();
     }
     
+public:  // Make these public so tests can access them
     MockRBus* mockRBus;
     DCMDHandle dcmHandle;
 };
 
-TEST_F(DcmMainInitTest, InitSuccess_AllComponentsWork) {
+TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
-    std::remove(DCM_PID_FILE);
+    RemoveFile(DCM_PID_FILE);
     
-    // RBUS setup
     EXPECT_CALL(*mockRBus, rbus_checkStatus())
         .WillOnce(Return(RBUS_ENABLED));
     
     EXPECT_CALL(*mockRBus, rbus_open(_, _))
         .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
     
-    // T2 version mock
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
     EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
@@ -100,9 +118,9 @@ TEST_F(DcmMainInitTest, InitSuccess_AllComponentsWork) {
     EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, nullptr, 0))
         .WillOnce(Return(strdup("2.1.5")));
     
-    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue)).Times(1);
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
     
-    // Event subscription
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
         .Times(2)
         .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
@@ -113,17 +131,21 @@ TEST_F(DcmMainInitTest, InitSuccess_AllComponentsWork) {
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     
     EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_FALSE(dcmHandle.isDCMRunning);
     EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
+    EXPECT_NE(dcmHandle.pRbusHandle, nullptr);
     EXPECT_NE(dcmHandle.pExecBuff, nullptr);
+    EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
+    EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
 }
 
-TEST_F(DcmMainInitTest, InitFail_DemonStatusCheck) {
+TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-TEST_F(DcmMainInitTest, InitFail_RbusDisabled) {
-    std::remove(DCM_PID_FILE);
+TEST_F(DcmDaemonMainInitTest, MainInit_RbusDisabled_Failure) {
+    RemoveFile(DCM_PID_FILE);
     
     EXPECT_CALL(*mockRBus, rbus_checkStatus())
         .WillOnce(Return(RBUS_DISABLED));
@@ -132,17 +154,54 @@ TEST_F(DcmMainInitTest, InitFail_RbusDisabled) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
+TEST_F(DcmDaemonMainInitTest, MainInit_RbusSubscribeEvents_Failure) {
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
+    RemoveFile(DCM_PID_FILE);
+    
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+        .WillOnce(Return(RBUS_ENABLED));
+    
+    EXPECT_CALL(*mockRBus, rbus_open(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
+    
+    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
+    EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_GetType(mockValue))
+        .WillOnce(Return(RBUS_STRING));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, nullptr, 0))
+        .WillOnce(Return(strdup("2.1.5")));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
+    
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
+        .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
+    
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
 // ======================= DCM Run Jobs Tests =======================
-class RunJobsTest : public ::testing::Test {
+class DcmRunJobsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         memset(&dcmHandle, 0, sizeof(DCMDHandle));
+        
         dcmHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
         ASSERT_NE(dcmHandle.pExecBuff, nullptr);
         
-        if (dcmSettingsInit(&dcmHandle.pDcmSetHandle) != DCM_SUCCESS) {
+        INT32 ret = dcmSettingsInit(&dcmHandle.pDcmSetHandle);
+        if (ret != DCM_SUCCESS) {
             dcmHandle.pDcmSetHandle = malloc(64);
+            ASSERT_NE(dcmHandle.pDcmSetHandle, nullptr);
         }
+        
+        originalPath = getenv("PATH");
+        system("mkdir -p /tmp/test_dcm_scripts");
+        createTestScripts();
     }
     
     void TearDown() override {
@@ -152,50 +211,72 @@ protected:
         if (dcmHandle.pDcmSetHandle) {
             dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
         }
+        
+        system("rm -rf /tmp/test_dcm_scripts");
+        
+        if (originalPath) {
+            setenv("PATH", originalPath, 1);
+        }
     }
     
+    void createTestScripts() {
+        system("echo '#!/bin/bash\necho \"Upload script called\"' > /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        system("chmod +x /tmp/test_dcm_scripts/uploadSTBLogs.sh");
+        
+        system("echo '#!/bin/bash\necho \"SW Update script called\"' > /tmp/test_dcm_scripts/swupdate_utility.sh");
+        system("chmod +x /tmp/test_dcm_scripts/swupdate_utility.sh");
+    }
+    
+public:  // Make public for access
     DCMDHandle dcmHandle;
+    const char* originalPath;
 };
 
-TEST_F(RunJobsTest, LogUpload_ValidHandle) {
+TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
+    setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle));
 }
 
-TEST_F(RunJobsTest, FirmwareUpdate_ValidHandle) {
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
+    setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
 }
 
-TEST_F(RunJobsTest, NullHandle_NoThrow) {
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_NullHandle_NoThrow) {    
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, nullptr));
 }
 
-TEST_F(RunJobsTest, MaintenanceMode_Disabled) {
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_MaintenanceModeDisabled) {    
+    extern INT32 g_bMMEnable;  // Declare as extern
     g_bMMEnable = 0;
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, nullptr));
     EXPECT_EQ(g_bMMEnable, 0);   
 }
 
-TEST_F(RunJobsTest, NullSettingsHandle) {
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_NullSettingsHandle) {    
     dcmHandle.pDcmSetHandle = nullptr;
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, nullptr));   
 }
 
 // ======================= DCM Un-Init Tests =======================
-class UnInitTest : public ::testing::Test {
+class DcmDaemonMainUnInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
         memset(&testHandle, 0, sizeof(DCMDHandle));
-        prepareTestHandle();
+        system("mkdir -p /tmp/test_dcm");
+        setupTestComponents();
     }
     
     void TearDown() override {
-        cleanupTest();
+        system("rm -rf /tmp/test_dcm");
+        system("rm -f /var/run/dcm.pid");
+        cleanupTestComponents();
     }
     
-private:
-    void prepareTestHandle() {
+    void setupTestComponents() {
         testHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
         if (testHandle.pExecBuff) {
+            memset(testHandle.pExecBuff, 0, EXECMD_BUFF_SIZE);
             strcpy(testHandle.pExecBuff, "test command");
         }
         
@@ -207,15 +288,19 @@ private:
             testHandle.pLogSchedHandle = dcmSchedAddJob("test_log", nullptr, nullptr);
             testHandle.pDifdSchedHandle = dcmSchedAddJob("test_difd", nullptr, nullptr);
         }
+        
+        if (dcmRbusInit(&testHandle.pRbusHandle) != DCM_SUCCESS) {
+            testHandle.pRbusHandle = nullptr;
+        }
     }
     
-    void cleanupTest() {
-        system("rm -f /var/run/dcm.pid");
+    void cleanupTestComponents() {
         if (testHandle.pLogSchedHandle || testHandle.pDifdSchedHandle) {
             dcmSchedUnInit();
         }
     }
     
+public:  // Make public for test access
     void createPIDFile() {
         FILE* pidFile = fopen("/var/run/dcm.pid", "w");
         if (pidFile) {
@@ -231,7 +316,7 @@ private:
     DCMDHandle testHandle;
 };
 
-TEST_F(UnInitTest, ValidHandle_Success) {
+TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
     testHandle.isDCMRunning = true;
     
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
@@ -239,9 +324,11 @@ TEST_F(UnInitTest, ValidHandle_Success) {
     EXPECT_EQ(testHandle.pExecBuff, nullptr);
     EXPECT_EQ(testHandle.pDcmSetHandle, nullptr);
     EXPECT_EQ(testHandle.pRbusHandle, nullptr);
+    EXPECT_EQ(testHandle.pLogSchedHandle, nullptr);
+    EXPECT_EQ(testHandle.pDifdSchedHandle, nullptr);
 }
 
-TEST_F(UnInitTest, NotRunning_RemovesPID) {
+TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
     testHandle.isDCMRunning = false;
     createPIDFile();
     
@@ -250,7 +337,7 @@ TEST_F(UnInitTest, NotRunning_RemovesPID) {
 }
 
 // ======================= Signal Handler Tests =======================
-class SignalTest : public ::testing::Test {
+class SignalHandlerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
@@ -265,29 +352,31 @@ protected:
     }
 };
 
-TEST_F(SignalTest, SIGINT_ExitsCorrectly) {
+TEST_F(SignalHandlerTest, SigHandler_SIGINT_ExitsCorrectly) {
     EXPECT_EXIT(get_sig_handler(SIGINT), ExitedWithCode(1), ".*");
 }
 
-TEST_F(SignalTest, SIGKILL_ExitsCorrectly) {
+TEST_F(SignalHandlerTest, SigHandler_SIGKILL_ExitsCorrectly) {
     EXPECT_EXIT(get_sig_handler(SIGKILL), ExitedWithCode(1), ".*");
 }
 
-TEST_F(SignalTest, SIGTERM_ExitsCorrectly) {
+TEST_F(SignalHandlerTest, SigHandler_SIGTERM_ExitsCorrectly) {
     EXPECT_EXIT(get_sig_handler(SIGTERM), ExitedWithCode(1), ".*");
 }
 
-TEST_F(SignalTest, UnknownSignal_NoExit) {
+TEST_F(SignalHandlerTest, SigHandler_UnknownSignal_NoExit) {
     EXPECT_NO_THROW(get_sig_handler(SIGUSR1));
 }
 
 // ======================= Main Function =======================
 GTEST_API_ int main(int argc, char *argv[]) {
-    char reportPath[REPORT_PATH_SIZE];
-    memset(reportPath, 0, REPORT_PATH_SIZE);
+    char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
+    memset(testresults_fullfilepath, 0, GTEST_REPORT_FILEPATH_SIZE);
     
-    snprintf(reportPath, REPORT_PATH_SIZE, "json:%s%s", TEST_REPORT_DIR, TEST_REPORT_FILE);
-    ::testing::GTEST_FLAG(output) = reportPath;
+    snprintf(testresults_fullfilepath, GTEST_REPORT_FILEPATH_SIZE, "json:%s%s", 
+             GTEST_DEFAULT_RESULT_FILEPATH, GTEST_DEFAULT_RESULT_FILENAME);
+    
+    ::testing::GTEST_FLAG(output) = testresults_fullfilepath;
     ::testing::InitGoogleTest(&argc, argv);
     
     cout << "Starting DCM Unit Tests" << endl;
