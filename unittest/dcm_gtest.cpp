@@ -160,6 +160,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
 }
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
+    RemoveFile(DCM_PID_FILE);
     EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
         .WillOnce(Return(DCM_SUCCESS));
     INT32 result = dcmDaemonMainInit(&dcmHandle);
