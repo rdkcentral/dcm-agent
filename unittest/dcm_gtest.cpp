@@ -280,11 +280,7 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     EXPECT_CALL(*mockSettings, dcmSettingsGetMMFlag())
         .WillOnce(Return(false));
     EXPECT_CALL(*mockSettings, dcmSettingsGetRDKPath(_))
-        .WillOnce(Return((INT8*)"/opt/rdk"));
-    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadProtocol(_))
-        .WillOnce(Return((INT8*)"HTTPS"));
-    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadURL(_))
-        .WillOnce(Return((INT8*)"https://example.com/upload"));
+        .WillOnce(Return((INT8*)"/opt/rdk"));;
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
 }
 
@@ -311,6 +307,7 @@ protected:
         memset(&testHandle, 0, sizeof(DCMDHandle));
         system("mkdir -p /tmp/test_dcm");
         setupTestComponents();
+        mockSettings = new NiceMock<MockDcmSettings>();
     }
     
     void TearDown() override {
@@ -325,10 +322,10 @@ protected:
             memset(testHandle.pExecBuff, 0, EXECMD_BUFF_SIZE);
             strcpy(testHandle.pExecBuff, "test command");
         }
-        
+        /*
         if (dcmSettingsInit(&testHandle.pDcmSetHandle) != DCM_SUCCESS) {
             testHandle.pDcmSetHandle = nullptr;
-        }
+        } */
         
         if (dcmSchedInit() == DCM_SUCCESS) {
             testHandle.pLogSchedHandle = dcmSchedAddJob("test_log", nullptr, nullptr);
@@ -339,7 +336,8 @@ protected:
             testHandle.pRbusHandle = nullptr;
         }
     }
-    
+    EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
+        .WillOnce(DoAll(SetArgPointee<0>((void*)0x12345678), Return(DCM_SUCCESS)));
     void cleanupTestComponents() {
         if (testHandle.pLogSchedHandle || testHandle.pDifdSchedHandle) {
             dcmSchedUnInit();
@@ -360,6 +358,7 @@ public:  // Make public for test access
     }
     
     DCMDHandle testHandle;
+    MockDcmSettings* mockSettings;
 };
 
 TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
