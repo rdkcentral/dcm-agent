@@ -161,7 +161,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
     EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
-        .WillOnce(Return(DCM_FAILURE));
+        .WillOnce(Return(DCM_SUCCESS));
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
