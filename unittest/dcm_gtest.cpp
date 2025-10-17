@@ -212,7 +212,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
-/*
+
 // ======================= DCM Run Jobs Tests =======================
 class DcmRunJobsTest : public ::testing::Test {
 protected:
@@ -263,11 +263,27 @@ public:  // Make public for access
 
 TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
     setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
+    EXPECT_CALL(*mockSettings, dcmSettingsGetMMFlag())
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetRDKPath(_))
+        .WillOnce(Return((INT8*)"/opt/rdk"));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadProtocol(_))
+        .WillOnce(Return((INT8*)"HTTPS"));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadURL(_))
+        .WillOnce(Return((INT8*)"https://example.com/upload"));
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle));
 }
 
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
+    EXPECT_CALL(*mockSettings, dcmSettingsGetMMFlag())
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetRDKPath(_))
+        .WillOnce(Return((INT8*)"/opt/rdk"));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadProtocol(_))
+        .WillOnce(Return((INT8*)"HTTPS"));
+    EXPECT_CALL(*mockSettings, dcmSettingsGetUploadURL(_))
+        .WillOnce(Return((INT8*)"https://example.com/upload"));
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
 }
 
@@ -396,7 +412,7 @@ TEST_F(SignalHandlerTest, SigHandler_SIGTERM_ExitsCorrectly) {
 TEST_F(SignalHandlerTest, SigHandler_UnknownSignal_NoExit) {
     EXPECT_NO_THROW(get_sig_handler(SIGUSR1));
 }
-*/
+
 // ======================= Main Function =======================
 GTEST_API_ int main(int argc, char *argv[]) {
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
