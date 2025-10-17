@@ -319,8 +319,13 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript_g_bMMEnable)
     });
     EXPECT_EQ(g_bMMEnable, 0);   
 }
-
-
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript_prtcl_purl_null)
+{    
+    dcmHandle.pDcmSetHandle = NULL;
+    EXPECT_NO_THROW({
+        get_dcmRunJobs(DCM_DIFD_SCHED, NULL);
+    });   
+}
 
 class DcmDaemonMainUnInitTest : public ::testing::Test {
 protected:
