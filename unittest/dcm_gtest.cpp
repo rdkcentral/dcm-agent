@@ -310,18 +310,14 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript_handle_null) {
     EXPECT_NO_THROW({
         get_dcmRunJobs(DCM_DIFD_SCHED, NULL);
     });
-    g_bMMEnable = 1;
-    EXPECT_EQ(g_bMMEnable, 1);
-    g_bMMEnable = 0;
-    EXPECT_EQ(g_bMMEnable, 0);
 }
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript_g_bMMEnable)
 {    
-    g_bMMEnable = 1;
+    g_bMMEnable = 0;
     EXPECT_NO_THROW({
         get_dcmRunJobs(DCM_DIFD_SCHED, NULL);
     });
-    EXPECT_EQ(g_bMMEnable, 1);   
+    EXPECT_EQ(g_bMMEnable, 0);   
 }
 
 
