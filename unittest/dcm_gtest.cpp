@@ -432,6 +432,13 @@ TEST_F(DcmDaemonMainUnInitTest, SigHandler_SIGINT_LogsCorrectMessage) {
     }
 }
 
+TEST_F(DcmDaemonMainUnInitTest, SigHandler_UnknownSignal_NoExit) {
+    // Test that unknown signals don't cause exit
+    EXPECT_NO_THROW({
+        get_sig_handler(SIGUSR1);  
+    });
+}
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
