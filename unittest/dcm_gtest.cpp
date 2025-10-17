@@ -240,7 +240,7 @@ protected:
         if (dcmHandle.pDcmSetHandle) {
             dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
         }
-        
+        delete mockSettings;
         system("rm -rf /tmp/test_dcm_scripts");
         
         if (originalPath) {
