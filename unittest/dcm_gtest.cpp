@@ -159,8 +159,38 @@ TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
 }
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
+    rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
     RemoveFile(DCM_PID_FILE);
-    dcmHandle.pDcmSetHandle = nullptr;
+    
+    // RBUS initialization sequence
+    EXPECT_CALL(*mockRBus, rbus_checkStatus())
+        .WillOnce(Return(RBUS_ENABLED));
+    
+    EXPECT_CALL(*mockRBus, rbus_open(_, _))
+        .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
+    
+    // T2 version retrieval
+    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
+    EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_GetType(mockValue))
+        .WillOnce(Return(RBUS_STRING));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, NULL, 0))
+        .WillOnce(Return(strdup("2.1.5")));
+    
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
+    
+    // Event subscription
+    EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
+        .Times(2)
+        .WillRepeatedly(Return(RBUS_ERROR_SUCCESS));
+    
+    EXPECT_CALL(*mockRBus, rbus_regDataElements(_, _, _))
+        .WillOnce(Return(RBUS_ERROR_SUCCESS));
+    dcmHandle.pLogSchedHandle = nullptr;
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
