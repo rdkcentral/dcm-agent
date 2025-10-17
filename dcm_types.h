@@ -35,8 +35,8 @@ typedef long int       INT64;
 typedef bool           BOOL;
 typedef void           VOID;
 #ifdef __cplusplus
-extern "C"
 }
 #endif
 #endif //_DCM_TYPES_H_
+
 
