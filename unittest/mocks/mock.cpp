@@ -20,6 +20,7 @@ INT32 g_bMMEnable = 0;  // Define the missing global variable
 extern "C" {
     // Mock DCM Settings functions
     INT32 dcmSettingsInit(void** handle) {
+        return DCM_SUCCESS;
         if (handle) {
             *handle = malloc(64);  // Allocate dummy memory
             return DCM_SUCCESS;
