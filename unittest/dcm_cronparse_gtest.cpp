@@ -23,7 +23,6 @@
 #include <climits>
 #include <cerrno>
 
-
 //extern "C" {
 #include "dcm_cronparse.h"
 #include "../dcm_types.h"
