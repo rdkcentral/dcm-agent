@@ -104,6 +104,7 @@ protected:
     }
     
     MockRBus* mockRBus;
+    MockDcmSettings* mockSettings;
     DCMDHandle dcmHandle;
     const char* pidFilePath;
 };
