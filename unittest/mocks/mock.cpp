@@ -33,8 +33,12 @@ extern "C" {
         }
     }
 
-    bool dcmSettingsGetMMFlag() {
-        return (g_bMMEnable == 1);
+    INT32 dcmSettingsGetMMFlag() {
+        if(g_bMMEnable == 0)
+           return DCM_SUCCESS;
+        else
+           return DCM_FAILURE;
+           
     }
 
     INT8* dcmSettingsGetRDKPath(void* handle) {
