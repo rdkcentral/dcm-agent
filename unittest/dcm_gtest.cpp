@@ -218,7 +218,7 @@ class DcmRunJobsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         memset(&dcmHandle, 0, sizeof(DCMDHandle));
-        
+        mockSettings = new NiceMock<MockDcmSettings>();
         dcmHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
         ASSERT_NE(dcmHandle.pExecBuff, nullptr);
         
@@ -227,7 +227,7 @@ protected:
             dcmHandle.pDcmSetHandle = malloc(64);
             ASSERT_NE(dcmHandle.pDcmSetHandle, nullptr);
         }
-        
+        g_mockSettings = mockSettings;
         originalPath = getenv("PATH");
         system("mkdir -p /tmp/test_dcm_scripts");
         createTestScripts();
@@ -258,6 +258,7 @@ protected:
     
 public:  // Make public for access
     DCMDHandle dcmHandle;
+    MockDcmSettings* mockSettings;
     const char* originalPath;
 };
 
