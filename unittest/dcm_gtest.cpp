@@ -39,10 +39,17 @@
 
 #include "dcm_types.h"
 #include "dcm.h"
-void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
-void get_sig_handler(INT32 sig);
+#include "dcm_rbus.c"
+#include "dcm_parseconf.c"
+#include "dcm_schedjob.c"
+#include "dcm_cronparse.c"
+#include "dcm_utils.c"
 #include "dcm.c"
 #include "./mocks/mockrbus.h"
+
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+void get_sig_handler(INT32 sig);
+
 
 using namespace testing;
 using namespace std;
