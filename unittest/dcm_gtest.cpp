@@ -156,7 +156,8 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
 }
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
-    INT32 result = dcmDaemonMainInit(nullptr);
+    dcmHandle.pDcmSetHandle = malloc(64);
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
