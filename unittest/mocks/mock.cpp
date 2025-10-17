@@ -8,8 +8,10 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h>
+extern "C" {
 #include "dcm_cronparse.h"
-
+#include "dcm_utils.h"
+}
 
 // ======================= Mock Global Variables =======================
 INT32 g_bMMEnable = 0;  // Define the missing global variable
