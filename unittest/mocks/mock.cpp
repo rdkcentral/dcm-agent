@@ -31,8 +31,6 @@ public:
     MOCK_METHOD(INT8*, dcmSettingsGetRDKPath, (void* handle), ());
     MOCK_METHOD(INT8*, dcmSettingsGetUploadProtocol, (void* handle), ());
     MOCK_METHOD(INT8*, dcmSettingsGetUploadURL, (void* handle), ());
-    MOCK_METHOD(INT32, dcmSettingParseConf, (void* handle, const INT8* confPath, INT8* logCron, INT8* difdCron), ());
-    MOCK_METHOD(INT32, dcmSettingDefaultBoot, (), ());
 };
 
 // ======================= Global Mock Instances =======================
@@ -64,14 +62,6 @@ extern "C" {
 
     INT8* dcmSettingsGetUploadURL(void* handle) {
         return g_mockSettings ? g_mockSettings->dcmSettingsGetUploadURL(handle) : (INT8*)"http://mock.example.com/upload";
-    }
-
-    INT32 dcmSettingParseConf(void* handle, const INT8* confPath, INT8* logCron, INT8* difdCron) {
-        return g_mockSettings ? g_mockSettings->dcmSettingParseConf(handle, confPath, logCron, difdCron) : DCM_SUCCESS;
-    }
-
-    INT32 dcmSettingDefaultBoot() {
-        return g_mockSettings ? g_mockSettings->dcmSettingDefaultBoot() : DCM_SUCCESS;
     }
 
 }
