@@ -155,6 +155,11 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
+TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
+    INT32 result = dcmDaemonMainInit(nullptr);
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
 TEST_F(DcmDaemonMainInitTest, MainInit_RbusDisabled_Failure) {
     RemoveFile(DCM_PID_FILE);
     
