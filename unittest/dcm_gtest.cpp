@@ -25,12 +25,12 @@
 #include <fstream>
 #include "./mocks/mockrbus.h"
 
-extern "C" {
+//extern "C" {
   void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
   void get_sig_handler(INT32 sig);
   #include "dcm.c"
   #include "dcm.h"
-} 
+//} 
 #include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
