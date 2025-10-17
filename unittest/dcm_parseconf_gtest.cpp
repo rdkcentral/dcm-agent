@@ -25,9 +25,8 @@
 #include <fstream>
 #include "./mocks/mockrbus.h"
 
-extern "C" {
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
-}
+
 #include "dcm_utils.c"
 #include "dcm_types.h"
 #include "dcm_parseconf.c"
