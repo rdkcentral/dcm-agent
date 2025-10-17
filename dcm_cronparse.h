@@ -26,9 +26,9 @@ extern "C"
 {
 #endif
 
-#ifdef GTEST_ENABLE
-#include "dcm_types.h"
-#endif
+//#ifdef GTEST_ENABLE
+//#include "dcm_types.h"
+//#endif
 /**
  * Parsed cron expression
  */
