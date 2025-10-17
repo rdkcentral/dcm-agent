@@ -24,6 +24,7 @@
 #include <cerrno>
 #include <fstream>
 #include "./mocks/mockrbus.h"
+#include "./mocks/mock.cpp"
 #include "dcm.c"
 #include "dcm.h"
 #include "dcm_types.h"
