@@ -13,6 +13,7 @@ extern "C" {
     #include "dcm_types.h"
     #include "dcm_cronparse.h"
     #include "dcm.h"
+    #include "dcm_utils.h"
 }
 
 using namespace testing;
