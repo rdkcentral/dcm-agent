@@ -26,12 +26,12 @@
 #include "./mocks/mockrbus.h"
 //#include "./mocks/mockrbus.cpp"
 
-extern "C" {
+//extern "C" {
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error);
 VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish);
-}
+//}
 
 //#include "../dcm_utils.c"
 #include "dcm_types.h"
