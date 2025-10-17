@@ -52,3 +52,4 @@ extern "C" {
         static INT8 mockURL[] = "http://mock.example.com/upload";
         return mockURL;
     }
+}
