@@ -68,7 +68,7 @@ protected:
     void TearDown() override {
         mock_rbus_clear_global_mock();
         delete mockRBus;
-        
+        delete mockSettings;
         // Cleanup
         cleanupDCMHandle();
     }
