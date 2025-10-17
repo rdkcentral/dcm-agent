@@ -54,12 +54,14 @@ class DcmDaemonMainInitTest : public ::testing::Test {
 protected:
     void SetUp() override {
         mockRBus = new StrictMock<MockRBus>();
+        mockSettings = new NiceMock<MockDcmSettings>();
         mock_rbus_set_global_mock(mockRBus);
         mock_rbus_reset();
         
         // Initialize DCM handle
         memset(&dcmHandle, 0, sizeof(DCMDHandle));
         dcmHandle.isDCMRunning = false;
+        g_mockSettings = mockSettings;
         
     }
     
@@ -157,7 +159,8 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
 }
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
-    dcmHandle.pDcmSetHandle = malloc(64);
+    EXPECT_CALL(*mockSettings, dcmSettingsInit(_))
+        .WillOnce(Return(DCM_FAILURE));
     INT32 result = dcmDaemonMainInit(&dcmHandle);
     EXPECT_EQ(result, DCM_FAILURE);
 }
