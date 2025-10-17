@@ -158,6 +158,13 @@ TEST_F(DcmDaemonMainInitTest, MainInit_checkdemonstatus_fail) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
+TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
+    RemoveFile(DCM_PID_FILE);
+    dcmHandle.pDcmSetHandle = nullptr;
+    INT32 result = dcmDaemonMainInit(&dcmHandle);
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
 TEST_F(DcmDaemonMainInitTest, MainInit_rbus_int_failure) {
     // Setup successful RBUS mocks
     rbusHandle_t mockHandle = mock_rbus_get_mock_handle();
