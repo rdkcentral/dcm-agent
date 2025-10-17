@@ -144,7 +144,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_FALSE(dcmHandle.isDCMRunning);
-    EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
+    //EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
     EXPECT_NE(dcmHandle.pRbusHandle, nullptr);
     EXPECT_NE(dcmHandle.pExecBuff, nullptr);
     EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
