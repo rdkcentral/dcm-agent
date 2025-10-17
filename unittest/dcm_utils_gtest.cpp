@@ -25,6 +25,7 @@
 //#include "../dcm_utils.c"
 #include "dcm_types.h"
 #include "dcm_utils.c"
+#include "dcm_utils.h"
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
@@ -47,7 +48,7 @@ protected:
     void TearDown() override {
     }
 };
-#include "dcm_utils.h"
+
 // Helper: create a file with given content
 void CreateFile(const char* filename, const char* content) {
     std::ofstream ofs(filename);
