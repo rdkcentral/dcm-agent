@@ -26,7 +26,8 @@
 #include "./mocks/mockrbus.h"
 
 //extern "C" {
-  void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+void get_sig_handler(INT32 sig);
   #include "dcm.c"
   #include "dcm.h"
 //} 
@@ -418,6 +419,17 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
     
     dcmDaemonMainUnInit(&testHandle);
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
+}
+TEST_F(DcmDaemonMainUnInitTest, SigHandler_SIGINT_LogsCorrectMessage) {
+    g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
+    memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
+    EXPECT_EXIT({
+        get_sig_handler(SIGINT);
+    }, ::testing::ExitedWithCode(1), ".*");
+    if (g_pdcmHandle) {
+            free(g_pdcmHandle);
+            g_pdcmHandle = NULL;
+    }
 }
 
 GTEST_API_ int main(int argc, char *argv[]){
