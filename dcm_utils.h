@@ -22,6 +22,11 @@
 #ifndef _DCM_UTILS_H_
 #define _DCM_UTILS_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #ifdef HAS_MAINTENANCE_MANAGER
 #ifndef GTEST_ENABLE
 #include "libIBus.h"
@@ -122,7 +127,11 @@ INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry);
 
 void DCMLOGInit();
 
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_UTILS_H
+
 
 
 
