@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "dcm.h"
+#include "dcm_cronparse.h"
 
 
 // ======================= Mock Global Variables =======================
