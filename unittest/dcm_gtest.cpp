@@ -385,6 +385,7 @@ protected:
     void SetUp() override {
         g_pdcmHandle = (DCMDHandle*)malloc(sizeof(DCMDHandle));
         memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
+        mockSettings = new NiceMock<MockDcmSettings>();
     }
     
     void TearDown() override {
@@ -392,7 +393,9 @@ protected:
             free(g_pdcmHandle);
             g_pdcmHandle = nullptr;
         }
+        delete mockSettings;
     }
+    MockDcmSettings* mockSettings;
 };
 /*
 TEST_F(SignalHandlerTest, SigHandler_SIGINT_ExitsCorrectly) {
