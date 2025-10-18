@@ -305,8 +305,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
             printf("DEBUG: Waiting for minute boundary... %d seconds elapsed\n", i/10);
         }
     }
-    */
-    EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds"; 
+    EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds"; */
 }
 
 TEST_F(DcmSchedulerThreadTest, ThreadHandlesNullCallback_Gracefully) {
