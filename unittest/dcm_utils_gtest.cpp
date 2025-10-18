@@ -178,6 +178,6 @@ GTEST_API_ int main(int argc, char *argv[]){
     ::testing::GTEST_FLAG(output) = testresults_fullfilepath;
     ::testing::InitGoogleTest(&argc, argv);
     //testing::Mock::AllowLeak(mock);
-    cout << "Starting DCM GTEST ===================>" << endl;
+    cout << "Starting DCM utils GTEST ===================>" << endl;
     return RUN_ALL_TESTS();
 }
