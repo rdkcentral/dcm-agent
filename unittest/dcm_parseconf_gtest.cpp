@@ -34,6 +34,7 @@
 
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
+INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*);
 
 
 using namespace testing;
@@ -519,6 +520,385 @@ TEST_F(DcmSettingJsonInitTest, NonExistentFile_ReturnsFailure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
     EXPECT_EQ(jsonHandle, nullptr);
+}
+
+
+class DcmSettingJsonGetValTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Get pointer to the static function
+        jsonGetVal = getdcmSettingJsonGetVal();
+        
+        // Initialize output variables
+        memset(stringValue, 0, sizeof(stringValue));
+        intValue = 0;
+        type = 0;
+        
+        // Create test JSON objects
+        createTestJsonObjects();
+    }
+    
+    void TearDown() override {
+        // Clean up all JSON objects
+        if (jsonWithString) cJSON_Delete(jsonWithString);
+        if (jsonWithInt) cJSON_Delete(jsonWithInt);
+        if (jsonWithBool) cJSON_Delete(jsonWithBool);
+        if (jsonWithNull) cJSON_Delete(jsonWithNull);
+        if (emptyJson) cJSON_Delete(emptyJson);
+        if (complexJson) cJSON_Delete(complexJson);
+    }
+    
+    void createTestJsonObjects() {
+        // JSON with string value
+        jsonWithString = cJSON_CreateObject();
+        cJSON_AddStringToObject(jsonWithString, "testKey", "testValue");
+        cJSON_AddStringToObject(jsonWithString, "emptyString", "");
+        cJSON_AddStringToObject(jsonWithString, "longString", "This is a very long string value for testing purposes");
+        
+        // JSON with integer value
+        jsonWithInt = cJSON_CreateObject();
+        cJSON_AddNumberToObject(jsonWithInt, "positiveInt", 42);
+        cJSON_AddNumberToObject(jsonWithInt, "negativeInt", -123);
+        cJSON_AddNumberToObject(jsonWithInt, "zero", 0);
+        cJSON_AddNumberToObject(jsonWithInt, "largeInt", 999999);
+        
+        // JSON with boolean values
+        jsonWithBool = cJSON_CreateObject();
+        cJSON_AddBoolToObject(jsonWithBool, "trueValue", cJSON_True);
+        cJSON_AddBoolToObject(jsonWithBool, "falseValue", cJSON_False);
+        
+        // JSON with null value
+        jsonWithNull = cJSON_CreateObject();
+        cJSON_AddNullToObject(jsonWithNull, "nullValue");
+        
+        // Empty JSON object
+        emptyJson = cJSON_CreateObject();
+        
+        // Complex JSON with multiple types
+        complexJson = cJSON_CreateObject();
+        cJSON_AddStringToObject(complexJson, "uploadRepository:URL", "http://test.com");
+        cJSON_AddStringToObject(complexJson, "logUploadCron", "0 * * * *");
+        cJSON_AddNumberToObject(complexJson, "uploadOnReboot", 1);
+        cJSON_AddBoolToObject(complexJson, "enableLogging", cJSON_True);
+        cJSON_AddNullToObject(complexJson, "optionalField");
+    }
+    
+    // Function pointer to the static function
+    INT32 (*jsonGetVal)(VOID*, INT8*, INT8*, INT32*, INT32*);
+    
+    // Test JSON objects
+    cJSON* jsonWithString = nullptr;
+    cJSON* jsonWithInt = nullptr;
+    cJSON* jsonWithBool = nullptr;
+    cJSON* jsonWithNull = nullptr;
+    cJSON* emptyJson = nullptr;
+    cJSON* complexJson = nullptr;
+    
+    // Output variables
+    INT8 stringValue[256];
+    INT32 intValue;
+    INT32 type;
+};
+
+// ======================= Valid String Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, StringValue_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"testKey", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "testValue");
+    EXPECT_EQ(intValue, 0); // Should be initialized to 0
+}
+
+TEST_F(DcmSettingJsonGetValTest, EmptyString_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"emptyString", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "");
+}
+
+TEST_F(DcmSettingJsonGetValTest, LongString_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"longString", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "This is a very long string value for testing purposes");
+}
+
+// ======================= Valid Integer Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, PositiveInteger_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithInt, (INT8*)"positiveInt", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_INT);
+    EXPECT_EQ(intValue, 42);
+    EXPECT_EQ(stringValue[0], 0); // Should be initialized to 0
+}
+
+TEST_F(DcmSettingJsonGetValTest, NegativeInteger_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithInt, (INT8*)"negativeInt", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_INT);
+    EXPECT_EQ(intValue, -123);
+}
+
+TEST_F(DcmSettingJsonGetValTest, ZeroValue_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithInt, (INT8*)"zero", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_INT);
+    EXPECT_EQ(intValue, 0);
+}
+
+TEST_F(DcmSettingJsonGetValTest, LargeInteger_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithInt, (INT8*)"largeInt", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_INT);
+    EXPECT_EQ(intValue, 999999);
+}
+
+// ======================= Valid Boolean Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, TrueBoolean_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithBool, (INT8*)"trueValue", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_BOOL);
+    EXPECT_EQ(intValue, 1); // True should be 1
+}
+
+TEST_F(DcmSettingJsonGetValTest, FalseBoolean_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithBool, (INT8*)"falseValue", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_BOOL);
+    EXPECT_EQ(intValue, 0); // False should be 0
+}
+
+// ======================= Null Value Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, NullValue_ReturnsCorrectType) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithNull, (INT8*)"nullValue", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_NULL);
+}
+
+// ======================= Invalid Input Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, NullJsonHandle_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(nullptr, (INT8*)"testKey", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmSettingJsonGetValTest, NonExistentKey_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"nonExistentKey", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmSettingJsonGetValTest, EmptyJson_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(emptyJson, (INT8*)"anyKey", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmSettingJsonGetValTest, NullKeyName_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, nullptr, stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+// ======================= Output Variable Initialization Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, OutputVariables_InitializedCorrectly) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    // Set values to non-zero before calling function
+    stringValue[0] = 'X';
+    intValue = 999;
+    type = 999;
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"nonExistentKey", stringValue, &intValue, &type);
+    
+    // On failure, variables should be initialized
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(type, DCM_JSONITEM_NULL);
+    EXPECT_EQ(intValue, 0);
+    EXPECT_EQ(stringValue[0], 0);
+}
+
+// ======================= Real DCM Configuration Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, UploadURL_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(complexJson, (INT8*)"uploadRepository:URL", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "http://test.com");
+}
+
+TEST_F(DcmSettingJsonGetValTest, LogUploadCron_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(complexJson, (INT8*)"logUploadCron", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "0 * * * *");
+}
+
+TEST_F(DcmSettingJsonGetValTest, UploadOnReboot_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(complexJson, (INT8*)"uploadOnReboot", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_INT);
+    EXPECT_EQ(intValue, 1);
+}
+
+TEST_F(DcmSettingJsonGetValTest, EnableLogging_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(complexJson, (INT8*)"enableLogging", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_BOOL);
+    EXPECT_EQ(intValue, 1); // True
+}
+
+// ======================= Edge Case Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, KeyWithSpecialCharacters_ReturnsCorrectValue) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    // Test key with colon (like "uploadRepository:URL")
+    INT32 result = jsonGetVal(complexJson, (INT8*)"uploadRepository:URL", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_EQ(type, DCM_JSONITEM_STR);
+    EXPECT_STREQ(stringValue, "http://test.com");
+}
+
+TEST_F(DcmSettingJsonGetValTest, CaseSensitiveKey_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    // Test case sensitivity - "testkey" vs "testKey"
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"testkey", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
+
+// ======================= Multiple Type Access Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, MultipleAccess_ToSameKey_WorksCorrectly) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    // First access
+    INT32 result1 = jsonGetVal(jsonWithString, (INT8*)"testKey", stringValue, &intValue, &type);
+    EXPECT_EQ(result1, DCM_SUCCESS);
+    EXPECT_STREQ(stringValue, "testValue");
+    
+    // Clear variables
+    memset(stringValue, 0, sizeof(stringValue));
+    
+    // Second access
+    INT32 result2 = jsonGetVal(jsonWithString, (INT8*)"testKey", stringValue, &intValue, &type);
+    EXPECT_EQ(result2, DCM_SUCCESS);
+    EXPECT_STREQ(stringValue, "testValue");
+}
+
+// ======================= Boundary Tests =======================
+
+TEST_F(DcmSettingJsonGetValTest, EmptyKeyName_ReturnsFailure) {
+    if (!jsonGetVal) {
+        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
+    }
+    
+    INT32 result = jsonGetVal(jsonWithString, (INT8*)"", stringValue, &intValue, &type);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
 }
 
 
