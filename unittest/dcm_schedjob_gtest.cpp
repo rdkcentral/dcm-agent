@@ -28,7 +28,7 @@
 #include "dcm_schedjob.c"
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
-#define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
+#define GTEST_DEFAULT_RESULT_FILENAME "dcm_schedjob_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
 
