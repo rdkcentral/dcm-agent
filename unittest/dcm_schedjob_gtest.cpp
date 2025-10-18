@@ -219,7 +219,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadWakesUp_OnConditionSignal_WithoutScheduling
 }
 
 // ======================= Scheduling Behavior Tests =======================
-/*
+/
 TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_OnTimeout) {
     createThread();
     
@@ -235,7 +235,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_OnTimeout) {
     EXPECT_EQ(g_lastJobName, "TestJob");
     EXPECT_EQ(g_lastUserData, (void*)0x12345678);
 }  
-
+/*
 TEST_F(DcmSchedulerThreadTest, ThreadHandlesNullCallback_Gracefully) {
     // Set callback to NULL
     scheduler.pDcmCB = nullptr;
