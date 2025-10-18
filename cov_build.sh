@@ -41,6 +41,7 @@ export top_builddir=`pwd`
 autoreconf --install
 
 cd ${ROOT}
+rm -rf iarmmgrs
 git clone https://github.com/rdkcentral/iarmmgrs.git
 
 cd ${ROOT}
