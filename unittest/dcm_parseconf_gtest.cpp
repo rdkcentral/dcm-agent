@@ -33,7 +33,7 @@
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
-INT32 (*getdcmSettingJsonInit(void)(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
+INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
 
 
 using namespace testing;
