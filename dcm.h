@@ -21,6 +21,10 @@
 
 #ifndef _DCM_H_
 #define _DCM_H_
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define DCM_LOGUPLOAD_SCHED    "DCM_LOG_UPLOAD"
 #define DCM_DIFD_SCHED         "DCM_FW_UPDATE"
@@ -41,4 +45,8 @@ typedef struct _dcmdHandle
 
 INT32  dcmDaemonMainInit(DCMDHandle *pdcmHandle);
 VOID   dcmDaemonMainUnInit(DCMDHandle *pdcmHandle);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_H_

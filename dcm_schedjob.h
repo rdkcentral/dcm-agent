@@ -21,6 +21,10 @@
 
 #ifndef _DCM_SCHEDJOB_H_
 #define _DCM_SCHEDJOB_H_
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 typedef VOID (*DCMSchedCB)(const INT8* profileName, VOID *pUsrData);
 
@@ -46,4 +50,7 @@ VOID  dcmSchedRemoveJob(VOID *pHandle);
 INT32 dcmSchedStartJob(VOID *pHandle, INT8 *pCronPattern);
 INT32 dcmSchedStopJob(VOID *pHandle);
 
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_SCHEDJOB_H_

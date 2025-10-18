@@ -21,7 +21,14 @@
 
 #ifndef _DCM_CRONPARSE_H_
 #define _DCM_CRONPARSE_H_
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
+#ifdef GTEST_ENABLE
+#include "dcm_types.h"
+#endif
 /**
  * Parsed cron expression
  */
@@ -38,6 +45,9 @@ INT32 dcmCronParseExp(const INT8* expression, dcmCronExpr* target);
 
 time_t dcmCronParseGetNext(dcmCronExpr* expr, time_t date);
 
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_CRONPARSE_H_
 
 

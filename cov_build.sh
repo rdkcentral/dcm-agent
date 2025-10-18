@@ -52,5 +52,5 @@ sh  build_inside_container.sh
 
 
 cd $WORKDIR
-./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -I$ROOT/iarmmgrs/maintenance/include"
+./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -I$ROOT/iarmmgrs/maintenance/include -I/usr/local/include"
 make && make install
