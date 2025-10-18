@@ -44,7 +44,10 @@ cd ${ROOT}
 rm -rf iarmmgrs
 git clone https://github.com/rdkcentral/iarmmgrs.git
 
+
 cd ${ROOT}
+find -iname rdk_debug.h
+cat /usr/local/include/rdk_debug.h
 rm -rf telemetry
 git clone https://github.com/rdkcentral/telemetry.git
 cd telemetry
