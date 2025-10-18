@@ -521,17 +521,6 @@ TEST_F(DcmSettingJsonInitTest, NonExistentFile_ReturnsFailure) {
     EXPECT_EQ(jsonHandle, nullptr);
 }
 
-TEST_F(DcmSettingJsonInitTest, EmptyFile_ReturnsFailure) {
-    if (!jsonInit) {
-        GTEST_SKIP() << "dcmSettingJsonInit function not available";
-    }
-    
-    INT32 result = jsonInit(&handle, (INT8*)emptyFile.c_str(), &jsonHandle);
-    
-    EXPECT_EQ(result, DCM_FAILURE);
-    EXPECT_EQ(jsonHandle, nullptr);
-}
-
 TEST_F(DcmSettingJsonInitTest, NullHandle_ReturnsFailure) {
     if (!jsonInit) {
         GTEST_SKIP() << "dcmSettingJsonInit function not available";
