@@ -145,10 +145,6 @@ typedef struct {
     } cbTable;
 } rbusDataElement_t;
 
-#ifdef __cplusplus
-}
-#endif
-
 // Mock class for RBUS API functions only
 class MockRBus {
 public:
