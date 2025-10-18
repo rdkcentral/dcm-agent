@@ -33,6 +33,7 @@
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
+INT32 (*getdcmSettingJsonInit(void)(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
 
 
 using namespace testing;
@@ -385,6 +386,184 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
     EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); 
 }
 
+
+class DcmSettingJsonInitTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Get pointer to the static function
+        jsonInit = getdcmSettingJsonInit();
+        
+        // Initialize test handle
+        memset(&handle, 0, sizeof(DCMSettingsHandle));
+        jsonHandle = nullptr;
+        
+        // Create temporary test files
+        validJsonFile = "test_valid.json";
+        invalidJsonFile = "test_invalid.json";
+        emptyFile = "test_empty.json";
+        telemetryJsonFile = "test_telemetry.json";
+        nonExistentFile = "non_existent.json";
+        
+        createTestFiles();
+    }
+    
+    void TearDown() override {
+        // Clean up JSON handle if created
+        if (jsonHandle) {
+            cJSON_Delete((cJSON*)jsonHandle);
+            jsonHandle = nullptr;
+        }
+        
+        // Clean up test files
+        remove(validJsonFile.c_str());
+        remove(invalidJsonFile.c_str());
+        remove(emptyFile.c_str());
+        remove(telemetryJsonFile.c_str());
+        // Note: nonExistentFile doesn't exist, so no need to remove
+    }
+    
+    void createTestFiles() {
+        // Create valid JSON file
+        std::ofstream valid(validJsonFile);
+        valid << R"({"uploadRepository:URL": "http://test.com", "logUploadCron": "0 * * * *"})";
+        valid.close();
+        
+        // Create invalid JSON file
+        std::ofstream invalid(invalidJsonFile);
+        invalid << R"({"uploadRepository:URL": "http://test.com", "logUploadCron": )"; // Malformed JSON
+        invalid.close();
+        
+        // Create empty file
+        std::ofstream empty(emptyFile);
+        empty.close();
+        
+        // Create JSON with telemetry data
+        std::ofstream telemetry(telemetryJsonFile);
+        telemetry << R"({"uploadRepository:URL": "http://test.com", "telemetryProfile": [{"param": "value"}], "logUploadCron": "0 * * * *"})";
+        telemetry.close();
+    }
+    
+    // Function pointer to the static function
+    INT32 (*jsonInit)(DCMSettingsHandle*, INT8*, VOID**);
+    
+    DCMSettingsHandle handle;
+    void* jsonHandle;
+    
+    std::string validJsonFile;
+    std::string invalidJsonFile;
+    std::string emptyFile;
+    std::string telemetryJsonFile;
+    std::string nonExistentFile;
+};
+
+// ======================= Valid Input Tests =======================
+
+TEST_F(DcmSettingJsonInitTest, ValidJsonFile_ReturnsSuccess) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)validJsonFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_NE(jsonHandle, nullptr);
+    
+    // Verify JSON was parsed correctly
+    cJSON* json = (cJSON*)jsonHandle;
+    EXPECT_NE(json, nullptr);
+    
+    // Check if we can retrieve a value
+    cJSON* item = cJSON_GetObjectItem(json, "uploadRepository:URL");
+    EXPECT_NE(item, nullptr);
+    EXPECT_STREQ(cJSON_GetStringValue(item), "http://test.com");
+}
+
+TEST_F(DcmSettingJsonInitTest, JsonWithTelemetryData_RemovesTelemetryAndReturnsSuccess) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)telemetryJsonFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_NE(jsonHandle, nullptr);
+    
+    // Verify telemetry data was removed
+    cJSON* json = (cJSON*)jsonHandle;
+    cJSON* telemetryItem = cJSON_GetObjectItem(json, "telemetryProfile");
+    EXPECT_EQ(telemetryItem, nullptr); // Should be removed
+    
+    // Verify other data is still present
+    cJSON* urlItem = cJSON_GetObjectItem(json, "uploadRepository:URL");
+    EXPECT_NE(urlItem, nullptr);
+}
+
+// ======================= Invalid Input Tests =======================
+
+TEST_F(DcmSettingJsonInitTest, NullInputFile_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, nullptr, &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(jsonHandle, nullptr);
+}
+
+TEST_F(DcmSettingJsonInitTest, NonExistentFile_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)nonExistentFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(jsonHandle, nullptr);
+}
+
+TEST_F(DcmSettingJsonInitTest, EmptyFile_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)emptyFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(jsonHandle, nullptr);
+}
+
+TEST_F(DcmSettingJsonInitTest, InvalidJsonFile_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)invalidJsonFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(jsonHandle, nullptr);
+}
+
+TEST_F(DcmSettingJsonInitTest, NullHandle_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(nullptr, (INT8*)validJsonFile.c_str(), &jsonHandle);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+    EXPECT_EQ(jsonHandle, nullptr);
+}
+
+TEST_F(DcmSettingJsonInitTest, NullJsonHandlePtr_ReturnsFailure) {
+    if (!jsonInit) {
+        GTEST_SKIP() << "dcmSettingJsonInit function not available";
+    }
+    
+    INT32 result = jsonInit(&handle, (INT8*)validJsonFile.c_str(), nullptr);
+    
+    EXPECT_EQ(result, DCM_FAILURE);
+}
 
 
 GTEST_API_ int main(int argc, char *argv[]){
