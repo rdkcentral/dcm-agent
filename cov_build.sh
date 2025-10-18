@@ -42,11 +42,15 @@ autoreconf --install
 
 cd ${ROOT}
 rm -rf iarmmgrs
+rm -rf iarmbus
 git clone https://github.com/rdkcentral/iarmmgrs.git
+git clone https://github.com/rdkcentral/iarmbus.git
+#cp  iarmbus/core/include/*  /usr/local/include
+
 
 cd ${ROOT}
 rm -rf telemetry
-git clone https://github.com/rdkcentral/telemetry.git
+git clone https://github.com/rdkcentral/telemetry.git -b feature/dcm
 cd telemetry
 sh  build_inside_container.sh 
 
