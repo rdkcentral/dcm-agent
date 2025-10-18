@@ -182,9 +182,6 @@ public:
     MOCK_METHOD(rbusValue_t, rbusObject_GetValue, (rbusObject_t object, const char* name), ());
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // C wrapper function declarations - RBUS functions only
 rbusStatus_t rbus_checkStatus(void);
