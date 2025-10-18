@@ -547,6 +547,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadCleanup_ProperResourceRelease) {
     
     // No additional verification needed - absence of memory leaks
     // would be det
+}
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
