@@ -46,10 +46,8 @@ git clone https://github.com/rdkcentral/iarmmgrs.git
 
 
 cd ${ROOT}
-find -iname rdk_debug.h
-cat /usr/local/include/rdk_debug.h
 rm -rf telemetry
-git clone https://github.com/rdkcentral/telemetry.git
+git clone https://github.com/rdkcentral/telemetry.git -b feature/dcm
 cd telemetry
 sh  build_inside_container.sh 
 
