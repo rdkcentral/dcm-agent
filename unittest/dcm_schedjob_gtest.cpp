@@ -579,7 +579,6 @@ TEST_F(DcmSchedStopJobTest, StopJobSetsStartSchedToZeroAndReturnsSuccess) {
     EXPECT_EQ(sched.startSched, 0);
 }
 
-/
 // Simple test callback
 void testCallback(const char* jobName, void* userData) {
     // Simple test callback
