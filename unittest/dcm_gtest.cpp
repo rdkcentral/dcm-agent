@@ -28,7 +28,7 @@
 #include "dcm.h"
 #include "dcm_types.h"
 #include "dcm_rbus.c"
-//#include "dcm_parseconf.c"
+#include "dcm_parseconf.c"
 #include "dcm_schedjob.c"
 #include "dcm_cronparse.c"
 #include "dcm_utils.c"
