@@ -116,6 +116,7 @@ protected:
         scheduler.pUserData = (void*)0x12345678;
         scheduler.terminated = false;
         scheduler.startSched = false;
+        memset(&scheduler.parseData, 0, sizeof(scheduler.parseData));
         
         // Initialize threading primitives with error checking
         int mutexResult = pthread_mutex_init(&scheduler.tMutex, NULL);
