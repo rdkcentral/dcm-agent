@@ -21,6 +21,10 @@
 
 #ifndef _DCM_PARSECONF_H_
 #define _DCM_PARSECONF_H_
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define DCM_JSON_STRSIZE   2048
 #define DCM_JSONITEM_BOOL  0
@@ -65,4 +69,9 @@ INT8*  dcmSettingsGetRDKPath(VOID *pdcmSetHandle);
 INT32  dcmSettingsGetMMFlag();
 INT32 dcmSettingDefaultBoot();
 
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_PARSECONF_H_
+
+
