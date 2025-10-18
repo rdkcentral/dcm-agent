@@ -245,6 +245,7 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
     INT8 *buff     = NULL;
     INT32 i        = 0;
     INT32 ret      = DCM_SUCCESS;
+    FILE *fp_out_opt = NULL;
 
     FILE *fp_in = fopen(pConffile, "r");
     if (fp_in == NULL) {
@@ -259,7 +260,7 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
         goto exit1;
     }
 
-    FILE *fp_out_opt = fopen(pOptConf, "w");
+    fp_out_opt = fopen(pOptConf, "w");
     if (fp_out == NULL) {
         ret = DCM_FAILURE;
         DCMError("Unable to open out file: %s\n", pOptConf);
@@ -722,4 +723,11 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
     }
     return dcmSettingStoreTempConf(defaultConfig, DCM_TMP_CONF, DCM_OPT_CONF);
  }
- 
+
+#ifdef GTEST_ENABLE
+INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
+{
+    return &dcmSettingSaveMaintenance;
+}
+#endif
+
