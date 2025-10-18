@@ -460,7 +460,7 @@ TEST_F(DcmSchedStopJobTest, StopJobSetsStartSchedToZeroAndReturnsSuccess) {
     EXPECT_EQ(ret, DCM_SUCCESS);
     EXPECT_EQ(sched.startSched, 0);
 }
-/*
+
 // Simple test callback
 void testCallback(const char* jobName, void* userData) {
     // Simple test callback
@@ -502,7 +502,7 @@ TEST_F(DcmSchedAddJobTest, NullCallback_ReturnsValidHandle) {
     
     EXPECT_NE(handle, nullptr);
 }
-*/
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
