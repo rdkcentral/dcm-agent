@@ -28,7 +28,7 @@
 #include "dcm_rbus.c"
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
-#define GTEST_DEFAULT_RESULT_FILENAME "dcm_cronparse_gtest_report.json"
+#define GTEST_DEFAULT_RESULT_FILENAME "dcm_rbus_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
 VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
