@@ -1,7 +1,6 @@
-#!/bin/sh
-####################################################################################
-# If not stated otherwise in this file or this component's Licenses.txt file the
-# following copyright and licenses apply:
+##########################################################################
+# If not stated otherwise in this file or this component's LICENSE
+# file the following copyright and licenses apply:
 #
 # Copyright 2024 RDK Management
 #
@@ -16,38 +15,46 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-####################################################################################
+##########################################################################
 
-export top_srcdir=`pwd` 
-RESULT_DIR="/tmp/l2_test_report"
-LOCAL_DIR="/usr/local"
-RBUS_INSTALL_DIR="/usr/local"
 
-mkdir -p "$RESULT_DIR"
-echo "LOG.RDK.DCM = ALL FATAL ERROR WARNING NOTICE INFO DEBUG" >> /etc/debug.ini
+WORKDIR=`pwd`
 
-if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
-    echo "LOG_PATH=/opt/logs/" >> /etc/include.properties
-fi
+## Build and install critical dependency
+export ROOT=/usr
+export INSTALL_DIR=${ROOT}/local
+mkdir -p $INSTALL_DIR
 
-if ! grep -q "PERSISTENT_PATH=/opt/" /etc/include.properties; then
-    echo "PERSISTENT_PATH=/opt/" >> /etc/include.properties
-fi
+cd $ROOT
+#Build rbus
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/run_dcm-agent.json test/functional-tests/tests/test_start_dcm-agent.py
+git clone https://github.com/rdkcentral/rbus
+cmake -Hrbus -Bbuild/rbus -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug
+make -C build/rbus && make -C build/rbus install
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/bootup_sequence.json test/functional-tests/tests/test_bootup_sequence.py
+cd $WORKDIR
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/file_existence.json test/functional-tests/tests/test_existence_of_dcmsettingsFile.py
+export INSTALL_DIR='/usr/local'
+export top_srcdir=`pwd`
+export top_builddir=`pwd`
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_true_test.json test/functional-tests/tests/test_log_upload_onreboot_true_case.py
+autoreconf --install
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_false_test.json test/functional-tests/tests/test_log_upload_onreboot_false_case.py
+cd ${ROOT}
+rm -rf iarmmgrs
+rm -rf iarmbus
+git clone https://github.com/rdkcentral/iarmmgrs.git
+git clone https://github.com/rdkcentral/iarmbus.git
+#cp  iarmbus/core/include/*  /usr/local/include
 
-if ! grep -q "ENABLE_MAINTENANCE=" /etc/device.properties; then
-    echo "ENABLE_MAINTENANCE=true" >> /etc/device.properties
-fi
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_MM_test.json test/functional-tests/tests/test_log_upload_onreboot_MM_case.py
+cd ${ROOT}
+rm -rf telemetry
+git clone https://github.com/rdkcentral/telemetry.git -b feature/dcm
+cd telemetry
+sh  build_inside_container.sh 
 
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_cron_NULL_test.json test/functional-tests/tests/test_log_upload_cron_NULL_case.py
+
+cd $WORKDIR
+./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -I$ROOT/iarmmgrs/maintenance/include"
+make && make install
