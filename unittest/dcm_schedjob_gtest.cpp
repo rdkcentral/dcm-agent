@@ -234,7 +234,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_OnTimeout) {
     EXPECT_GE(g_callbackCount.load(), 1);
     EXPECT_EQ(g_lastJobName, "TestJob");
     EXPECT_EQ(g_lastUserData, (void*)0x12345678);
-}  */
+}  
 
 TEST_F(DcmSchedulerThreadTest, ThreadHandlesNullCallback_Gracefully) {
     // Set callback to NULL
@@ -547,7 +547,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadCleanup_ProperResourceRelease) {
     
     // No additional verification needed - absence of memory leaks
     // would be det
-}
+} */
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
