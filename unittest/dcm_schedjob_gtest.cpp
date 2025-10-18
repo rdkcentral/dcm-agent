@@ -551,209 +551,6 @@ TEST_F(DcmSchedStartJobTest, CronParseFailUnsetsStartSched) {
     EXPECT_EQ(sched.startSched, 0);
 }
 
-
-
-// Simple test callback
-void testCallback(const char* jobName, void* userData) {
-    // Simple test callback
-}
-
-// Test fixture
-class DcmSchedAddJobTest : public ::testing::Test {
-protected:
-    void TearDown() override {
-        if (handle) {
-            dcmSchedRemoveJob(handle);
-        }
-    }
-    
-    void* handle = nullptr;
-};
-
-// Valid input test
-TEST_F(DcmSchedAddJobTest, ValidInputs_ReturnsValidHandle) {
-    char jobName[] = "TestJob";
-    
-    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
-    
-    EXPECT_NE(handle, nullptr);
-}
-
-// Null job name test
-TEST_F(DcmSchedAddJobTest, NullJobName_ReturnsNull) {
-    handle = dcmSchedAddJob(nullptr, testCallback, nullptr);
-    
-    EXPECT_EQ(handle, nullptr);
-}
-
-// Test pthread_mutex_init failure by exhausting resources
-TEST_F(DcmSchedAddJobTest, MutexInitFailure_ReturnsNull) {
-    char jobName[] = "TestJob";
-    
-    // Create many mutexes to exhaust system resources
-    pthread_mutex_t mutexes[10000];
-    int created = 0;
-    
-    // Try to exhaust mutex resources
-    for (int i = 0; i < 10000; i++) {
-        if (pthread_mutex_init(&mutexes[i], NULL) == 0) {
-            created++;
-        } else {
-            break; // Resource exhausted
-        }
-    }
-    
-    // Now try to create job - should fail due to no available mutexes
-    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
-    
-    // Clean up mutexes
-    for (int i = 0; i < created; i++) {
-        pthread_mutex_destroy(&mutexes[i]);
-    }
-    
-    // If we exhausted resources, job creation should fail
-    if (created >= 9999) {
-        EXPECT_EQ(handle, nullptr);
-    }
-}
-
-// Test pthread_cond_init failure by exhausting resources
-TEST_F(DcmSchedAddJobTest, CondInitFailure_ReturnsNull) {
-    char jobName[] = "TestJob";
-    
-    // Create many condition variables to exhaust system resources
-    pthread_cond_t conds[5000];
-    int created = 0;
-    
-    // Try to exhaust condition variable resources
-    for (int i = 0; i < 5000; i++) {
-        if (pthread_cond_init(&conds[i], NULL) == 0) {
-            created++;
-        } else {
-            break; // Resource exhausted
-        }
-    }
-    
-    // Now try to create job - should fail due to no available condition variables
-    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
-    
-    // Clean up condition variables
-    for (int i = 0; i < created; i++) {
-        pthread_cond_destroy(&conds[i]);
-    }
-    
-    // If we exhausted resources, job creation should fail
-    if (created >= 4999) {
-        EXPECT_EQ(handle, nullptr);
-    }
-}
-
-// Test pthread_create failure by exhausting thread resources
-TEST_F(DcmSchedAddJobTest, ThreadCreateFailure_ReturnsNull) {
-    char jobName[] = "TestJob";
-    
-    // Create many threads to exhaust system resources
-    pthread_t threads[1000];
-    int created = 0;
-    
-    auto dummyThread = [](void* arg) -> void* {
-        sleep(1); // Keep thread alive briefly
-        return nullptr;
-    };
-    
-    // Try to exhaust thread resources
-    for (int i = 0; i < 1000; i++) {
-        if (pthread_create(&threads[i], NULL, 
-                          reinterpret_cast<void*(*)(void*)>(dummyThread), 
-                          nullptr) == 0) {
-            created++;
-        } else {
-            break; // Resource exhausted
-        }
-    }
-    
-    // Now try to create job - should fail due to no available threads
-    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
-    
-    // Clean up threads
-    for (int i = 0; i < created; i++) {
-        pthread_cancel(threads[i]);
-        pthread_join(threads[i], nullptr);
-    }
-    
-    // If we exhausted resources, job creation should fail
-    if (created >= 999) {
-        EXPECT_EQ(handle, nullptr);
-    }
-}
-
-// Alternative approach using ulimit (Linux specific)
-TEST_F(DcmSchedAddJobTest, DISABLED_ResourceLimits_CauseFailure) {
-    // This test is disabled by default as it's system-specific
-    // Enable only on systems where you can control resource limits
-    
-    char jobName[] = "TestJob";
-    
-    // Set very low resource limits using setrlimit
-    struct rlimit limit;
-    limit.rlim_cur = 1;  // Very low limit
-    limit.rlim_max = 1;
-    
-    // Save original limits
-    struct rlimit original_nproc, original_nofile;
-    getrlimit(RLIMIT_NPROC, &original_nproc);
-    getrlimit(RLIMIT_NOFILE, &original_nofile);
-    
-    // Set restrictive limits
-    setrlimit(RLIMIT_NPROC, &limit);  // Limit processes/threads
-    
-    // Try to create job - should fail
-    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
-    
-    // Restore original limits
-    setrlimit(RLIMIT_NPROC, &original_nproc);
-    setrlimit(RLIMIT_NOFILE, &original_nofile);
-    
-    EXPECT_EQ(handle, nullptr);
-}
-
-// Simple approach - test multiple rapid creations
-TEST_F(DcmSchedAddJobTest, RapidMultipleCreations_SomeNightFail) {
-    std::vector<void*> handles;
-    bool foundFailure = false;
-    
-    // Try to create many jobs rapidly
-    for (int i = 0; i < 100; i++) {
-        std::string jobName = "TestJob" + std::to_string(i);
-        void* tempHandle = dcmSchedAddJob(const_cast<char*>(jobName.c_str()), 
-                                         testCallback, nullptr);
-        
-        if (tempHandle == nullptr) {
-            foundFailure = true;
-            break;
-        } else {
-            handles.push_back(tempHandle);
-        }
-    }
-    
-    // Clean up all created handles
-    for (void* h : handles) {
-        dcmSchedRemoveJob(h);
-    }
-    
-    // We might hit resource limits with many rapid creations
-    // This is not guaranteed, so we don't assert failure
-    printf("Created %zu jobs before %s\n", 
-           handles.size(), 
-           foundFailure ? "hitting resource limit" : "completing successfully");
-}
-
-
-
-
-
-
-/*
 class DcmSchedStopJobTest : public ::testing::Test {
 protected:
     DCMScheduler sched;
@@ -816,7 +613,7 @@ TEST_F(DcmSchedAddJobTest, NullJobName_ReturnsNull) {
     EXPECT_EQ(handle, nullptr);
 }
 
-// Null callback test (should still work)
+// Null callback test
 TEST_F(DcmSchedAddJobTest, NullCallback_ReturnsValidHandle) {
     char jobName[] = "TestJob";
     
@@ -824,7 +621,7 @@ TEST_F(DcmSchedAddJobTest, NullCallback_ReturnsValidHandle) {
     
     EXPECT_NE(handle, nullptr);
 }
-*/
+
 
 
 
