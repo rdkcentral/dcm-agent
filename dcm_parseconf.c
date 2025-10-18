@@ -729,5 +729,10 @@ INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
 {
     return &dcmSettingSaveMaintenance;
 }
+INT32 (*getdcmSettingJsonInit(void)(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **)
+{
+    return &dcmSettingJsonInit;
+}
 #endif
+
 
