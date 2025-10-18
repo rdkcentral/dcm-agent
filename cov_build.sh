@@ -41,14 +41,8 @@ export top_builddir=`pwd`
 autoreconf --install
 
 cd ${ROOT}
-rm -rf iarmmgrs
-rm -rf iarmbus
-rm -rf rdk_logger
 git clone https://github.com/rdkcentral/iarmmgrs.git
-git clone https://github.com/rdkcentral/iarmbus.git
-cp  iarmbus/core/include/*  /usr/local/include
-git clone https://github.com/rdkcentral/rdk_logger.git
-cp rdk_logger/include/* /usr/local/include
+
 
 
 cd ${ROOT}
