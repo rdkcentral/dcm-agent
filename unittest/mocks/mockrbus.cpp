@@ -268,7 +268,6 @@ rbusError_t rbusValue_SetString(rbusValue_t value, const char* str) {
     if (g_mockRBus) {
         return g_mockRBus->rbusValue_SetString(value, str);
     }
-    
     // Default implementation
     if (value && str) {
         MockRBusValue* mockValue = (MockRBusValue*)value;
