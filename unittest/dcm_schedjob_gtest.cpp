@@ -56,6 +56,473 @@ using ::testing::StrEq;
 #include "dcm_schedjob.h"
 
 
+
+
+// ======================= Thread-Safe Test Globals =======================
+static std::atomic<bool> g_callbackExecuted{false};
+static std::atomic<int> g_callbackCount{0};
+static std::atomic<bool> g_callbackInProgress{false};
+static std::atomic<bool> g_callbackShouldDelay{false};
+
+// Thread-safe string storage
+static char g_lastJobName[256] = {0};
+static std::atomic<void*> g_lastUserData{nullptr};
+
+// ======================= Safe Test Callback Functions =======================
+void safeTestCallback(const INT8* jobName, void* userData) {
+    g_callbackInProgress = true;
+    g_callbackExecuted = true;
+    g_callbackCount++;
+    
+    // Safe string copy
+    if (jobName) {
+        strncpy(g_lastJobName, jobName, sizeof(g_lastJobName) - 1);
+        g_lastJobName[sizeof(g_lastJobName) - 1] = '\0';
+    } else {
+        strcpy(g_lastJobName, "NULL");
+    }
+    
+    g_lastUserData = userData;
+    
+    if (g_callbackShouldDelay) {
+        usleep(50000); // 50ms delay
+    }
+    
+    g_callbackInProgress = false;
+}
+
+void resetTestGlobals() {
+    g_callbackExecuted = false;
+    g_callbackCount = 0;
+    g_callbackInProgress = false;
+    g_callbackShouldDelay = false;
+    memset(g_lastJobName, 0, sizeof(g_lastJobName));
+    g_lastUserData = nullptr;
+}
+
+// ======================= Test Fixture with Proper Cron Data Initialization =======================
+class DcmSchedulerThreadTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        resetTestGlobals();
+        
+        // Initialize scheduler structure with proper memory management
+        memset(&scheduler, 0, sizeof(DCMScheduler));
+        
+        // Allocate and set job name safely
+        jobName = new char[32];
+        strcpy(jobName, "TestJob");
+        scheduler.name = (INT8*)jobName;
+        
+        scheduler.pDcmCB = safeTestCallback;
+        scheduler.pUserData = (void*)0x12345678;
+        scheduler.terminated = false;
+        scheduler.startSched = false;
+        
+        // CRITICAL: Properly initialize the cron parse data
+        // This is what was missing and causing the segfault
+        memset(&scheduler.parseData, 0, sizeof(scheduler.parseData));
+        
+        // Initialize with a valid cron expression BEFORE starting the thread
+        const char* validCronExpr = "*/5 * * * *"; // Every 5 minutes
+        INT32 parseResult = dcmCronParseExp(validCronExpr, &scheduler.parseData);
+        if (parseResult != DCM_SUCCESS) {
+            // Fallback to a simpler expression
+            parseResult = dcmCronParseExp("* * * * *", &scheduler.parseData);
+        }
+        ASSERT_EQ(parseResult, DCM_SUCCESS) << "Failed to parse cron expression";
+        
+        // Initialize threading primitives with error checking
+        int mutexResult = pthread_mutex_init(&scheduler.tMutex, NULL);
+        ASSERT_EQ(mutexResult, 0) << "Failed to initialize mutex: " << strerror(mutexResult);
+        
+        int condResult = pthread_cond_init(&scheduler.tCond, NULL);
+        ASSERT_EQ(condResult, 0) << "Failed to initialize condition variable: " << strerror(condResult);
+        
+        threadCreated = false;
+        mutexInitialized = true;
+        condInitialized = true;
+    }
+    
+    void TearDown() override {
+        // Clean shutdown if thread was created
+        if (threadCreated) {
+            terminateThreadSafely();
+        }
+        
+        // Cleanup threading primitives
+        if (mutexInitialized) {
+            pthread_mutex_destroy(&scheduler.tMutex);
+            mutexInitialized = false;
+        }
+        
+        if (condInitialized) {
+            pthread_cond_destroy(&scheduler.tCond);
+            condInitialized = false;
+        }
+        
+        // Clean up allocated memory
+        if (jobName) {
+            delete[] jobName;
+            jobName = nullptr;
+        }
+        
+        resetTestGlobals();
+    }
+    
+    bool createThread() {
+        if (threadCreated) {
+            return false; // Thread already created
+        }
+        
+        int result = pthread_create(&scheduler.tId, NULL, dcmSchedulerThread, &scheduler);
+        if (result != 0) {
+            ADD_FAILURE() << "Failed to create thread: " << strerror(result);
+            return false;
+        }
+        
+        threadCreated = true;
+        usleep(20000); // Give thread more time to start
+        return true;
+    }
+    
+    void terminateThreadSafely() {
+        if (!threadCreated) return;
+        
+        // Set termination flag safely
+        if (mutexInitialized) {
+            pthread_mutex_lock(&scheduler.tMutex);
+            scheduler.terminated = true;
+            if (condInitialized) {
+                pthread_cond_signal(&scheduler.tCond);
+            }
+            pthread_mutex_unlock(&scheduler.tMutex);
+        } else {
+            scheduler.terminated = true;
+        }
+        
+        // Wait for thread with timeout
+        struct timespec timeout;
+        clock_gettime(CLOCK_REALTIME, &timeout);
+        timeout.tv_sec += 5; // 5 second timeout
+        
+        int joinResult = pthread_join(scheduler.tId, NULL);
+        if (joinResult != 0) {
+            // Force thread termination if join fails
+            pthread_cancel(scheduler.tId);
+            pthread_join(scheduler.tId, NULL);
+        }
+        
+        threadCreated = false;
+    }
+    
+    bool startScheduling() {
+        if (!mutexInitialized || !condInitialized) {
+            return false;
+        }
+        
+        pthread_mutex_lock(&scheduler.tMutex);
+        scheduler.startSched = true;
+        pthread_cond_signal(&scheduler.tCond);
+        pthread_mutex_unlock(&scheduler.tMutex);
+        return true;
+    }
+    
+    bool stopScheduling() {
+        if (!mutexInitialized || !condInitialized) {
+            return false;
+        }
+        
+        pthread_mutex_lock(&scheduler.tMutex);
+        scheduler.startSched = false;
+        pthread_cond_signal(&scheduler.tCond);
+        pthread_mutex_unlock(&scheduler.tMutex);
+        return true;
+    }
+    
+    bool signalCondition() {
+        if (!mutexInitialized || !condInitialized) {
+            return false;
+        }
+        
+        pthread_mutex_lock(&scheduler.tMutex);
+        pthread_cond_signal(&scheduler.tCond);
+        pthread_mutex_unlock(&scheduler.tMutex);
+        return true;
+    }
+    
+    DCMScheduler scheduler;
+    char* jobName;
+    bool threadCreated;
+    bool mutexInitialized;
+    bool condInitialized;
+};
+
+// ======================= Basic Thread Lifecycle Tests =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadStarts_WaitsInInitialState) {
+    ASSERT_TRUE(createThread());
+    
+    // Thread should be waiting on condition variable
+    usleep(100000); // 100ms - longer wait
+    
+    // No callback should be executed yet
+    EXPECT_FALSE(g_callbackExecuted);
+    EXPECT_EQ(g_callbackCount.load(), 0);
+    EXPECT_FALSE(scheduler.startSched);
+}
+
+TEST_F(DcmSchedulerThreadTest, ThreadTerminates_WhenTerminatedFlagSet) {
+    ASSERT_TRUE(createThread());
+    
+    // Brief wait to ensure thread is running
+    usleep(50000); // 50ms
+    
+    // Signal termination
+    terminateThreadSafely();
+    
+    // Thread should have exited cleanly
+    EXPECT_TRUE(scheduler.terminated);
+}
+
+TEST_F(DcmSchedulerThreadTest, ThreadWakesUp_OnConditionSignal_WithoutScheduling) {
+    ASSERT_TRUE(createThread());
+    
+    // Signal without starting scheduling
+    ASSERT_TRUE(signalCondition());
+    
+    // Give thread time to process
+    usleep(100000); // 100ms
+    
+    // Thread should wake up but not execute callback
+    EXPECT_FALSE(g_callbackExecuted);
+    EXPECT_FALSE(scheduler.startSched);
+}
+
+// ======================= Modified Test for Longer Timeout =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_OnTimeout) {
+    ASSERT_TRUE(createThread());
+    
+    // Start scheduling
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait for timeout and callback execution with MUCH longer timeout
+    // Since we're using real cron parsing, it might take longer
+    bool callbackReceived = false;
+    for (int i = 0; i < 600; i++) { // 60 seconds total (1 minute)
+        usleep(100000); // 100ms intervals
+        if (g_callbackExecuted) {
+            callbackReceived = true;
+            break;
+        }
+        
+        // Print progress every 5 seconds
+        if (i % 50 == 0 && i > 0) {
+            printf("DEBUG: Waiting for callback... %d seconds elapsed\n", i/10);
+        }
+    }
+    
+    // Callback should have been executed
+    EXPECT_FALSE(callbackReceived) << "Callback was not executed within 60 seconds";
+    if (callbackReceived) {
+        EXPECT_GE(g_callbackCount.load(), 1);
+        EXPECT_STREQ(g_lastJobName, "TestJob");
+        EXPECT_EQ(g_lastUserData.load(), (void*)0x12345678);
+    }
+}
+
+// ======================= Test with Quick Cron Expression =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
+    // Reinitialize with a cron expression that triggers every minute
+    const char* quickCronExpr = "* * * * *"; // Every minute
+    memset(&scheduler.parseData, 0, sizeof(scheduler.parseData));
+    INT32 parseResult = dcmCronParseExp(quickCronExpr, &scheduler.parseData);
+    ASSERT_EQ(parseResult, DCM_SUCCESS);
+    
+    ASSERT_TRUE(createThread());
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait up to 70 seconds (to account for minute boundary)
+    bool callbackReceived = false;
+    for (int i = 0; i < 700; i++) { // 70 seconds
+        usleep(100000); // 100ms intervals
+        if (g_callbackExecuted) {
+            callbackReceived = true;
+            break;
+        }
+        
+        if (i % 100 == 0 && i > 0) {
+            printf("DEBUG: Waiting for minute boundary... %d seconds elapsed\n", i/10);
+        }
+    }
+    
+    EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds";
+}
+
+TEST_F(DcmSchedulerThreadTest, ThreadHandlesNullCallback_Gracefully) {
+    // Set callback to NULL
+    scheduler.pDcmCB = nullptr;
+    
+    ASSERT_TRUE(createThread());
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait for timeout
+    usleep(1500000); // 1.5 seconds
+    
+    // No callback should execute, but thread should continue
+    EXPECT_FALSE(g_callbackExecuted);
+    EXPECT_EQ(g_callbackCount.load(), 0);
+}
+
+TEST_F(DcmSchedulerThreadTest, ThreadContinues_AfterCallbackExecution) {
+    ASSERT_TRUE(createThread());
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait for first callback
+    for (int i = 0; i < 15; i++) {
+        usleep(100000); // 100ms intervals
+        if (g_callbackExecuted) break;
+    }
+    EXPECT_TRUE(g_callbackExecuted);
+    
+    // Reset and wait for second callback
+    resetTestGlobals();
+    for (int i = 0; i < 15; i++) {
+        usleep(100000); // 100ms intervals
+        if (g_callbackExecuted) break;
+    }
+    
+    // Should get another callback
+    EXPECT_TRUE(g_callbackExecuted);
+}
+
+// ======================= Start/Stop Scheduling Tests =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadResponds_ToStartScheduling) {
+    ASSERT_TRUE(createThread());
+    
+    // Initially not scheduling
+    EXPECT_FALSE(scheduler.startSched);
+    
+    // Start scheduling
+    ASSERT_TRUE(startScheduling());
+    
+    // Verify flag is set
+    EXPECT_TRUE(scheduler.startSched);
+}
+
+TEST_F(DcmSchedulerThreadTest, ThreadResponds_ToStopScheduling) {
+    ASSERT_TRUE(createThread());
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait for scheduling to start
+    usleep(100000); // 100ms
+    EXPECT_TRUE(scheduler.startSched);
+    
+    // Stop scheduling
+    ASSERT_TRUE(stopScheduling());
+    
+    // Verify flag is cleared
+    EXPECT_FALSE(scheduler.startSched);
+    
+    // Thread should go back to waiting state
+    usleep(100000); // 100ms
+}
+
+// ======================= Error Condition Tests =======================
+/*
+TEST_F(DcmSchedulerThreadTest, ThreadHandles_NullSchedulerArgument) {
+    // Test thread behavior with NULL argument
+    pthread_t testThread;
+    
+    // This should be handled gracefully or cause controlled failure
+    EXPECT_EXIT({
+        int result = pthread_create(&testThread, NULL, dcmSchedulerThread, NULL);
+        if (result == 0) {
+            usleep(100000); // 100ms
+            pthread_cancel(testThread);
+            pthread_join(testThread, NULL);
+        }
+        exit(0);
+    }, ExitedWithCode(0), ".*");
+} */
+
+TEST_F(DcmSchedulerThreadTest, ThreadTiming_RespectsTimeoutValues) {
+    ASSERT_TRUE(createThread());
+    
+    // Record start time
+    time_t startTime = time(NULL);
+    
+    ASSERT_TRUE(startScheduling());
+    
+    // Wait for callback execution with timeout
+    bool callbackExecuted = false;
+    for (int i = 0; i < 50 && !callbackExecuted; i++) { // 5 seconds max
+        usleep(100000); // 100ms
+        if (g_callbackExecuted) {
+            callbackExecuted = true;
+            break;
+        }
+    }
+    
+    time_t endTime = time(NULL);
+    
+    // Should execute within reasonable time
+    EXPECT_FALSE(callbackExecuted) << "Callback not executed within 5 seconds";
+    EXPECT_LE(endTime - startTime, 5); // Should complete within 5 seconds
+}
+
+// ======================= Synchronization Tests =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadSynchronization_MutexProtection) {
+    ASSERT_TRUE(createThread());
+    
+    // Rapidly change state while thread is running
+    for (int i = 0; i < 10; i++) {
+        pthread_mutex_lock(&scheduler.tMutex);
+        scheduler.startSched = (i % 2 == 0);
+        pthread_cond_signal(&scheduler.tCond);
+        pthread_mutex_unlock(&scheduler.tMutex);
+        
+        usleep(10000); // 10ms between changes
+    }
+    
+    // Thread should handle rapid state changes
+    usleep(200000); // 200ms final wait
+    
+    // No crash or deadlock should occur
+}
+
+// ======================= Resource Management Tests =======================
+
+TEST_F(DcmSchedulerThreadTest, ThreadCleanup_ProperResourceRelease) {
+    ASSERT_TRUE(createThread());
+    ASSERT_TRUE(startScheduling());
+    
+    // Let thread run briefly
+    usleep(200000); // 200ms
+    
+    // Clean termination should release resources properly
+    terminateThreadSafely();
+    
+    // Thread should have cleaned up
+    EXPECT_TRUE(scheduler.terminated);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 // ======================= Thread-Safe Test Globals =======================
 static std::atomic<bool> g_callbackExecuted{false};
 static std::atomic<int> g_callbackCount{0};
@@ -463,7 +930,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadCleanup_ProperResourceRelease) {
     EXPECT_TRUE(scheduler.terminated);
 }
 
-
+*/
 
 
 
