@@ -219,7 +219,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadWakesUp_OnConditionSignal_WithoutScheduling
 }
 
 // ======================= Scheduling Behavior Tests =======================
-/
+
 TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_OnTimeout) {
     createThread();
     
