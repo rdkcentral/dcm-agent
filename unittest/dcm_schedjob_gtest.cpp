@@ -293,9 +293,9 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
 
     // Wait up to 70 seconds (to account for minute boundary)
     bool callbackReceived = false;
-    /*
+    
     for (int i = 0; i < 700; i++) { // 70 seconds
-        usleep(100000); // 100ms intervals
+        usleep(1000); // 100ms intervals 100000
         if (g_callbackExecuted) {
             callbackReceived = true;
             break;
@@ -305,7 +305,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
             printf("DEBUG: Waiting for minute boundary... %d seconds elapsed\n", i/10);
         }
     }
-    */
+    
     EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds";
 }
 
