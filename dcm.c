@@ -38,6 +38,7 @@
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
 
+
 static DCMDHandle *g_pdcmHandle = NULL;
 
 /** @brief Call back function from Scheduler. This function
