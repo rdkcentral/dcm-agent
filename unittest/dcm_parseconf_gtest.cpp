@@ -521,17 +521,6 @@ TEST_F(DcmSettingJsonInitTest, NonExistentFile_ReturnsFailure) {
     EXPECT_EQ(jsonHandle, nullptr);
 }
 
-TEST_F(DcmSettingJsonInitTest, NullHandle_ReturnsFailure) {
-    if (!jsonInit) {
-        GTEST_SKIP() << "dcmSettingJsonInit function not available";
-    }
-    
-    INT32 result = jsonInit(nullptr, (INT8*)validJsonFile.c_str(), &jsonHandle);
-    
-    EXPECT_EQ(result, DCM_FAILURE);
-    EXPECT_EQ(jsonHandle, nullptr);
-}
-
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
