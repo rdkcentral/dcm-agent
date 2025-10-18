@@ -580,6 +580,48 @@ TEST_F(DcmSchedStopJobTest, StopJobSetsStartSchedToZeroAndReturnsSuccess) {
 }
 
 
+// Simple test callback
+void testCallback(const char* jobName, void* userData) {
+    // Simple test callback
+}
+
+// Test fixture
+class DcmSchedAddJobTest : public ::testing::Test {
+protected:
+    void TearDown() override {
+        if (handle) {
+            dcmSchedRemoveJob(handle);
+        }
+    }
+    
+    void* handle = nullptr;
+};
+
+// Valid input test
+TEST_F(DcmSchedAddJobTest, ValidInputs_ReturnsValidHandle) {
+    char jobName[] = "TestJob";
+    
+    handle = dcmSchedAddJob(jobName, testCallback, nullptr);
+    
+    EXPECT_NE(handle, nullptr);
+}
+
+// Null job name test
+TEST_F(DcmSchedAddJobTest, NullJobName_ReturnsNull) {
+    handle = dcmSchedAddJob(nullptr, testCallback, nullptr);
+    
+    EXPECT_EQ(handle, nullptr);
+}
+
+// Null callback test (should still work)
+TEST_F(DcmSchedAddJobTest, NullCallback_ReturnsValidHandle) {
+    char jobName[] = "TestJob";
+    
+    handle = dcmSchedAddJob(jobName, nullptr, nullptr);
+    
+    EXPECT_NE(handle, nullptr);
+}
+
 
 
 
