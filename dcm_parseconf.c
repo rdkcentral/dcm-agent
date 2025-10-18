@@ -733,7 +733,13 @@ INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VO
 {
     return &dcmSettingJsonInit;
 }
+INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
+{
+    return &dcmSettingJsonGetVal;
+}
+
 #endif
+
 
 
 
