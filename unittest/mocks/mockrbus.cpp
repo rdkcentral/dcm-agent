@@ -432,3 +432,5 @@ rbusValue_t rbusObject_GetValue(rbusObject_t object, const char* name) {
     
     return nullptr;
 }
+
+} // extern "C"
