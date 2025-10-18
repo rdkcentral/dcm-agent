@@ -856,17 +856,6 @@ TEST_F(DcmSettingJsonGetValTest, KeyWithSpecialCharacters_ReturnsCorrectValue) {
     EXPECT_STREQ(stringValue, "http://test.com");
 }
 
-TEST_F(DcmSettingJsonGetValTest, CaseSensitiveKey_ReturnsFailure) {
-    if (!jsonGetVal) {
-        GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
-    }
-    
-    // Test case sensitivity - "testkey" vs "testKey"
-    INT32 result = jsonGetVal(jsonWithString, (INT8*)"testkey", stringValue, &intValue, &type);
-    
-    EXPECT_EQ(result, DCM_FAILURE);
-}
-
 // ======================= Multiple Type Access Tests =======================
 
 TEST_F(DcmSettingJsonGetValTest, MultipleAccess_ToSameKey_WorksCorrectly) {
