@@ -28,6 +28,7 @@ mkdir -p $INSTALL_DIR
 cd $ROOT
 #Build rbus
 
+rm -rf rbus
 git clone https://github.com/rdkcentral/rbus
 cmake -Hrbus -Bbuild/rbus -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug
 make -C build/rbus && make -C build/rbus install

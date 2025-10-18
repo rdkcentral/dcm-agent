@@ -30,8 +30,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-
+#ifndef GTEST_ENABLE
 #include "rbus.h"
+#endif
 #include "dcm_types.h"
 #include "dcm_rbus.h"
 #include "dcm_utils.h"
@@ -555,3 +556,26 @@ VOID dcmRbusUnInit (VOID *pDCMRbusHandle)
     free(plDCMRbusHandle);
 
 }
+
+#ifdef GTEST_ENABLE
+VOID get_rbusProcConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
+{
+     rbusProcConf(handle, event, subscription);
+}
+
+void get_rbusAsyncSubCB(rbusHandle_t handle, rbusEventSubscription_t* subscription, rbusError_t error)
+{
+     rbusAsyncSubCB(handle, subscription, error);
+}
+
+VOID get_rbusSetConf(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
+{
+     rbusSetConf(handle, event, subscription);
+}
+rbusError_t get_rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action, const INT8* eventName, rbusFilter_t filter, int32_t interval, BOOL* autoPublish)
+{
+     return rbusSendEventCB( handle, action, eventName, filter, interval, autoPublish);
+}
+#endif
+
+
