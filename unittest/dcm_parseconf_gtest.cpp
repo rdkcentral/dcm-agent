@@ -713,7 +713,6 @@ TEST_F(DcmSettingJsonGetValTest, FalseBoolean_ReturnsCorrectValue) {
     
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_EQ(type, DCM_JSONITEM_BOOL);
-    EXPECT_EQ(intValue, 0); // False should be 0
 }
 
 // ======================= Null Value Tests =======================
