@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=true
+ENABLE_COV=false
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
@@ -62,6 +62,8 @@ done
 if [ $fail -ne 0 ]; then
     echo "Some unit tests failed."
     exit 1
+else
+    echo "All unit tests passed."
 fi
 
 echo "********************"
@@ -74,4 +76,4 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
 fi
-cd $TOP_DIR
+#cd $TOP_DIR
