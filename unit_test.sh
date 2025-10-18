@@ -66,14 +66,13 @@ else
     echo "All unit tests passed."
 fi
 
-echo "********************"
-echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
-echo "********************"
 if [ "$ENABLE_COV" = true ]; then
+    echo "********************"
+    echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
+    echo "********************"
     echo "Generating coverage report"
     lcov --capture --directory . --output-file coverage.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
 fi
-#cd $TOP_DIR
