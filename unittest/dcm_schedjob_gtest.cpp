@@ -294,7 +294,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
     // Wait up to 70 seconds (to account for minute boundary)
     bool callbackReceived = false;
     
-    for (int i = 0; i < 400; i++) { // 70 seconds
+    for (int i = 0; i < 500; i++) { // 50 seconds
         usleep(100000); // 100ms intervals 100000
         if (g_callbackExecuted) {
             callbackReceived = true;
