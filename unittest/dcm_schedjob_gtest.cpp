@@ -290,12 +290,12 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
     
     ASSERT_TRUE(createThread());
     ASSERT_TRUE(startScheduling());
-    /*
+    
     // Wait up to 70 seconds (to account for minute boundary)
     bool callbackReceived = false;
     
-    for (int i = 0; i < 700; i++) { // 70 seconds
-        usleep(1000); // 100ms intervals 100000
+    for (int i = 0; i < 300; i++) { // 70 seconds
+        usleep(100000); // 100ms intervals 100000
         if (g_callbackExecuted) {
             callbackReceived = true;
             break;
@@ -306,7 +306,7 @@ TEST_F(DcmSchedulerThreadTest, ThreadExecutesCallback_QuickCron) {
         }
     }
     
-    EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds"; */
+    EXPECT_TRUE(callbackReceived) << "Callback was not executed within 70 seconds"; 
 }
 
 TEST_F(DcmSchedulerThreadTest, ThreadHandlesNullCallback_Gracefully) {
