@@ -39,4 +39,3 @@ typedef void           VOID;
 #endif
 #endif //_DCM_TYPES_H_
 
-
