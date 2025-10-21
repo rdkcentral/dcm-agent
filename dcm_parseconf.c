@@ -245,7 +245,7 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
     INT8 *buff     = NULL;
     INT32 i        = 0;
     INT32 ret      = DCM_SUCCESS;
-    FILE *fp_out_opt = NULL;
+    //FILE *fp_out_opt = NULL;
 
     FILE *fp_in = fopen(pConffile, "r");
     if (fp_in == NULL) {
@@ -260,7 +260,8 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
         goto exit1;
     }
 
-    fp_out_opt = fopen(pOptConf, "w");
+    //fp_out_opt = fopen(pOptConf, "w");
+    FILE *fp_out_opt = fopen(pOptConf, "w");
     if (fp_out == NULL) {
         ret = DCM_FAILURE;
         DCMError("Unable to open out file: %s\n", pOptConf);
@@ -739,6 +740,7 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
 }
 
 #endif
+
 
 
 
