@@ -737,11 +737,4 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
 {
     return &dcmSettingJsonGetVal;
 }
-
 #endif
-
-
-
-
-
-
