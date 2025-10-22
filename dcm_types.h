@@ -21,7 +21,10 @@
 
 #ifndef _DCM_TYPES_H_
 #define _DCM_TYPES_H_
-
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 typedef unsigned char  UINT8;
 typedef char           INT8;
 typedef unsigned short UINT16;
@@ -31,5 +34,8 @@ typedef int            INT32;
 typedef long int       INT64;
 typedef bool           BOOL;
 typedef void           VOID;
-
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_TYPES_H_
+
