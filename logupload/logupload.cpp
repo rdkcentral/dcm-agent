@@ -153,18 +153,13 @@ bool httpUpload(const std::string& url, const std::string& filename, std::string
             //RDMInfo("Downloading The Package %s \n",file_dwnl.pathname);
             curl_ret_code = doHttpFileUpload(curl, &filename, &sec, &httpCode);
             //RDMInfo("curl_ret_code:%d httpCode:%d\n", curl_ret_code, httpCode);
+            uploadLog(" cerselector running ");
         }while (rdkcertselector_setCurlStatus(thisCertSel, curl_ret_code, file_dwnl.url) == TRY_ANOTHER);
 
         if(curl_ret_code && httpCode != 200) {
                 //RDMError("Download failed\n");
                 status = 1;
         }
-        if (curl != NULL) {
-            //RDMInfo("Stopping Curl Download\n");
-            doStopDownload(curl);
-            curl = NULL;
-        }
-        rdkcertselector_free(thisCertSel);
         return status;
 #endif
     fclose(file);
