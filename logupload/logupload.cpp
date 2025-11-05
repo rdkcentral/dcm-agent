@@ -265,6 +265,7 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Failed to initialize RDK Logger\n");
         return -1;
     }
+    RDK_LOG(RDK_LOG_INFO, LOG_LOGUPLOAD, "[%s:%d]:Waiting for for TR69/RBUS Events... \n", __FUNCTION__, __LINE__);
         // Assign Input Arguments
     if (argc < 9) {
         RDK_LOG(RDK_LOG_ERROR, LOG_LOGUPLOAD, "[%s:%d]: Memory Allocation Failed.\n", __FUNCTION__, __LINE__);
