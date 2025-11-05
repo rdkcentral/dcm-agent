@@ -92,6 +92,7 @@ bool acquireLock(const std::string& lockfile) {
 
 
 bool httpUpload(const std::string& url, const std::string& filename, std::string& errorMsg) {
+    std::string FUNCTION = "httpUpload";
     //CURL* curl = curl_easy_init();
 #ifdef LIBRDKCERTSELECTOR
     int cert_ret_code = -1;
@@ -123,7 +124,7 @@ bool httpUpload(const std::string& url, const std::string& filename, std::string
             return status;
         }
         static rdkcertselector_h thisCertSel = NULL;
-        uploadLog(" cerselector starting ");
+        uploadLog(" cerselector starting ", FUNCTION);
         if (thisCertSel == NULL)
         {
             const char* certGroup = "MTLS";
@@ -153,7 +154,7 @@ bool httpUpload(const std::string& url, const std::string& filename, std::string
             //RDMInfo("Downloading The Package %s \n",file_dwnl.pathname);
             curl_ret_code = doHttpFileUpload(curl, &filename, &sec, &httpCode);
             //RDMInfo("curl_ret_code:%d httpCode:%d\n", curl_ret_code, httpCode);
-            uploadLog(" cerselector running ");
+            uploadLog(" cerselector running ", FUNCTION);
         }while (rdkcertselector_setCurlStatus(thisCertSel, curl_ret_code, file_dwnl.url) == TRY_ANOTHER);
 
         if(curl_ret_code && httpCode != 200) {
@@ -300,7 +301,7 @@ int main(int argc, char* argv[]) {
         uploadLog("Uploading RRD Debug Logs " + RRD_UPLOADLOG_FILE + " to S3 SERVER", DCM_LOG_FILE);
         if (UploadProtocol == "HTTP") {
             std::string errorMsg;
-            uploadLog(" calling httpUpload");
+            uploadLog(" calling httpUpload", DCM_LOG_FILE);
             if (httpUpload(UploadHttpLink, RRD_UPLOADLOG_FILE, errorMsg)) {
                 uploadLog("Uploading Logs through HTTP Success...", DCM_LOG_FILE);
                 return 0;
