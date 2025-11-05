@@ -123,7 +123,7 @@ bool httpUpload(const std::string& url, const std::string& filename, std::string
             return status;
         }
         static rdkcertselector_h thisCertSel = NULL;
-        //RDMInfo("Initializing CertSelector\n");
+        uploadLog(" cerselector starting ");
         if (thisCertSel == NULL)
         {
             const char* certGroup = "MTLS";
@@ -300,6 +300,7 @@ int main(int argc, char* argv[]) {
         uploadLog("Uploading RRD Debug Logs " + RRD_UPLOADLOG_FILE + " to S3 SERVER", DCM_LOG_FILE);
         if (UploadProtocol == "HTTP") {
             std::string errorMsg;
+            uploadLog(" calling httpUpload");
             if (httpUpload(UploadHttpLink, RRD_UPLOADLOG_FILE, errorMsg)) {
                 uploadLog("Uploading Logs through HTTP Success...", DCM_LOG_FILE);
                 return 0;
