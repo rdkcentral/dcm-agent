@@ -1262,7 +1262,7 @@ Handles log uploads via HTTP/HTTPS, mTLS, or fallback protocols (`curl` equivale
   Performs the upload according to configured protocol.
 
 - `bool uploadCodeBig(const std::string& file, const std::string& url, const std::string& oauthToken, const SecurityManager& sec);`
-  Performs mTLS upload using selected cert.
+  Performs codebig upload.
 
 
 
