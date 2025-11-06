@@ -2,7 +2,7 @@
 
 ## Document Information
 - **Version**: 1.1
-- **Date**: November 12, 2025
+- **Date**: November 06, 2025
 - **Purpose**: High-Level Design for migrating uploadSTBLogs.sh to C++ implementation
 - **Target**: RDK Log Upload System for Embedded Devices
 
