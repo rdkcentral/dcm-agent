@@ -1182,3 +1182,112 @@ int create_log_archive(const char* source_dir, const char* archive_name) {
                                ARCHIVE_OPTIONS_SILENT); // No verbose output
 }
 ```
+
+# Log Upload Agent C++ Migration — Proposed APIs 
+
+## 1. ConfigurationManager
+
+**Description:**  
+Loads device and upload parameters from config files (`device.properties`, etc.) and parses command-line arguments required for upload triggers.
+
+- `bool load(const std::string& configFile);`  
+  Loads configuration from the properties files.
+
+- `bool parseArgs(int argc, char* argv[]);`  
+  Processes upload flags, endpoints, and triggers.
+
+---
+
+## 2. FileUtils
+
+**Description:**  
+Handles file and directory operations, such as checking for log folder existence and listing log files. Used for determining source files for archiving and upload.
+
+- `static bool fileExists(const std::string& path);`  
+  Used to check for important stamp/log files.
+
+- `static bool directoryExists(const std::string& path);`  
+  Checks existence of log directories (`/opt/logs`, etc.).
+
+- `static std::vector<std::string> listFiles(const std::string& dir, const std::string& pattern = "*");`  
+  Used to select log/text files for upload/archive.
+
+- `static std::string generateTimestamp();`  
+  Used to build unique archive and backup filenames.
+
+---
+
+## 3. ArchiveManager
+
+**Description:**  
+Creates a compressed archive (`tar -zcf ...`) with log files as a preprocessing step before upload.
+
+- `bool createArchive(const std::string& sourceDir, const std::string& archivePath);`  
+  Bundles all selected logs into a `.tgz` archive.
+
+---
+
+## 4. SecurityManager
+
+**Description:**  
+Handles certificate selection for mTLS upload, and optional MD5 checksum validation on the files to be uploaded.
+
+- `bool selectCertificate(const std::string& usageGroup, std::string& certPath, std::string& keyPath);`  
+  Used to select proper certificate/key for secure upload.
+
+- `bool verifyMD5(const std::string& filePath, const std::string& expectedMD5);`  
+  Used when MD5 file integrity checks are part of the upload routine.
+
+---
+
+## 6. UploadStrategy
+
+**Description:**  
+Implements the main script logic branches: selects the type of upload (DCM, OnDemand, RRD, Privacy, etc.) and executes the corresponding steps.
+
+- `virtual bool shouldExecute(const UploadConfig&) const = 0;`  
+  Checks if this strategy matches the trigger/event.
+
+- `virtual int execute(UploadContext&) const = 0;`  
+  Runs the strategy logic (archive, upload, report).
+
+---
+
+## 7. UploadEngine
+
+**Description:**  
+Handles log uploads via HTTP/HTTPS, mTLS, or fallback protocols (`curl` equivalents).
+
+- `bool upload(const std::string& file, const std::string& url, const SecurityManager& sec);`  
+  Performs the upload according to configured protocol.
+
+- `bool uploadMTLS(const std::string& file, const std::string& url, const SecurityManager& sec);`  
+  Performs mTLS upload using selected cert.
+
+---
+
+## 8. EventManager
+
+**Description:**  
+Sends completion/error notifications to the system (such as maintenance manager/IARM events). Maps to `send_event` lines in the script.
+
+- `void sendIARMEvent(const std::string& eventName, const std::string& details = "");`  
+  Used for signaling upload result/status.
+
+
+## 9. FileLock
+
+**Description:**  
+Implements single-upload concurrency control (lock file pattern).
+
+- `FileLock(const std::string& path);`  
+  Constructs a lock for the given lock file.
+
+- `bool tryAcquire();`  
+  Creates the lock file, fails if already present.
+
+- `void release();`  
+  Removes the lock file on upload completion.
+
+---
+
