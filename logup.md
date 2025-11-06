@@ -2,16 +2,16 @@
 
 ## Document Information
 - **Version**: 1.1
-- **Date**: September 12, 2025
-- **Purpose**: High-Level Design for migrating uploadSTBLogs.sh to C implementation
+- **Date**: November 12, 2025
+- **Purpose**: High-Level Design for migrating uploadSTBLogs.sh to C++ implementation
 - **Target**: RDK Log Upload System for Embedded Devices
 
 ## 1. Executive Summary
 
-The `uploadSTBLogs.sh` script is a critical component of the RDK (Reference Design Kit) system responsible for collecting, processing, and uploading device logs to remote servers. This document outlines the high-level design for migrating this shell script to a C-based implementation optimized for embedded platforms with constrained resources.
+The `uploadSTBLogs.sh` script is a critical component of the RDK (Reference Design Kit) system responsible for collecting, processing, and uploading device logs to remote servers. This document outlines the high-level design for migrating this shell script to a C++-based implementation optimized for embedded platforms with constrained resources.
 
 ### Key Objectives
-- Migrate shell script functionality to efficient C code
+- Migrate shell script functionality to efficient C++ code
 - Optimize for embedded systems with limited memory and CPU resources
 - Maintain backward compatibility with existing RDK ecosystem
 - Implement secure log upload mechanisms (MTLS/TLS)
@@ -148,8 +148,6 @@ graph TB
    - File system operations for log gathering
    - Timestamp prefix application
    - Archive creation and compression
-   - Log rotation management
-   - Packet capture handling
 
 3. **Upload Strategy Module**
    - Direct vs CodeBig decision logic
@@ -329,7 +327,7 @@ typedef struct {
 - **External Scripts**: utils.sh, logfiles.sh, interfaceCalls.sh
 
 ### 6.2 File System Interfaces
-- **Log Directories**: `/opt/logs/`, `/tmp/`, `/opt/.telemetry/`
+- **Log Directories**: `/opt/logs/`
 - **Configuration Files**: `/etc/device.properties`, `/etc/include.properties`
 - **Certificate Stores**: Platform-specific certificate locations
 - **Temporary Files**: `/tmp/.log-upload.lock`, `/tmp/logupload_*`
@@ -343,11 +341,10 @@ typedef struct {
 
 ### 7.1 Error Categories
 1. **Configuration Errors**: Invalid parameters, missing files
-2. **Network Errors**: Connection failures, timeouts, DNS issues
-3. **Authentication Errors**: Certificate validation, OCSP failures
-4. **File System Errors**: Permission issues, disk space, corrupted files
-5. **Protocol Errors**: HTTP status codes, malformed responses
-6. **Concurrency Errors**: Upload already in progress, lock file conflicts
+2. **Authentication Errors**: Certificate validation, OCSP failures
+3. **File System Errors**: Permission issues, disk space, corrupted files
+4. **Protocol Errors**: HTTP status codes, malformed responses
+5. **Concurrency Errors**: Upload already in progress, lock file conflicts
 
 ### 7.2 Recovery Mechanisms
 - **Automatic Retry**: Configurable retry counts with exponential backoff
