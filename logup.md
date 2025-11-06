@@ -1261,8 +1261,10 @@ Handles log uploads via HTTP/HTTPS, mTLS, or fallback protocols (`curl` equivale
 - `bool upload(const std::string& file, const std::string& url, const SecurityManager& sec);`  
   Performs the upload according to configured protocol.
 
-- `bool uploadMTLS(const std::string& file, const std::string& url, const SecurityManager& sec);`  
+- `bool uploadCodeBig(const std::string& file, const std::string& url, const std::string& oauthToken, const SecurityManager& sec);`
   Performs mTLS upload using selected cert.
+
+
 
 ---
 
