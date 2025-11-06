@@ -506,6 +506,7 @@ rdkcertselector_free(&cert_selector);
 - **Telemetry System**: Log collection and reporting
 - **Maintenance Manager**: System maintenance coordination
 - **IARM Events**: Inter-application communication
+- **Remote Debugger**: Uploading debugging results
 
 ## 11. Migration Strategy
 ### 11.1 Compatibility Requirements
