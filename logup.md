@@ -471,22 +471,6 @@ do {
 rdkcertselector_free(&cert_selector);
 ```
 
-**Configuration Files:**
-
-1. **certsel.conf** - Certificate selection configuration:
-   ```
-   # Format: <usage_group>, <cert_reference>, <cert_type>, <cert_uri>, <credential_reference>
-   CURL_MTLS, SEOPER_P12, P12, file:///opt/secure/certs/device.p12, DEVICE_CERT_PASS
-   CURL_MTLS, TEEOPER_P11, P11, pkcs11:model=PKCS#15..., TEE_CERT_PASS
-   CURL_MTLS, FSOPER_PEM, PEM, file:///etc/ssl/certs/device.pem, FS_CERT_PASS
-   ```
-
-2. **hrot.properties** - Hardware capabilities:
-   ```
-   # OpenSSL engine for hardware-based certificates
-   hrotengine=pkcs11
-   ```
-
 **Benefits:**
 - **Intelligent Fallback**: Automatic fallback to next certificate if current one fails
 - **Hardware Support**: Native support for secure elements and hardware security modules
