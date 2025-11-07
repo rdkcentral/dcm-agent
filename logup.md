@@ -262,22 +262,22 @@ flowchart TD
 
 ### 5.1 Configuration Structure
 ```c
-typedef struct {
-    char upload_protocol[32];
-    char upload_url[512];
-    char device_mac[32];
-    char firmware_version[128];
-    int upload_flag;
-    int dcm_flag;
-    int rrd_flag;
-    int trigger_type;
-    int num_upload_attempts;
-    int curl_timeout;
-    int curl_tls_timeout;
-    bool encryption_enabled;
-    bool mtls_enabled;
-    bool ocsp_enabled;
-} upload_config_t;
+struct UploadConfig {
+    std::string uploadProtocol;
+    std::string uploadUrl;
+    std::string deviceMac;
+    std::string firmwareVersion;
+    int uploadFlag;
+    int dcmFlag;
+    int rrdFlag;
+    int triggerType;
+    int numUploadAttempts;
+    int curlTimeout;
+    int curlTlsTimeout;
+    bool encryptionEnabled;
+    bool mtlsEnabled;
+    bool ocspEnabled;
+};
 ```
 
 ### 5.2 Upload Context Structure
