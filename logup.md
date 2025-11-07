@@ -395,29 +395,9 @@ void release_upload_lock() {
 - **Status Return**: Return specific error code (`ERROR_UPLOAD_IN_PROGRESS`)
 - **No Queuing**: No request queuing or waiting mechanisms implemented
 
-## 8. Performance Considerations
+## 8. Security Architecture
 
-### 8.1 Memory Optimization
-- **Static Allocation**: Minimize dynamic memory allocation
-- **Buffer Management**: Efficient buffer reuse and sizing
-- **Memory Pools**: Pre-allocated memory pools for frequent operations
-- **Stack Usage**: Minimize stack depth and local variable sizes
-
-### 8.2 CPU Optimization
-- **Efficient Algorithms**: Optimized sorting, searching, and processing
-- **Minimal System Calls**: Reduce expensive system call overhead
-- **Synchronous Operations**: Single-threaded operation eliminates synchronization overhead
-- **Resource Caching**: Cache frequently accessed data
-
-### 8.3 Network Optimization
-- **Connection Reuse**: HTTP persistent connections
-- **Compression**: Efficient data compression before upload
-- **Timeout Management**: Aggressive timeout values for embedded systems
-- **Bandwidth Awareness**: Adaptive upload strategies based on connection quality
-
-## 9. Security Architecture
-
-### 9.1 Authentication Mechanisms
+### 8.1 Authentication Mechanisms
 
 - **MTLS (Mutual TLS)**: Client certificate authentication using RDK cert-config
   - **Certificate Selection**: Automatic certificate selection with priority-based fallback
@@ -427,7 +407,7 @@ void release_upload_lock() {
 - **Certificate Validation**: Complete certificate chain validation with OCSP support
 - **Engine Selection**: Dynamic OpenSSL engine selection based on hardware capabilities
 
-#### 9.1.1 RDK cert-config Integration
+#### 8.1.1 RDK cert-config Integration
 
 The implementation leverages the RDK cert-config library for robust certificate management:
 
@@ -480,30 +460,30 @@ rdkcertselector_free(&cert_selector);
 - **Platform Independence**: Configuration-driven approach works across different hardware platforms
 - **Retry Logic**: Built-in certificate retry mechanism with failure tracking
 
-### 9.2 Data Protection
+### 8.2 Data Protection
 - **In-Transit Encryption**: TLS 1.2+ encryption for all communications
 - **File Integrity**: MD5 checksum validation
 - **Privacy Controls**: Compliance with privacy mode settings
 - **Secure Storage**: Protected storage for certificates and sensitive data
 
-## 10. Integration Points
+## 9. Integration Points
 
-### 10.1 RDK System Integration
+### 9.1 RDK System Integration
 - **Device Configuration Management (DCM)**: Scheduled upload triggers
 - **Telemetry System**: Log collection and reporting
 - **Maintenance Manager**: System maintenance coordination
 - **IARM Events**: Inter-application communication
 - **Remote Debugger**: Uploading debugging results
 
-## 11. Migration Strategy
-### 11.1 Compatibility Requirements
+## 10. Migration Strategy
+### 10.1 Compatibility Requirements
 - **API Compatibility**: Maintain existing command-line interface
 - **Configuration Compatibility**: Support existing configuration formats
 - **Log Format Compatibility**: Preserve log structure and naming conventions
 - **Event Compatibility**: Maintain existing event notification mechanisms
 
 
-### 12. Simplified Decision Matrix
+### 11. Simplified Decision Matrix
 
 The original complex decision matrix is replaced with this simplified table:
 
@@ -521,7 +501,7 @@ The original complex decision matrix is replaced with this simplified table:
 
 *Note: * means "any value", conditions are evaluated in priority order
 
-# Log Upload Agent C++ Migration — Proposed APIs 
+### 12. Log Upload Agent C++ Migration — Proposed APIs 
 
 ## 1. ConfigurationManager
 
