@@ -282,7 +282,7 @@ struct UploadConfig {
 
 ### 5.2 Upload Context Structure
 ```c
-typedef struct {
+struct upload_context_t {
     char log_file_path[512];
     char archive_name[256];
     char upload_url[512];
@@ -297,7 +297,7 @@ typedef struct {
 ### 5.3 Security Context Structure
 
 ```c
-typedef struct {
+struct security_context_t {
     char cert_path[512];
     char key_path[512];
     char ca_path[512];
@@ -311,7 +311,7 @@ typedef struct {
     char cert_config_path[512];     // Path to certsel.conf
     char hrot_properties_path[512]; // Path to hrot.properties
     char cert_usage_group[64];      // Certificate usage group (e.g., "CURL_MTLS")
-} security_context_t;
+};
 ```
 
 ## 6. Interface Definitions
