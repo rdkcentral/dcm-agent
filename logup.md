@@ -87,6 +87,9 @@ graph TB
     L --> N
     M --> N
     
+    %% UPDATED: RRD STRATEGY CONNECTS TO N
+    E --> N
+
     N --> O[Direct Upload Path]
     N --> P[CodeBig Upload Path]
     N --> Q[Fallback Handler]
