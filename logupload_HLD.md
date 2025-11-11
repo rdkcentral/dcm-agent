@@ -224,30 +224,36 @@ sequenceDiagram
 ### 4.2 Upload Strategy Selection Flow
 
 ```mermaid
-flowchart TD
-    A[Start Upload Process] --> B{Check Direct Block Status}
-    B -->|Not Blocked| C[Try Direct Upload]
-    B -->|Blocked| D{Check CodeBig Support}
-    
-    C --> E{Direct Upload Success?}
-    E -->|Yes| F[Upload Complete]
-    E -->|No| G{CodeBig Available?}
-    
-    D -->|Supported| H[Try CodeBig Upload]
-    D -->|Not Supported| I[Upload Failed]
-    
-    G -->|Yes| H
-    G -->|No| I
-    
-    H --> J{CodeBig Upload Success?}
-    J -->|Yes| K[Set Direct Block]
-    J -->|No| L{Retry Available?}
-    
-    K --> F
-    L -->|Yes| M[Increment Retry Counter]
-    L -->|No| I
-    
-    M --> H
+flowchart LR
+    Start([Start Upload Process])
+    A{Direct Blocked?}
+    B[Try Direct Upload]
+    C{Direct Success?}
+    D{CodeBig Supported?}
+    E[Try CodeBig Upload]
+    F{CodeBig Success?}
+    G[Set Direct Block]
+    H[Upload Complete]
+    I{Retry Available?}
+    J[Increment Retry Counter]
+    K[Upload Failed]
+
+    Start --> A
+    A -- "No" --> B
+    B --> C
+    C -- "Yes" --> H
+    C -- "No" --> D
+    D -- "Yes" --> E
+    D -- "No" --> K
+    A -- "Yes" --> D
+
+    E --> F
+    F -- "Yes" --> G
+    F -- "No" --> I
+    G --> H
+    I -- "Yes" --> J
+    I -- "No" --> K
+    J --> E
 ```
 
 ## 5. Key Data Structures
