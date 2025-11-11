@@ -82,14 +82,16 @@ graph TB
     I --> L[Reboot Strategy]
     I --> M[DCM Strategy]
     
-    J --> N[Upload Execution Engine]
-    K --> N
-    L --> N
-    M --> N
-    
+    J --> AM[Archive Manager]
+    K --> AM
+    L --> AM
+    M --> AM
+
     %% UPDATED: RRD STRATEGY CONNECTS TO N
     E --> N
 
+    AM --> N[Upload Execution Engine]
+    
     N --> O[Direct Upload Path]
     N --> P[CodeBig Upload Path]
     N --> Q[Fallback Handler]
@@ -109,7 +111,6 @@ graph TB
         X[Configuration Manager]
         Y[Log Collector]
         Z[File Operations]
-        AA[Network Utils]
         BB[Event Manager]
     end
     
@@ -122,14 +123,12 @@ graph TB
     A -.-> X
     B -.-> Y
     I -.-> Z
-    N -.-> AA
     W -.-> BB
     
     R -.-> CC
     R -.-> DD
     R -.-> EE
 ```
-
 **Key Architectural Improvements:**
 
 - **Strategy-Based Design**: Each upload scenario handled by dedicated strategy
