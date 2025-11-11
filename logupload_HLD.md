@@ -138,7 +138,7 @@ graph TB
 
 ### 3.2 Module Breakdown
 
-#### 3.2.1 Core Modules
+#### 3.2.1 Core Modules (Revised)
 
 1. **Configuration Management Module**
    - Load system and device properties
@@ -148,20 +148,26 @@ graph TB
 
 2. **Log Collection Module**
    - File system operations for log gathering
-   - Timestamp prefix application
-   - Archive creation and compression
+   - Apply timestamp prefixes to log files
+   - Archive log files 
+   - Manage log rotation and cleanup
 
 3. **Upload Strategy Module**
-   - Direct vs CodeBig decision logic
-   - Block status management
-   - Retry mechanism implementation
-   - Fallback strategy execution
+   - Evaluate input parameters/triggers to select the upload scenario (e.g., DCM, OnDemand, RRD, Privacy, etc.)
+   - Manage scenario-specific logic for preparation, archiving, and reporting
+   - Invoke the Upload Engine for log transmission as needed
 
-4. **Security Module**
-   - MTLS certificate handling using RDK cert-config library
-   - TLS connection management with certificate selection
-   - OCSP validation
-   - File integrity verification
+4. **Upload Engine Module**
+   - Decide between Direct and CodeBig upload paths based on protocol and block status
+   - Manage retry and fallback mechanisms between Direct and CodeBig
+   - Handle block status management for upload paths
+   - Execute the actual log file upload via HTTP/HTTPS, mTLS, OAuth as required
+
+5. **Security Module**
+   - Handle MTLS certificate management using the RDK cert-config library
+   - Manage TLS/MTLS connection setup and certificate selection
+   - Perform OCSP validation of certificates
+   - Verify file integrity (MD5 checksum and privacy compliance)
 
    The Security Module integrates with the **RDK cert-config library** (https://github.com/rdkcentral/rdk-cert-config) for robust certificate selection and management. This library provides two key APIs:
    
