@@ -190,14 +190,7 @@ graph TB
    - Directory creation and cleanup
    - Archive extraction and creation
    - Permission and ownership management
-
-2. **Network Utilities Module**
-   - URL construction and validation
-   - Network connectivity checks
-   - DNS resolution handling
-   - Timeout management
-
-3. **Logging Module**
+2. **Logging Module**
    - Structured logging implementation
    - Log level management
    - File and system log output
