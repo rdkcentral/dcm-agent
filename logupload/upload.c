@@ -2,6 +2,81 @@
 //#include "mtlsUtils.h"
 #include "rdkv_cdl_log_wrapper.h"
 
+
+#ifdef LIBRDKCERTSELECTOR
+#include "rdkcertselector.h"
+// Below macro is invoked if the MTLS certificates retrieved by getMtlscert have failed
+#define CURL_MTLS_LOCAL_CERTPROBLEM 58
+
+typedef enum {
+    MTLS_CERT_FETCH_FAILURE = -1,          // Indicates general MTLS failure
+    MTLS_CERT_FETCH_SUCCESS = 0            // Indicates success
+} MtlsAuthStatus;
+
+MtlsAuthStatus loguploadGetCert(MtlsAuth_t *sec, rdkcertselector_h* pthisCertSel);
+#endif
+
+#ifdef LIBRDKCONFIG_BUILD
+#include "rdkconfig.h"
+#endif
+
+
+#ifdef LIBRDKCERTSELECTOR
+#define FILESCHEME "file://"
+
+/* Description: Use for get all mtls related certificate and key.
+ * @param sec: This is a pointer hold the certificate, key and type of certificate.
+ * @return : MTLS_CERT_FETCH_SUCCESS on success, MTLS_CERT_FETCH_FAILURE on mtls cert failure , STATE_RED_CERT_FETCH_FAILURE on state red cert failure
+ * */
+MtlsAuthStatus loguploadGetCert(MtlsAuth_t *sec, rdkcertselector_h* pthisCertSel) {
+
+    char *certUri = NULL;
+    char *certPass = NULL;
+    char *engine = NULL;
+    char *certFile = NULL;
+
+    rdkcertselectorStatus_t certStat = rdkcertselector_getCert(*pthisCertSel, &certUri, &certPass);
+
+    if (certStat != certselectorOk || certUri == NULL || certPass == NULL) {
+        //RDMInfo("%s, Failed to retrieve certificate for MTLS\n",  __FUNCTION__);
+        rdkcertselector_free(pthisCertSel);
+        if(*pthisCertSel == NULL){
+            //RDMInfo("%s, Cert selector memory free\n", __FUNCTION__);
+        }else{
+            //RDMInfo("%s, Cert selector memory free failed\n", __FUNCTION__);
+        }
+        return MTLS_CERT_FETCH_FAILURE; // Return error
+    }
+
+    certFile = certUri;
+    if (strncmp(certFile, FILESCHEME, sizeof(FILESCHEME)-1) == 0) {
+        certFile += (sizeof(FILESCHEME)-1); // Remove file scheme prefix
+    }
+
+    strncpy(sec->cert_name, certFile, sizeof(sec->cert_name) - 1);
+    sec->cert_name[sizeof(sec->cert_name) - 1] = '\0';
+
+    strncpy(sec->key_pas, certPass, sizeof(sec->key_pas) - 1);
+    sec->key_pas[sizeof(sec->key_pas) - 1] = '\0';
+
+    engine = rdkcertselector_getEngine(*pthisCertSel);
+    if (engine == NULL) {
+        sec->engine[0] = '\0';
+    }else{
+        strncpy(sec->engine, engine, sizeof(sec->engine) - 1);
+        sec->engine[sizeof(sec->engine) - 1] = '\0';
+    }
+
+    strncpy(sec->cert_type, "P12", sizeof(sec->cert_type) - 1);
+    sec->cert_type[sizeof(sec->cert_type) - 1] = '\0';
+
+    //RDMInfo("%s, MTLS dynamic/static cert success. cert=%s, type=%s, engine=%s\n", __FUNCTION__, sec->cert_name, sec->cert_type, sec->engine);
+    return MTLS_CERT_FETCH_SUCCESS; // Return success
+}
+#endif
+
+
+
 int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, unsigned int max_upload_speed, int *out_httpCode)
 {
     CURL *curl;
@@ -102,8 +177,121 @@ int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, 
 */
     return (int)curl_status;
 }
+#define URL_MAX 512
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <upload_url>\n", argv[0]);
+        return 1;
+    }
+
+    void *curl;
+    FileDwnl_t file_upload;
+    int http_code = 0;
+    MtlsAuth_t *auth = NULL;  // Or initialize if needed
+    log_init();
+    COMMONUTILITIES_ERROR("Parameter Check Fail\n");
+    COMMONUTILITIES_ERROR("Parameter Check Fail\n");
+    COMMONUTILITIES_ERROR("%s : device.property File not found\n", __FUNCTION__);
+    COMMONUTILITIES_INFO("%s : CURL: free resources\n", __FUNCTION__);
+    int status = 0;
+    MtlsAuth_t sec;
+
+    int curl_ret_code = -1;
+#ifdef LIBRDKCERTSELECTOR
+    int cert_ret_code = -1;
+    MtlsAuthStatus ret = MTLS_CERT_FETCH_SUCCESS;
+#else
+    int ret = -1;
+#endif
+
+    memset(&file_upload, 0, sizeof(FileDwnl_t));
+    // Set the upload destination URL
+    //file_upload.url = "http://localhost:8080/upload/testfile.bin";
+    // Path of the file to upload (must exist!)
+    //file_upload.pathname = "testfile.bin";
+    // For this example, you probably won't need post fields or special SSL
+
+
+        // Safer than strcpy: limit copy and ensure null termination
+    strncpy(file_upload.url, argv[1], URL_MAX - 1);
+    file_upload.url[URL_MAX - 1] = '\0';
+
+    printf("Using upload URL: %s\n", file_upload.url);
+
+    //strcpy(file_upload.url, "http://localhost:8080/upload/file_to_upload.txt");
+    strcpy(file_upload.pathname, "file_to_upload.txt");
+
+
+    file_upload.pPostFields = NULL;
+    file_upload.sslverify = true;
+    file_upload.hashData = NULL;
+
+    printf(" Reaching before certselector ");
+
+#ifdef LIBRDKCERTSELECTOR
+        printf(" Reaching certselector ");
+        curl = doCurlInit();
+        if(curl == NULL) {
+            //RDMError("Failed init curl\n");
+            return status;
+        }
+        static rdkcertselector_h thisCertSel = NULL;
+        //RDMInfo("Initializing CertSelector\n");
+        if (thisCertSel == NULL)
+        {
+            const char* certGroup = "MTLS";
+            thisCertSel = rdkcertselector_new(NULL, NULL, certGroup);
+            if (thisCertSel == NULL) {
+                 //RDMInfo("Cert Selector Initialisation Failed\n");
+                 return cert_ret_code;
+            } else {
+                //RDMInfo("Cert Selector Initialisation is Successful\n");
+            }
+        } else {
+             //RDMInfo("Cert selector already initialized, reusing existing instance\n");
+        }
+        memset(&sec, '\0', sizeof(MtlsAuth_t));
+        do {
+            //RDMInfo("Fetching MTLS credential for SSR/XCONF\n");
+            ret = loguploadGetCert(&sec, &thisCertSel);
+            //RDMInfo("rdmDwnlGetCert function ret value = %d\n", ret);
+
+            if (ret == MTLS_CERT_FETCH_FAILURE) {
+                //RDMInfo("MTLS cert Failed ret= %d\n", ret);
+                return cert_ret_code;
+            } else {
+                //RDMInfo("MTLS is enable\nMTLS creds for SSR fetched ret=%d\n", ret);
+            }
+
+            //RDMInfo("Downloading The Package %s \n",file_dwnl.pathname);
+            int result = doHttpFileUpload(curl, &file_upload, &sec, 0 , &http_code);
+
+            // 3. Check results
+            if (result == 0 && http_code >= 200 && http_code < 300) {
+                printf("Upload succeeded! HTTP Code: %d\n", http_code);
+            } else {
+                printf("Upload failed: curl result=%d, HTTP code=%d\n", result, http_code);
+            }
+            //RDMInfo("curl_ret_code:%d httpCode:%d\n", curl_ret_code, httpCode);
+        }while (rdkcertselector_setCurlStatus(thisCertSel, curl_ret_code, file_upload.url) == TRY_ANOTHER);
+
+        if(curl_ret_code && http_code != 200) {
+                //RDMError("Download failed\n");
+                status = -1;
+        }
+        if (curl != NULL) {
+            //RDMInfo("Stopping Curl Download\n");
+            doStopDownload(curl);
+            rdkcertselector_free(thisCertSel);
+            curl = NULL;
+        }
+        return status;
+#endif
+
+}
 
 // Example: Test doHttpFileUpload
+/*
 int main() {
     void *curl;
     FileDwnl_t file_upload;
@@ -122,8 +310,8 @@ int main() {
     // For this example, you probably won't need post fields or special SSL
     strcpy(file_upload.url, "http://localhost:8080/upload/file_to_upload.txt");
     strcpy(file_upload.pathname, "file_to_upload.txt");
-     
-    
+
+
     file_upload.pPostFields = NULL;
     file_upload.sslverify = true;
     file_upload.hashData = NULL;
@@ -137,7 +325,7 @@ int main() {
 
     // 2. Perform the upload
     int result = doHttpFileUpload(
-        curl, &file_upload, auth, 0 /* no throttle */, &http_code);
+        curl, &file_upload, auth, 0 , &http_code);
 
     // 3. Check results
     if (result == 0 && http_code >= 200 && http_code < 300) {
@@ -150,3 +338,5 @@ int main() {
     doStopDownload(curl);
     return 0;
 }
+
+*/
