@@ -21,6 +21,7 @@ AUTOMAKE_OPTIONS = foreign
 
 dcmd_CFLAGS += -fPIC -pthread
 
+SUBDIRS = logupload
 bin_PROGRAMS = dcmd
 
 dcmd_SOURCES = dcm.c \
