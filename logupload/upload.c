@@ -282,7 +282,7 @@ int main(int argc, char *argv[]) {
         if (curl != NULL) {
             //RDMInfo("Stopping Curl Download\n");
             doStopDownload(curl);
-            rdkcertselector_free(thisCertSel);
+            rdkcertselector_free(&thisCertSel);
             curl = NULL;
         }
         return status;
@@ -296,7 +296,7 @@ int main() {
     void *curl;
     FileDwnl_t file_upload;
     int http_code = 0;
-    MtlsAuth_t *auth = NULL;  // Or initialize if needed
+    //MtlsAuth_t *auth = NULL;  // Or initialize if needed
     log_init();
     COMMONUTILITIES_ERROR("Parameter Check Fail\n");
     COMMONUTILITIES_ERROR("Parameter Check Fail\n");
