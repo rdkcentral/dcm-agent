@@ -7,7 +7,7 @@ logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -D
 
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += $(curl_LIBS)
-AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertLocator -lRdkCertSelector
+AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector
 
 if IS_LIBRDKCERTSEL_ENABLED
 logupload_CFLAGS += $(LIBRDKCERTSEL_FLAG)
