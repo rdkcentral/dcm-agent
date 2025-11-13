@@ -2,12 +2,12 @@ bin_PROGRAMS = logupload
 
 logupload_SOURCES = upload.c rdkv_cdl_log_wrapper.c
 
-logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED\
+logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
                      -I${top_srcdir}/logupload
 
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += $(curl_LIBS)
-AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil
+AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertLocator -lRdkCertSelector
 
 if IS_LIBRDKCERTSEL_ENABLED
 logupload_CFLAGS += $(LIBRDKCERTSEL_FLAG)
