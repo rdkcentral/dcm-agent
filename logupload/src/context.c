@@ -9,7 +9,6 @@
 #include "rdk_logger.h"     /* from rdk_logger repo */
 #include "rdk_logger_types.h"
 
-#define LOG_UPLOAD "LOG.RDK.LOGUPLOAD"
 
 /* --- Minimal helper to eliminate -Wformat-truncation warnings for path building --- */
 static void build_path(char *dst, size_t dstsz, const char *base, const char *suffix)
