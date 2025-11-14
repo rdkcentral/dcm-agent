@@ -20,8 +20,7 @@ int main(void) {
            ctx.tls_option, ctx.upload_flag, ctx.use_codebig);
 
     /* Example log usage */
-    RDK_LOG(RDK_LOG_INFO, DCM_LOG_MODULE, "Test info after initialization\n");
-    //RDK_LOG(RDK_LOG_ERROR, DCM_LOG_MODULE, "Test error after validation\n");
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD , "Test info after initialization\n");
 
     rdk_logger_deinit();
     return 0;
