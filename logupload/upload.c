@@ -142,13 +142,18 @@ int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, 
     curl_off_t filesize = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
     curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, filesize);
-
+    
+    FILE *fp1 = fopen("/tmp/httpresult.txt", "wb");
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp1);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    
     // Throttle upload speed if requested
     if (max_upload_speed > 0) {
         ret_code = setThrottleMode(curl, (curl_off_t) max_upload_speed);
         if (ret_code != CURLE_OK) {
             //COMMONUTILITIES_ERROR("%s : CURL: setThrottleMode Failed\n", __FUNCTION__);
             fclose(fp);
+            fclose(fp1);
             if(headers) curl_slist_free_all(headers);
             return DWNL_FAIL;
         }
