@@ -83,7 +83,7 @@ static void property_handler(const char* key, const char* value, void* user_data
 static void load_properties(Context *ctx) {
     parse_key_value_file("/etc/include.properties", property_handler, ctx);
     parse_key_value_file("/etc/device.properties", property_handler, ctx);
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Loaded properties: LOG_PATH=%s DEVICE_TYPE=%s BUILD_TYPE=%s",
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Loaded properties: LOG_PATH=%s DEVICE_TYPE=%s BUILD_TYPE=%s \n",
                   ctx->log_path, ctx->device_type, ctx->build_type);
 }
 
@@ -91,7 +91,7 @@ static void load_firmware_version(Context *ctx) {
     FILE *f = fopen("/version.txt", "r");
     if (!f) {
         strcpy(ctx->firmware_version, "unknown");
-        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version file missing, defaulting to unknown");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version file missing, defaulting to unknown \n");
         return;
     }
     char line[256];
@@ -108,7 +108,7 @@ static void load_firmware_version(Context *ctx) {
     if (ctx->firmware_version[0] == '\0') {
         strcpy(ctx->firmware_version, "unknown");
     }
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Firmware version: %s", ctx->firmware_version);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Firmware version: %s \n", ctx->firmware_version);
 }
 
 static void load_host_ip(Context *ctx) {
@@ -126,7 +126,7 @@ static void load_mac(Context *ctx) {
         strcpy(ctx->mac_raw, "00:00:00:00:00:00");
     }
     sanitize_mac(ctx->mac_raw, ctx->mac_compact, sizeof(ctx->mac_compact));
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "MAC raw=%s compact=%s", ctx->mac_raw, ctx->mac_compact);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "MAC raw=%s compact=%s \n", ctx->mac_raw, ctx->mac_compact);
 }
 
 static void generate_timestamps(Context *ctx) {
@@ -141,7 +141,7 @@ static void load_upload_flag(Context *ctx) {
     FILE *f = fopen("/tmp/DCMSettings.conf", "r");
     if (!f) {
         ctx->upload_flag = true;
-        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "DCMSettings.conf missing, default upload_flag=true");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "DCMSettings.conf missing, default upload_flag=true \n");
         return;
     }
     char line[512];
@@ -163,7 +163,7 @@ static void load_upload_flag(Context *ctx) {
         }
     }
     fclose(f);
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "upload_flag=%d", ctx->upload_flag);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "upload_flag=%d \n", ctx->upload_flag);
 }
 
 static void load_privacy_mode(Context *ctx) {
@@ -176,7 +176,7 @@ bool context_init(Context *ctx) {
         fprintf(stderr, "RDK Logger init failed\n");
         return false;
     }
-    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "RDK Logger initialized for module %s", LOG_UPLOAD);
+    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "RDK Logger initialized for module %s \n", LOG_UPLOAD);
 
     zero_context(ctx);
     load_properties(ctx);
@@ -243,7 +243,7 @@ bool context_init(Context *ctx) {
 
     ctx->use_codebig = (access(ctx->direct_block_file, F_OK) == 0) ? true : false;
 
-    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Context initialized (log_path=%s, device_type=%s, mac=%s)",
+    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Context initialized log_path=%s, device_type=%s, mac=%s \n",
                    ctx->log_path, ctx->device_type, ctx->mac_raw);
 
     return true;
@@ -252,23 +252,23 @@ bool context_init(Context *ctx) {
 int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz) {
     if (ctx->mac_raw[0] == '\0' || strcmp(ctx->mac_raw, "00:00:00:00:00:00") == 0) {
         snprintf(errmsg, errmsg_sz, "MAC address default or empty");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
         return 2;
     }
     if (ctx->log_path[0] == '\0') {
         snprintf(errmsg, errmsg_sz, "log_path not set");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
         return 1;
     }
     if (strstr(ctx->log_file, "_Logs_") == NULL) {
         snprintf(errmsg, errmsg_sz, "log_file pattern invalid");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
         return 3;
     }
     if (ctx->curl_tls_timeout <= 0 || ctx->curl_timeout <= 0 ||
         ctx->num_upload_attempts <= 0) {
         snprintf(errmsg, errmsg_sz, "timeouts or attempts invalid");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
         return 5;
     }
     /* Ensure directories exist */
@@ -286,24 +286,24 @@ int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz) {
         if (stat(dirs[i], &st) != 0) {
             if (mkdir(dirs[i], 0755) != 0) {
                 snprintf(errmsg, errmsg_sz, "Failed mkdir %s errno=%d", dirs[i], errno);
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
                 return 4;
             } else {
                 RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Created missing directory %s", dirs[i]);
             }
         } else if (!S_ISDIR(st.st_mode)) {
             snprintf(errmsg, errmsg_sz, "Path not a directory: %s", dirs[i]);
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
             return 4;
         }
     }
     if (strcmp(ctx->firmware_version, "unknown") == 0) {
-        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version unknown (non-fatal)");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version unknown (non-fatal) \n");
     }
     if (errmsg && errmsg_sz) {
         snprintf(errmsg, errmsg_sz, "OK");
     }
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "Validation successful");
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "Validation successful \n");
     return 0;
 }
 
