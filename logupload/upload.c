@@ -119,7 +119,11 @@ int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, 
             return DWNL_FAIL;
         }
     }
-
+    
+    char postfields[256];
+    snprintf(postfields, sizeof(postfields), "filename=%s", pfile_upload->pathname);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postfields);
+    
     // Add additional headers if needed
     if (pfile_upload->hashData != NULL) {
         headers = curl_slist_append(headers, pfile_upload->hashData->hashvalue);
