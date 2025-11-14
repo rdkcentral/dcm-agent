@@ -9,33 +9,7 @@
 #include "rdk_logger.h"     /* from rdk_logger repo */
 #include "rdk_logger_types.h"
 
-/* Wrapper logging helpers */
-static inline void ctx_log_info(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    rdk_logger_msg_vsprintf(RDK_LOG_INFO, DCM_LOG_MODULE, fmt, args);
-    va_end(args);
-}
-static inline void ctx_log_error(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    rdk_logger_msg_vsprintf(RDK_LOG_ERROR, DCM_LOG_MODULE, fmt, args);
-    va_end(args);
-}
-static inline void ctx_log_notice(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    rdk_logger_msg_vsprintf(RDK_LOG_NOTICE, DCM_LOG_MODULE, fmt, args);
-    va_end(args);
-}
-static inline void ctx_log_debug(const char *fmt, ...) {
-    if (!rdk_logger_is_logLevel_enabled(DCM_LOG_MODULE, RDK_LOG_DEBUG))
-        return;
-    va_list args;
-    va_start(args, fmt);
-    rdk_logger_msg_vsprintf(RDK_LOG_DEBUG, DCM_LOG_MODULE, fmt, args);
-    va_end(args);
-}
+#define LOG_UPLOAD "LOG.RDK.DCMUPLOAD"
 
 /* --- Minimal helper to eliminate -Wformat-truncation warnings for path building --- */
 static void build_path(char *dst, size_t dstsz, const char *base, const char *suffix)
@@ -64,8 +38,6 @@ static void build_path(char *dst, size_t dstsz, const char *base, const char *su
         memcpy(dst + base_len, suffix, suffix_len);
     dst[base_len + suffix_len] = '\0';
 }
-
-/* Existing helpers (trimmed for brevity) ... */
 
 static void zero_context(Context *ctx) {
     memset(ctx, 0, sizeof(*ctx));
@@ -112,7 +84,7 @@ static void property_handler(const char* key, const char* value, void* user_data
 static void load_properties(Context *ctx) {
     parse_key_value_file("/etc/include.properties", property_handler, ctx);
     parse_key_value_file("/etc/device.properties", property_handler, ctx);
-    ctx_log_debug("Loaded properties: LOG_PATH=%s DEVICE_TYPE=%s BUILD_TYPE=%s",
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Loaded properties: LOG_PATH=%s DEVICE_TYPE=%s BUILD_TYPE=%s",
                   ctx->log_path, ctx->device_type, ctx->build_type);
 }
 
@@ -120,7 +92,7 @@ static void load_firmware_version(Context *ctx) {
     FILE *f = fopen("/version.txt", "r");
     if (!f) {
         strcpy(ctx->firmware_version, "unknown");
-        ctx_log_notice("Firmware version file missing, defaulting to unknown");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version file missing, defaulting to unknown");
         return;
     }
     char line[256];
@@ -137,7 +109,7 @@ static void load_firmware_version(Context *ctx) {
     if (ctx->firmware_version[0] == '\0') {
         strcpy(ctx->firmware_version, "unknown");
     }
-    ctx_log_debug("Firmware version: %s", ctx->firmware_version);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Firmware version: %s", ctx->firmware_version);
 }
 
 static void load_host_ip(Context *ctx) {
@@ -155,7 +127,7 @@ static void load_mac(Context *ctx) {
         strcpy(ctx->mac_raw, "00:00:00:00:00:00");
     }
     sanitize_mac(ctx->mac_raw, ctx->mac_compact, sizeof(ctx->mac_compact));
-    ctx_log_debug("MAC raw=%s compact=%s", ctx->mac_raw, ctx->mac_compact);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "MAC raw=%s compact=%s", ctx->mac_raw, ctx->mac_compact);
 }
 
 static void generate_timestamps(Context *ctx) {
@@ -170,7 +142,7 @@ static void load_upload_flag(Context *ctx) {
     FILE *f = fopen("/tmp/DCMSettings.conf", "r");
     if (!f) {
         ctx->upload_flag = true;
-        ctx_log_notice("DCMSettings.conf missing, default upload_flag=true");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "DCMSettings.conf missing, default upload_flag=true");
         return;
     }
     char line[512];
@@ -192,7 +164,7 @@ static void load_upload_flag(Context *ctx) {
         }
     }
     fclose(f);
-    ctx_log_debug("upload_flag=%d", ctx->upload_flag);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "upload_flag=%d", ctx->upload_flag);
 }
 
 static void load_privacy_mode(Context *ctx) {
@@ -205,7 +177,7 @@ bool context_init(Context *ctx) {
         fprintf(stderr, "RDK Logger init failed\n");
         return false;
     }
-    ctx_log_notice("RDK Logger initialized for module %s", DCM_LOG_MODULE);
+    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "RDK Logger initialized for module %s", LOG_UPLOAD);
 
     zero_context(ctx);
     load_properties(ctx);
@@ -213,7 +185,6 @@ bool context_init(Context *ctx) {
     if (ctx->log_path[0] == '\0')
         strncpy(ctx->log_path, "/opt/logs", sizeof(ctx->log_path)-1);
 
-    /* Replace previous snprintf path concatenations with safe build_path to remove truncation warnings */
     build_path(ctx->dcm_log_path,         sizeof(ctx->dcm_log_path),         ctx->log_path, "/dcmlogs");
     build_path(ctx->prev_log_path,        sizeof(ctx->prev_log_path),        ctx->log_path, "/PreviousLogs");
     build_path(ctx->prev_log_backup_path, sizeof(ctx->prev_log_backup_path), ctx->log_path, "/PreviousLogs_backup");
@@ -273,7 +244,7 @@ bool context_init(Context *ctx) {
 
     ctx->use_codebig = (access(ctx->direct_block_file, F_OK) == 0) ? true : false;
 
-    ctx_log_notice("Context initialized (log_path=%s, device_type=%s, mac=%s)",
+    RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Context initialized (log_path=%s, device_type=%s, mac=%s)",
                    ctx->log_path, ctx->device_type, ctx->mac_raw);
 
     return true;
@@ -282,23 +253,23 @@ bool context_init(Context *ctx) {
 int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz) {
     if (ctx->mac_raw[0] == '\0' || strcmp(ctx->mac_raw, "00:00:00:00:00:00") == 0) {
         snprintf(errmsg, errmsg_sz, "MAC address default or empty");
-        ctx_log_error("%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
         return 2;
     }
     if (ctx->log_path[0] == '\0') {
         snprintf(errmsg, errmsg_sz, "log_path not set");
-        ctx_log_error("%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
         return 1;
     }
     if (strstr(ctx->log_file, "_Logs_") == NULL) {
         snprintf(errmsg, errmsg_sz, "log_file pattern invalid");
-        ctx_log_error("%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
         return 3;
     }
     if (ctx->curl_tls_timeout <= 0 || ctx->curl_timeout <= 0 ||
         ctx->num_upload_attempts <= 0) {
         snprintf(errmsg, errmsg_sz, "timeouts or attempts invalid");
-        ctx_log_error("%s", errmsg);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
         return 5;
     }
     /* Ensure directories exist */
@@ -316,24 +287,24 @@ int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz) {
         if (stat(dirs[i], &st) != 0) {
             if (mkdir(dirs[i], 0755) != 0) {
                 snprintf(errmsg, errmsg_sz, "Failed mkdir %s errno=%d", dirs[i], errno);
-                ctx_log_error("%s", errmsg);
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
                 return 4;
             } else {
-                ctx_log_notice("Created missing directory %s", dirs[i]);
+                RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Created missing directory %s", dirs[i]);
             }
         } else if (!S_ISDIR(st.st_mode)) {
             snprintf(errmsg, errmsg_sz, "Path not a directory: %s", dirs[i]);
-            ctx_log_error("%s", errmsg);
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s", errmsg);
             return 4;
         }
     }
     if (strcmp(ctx->firmware_version, "unknown") == 0) {
-        ctx_log_notice("Firmware version unknown (non-fatal)");
+        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version unknown (non-fatal)");
     }
     if (errmsg && errmsg_sz) {
         snprintf(errmsg, errmsg_sz, "OK");
     }
-    ctx_log_info("Validation successful");
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "Validation successful");
     return 0;
 }
 
