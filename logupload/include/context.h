@@ -6,7 +6,6 @@
 
 #define MAX_PATH_LENGTH 256
 #define MAX_STR_FIELD   128
-#define DCM_LOG_MODULE "LOG.RDK.DCMUPLOAD"
 
 typedef struct {
     char mac_raw[MAX_STR_FIELD];
