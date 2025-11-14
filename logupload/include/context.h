@@ -6,6 +6,7 @@
 
 #define MAX_PATH_LENGTH 256
 #define MAX_STR_FIELD   128
+#define LOG_UPLOAD "LOG.RDK.LOGUPLOAD"
 
 typedef struct {
     char mac_raw[MAX_STR_FIELD];
