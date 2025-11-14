@@ -132,7 +132,7 @@ int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, 
             return DWNL_FAIL;
         }
     }
-
+/*
     // Set upload-specific options
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
     curl_easy_setopt(curl, CURLOPT_READDATA, fp);
@@ -142,7 +142,7 @@ int doHttpFileUpload(void *in_curl, FileDwnl_t *pfile_upload, MtlsAuth_t *auth, 
     curl_off_t filesize = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
     curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, filesize);
-    
+*/    
     FILE *fp1 = fopen("/tmp/httpresult.txt", "wb");
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp1);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
