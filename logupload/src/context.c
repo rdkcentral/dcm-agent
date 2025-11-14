@@ -37,6 +37,34 @@ static inline void ctx_log_debug(const char *fmt, ...) {
     va_end(args);
 }
 
+/* --- Minimal helper to eliminate -Wformat-truncation warnings for path building --- */
+static void build_path(char *dst, size_t dstsz, const char *base, const char *suffix)
+{
+    if (!dst || dstsz == 0) return;
+    if (!base) base = "";
+    if (!suffix) suffix = "";
+
+    size_t base_len = strnlen(base, dstsz - 1);
+    size_t suffix_len = strnlen(suffix, dstsz - 1);
+
+    /* Adjust lengths so combined fits (leave room for NUL) */
+    if (base_len + suffix_len >= dstsz) {
+        if (suffix_len + 1 >= dstsz) {
+            /* Suffix itself too long: truncate suffix */
+            suffix_len = dstsz - 1;
+            base_len = 0;
+        } else {
+            base_len = dstsz - suffix_len - 1;
+        }
+    }
+
+    if (base_len)
+        memcpy(dst, base, base_len);
+    if (suffix_len)
+        memcpy(dst + base_len, suffix, suffix_len);
+    dst[base_len + suffix_len] = '\0';
+}
+
 /* Existing helpers (trimmed for brevity) ... */
 
 static void zero_context(Context *ctx) {
@@ -185,12 +213,15 @@ bool context_init(Context *ctx) {
     if (ctx->log_path[0] == '\0')
         strncpy(ctx->log_path, "/opt/logs", sizeof(ctx->log_path)-1);
 
-    snprintf(ctx->dcm_log_path, sizeof(ctx->dcm_log_path), "%s/dcmlogs", ctx->log_path);
-    snprintf(ctx->prev_log_path, sizeof(ctx->prev_log_path), "%s/PreviousLogs", ctx->log_path);
-    snprintf(ctx->prev_log_backup_path, sizeof(ctx->prev_log_backup_path), "%s/PreviousLogs_backup", ctx->log_path);
-    snprintf(ctx->dcm_upload_list_path, sizeof(ctx->dcm_upload_list_path), "%s/dcm_upload", ctx->log_path);
-    snprintf(ctx->dcm_script_log_path, sizeof(ctx->dcm_script_log_path), "%s/dcmscript.log", ctx->log_path);
-    snprintf(ctx->tls_error_log_path, sizeof(ctx->tls_error_log_path), "%s/tlsError.log", ctx->log_path);
+    /* Replace previous snprintf path concatenations with safe build_path to remove truncation warnings */
+    build_path(ctx->dcm_log_path,         sizeof(ctx->dcm_log_path),         ctx->log_path, "/dcmlogs");
+    build_path(ctx->prev_log_path,        sizeof(ctx->prev_log_path),        ctx->log_path, "/PreviousLogs");
+    build_path(ctx->prev_log_backup_path, sizeof(ctx->prev_log_backup_path), ctx->log_path, "/PreviousLogs_backup");
+    build_path(ctx->dcm_upload_list_path, sizeof(ctx->dcm_upload_list_path), ctx->log_path, "/dcm_upload");
+    build_path(ctx->dcm_script_log_path,  sizeof(ctx->dcm_script_log_path),  ctx->log_path, "/dcmscript.log");
+    build_path(ctx->tls_error_log_path,   sizeof(ctx->tls_error_log_path),   ctx->log_path, "/tlsError.log");
+    build_path(ctx->rrd_log_file,         sizeof(ctx->rrd_log_file),         ctx->log_path, "/remote-debugger.log");
+
     snprintf(ctx->curl_info_path, sizeof(ctx->curl_info_path), "/tmp/logupload_curl_info");
     snprintf(ctx->http_code_path, sizeof(ctx->http_code_path), "/tmp/logupload_http_code");
     snprintf(ctx->previous_reboot_info_path, sizeof(ctx->previous_reboot_info_path), "/opt/secure/reboot/previousreboot.info");
@@ -198,7 +229,6 @@ bool context_init(Context *ctx) {
     snprintf(ctx->codebig_block_file, sizeof(ctx->codebig_block_file), "/tmp/.lastcodebigfail_upl");
     snprintf(ctx->telemetry_path, sizeof(ctx->telemetry_path), "/opt/.telemetry");
     snprintf(ctx->rrd_log_dir, sizeof(ctx->rrd_log_dir), "/tmp/rrd/");
-    snprintf(ctx->rrd_log_file, sizeof(ctx->rrd_log_file), "%s/remote-debugger.log", ctx->log_path);
     snprintf(ctx->iarm_event_bin_dir, sizeof(ctx->iarm_event_bin_dir),
              access("/etc/os-release", F_OK) == 0 ? "/usr/bin" : "/usr/local/bin");
 
