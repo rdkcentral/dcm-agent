@@ -11,9 +11,6 @@ int main(void) {
         fprintf(stderr, "context_init failed!\n");
         return 1;
     }
-    printf("Validation...\n");
-    int v = context_validate(&ctx, errmsg, sizeof(errmsg));
-    printf("Validation code: %d (%s)\n", v, errmsg);
 
     printf("\nVerifying parsed context fields:\n");
     printf("MAC raw        : %s\n", ctx.mac_raw);
