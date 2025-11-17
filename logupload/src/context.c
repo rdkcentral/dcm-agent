@@ -226,11 +226,13 @@ static void load_tr181_parameters(Context *ctx)
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", REBOOT_DISABLE);
     }
-    if (rbus_get_tr181_param(ENCRYPTCLOUDUPLOAD,NULL, 0, &ctx->encryption_enabled_rfc) == 0)
-    {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%d]\n", ENCRYPTCLOUDUPLOAD, ctx->encryption_enabled_rfc);
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", ENCRYPTCLOUDUPLOAD);
+    if (access("/etc/os-release", F_OK) == 0) {
+        if (rbus_get_tr181_param(ENCRYPTCLOUDUPLOAD,NULL, 0, &ctx->encryption_enabled_rfc) == 0)
+        {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%d]\n", ENCRYPTCLOUDUPLOAD, ctx->encryption_enabled_rfc);
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", ENCRYPTCLOUDUPLOAD);
+        }
     }
 }
 
