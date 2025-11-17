@@ -6,11 +6,61 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include "rdk_logger.h"     /* from rdk_logger repo */
+#include "rdk_logger.h"
 #include "rdk_logger_types.h"
 
+/* RBUS includes for TR-181 parameter access */
+#include <rbus/rbus.h>
 
-/* --- Minimal helper to eliminate -Wformat-truncation warnings for path building --- */
+#define RBUS_TR181_FETCH_OK 0
+#define RRD_ISSUE_TYPE "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.RDKRemoteDebugger.IssueType"
+#define CLOUD_URL "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL"
+#define REBOOT_DISABLE "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable"
+#define ENCRYPTCLOUDUPLOAD "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable"
+
+/* Helper to fetch a TR-181 string value using RBUS */
+static int rbus_get_tr181_param(const char* param, char* buf, size_t buflen, bool *field) {
+    rbusHandle_t handle;
+    rbusValue_t value = NULL;
+    int ret = RBUS_TR181_FETCH_OK; // success unless error occurs
+
+    if(rbus_open(&handle, "logupload") != RBUS_ERROR_SUCCESS) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "RBUS: Failed to open connection for param %s\n", param);
+        strncpy(buf, "", buflen);
+        printf("Rbus failed");
+        return 1;
+    }
+
+    if(rbus_get(handle, param, &value) == RBUS_ERROR_SUCCESS && value) {
+        rbusValueType_t type = rbusValue_GetType(value);
+        if(type == RBUS_BOOLEAN) {
+        bool data = rbusValue_GetBoolean(value);
+          printf("Called set handler for [%s] & value is %s\n", param, data ? "true" : "false");
+          if( data == true) {*field = true;}
+          else {*field = false;}
+        }
+        else if(type == RBUS_STRING)
+        {
+        const char *valstr = rbusValue_GetString(value, NULL);
+        if(valstr) {
+            strncpy(buf, valstr, buflen-1);
+            buf[buflen-1] = 0;
+        } else {
+            buf[0] = 0;
+            ret = 2;
+        }
+        }
+        rbusValue_Release(value);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "RBUS: Failed to get TR-181 param %s\n", param);
+        buf[0] = 0;
+        ret = 3;
+    }
+    rbus_close(handle);
+    return ret;
+}
+
+/* Minimal helper to eliminate -Wformat-truncation warnings for path building */
 static void build_path(char *dst, size_t dstsz, const char *base, const char *suffix)
 {
     if (!dst || dstsz == 0) return;
@@ -20,10 +70,8 @@ static void build_path(char *dst, size_t dstsz, const char *base, const char *su
     size_t base_len = strnlen(base, dstsz - 1);
     size_t suffix_len = strnlen(suffix, dstsz - 1);
 
-    /* Adjust lengths so combined fits (leave room for NUL) */
     if (base_len + suffix_len >= dstsz) {
         if (suffix_len + 1 >= dstsz) {
-            /* Suffix itself too long: truncate suffix */
             suffix_len = dstsz - 1;
             base_len = 0;
         } else {
@@ -87,35 +135,6 @@ static void load_properties(Context *ctx) {
                   ctx->log_path, ctx->device_type, ctx->build_type);
 }
 
-static void load_firmware_version(Context *ctx) {
-    FILE *f = fopen("/version.txt", "r");
-    if (!f) {
-        strcpy(ctx->firmware_version, "unknown");
-        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version file missing, defaulting to unknown \n");
-        return;
-    }
-    char line[256];
-    while (fgets(line, sizeof(line), f)) {
-        if (strncmp(line, "imagename:", 10) == 0) {
-            char *val = line + 10;
-            while (*val == ' ' || *val == '\t') val++;
-            val[strcspn(val, "\r\n")] = 0;
-            strncpy(ctx->firmware_version, val, sizeof(ctx->firmware_version)-1);
-            break;
-        }
-    }
-    fclose(f);
-    if (ctx->firmware_version[0] == '\0') {
-        strcpy(ctx->firmware_version, "unknown");
-    }
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "Firmware version: %s \n", ctx->firmware_version);
-}
-
-static void load_host_ip(Context *ctx) {
-    /* Placeholder */
-    strcpy(ctx->host_ip, "0.0.0.0");
-}
-
 static void load_mac(Context *ctx) {
     FILE *fm = fopen("/sys/class/net/eth0/address", "r");
     if (fm) {
@@ -166,12 +185,37 @@ static void load_upload_flag(Context *ctx) {
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "upload_flag=%d \n", ctx->upload_flag);
 }
 
-static void load_privacy_mode(Context *ctx) {
-    ctx->privacy_block = false;
+
+static void load_tr181_parameters(Context *ctx)
+{
+
+    /* Fetch TR-181 parameters using RBUS */
+
+    if (rbus_get_tr181_param(RRD_ISSUE_TYPE, ctx->rrd_tr181_name, sizeof(ctx->rrd_tr181_name), false) == 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%s]\n", RRD_ISSUE_TYPE, ctx->rrd_tr181_name);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", CLOUD_URL);
+    }
+    if (rbus_get_tr181_param(CLOUD_URL, ctx->cloud_url, sizeof(ctx->cloud_url), false) == 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%s]\n", CLOUD_URL, ctx->rrd_tr181_name);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", CLOUD_URL);
+    }
+    if (rbus_get_tr181_param(REBOOT_DISABLE, NULL, 0, &ctx->tr181_unsched_reboot_disable) == 0)
+    {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%d]\n", REBOOT_DISABLE, ctx->tr181_unsched_reboot_disable);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", REBOOT_DISABLE);
+    }
+    if (rbus_get_tr181_param(ENCRYPTCLOUDUPLOAD,NULL, 0, &ctx->encryption_enabled_rfc) == 0)
+    {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOAD, "TR181 [%s] = [%d]\n", ENCRYPTCLOUDUPLOAD, ctx->encryption_enabled_rfc);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "Failed to fetch TR-181 value for %s\n", ENCRYPTCLOUDUPLOAD);
+    }
 }
 
 bool context_init(Context *ctx) {
-    /* Initialize RDK Logger first (only once). */
     if (rdk_logger_init("/etc/debug.ini") != RDK_SUCCESS) {
         fprintf(stderr, "RDK Logger init failed\n");
         return false;
@@ -202,16 +246,7 @@ bool context_init(Context *ctx) {
     snprintf(ctx->iarm_event_bin_dir, sizeof(ctx->iarm_event_bin_dir),
              access("/etc/os-release", F_OK) == 0 ? "/usr/bin" : "/usr/local/bin");
 
-    strncpy(ctx->tr181_unsched_reboot_disable,
-            "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
-            sizeof(ctx->tr181_unsched_reboot_disable)-1);
-    strncpy(ctx->rrd_tr181_name,
-            "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.RDKRemoteDebugger.IssueType",
-            sizeof(ctx->rrd_tr181_name)-1);
-
     load_mac(ctx);
-    load_host_ip(ctx);
-    load_firmware_version(ctx);
     generate_timestamps(ctx);
 
     snprintf(ctx->log_file, sizeof(ctx->log_file),
@@ -235,7 +270,6 @@ bool context_init(Context *ctx) {
     ctx->encryption_enabled_rfc = false;
 
     load_upload_flag(ctx);
-    load_privacy_mode(ctx);
 
     ctx->log_upload_success_code = 0;
     ctx->log_upload_failed_code  = 1;
@@ -243,68 +277,13 @@ bool context_init(Context *ctx) {
 
     ctx->use_codebig = (access(ctx->direct_block_file, F_OK) == 0) ? true : false;
 
+    /* Fetch TR-181 parameters using rbus */
+    load_tr181_parameters(ctx);
+
     RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Context initialized log_path=%s, device_type=%s, mac=%s \n",
                    ctx->log_path, ctx->device_type, ctx->mac_raw);
 
     return true;
-}
-
-int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz) {
-    if (ctx->mac_raw[0] == '\0' || strcmp(ctx->mac_raw, "00:00:00:00:00:00") == 0) {
-        snprintf(errmsg, errmsg_sz, "MAC address default or empty");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-        return 2;
-    }
-    if (ctx->log_path[0] == '\0') {
-        snprintf(errmsg, errmsg_sz, "log_path not set");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-        return 1;
-    }
-    if (strstr(ctx->log_file, "_Logs_") == NULL) {
-        snprintf(errmsg, errmsg_sz, "log_file pattern invalid");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-        return 3;
-    }
-    if (ctx->curl_tls_timeout <= 0 || ctx->curl_timeout <= 0 ||
-        ctx->num_upload_attempts <= 0) {
-        snprintf(errmsg, errmsg_sz, "timeouts or attempts invalid");
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-        return 5;
-    }
-    /* Ensure directories exist */
-    const char *dirs[] = {
-        ctx->log_path,
-        ctx->dcm_log_path,
-        ctx->prev_log_path,
-        ctx->prev_log_backup_path,
-        ctx->telemetry_path,
-        ctx->rrd_log_dir
-    };
-    for (size_t i = 0; i < sizeof(dirs)/sizeof(dirs[0]); ++i) {
-        if (dirs[i][0] == '\0') continue;
-        struct stat st;
-        if (stat(dirs[i], &st) != 0) {
-            if (mkdir(dirs[i], 0755) != 0) {
-                snprintf(errmsg, errmsg_sz, "Failed mkdir %s errno=%d", dirs[i], errno);
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-                return 4;
-            } else {
-                RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Created missing directory %s", dirs[i]);
-            }
-        } else if (!S_ISDIR(st.st_mode)) {
-            snprintf(errmsg, errmsg_sz, "Path not a directory: %s", dirs[i]);
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s \n", errmsg);
-            return 4;
-        }
-    }
-    if (strcmp(ctx->firmware_version, "unknown") == 0) {
-        RDK_LOG(RDK_LOG_NOTICE, LOG_UPLOAD, "Firmware version unknown (non-fatal) \n");
-    }
-    if (errmsg && errmsg_sz) {
-        snprintf(errmsg, errmsg_sz, "OK");
-    }
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "Validation successful \n");
-    return 0;
 }
 
 void context_deinit(Context *ctx) {
