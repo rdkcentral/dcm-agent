@@ -8,4 +8,4 @@ logupload_CFLAGS = -Wall \
 
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += $(curl_LIBS)
-AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil
+AM_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lrbus
