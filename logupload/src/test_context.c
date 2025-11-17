@@ -4,7 +4,6 @@
 
 int main(void) {
     Context ctx;
-    char errmsg[256];
 
     printf("Initializing context...\n");
     if (!context_init(&ctx)) {
