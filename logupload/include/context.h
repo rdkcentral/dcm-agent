@@ -30,10 +30,8 @@
 typedef struct {
     char mac_raw[MAX_STR_FIELD];
     char mac_compact[MAX_STR_FIELD];
-    char host_ip[MAX_STR_FIELD];
     char device_type[MAX_STR_FIELD];
     char build_type[MAX_STR_FIELD];
-    char firmware_version[MAX_STR_FIELD];
     char version_line[MAX_STR_FIELD];
 
     char rdk_path[MAX_PATH_LENGTH];
@@ -73,7 +71,7 @@ typedef struct {
     int curl_tls_timeout;
     int curl_timeout;
 
-    char tr181_unsched_reboot_disable[MAX_STR_FIELD];
+    bool tr181_unsched_reboot_disable;
     char rrd_tr181_name[MAX_STR_FIELD];
     char rrd_issue_type[MAX_STR_FIELD];
 
@@ -86,7 +84,6 @@ typedef struct {
 } Context;
 
 bool context_init(Context *ctx);
-int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz);
 void context_deinit(Context *ctx);
 
 #endif
