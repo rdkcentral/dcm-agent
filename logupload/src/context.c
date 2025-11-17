@@ -34,7 +34,7 @@ static int rbus_get_tr181_param(const char* param, char* buf, size_t buflen, boo
     if(rbus_get(handle, param, &value) == RBUS_ERROR_SUCCESS && value) {
         rbusValueType_t type = rbusValue_GetType(value);
         if(type == RBUS_BOOLEAN) {
-        bool data = rbusValue_GetBoolean(value);
+          bool data = rbusValue_GetBoolean(value);
           printf("Called set handler for [%s] & value is %s\n", param, data ? "true" : "false");
           if( data == true) {*field = true;}
           else {*field = false;}
