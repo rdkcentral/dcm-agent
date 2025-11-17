@@ -59,5 +59,5 @@ AC_SUBST([dcmd_CFLAGS])
 
 # Checks for typedefs, structures, and compiler characteristics.
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile logupload/src/Makefile])
 AC_OUTPUT
