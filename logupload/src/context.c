@@ -54,7 +54,7 @@ static int rbus_get_tr181_param(const char* param, char* buf, size_t buflen, boo
         rbusValueType_t type = rbusValue_GetType(value);
         if(type == RBUS_BOOLEAN) {
           bool data = rbusValue_GetBoolean(value);
-          printf("Called set handler for [%s] & value is %s\n", param, data ? "true" : "false");
+          printf("Called get handler for [%s] & value is %s\n", param, data ? "true" : "false");
           if( data == true) {*field = true;}
           else {*field = false;}
         }
@@ -145,6 +145,10 @@ static void property_handler(const char* key, const char* value, void* user_data
     } else if (strcmp(key, "BUILD_TYPE") == 0) {
         strncpy(ctx->build_type, value, sizeof(ctx->build_type)-1);
     }
+    } else if (strcmp(key, "DIRECT_BLOCK_TIME") == 0) {
+        ctx->directblocktime = atoi(value);
+    } else if (strcmp(key, "CB_BLOCK_TIME") == 0) {
+        ctx->cb_block_time = atoi(value);
 }
 
 static void load_properties(Context *ctx) {
