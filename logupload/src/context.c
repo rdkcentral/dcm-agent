@@ -144,7 +144,6 @@ static void property_handler(const char* key, const char* value, void* user_data
         strncpy(ctx->device_type, value, sizeof(ctx->device_type)-1);
     } else if (strcmp(key, "BUILD_TYPE") == 0) {
         strncpy(ctx->build_type, value, sizeof(ctx->build_type)-1);
-    }
     } else if (strcmp(key, "DIRECT_BLOCK_TIME") == 0) {
         ctx->directblocktime = atoi(value);
     } else if (strcmp(key, "CB_BLOCK_TIME") == 0) {
