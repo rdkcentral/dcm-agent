@@ -148,6 +148,7 @@ static void property_handler(const char* key, const char* value, void* user_data
         ctx->directblocktime = atoi(value);
     } else if (strcmp(key, "CB_BLOCK_TIME") == 0) {
         ctx->cb_block_time = atoi(value);
+    }
 }
 
 static void load_properties(Context *ctx) {
