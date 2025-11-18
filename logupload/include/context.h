@@ -1,22 +1,3 @@
-/*
- * If not stated otherwise in this file or this component's LICENSE file the
- * following copyright and licenses apply:
- *
- * Copyright 2018 RDK Management
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
@@ -70,6 +51,8 @@ typedef struct {
 
     int curl_tls_timeout;
     int curl_timeout;
+    int directblocktime;
+    int cb_block_time;
 
     bool tr181_unsched_reboot_disable;
     char rrd_tr181_name[MAX_STR_FIELD];
@@ -84,6 +67,7 @@ typedef struct {
 } Context;
 
 bool context_init(Context *ctx);
+int context_validate(Context *ctx, char *errmsg, size_t errmsg_sz);
 void context_deinit(Context *ctx);
 
 #endif
