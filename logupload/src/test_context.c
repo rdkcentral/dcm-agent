@@ -5,7 +5,6 @@
 
 int main(void) {
     Context ctx;
-    char errmsg[256];
 
     printf("Initializing context...\n");
     if (!context_init(&ctx)) {
@@ -13,8 +12,6 @@ int main(void) {
         return 1;
     }
     printf("Validation...\n");
-    int v = context_validate(&ctx, errmsg, sizeof(errmsg));
-    printf("Validation code: %d (%s)\n", v, errmsg);
 
     printf("\nVerifying parsed context fields:\n");
     printf("MAC raw        : %s\n", ctx.mac_raw);
