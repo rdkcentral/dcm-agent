@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <rdk_logger.h>
 #include "rdk_logger_types.h"
-#include "mtls_cert_selector.h"
 
 #ifdef __cplusplus
 extern "C" {
