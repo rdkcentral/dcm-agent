@@ -35,6 +35,7 @@ int doHttpFileUpload(void *in_curl,
                      FileUpload_t *pfile_upload,
                      const MtlsAuth_t *auth,
                      long *out_httpCode);
+int runFileUpload(const char *upload_url, const char *src_file);
 
 #ifdef __cplusplus
 }
