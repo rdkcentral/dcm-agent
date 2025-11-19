@@ -1,6 +1,8 @@
 #include "http_upload.h"
+#include "context.h"
 #include <stdio.h>
 #include <string.h>
+#include "downloadUtil.h"
 
 #define URL_MAX 512
 #define PATHNAME_MAX 256
