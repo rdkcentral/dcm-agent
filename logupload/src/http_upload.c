@@ -51,7 +51,6 @@ int doS3PutUpload(const char *s3url, const char *localfile, const MtlsAuth_t *au
     curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, filesize);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
-#ifdef LIBRDKCERTSELECTOR
     if (auth) {
         CURLcode e1, e2, e3, e4;
         e1 = curl_easy_setopt(curl, CURLOPT_SSLCERT, auth->cert_name);
@@ -68,7 +67,6 @@ int doS3PutUpload(const char *s3url, const char *localfile, const MtlsAuth_t *au
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
     }
-#endif
 
     long http_code = 0;
     CURLcode cc = curl_easy_perform(curl);
