@@ -10,7 +10,7 @@
 
 int doHttpFileUpload(void *in_curl,
                      FileUpload_t *pfile_upload,
-                     const MtlsAuth_t *auth,
+                     MtlsAuth_t *auth,
                      long *out_httpCode)
 {
     CURL *curl;
