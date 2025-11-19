@@ -85,6 +85,28 @@ int main(void) {
     printf("DO_NOT_SHARE? %d\n", is_privacy_mode_do_not_share());
 
 
+   int main(int argc, char *argv[])
+{
+    if (argc != 3) {
+        print_usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    const char *upload_url = argv[1];
+    const char *file_path  = argv[2];
+
+
+    int rc = runFileUpload(upload_url, file_path);
+    if (rc == 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "%s: Upload completed successfully\n", __FUNCTION__);
+        return EXIT_SUCCESS;
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s: Upload failed (rc=%d)\n", __FUNCTION__, rc);
+        return EXIT_FAILURE;
+    }
+}
+    
+
     context_deinit(&ctx);
     return 0;
 }
