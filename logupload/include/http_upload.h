@@ -4,6 +4,7 @@
 #include <curl/curl.h>
 #include <stdbool.h>
 #include <rdk_logger.h>
+#include "rdk_logger_types.h"
 
 #ifdef __cplusplus
 extern "C" {
