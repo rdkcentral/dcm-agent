@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "privacy_mode.h"
+#include <rdk_logger.h>
+#include "rdk_logger_types.h"
 
 int main(int argc, char *argv[]) {
     Context ctx;
