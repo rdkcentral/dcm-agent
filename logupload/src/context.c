@@ -27,6 +27,7 @@
 #include <errno.h>
 #include "rdk_logger.h"
 #include "rdk_logger_types.h"
+#include "downloadUtil.h"
 
 /* RBUS includes for TR-181 parameter access */
 #include <rbus/rbus.h>
