@@ -6,13 +6,13 @@ extern "C" {
 #endif
 
 #define CURL_MTLS_LOCAL_CERTPROBLEM 58
-
+/*
 typedef struct {
     char cert_name[256];
     char key_pas[128];
     char cert_type[16];
     char engine[64];
-} MtlsAuth_t;
+} MtlsAuth_t; */
 
 typedef enum {
     MTLS_CERT_FETCH_FAILURE = -1,      // Indicates general MTLS failure
