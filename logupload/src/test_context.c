@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "privacy_mode.h"
+#include "http_upload.h"
 #include <rdk_logger.h>
 #include "rdk_logger_types.h"
 
