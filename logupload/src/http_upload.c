@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "downloadUtil.h"
+#include "mtls_cert_selector.h"
 
 #define URL_MAX 512
 #define PATHNAME_MAX 256
