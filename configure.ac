@@ -90,5 +90,5 @@ AC_ARG_ENABLE([mountutils],
 AM_CONDITIONAL([IS_LIBRDKCONFIG_ENABLED], [test x$IS_LIBRDKCONFIG_ENABLED = xtrue])
 AC_SUBST(LIBRDKCONFIG_FLAG)
 
-AC_CONFIG_FILES([Makefile logupload/Makefile])
+AC_CONFIG_FILES([Makefile logupload/src/Makefile])
 AC_OUTPUT
