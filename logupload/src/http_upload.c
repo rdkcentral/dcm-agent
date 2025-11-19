@@ -9,7 +9,7 @@
 #define PATHNAME_MAX 256
 #define S3_URL_BUF   1024
 
-static int extract_s3_url(const char *result_file, char *out_url, size_t out_url_sz) {
+int extract_s3_url(const char *result_file, char *out_url, size_t out_url_sz) {
     FILE *fp = fopen(result_file, "rb");
     if (!fp) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s: Unable to open result file %s\n", __FUNCTION__, result_file);
@@ -28,7 +28,7 @@ static int extract_s3_url(const char *result_file, char *out_url, size_t out_url
 }
 
 /* Same as doHttpFileUpload for S3: can add custom headers if needed */
-static int doS3PutUpload(const char *s3url, const char *localfile, const MtlsAuth_t *auth)
+int doS3PutUpload(const char *s3url, const char *localfile, const MtlsAuth_t *auth)
 {
     CURL *curl = curl_easy_init();
     FILE *fp = NULL;
