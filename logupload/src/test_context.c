@@ -5,6 +5,7 @@
 #include "http_upload.h"
 #include <rdk_logger.h>
 #include "rdk_logger_types.h"
+#include "downloadUtil.h"
 
 int main(int argc, char *argv[]) {
     Context ctx;
