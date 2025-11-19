@@ -3,7 +3,8 @@ bin_PROGRAMS = logupload
 logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c
 
 logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
-                     -I${top_srcdir}/logupload
+                     -I${top_srcdir}/logupload \
+                     -I${top_srcdir}/logupload/include
 
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += $(curl_LIBS)
