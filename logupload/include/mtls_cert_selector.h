@@ -1,5 +1,6 @@
 #ifndef _MTLS_CERT_SELECTOR_H_
 #define _MTLS_CERT_SELECTOR_H_
+#include "downloadUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
