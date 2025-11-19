@@ -28,7 +28,7 @@ static int extract_s3_url(const char *result_file, char *out_url, size_t out_url
 }
 
 /* Same as doHttpFileUpload for S3: can add custom headers if needed */
-static int doS3PutUploadWithCert(const char *s3url, const char *localfile, const MtlsAuth_t *auth)
+static int doS3PutUpload(const char *s3url, const char *localfile, const MtlsAuth_t *auth)
 {
     CURL *curl = curl_easy_init();
     FILE *fp = NULL;
@@ -327,7 +327,7 @@ int runFileUpload(const char *upload_url, const char *src_file)
         if (extract_s3_url("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) == 0) {
 #ifdef LIBRDKCERTSELECTOR
             /* Use same mTLS as initial POST */
-            if (doS3PutUploadWithCert(s3_url, src_file, &sec) == 0) {
+            if (doS3PutUpload(s3_url, src_file, &sec) == 0) {
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "%s: Full upload complete (metadata and S3 PUT)\n", __FUNCTION__);
                 return 0;
             } else {
@@ -335,7 +335,7 @@ int runFileUpload(const char *upload_url, const char *src_file)
                 return -1;
             }
 #else
-            if (doS3PutUploadWithCert(s3_url, src_file, NULL) == 0) {
+            if (doS3PutUpload(s3_url, src_file, NULL) == 0) {
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOAD, "%s: Full upload complete (metadata and S3 PUT)\n", __FUNCTION__);
                 return 0;
             } else {
