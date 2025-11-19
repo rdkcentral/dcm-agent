@@ -1,9 +1,10 @@
 #include "mtls_cert_selector.h"
-
+#include "downloadUtil.h"
 #ifdef LIBRDKCERTSELECTOR
 #include "rdkcertselector.h"
 #include <string.h>
 #include <rdk_logger.h>
+
 
 #define FILESCHEME "file://"
 #define LOG_UPLOAD "LOG.RDK.UPLOAD"
