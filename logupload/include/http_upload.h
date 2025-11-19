@@ -25,15 +25,15 @@ typedef struct {
 /* Upload request descriptor (metadata POST stage) */
 typedef struct {
     const char *url;          /* Endpoint to POST to */
-    const char *pathname;     /* Local file path (used for filename= parameter) */
-    const char *pPostFields;  /* Additional POST fields (optional, appended) */
+    char *pathname;     /* Local file path (used for filename= parameter) */
+    char *pPostFields;  /* Additional POST fields (optional, appended) */
     int         sslverify;    /* 0/1 control for peer verification */
     UploadHashData_t *hashData; /* Optional hash headers */
 } FileUpload_t;
 
 int doHttpFileUpload(void *in_curl,
                      FileUpload_t *pfile_upload,
-                     const MtlsAuth_t *auth,
+                     MtlsAuth_t *auth,
                      long *out_httpCode);
 int runFileUpload(const char *upload_url, const char *src_file);
 
