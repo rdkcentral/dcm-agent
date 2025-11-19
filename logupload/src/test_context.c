@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "privacy_mode.h"
 
-int main(void) {
+int main(int argc, char *argv[]) {
     Context ctx;
 
     printf("Initializing context...\n");
@@ -85,10 +85,7 @@ int main(void) {
     printf("DO_NOT_SHARE? %d\n", is_privacy_mode_do_not_share());
 
 
-   int main(int argc, char *argv[])
-{
     if (argc != 3) {
-        print_usage(argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -104,7 +101,7 @@ int main(void) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOAD, "%s: Upload failed (rc=%d)\n", __FUNCTION__, rc);
         return EXIT_FAILURE;
     }
-}
+
     
 
     context_deinit(&ctx);
