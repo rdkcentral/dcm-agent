@@ -33,9 +33,10 @@ static void generate_timestamps(logupload_timestamps_t* ts) {
 }
 
 // Helper: build path
+/*
 static void join_path(char* dst, size_t sz, const char* base, const char* suffix) {
     snprintf(dst, sz, "%s%s", base, suffix); // Same as rfcMgr utility style
-}
+} */
 
 logupload_status_t logupload_context_init(
     logupload_mac_t* mac,
