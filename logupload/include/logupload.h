@@ -15,7 +15,6 @@
 #define LOGUPLOAD_MAC_ADDR_LENGTH       32
 
 #define LOGUPLOAD_LOGS_ARCHIVE_FMT      "%s_Logs_%s.tgz"
-#define LOGUPLOAD_RRD_LOG_FILE_FMT      "/remote-debugger.log"
 
 #define LOGUPLOAD_TR181_CLOUD_URL              "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL"
 #define LOGUPLOAD_TR181_RRD_ISSUE_TYPE         "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.RDKRemoteDebugger.IssueType"
