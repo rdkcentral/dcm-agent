@@ -5,7 +5,10 @@
 #include <stddef.h>
 
 // Macros and constants (as in rfcMgr and common_utilities style)
+
 #define LOGUPLOAD_MODULE                "LOG.RDK.LOGUPLOAD"
+#define LOGUPLOAD_DEBUG_INI             "/etc/debug.ini"
+#define LOGUPLOAD_DEFAULT_LOG_PATH      "/opt/logs"
 #define LOGUPLOAD_MAX_PATH_LENGTH       256
 #define LOGUPLOAD_MAX_STR_FIELD         128
 #define LOGUPLOAD_MAX_STAMP_LENGTH      64
