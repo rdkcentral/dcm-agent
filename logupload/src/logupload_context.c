@@ -6,24 +6,19 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-/*
+
 // Helper: flatten MAC to "ccffee112233"
 static void read_and_flatten_mac(logupload_mac_t* mac) {
-    FILE* fm = fopen("/sys/class/net/eth0/address", "r");
-    if (fm) {
-        if (fgets(mac->mac_raw, sizeof(mac->mac_raw), fm))
-            mac->mac_raw[strcspn(mac->mac_raw, "\n")] = '\0';
-        fclose(fm);
-    } else {
-        strncpy(mac->mac_raw, "00:00:00:00:00:00", sizeof(mac->mac_raw)-1);
-    }
+    int len = GetEstbMac(mac->mac_raw, sizeof(mac->mac_raw));
+    if(len) {
     size_t j=0;
     for(size_t i=0; mac->mac_raw[i] && j < sizeof(mac->mac_compact)-1; ++i)
         if(mac->mac_raw[i] != ':')
             mac->mac_compact[j++] = mac->mac_raw[i];
     mac->mac_compact[j]='\0';
+    }
 }
-*/
+
 // Helper: timestamps
 static void generate_timestamps(logupload_timestamps_t* ts) {
     time_t t = time(NULL); struct tm tm_info;
@@ -67,15 +62,12 @@ logupload_status_t logupload_context_init(
     getDevicePropertyData("DEVICE_TYPE", device_type, device_type_sz);
     getDevicePropertyData("BUILD_TYPE", build_type, build_type_sz);
     getIncludePropertyData("LOG_PATH", paths->log_path, sizeof(paths->log_path));
-    getDevicePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path));
-    
-    GetEstbMac(mac->mac_raw, sizeof(mac->mac_raw));
-    
+    getDevicePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path)); 
     
     if(paths->log_path[0]=='\0')
         strncpy(paths->log_path, LOGUPLOAD_DEFAULT_LOG_PATH, sizeof(paths->log_path)-1);
 
-    //read_and_flatten_mac(mac);
+    read_and_flatten_mac(mac);
     generate_timestamps(stamps);
     snprintf(paths->packaged_logs_file, sizeof(paths->packaged_logs_file), LOGUPLOAD_LOGS_ARCHIVE_FMT, mac->mac_compact, stamps->dt_stamp);
 
