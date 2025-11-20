@@ -8,12 +8,11 @@ int main(void)
     char rrd_issue_type[LOGUPLOAD_MAX_STR_FIELD]="", cloud_url[LOGUPLOAD_MAX_PATH_LENGTH]="";
     logupload_status_t st = logupload_context_init(
         &mac, device_type, sizeof(device_type), build_type, sizeof(build_type),
-        &paths, &stamps, &upload_enabled, &use_codebig, &enable_ocsp_stapling, &enable_ocsp, &encryption_enabled_rfc,
+        &paths, &stamps, &enable_ocsp_stapling, &enable_ocsp, &encryption_enabled_rfc,
         rrd_issue_type, sizeof(rrd_issue_type), cloud_url, sizeof(cloud_url)
     );
     if(st != LOGUPLOAD_STATUS_OK) { printf("Init failed: %d\n", st); return 1; }
     printf("MAC: %s | DeviceType: %s | BuildType: %s\n", mac.mac_raw, device_type, build_type);
-    printf("Cloud URL: %s\n", logupload_get_cloud_url(cloud_url) ?: "(none)");
     printf("Packaged logs: %s\n", paths.packaged_logs_file);
     printf("Log path :  %s\n", paths.log_path);
     printf("DCM Log path :  %s\n", paths.dcm_log_path);
