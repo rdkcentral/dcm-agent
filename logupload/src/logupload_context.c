@@ -69,7 +69,7 @@ logupload_status_t logupload_context_init(
     getIncludePropertyData("LOG_PATH", paths->log_path, sizeof(paths->log_path));
     getDevicePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path));
     
-    GetEstbMac(mac, sizeof(mac));
+    GetEstbMac(mac->mac_raw, sizeof(mac->mac_raw));
     
     
     if(paths->log_path[0]=='\0')
