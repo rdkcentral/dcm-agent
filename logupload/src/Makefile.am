@@ -1,6 +1,7 @@
 bin_PROGRAMS = logupload
 
-logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
+logupload_SOURCES = logupload_context.c logupload_tr181.c main.c        
+#logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
 
 logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
                      -I${top_srcdir}/logupload \
