@@ -16,6 +16,7 @@ int main(void)
     printf("Cloud URL: %s\n", logupload_get_cloud_url(cloud_url) ?: "(none)");
     printf("Packaged logs: %s\n", paths.packaged_logs_file);
     printf("Log path :  %s\n", paths.log_path);
+    printf("DCM Log path :  %s\n", paths.dcm_log_path);
     printf("Upload enabled: %d | CodeBig: %d | OCSP stapling: %d | OCSP: %d | Encrypt RFC: %d\n", upload_enabled, use_codebig, enable_ocsp_stapling, enable_ocsp, encryption_enabled_rfc);
     printf("RRD Issue Type: %s\n", rrd_issue_type);
     logupload_context_deinit();
