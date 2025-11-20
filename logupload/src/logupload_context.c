@@ -72,7 +72,6 @@ logupload_status_t logupload_context_init(
     read_and_flatten_mac(mac);
     generate_timestamps(stamps);
     snprintf(paths->packaged_logs_file, sizeof(paths->packaged_logs_file), LOGUPLOAD_LOGS_ARCHIVE_FMT, mac->mac_compact, stamps->dt_stamp);
-    snprintf(paths->rrd_log_file, sizeof(paths->rrd_log_file), LOGUPLOAD_RRD_LOG_FILE_FMT, paths->log_path);
 
     // Use standard rfcMgr-style logic for upload flags
     if (upload_enabled) *upload_enabled = true; // Your real logic may use deviceprops, config, etc.
