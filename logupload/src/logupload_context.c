@@ -66,6 +66,7 @@ logupload_status_t logupload_context_init(
     getDevicePropertyData("DEVICE_TYPE", device_type, device_type_sz);
     getDevicePropertyData("BUILD_TYPE", build_type, build_type_sz);
     getDevicePropertyData("LOG_PATH", paths->log_path, sizeof(paths->log_path));
+    getIncludePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path));
     if(paths->log_path[0]=='\0')
         strncpy(paths->log_path, LOGUPLOAD_DEFAULT_LOG_PATH, sizeof(paths->log_path)-1);
 
