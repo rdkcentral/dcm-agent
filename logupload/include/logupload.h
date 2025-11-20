@@ -49,6 +49,7 @@ typedef struct {
 
 typedef struct {
     char log_path[32];
+    char dcm_log_path[32];
     char packaged_logs_file[LOGUPLOAD_MAX_PATH_LENGTH];
     char rrd_log_file[LOGUPLOAD_MAX_PATH_LENGTH];
 } logupload_paths_t;
