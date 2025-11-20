@@ -65,12 +65,16 @@ logupload_status_t logupload_context_init(
     // --- Use common_utilities for device properties ---
     getDevicePropertyData("DEVICE_TYPE", device_type, device_type_sz);
     getDevicePropertyData("BUILD_TYPE", build_type, build_type_sz);
-    getDevicePropertyData("LOG_PATH", paths->log_path, sizeof(paths->log_path));
-    getIncludePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path));
+    getIncludePropertyData("LOG_PATH", paths->log_path, sizeof(paths->log_path));
+    getDevicePropertyData("DCM_LOG_PATH", paths->dcm_log_path, sizeof(paths->log_path));
+    
+    GetEstbMac(mac, sizeof(mac));
+    
+    
     if(paths->log_path[0]=='\0')
         strncpy(paths->log_path, LOGUPLOAD_DEFAULT_LOG_PATH, sizeof(paths->log_path)-1);
 
-    read_and_flatten_mac(mac);
+    //read_and_flatten_mac(mac);
     generate_timestamps(stamps);
     snprintf(paths->packaged_logs_file, sizeof(paths->packaged_logs_file), LOGUPLOAD_LOGS_ARCHIVE_FMT, mac->mac_compact, stamps->dt_stamp);
 
