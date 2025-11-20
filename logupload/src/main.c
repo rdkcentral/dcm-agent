@@ -2,7 +2,7 @@
 #include <stdio.h>
 int main(void)
 {
-    logupload_mac_t mac; char device_type[LOGUPLOAD_MAX_STR_FIELD]="", build_type[LOGUPLOAD_MAX_STR_FIELD]="";
+    logupload_mac_t mac; char device_type[32] ="", build_type[32]="";
     logupload_paths_t paths; logupload_timestamps_t stamps;
     bool upload_enabled=0, use_codebig=0, enable_ocsp_stapling=0, enable_ocsp=0, encryption_enabled_rfc=0;
     char rrd_issue_type[LOGUPLOAD_MAX_STR_FIELD]="", cloud_url[LOGUPLOAD_MAX_PATH_LENGTH]="";
