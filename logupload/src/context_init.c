@@ -68,8 +68,6 @@ logupload_status_t logupload_context_init(
     char* build_type,  size_t build_type_sz,
     logupload_paths_t* paths,
     logupload_timestamps_t* stamps,
-    bool* upload_enabled,
-    bool* use_codebig,
     bool* enable_ocsp_stapling,
     bool* enable_ocsp,
     bool* encryption_enabled_rfc,
@@ -161,22 +159,6 @@ logupload_status_t logupload_context_init(
         }
     }
 
-    /* Upload / feature flags (logic unchanged) */
-    if(upload_enabled)
-    {
-        *upload_enabled = true;
-        RDK_LOG(RDK_LOG_DEBUG, LOGUPLOAD_MODULE,
-                "Init: upload_enabled set true (default logic)\n");
-    }
-    if(use_codebig)
-    {
-        *use_codebig = (access(LOGUPLOAD_DIRECT_BLOCK_FILE, F_OK) == 0);
-        RDK_LOG(RDK_LOG_INFO, LOGUPLOAD_MODULE,
-                "Init: use_codebig=%d (file %s %s)\n",
-                *use_codebig,
-                LOGUPLOAD_DIRECT_BLOCK_FILE,
-                *use_codebig ? "present" : "absent");
-    }
     if(enable_ocsp_stapling)
     {
         *enable_ocsp_stapling = (access(LOGUPLOAD_ENABLE_OCSP_STAPLING_FILE, F_OK) == 0);
@@ -234,10 +216,4 @@ logupload_status_t logupload_context_init(
             paths ? paths->packaged_logs_file : "(null)");
 
     return LOGUPLOAD_STATUS_OK;
-}
-
-void logupload_context_deinit(void)
-{
-    RDK_LOG(RDK_LOG_INFO, LOGUPLOAD_MODULE, "Deinit: logupload_context_deinit called\n");
-    /* Logic unchanged: no deinit implementation */
 }
