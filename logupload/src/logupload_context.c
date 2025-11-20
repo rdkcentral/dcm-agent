@@ -1,11 +1,12 @@
 #include "logupload.h"
 #include "rdk_logger.h"
 #include "rdk_fwdl_utils.h"  // from @rdkcentral/common_utilities
+#include "common_device_api.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
+/*
 // Helper: flatten MAC to "ccffee112233"
 static void read_and_flatten_mac(logupload_mac_t* mac) {
     FILE* fm = fopen("/sys/class/net/eth0/address", "r");
@@ -22,7 +23,7 @@ static void read_and_flatten_mac(logupload_mac_t* mac) {
             mac->mac_compact[j++] = mac->mac_raw[i];
     mac->mac_compact[j]='\0';
 }
-
+*/
 // Helper: timestamps
 static void generate_timestamps(logupload_timestamps_t* ts) {
     time_t t = time(NULL); struct tm tm_info;
