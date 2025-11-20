@@ -61,8 +61,6 @@ logupload_status_t logupload_context_init(
     char* build_type,  size_t build_type_sz,
     logupload_paths_t* paths,
     logupload_timestamps_t* stamps,
-    bool* upload_enabled,
-    bool* use_codebig,
     bool* enable_ocsp_stapling,
     bool* enable_ocsp,
     bool* encryption_enabled_rfc,
@@ -71,9 +69,6 @@ logupload_status_t logupload_context_init(
 );
 
 void logupload_context_deinit(void);
-
-bool logupload_is_codebig_required(bool use_codebig);
-const char* logupload_get_cloud_url(const char* cloud_url);
 
 // TR-181 helpers -- implementation in logupload_tr181.c
 bool tr181_get_string(const char* param, char* out, size_t out_sz);
