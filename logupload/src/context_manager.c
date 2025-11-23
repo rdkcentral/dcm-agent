@@ -165,7 +165,7 @@ bool load_environment(RuntimeContext* ctx)
 
     // Construct PREV_LOG_PATH = "$LOG_PATH/PreviousLogs"
     // Ensure sufficient space for the suffix
-    if (strlen(ctx->paths.log_path) + strlen("/PreviousLogs") < sizeof(ctx->paths.prev_log_path)) {
+    if (strlen(ctx->paths.log_path) + strlen("/PreviousLogs") + 1 <= sizeof(ctx->paths.prev_log_path)) {
         snprintf(ctx->paths.prev_log_path, sizeof(ctx->paths.prev_log_path), 
                  "%s/PreviousLogs", ctx->paths.log_path);
     } else {
@@ -182,7 +182,7 @@ bool load_environment(RuntimeContext* ctx)
 
     // Set RRD_LOG_FILE = "$LOG_PATH/remote-debugger.log"
     // Ensure sufficient space for the suffix
-    if (strlen(ctx->paths.log_path) + strlen("/remote-debugger.log") < sizeof(ctx->paths.rrd_file)) {
+    if (strlen(ctx->paths.log_path) + strlen("/remote-debugger.log") + 1 <= sizeof(ctx->paths.rrd_file)) {
         snprintf(ctx->paths.rrd_file, sizeof(ctx->paths.rrd_file), 
                  "%s/remote-debugger.log", ctx->paths.log_path);
     } else {
