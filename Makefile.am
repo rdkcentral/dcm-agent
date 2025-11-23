@@ -18,6 +18,7 @@
 ##########################################################################
 
 AUTOMAKE_OPTIONS = foreign
+SUBDIRS = logupload/src
 
 dcmd_CFLAGS += -fPIC -pthread
 
@@ -40,4 +41,3 @@ dcmd_CFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
-
