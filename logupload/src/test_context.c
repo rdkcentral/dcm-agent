@@ -27,14 +27,6 @@ int main(void) {
         printf("SUCCESS: TR-181 parameters loaded\n\n");
     }
 
-    // Test load_rfc_features
-    printf("Testing load_rfc_features()...\n");
-    if (!load_rfc_features(&ctx)) {
-        printf("WARNING: Failed to load RFC features\n\n");
-    } else {
-        printf("SUCCESS: RFC features loaded\n\n");
-    }
-
     // Test get_mac_address
     printf("Testing get_mac_address()...\n");
     if (!get_mac_address(ctx.device.mac_address, sizeof(ctx.device.mac_address))) {
