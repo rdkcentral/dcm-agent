@@ -34,6 +34,12 @@
 #include "rdk_debug.h"
 #include "rbus_interface.h"
 
+#define DEBUG_INI_NAME "/etc/debug.ini"
+
+
+static int g_rdk_logger_enabled = 0;
+
+
 
 /**
  * @brief Check if direct upload path is blocked based on marker file age
@@ -109,6 +115,15 @@ static bool is_codebig_blocked(int block_time)
 
 bool init_context(RuntimeContext* ctx)
 {
+    // Initialize RDK Logger
+
+    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
+        g_rdk_logger_enabled = 1;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] RDK Logger initialized\n", __FUNCTION__, __LINE__);
+    } else {
+        fprintf(stderr, "WARNING: RDK Logger initialization failed, using fallback logging\n");
+    }
+
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Context pointer is NULL\n", __FUNCTION__, __LINE__);
         return false;
