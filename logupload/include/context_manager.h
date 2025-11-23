@@ -18,41 +18,56 @@
  */
 
 /**
- * @file config_manager.h
- * @brief Configuration file loading and parsing
+ * @file context_manager.h
+ * @brief Runtime context initialization and management
  *
- * This module handles loading and parsing of configuration files
- * including device.properties, include.properties, and DCM configuration.
+ * This module handles initialization of the runtime context including
+ * loading environment variables, TR-181 parameters, and RFC values.
  */
 
-#ifndef CONFIG_MANAGER_H
-#define CONFIG_MANAGER_H
+#ifndef CONTEXT_MANAGER_H
+#define CONTEXT_MANAGER_H
 
 #include "uploadstblogs_types.h"
 
 /**
- * @brief Load configuration from properties files
- * @param ctx Runtime context to populate
+ * @brief Initialize runtime context
+ * @param ctx Runtime context to initialize
  * @return true on success, false on failure
+ *
+ * Loads environment variables, device properties, TR-181 values,
+ * and RFC settings into the runtime context.
  */
-bool load_config(RuntimeContext* ctx);
+bool init_context(RuntimeContext* ctx);
 
 /**
- * @brief Parse properties file
- * @param filepath Path to properties file
- * @param ctx Runtime context to update
- * @return true on success, false on failure
+ * @brief Cleanup runtime context resources
+ * 
+ * Releases any resources held by the context (e.g., RBUS connection).
+ * Call this when done using the context.
  */
-bool parse_properties_file(const char* filepath, RuntimeContext* ctx);
+void cleanup_context(void);
 
 /**
- * @brief Get property value from file
- * @param filepath Path to properties file
- * @param key Property key
- * @param value Output buffer for value
- * @param value_size Size of output buffer
- * @return true if found, false otherwise
+ * @brief Load environment variables
+ * @param ctx Runtime context
+ * @return true on success, false on failure
  */
-bool get_property(const char* filepath, const char* key, char* value, size_t value_size);
+bool load_environment(RuntimeContext* ctx);
 
-#endif /* CONFIG_MANAGER_H */
+/**
+ * @brief Load TR-181 parameters
+ * @param ctx Runtime context
+ * @return true on success, false on failure
+ */
+bool load_tr181_params(RuntimeContext* ctx);
+
+/**
+ * @brief Get device MAC address
+ * @param mac_buf Buffer to store MAC address
+ * @param buf_size Size of buffer
+ * @return true on success, false on failure
+ */
+bool get_mac_address(char* mac_buf, size_t buf_size);
+
+#endif /* CONTEXT_MANAGER_H */
