@@ -1,40 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "context_manager.h"
-#include "rdk_debug.h"
 
 
 int main(void) {
     RuntimeContext ctx;
     
     printf("========================================\n");
-    printf("UploadSTBLogs Environment Test\n");
+    printf("UploadSTBLogs Context Initialization Test\n");
     printf("========================================\n\n");
     
-    // Test load_environment only (without full init_context)
-    printf("Testing load_environment()...\n");
-    if (!load_environment(&ctx)) {
-        printf("ERROR: Failed to load environment.\n");
+    // Test full context initialization (includes RDK logger init)
+    printf("Testing init_context()...\n");
+    printf("This will initialize:\n");
+    printf("  - RDK Logger\n");
+    printf("  - Environment properties\n");
+    printf("  - TR-181 parameters via RBUS\n");
+    printf("  - Device MAC address\n\n");
+    
+    if (!init_context(&ctx)) {
+        printf("ERROR: Context initialization failed.\n");
         return 1;
     }
-    printf("SUCCESS: Environment loaded\n\n");
-
-    // Test load_tr181_params
-    printf("Testing load_tr181_params()...\n");
-    if (!load_tr181_params(&ctx)) {
-        printf("WARNING: Failed to load TR-181 parameters (may not be available)\n\n");
-    } else {
-        printf("SUCCESS: TR-181 parameters loaded\n\n");
-    }
-
-    // Test get_mac_address
-    printf("Testing get_mac_address()...\n");
-    if (!get_mac_address(ctx.device.mac_address, sizeof(ctx.device.mac_address))) {
-        printf("WARNING: Failed to get MAC address (may not be available)\n\n");
-    } else {
-        printf("SUCCESS: MAC address retrieved\n\n");
-    }
+    printf("SUCCESS: Context initialized\n\n");
 
     printf("=== Path Configuration ===\n");
     printf("LOG_PATH:         %s\n", ctx.paths.log_path);
