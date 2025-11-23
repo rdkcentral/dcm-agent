@@ -154,24 +154,43 @@ bool load_environment(RuntimeContext* ctx)
     // Used throughout script: PREV_LOG_PATH, DCM_LOG_FILE, RRD_LOG_FILE, TLS_LOG_FILE
     if (getIncludePropertyData("LOG_PATH", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
         strncpy(ctx->paths.log_path, buffer, sizeof(ctx->paths.log_path) - 1);
+        ctx->paths.log_path[sizeof(ctx->paths.log_path) - 1] = '\0';
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
     } else {
         // Use default if not found
         strncpy(ctx->paths.log_path, "/opt/logs", sizeof(ctx->paths.log_path) - 1);
+        ctx->paths.log_path[sizeof(ctx->paths.log_path) - 1] = '\0';
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
     }
 
     // Construct PREV_LOG_PATH = "$LOG_PATH/PreviousLogs"
-    snprintf(ctx->paths.prev_log_path, sizeof(ctx->paths.prev_log_path), 
-             "%s/PreviousLogs", ctx->paths.log_path);
+    // Ensure sufficient space for the suffix
+    if (strlen(ctx->paths.log_path) + strlen("/PreviousLogs") < sizeof(ctx->paths.prev_log_path)) {
+        snprintf(ctx->paths.prev_log_path, sizeof(ctx->paths.prev_log_path), 
+                 "%s/PreviousLogs", ctx->paths.log_path);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing PREV_LOG_PATH\n", 
+                __FUNCTION__, __LINE__);
+        strncpy(ctx->paths.prev_log_path, "/opt/logs/PreviousLogs", sizeof(ctx->paths.prev_log_path) - 1);
+        ctx->paths.prev_log_path[sizeof(ctx->paths.prev_log_path) - 1] = '\0';
+    }
 
     // Set DRI_LOG_PATH (hardcoded in script)
     strncpy(ctx->paths.dri_log_path, "/opt/logs/drilogs", 
             sizeof(ctx->paths.dri_log_path) - 1);
+    ctx->paths.dri_log_path[sizeof(ctx->paths.dri_log_path) - 1] = '\0';
 
     // Set RRD_LOG_FILE = "$LOG_PATH/remote-debugger.log"
-    snprintf(ctx->paths.rrd_file, sizeof(ctx->paths.rrd_file), 
-             "%s/remote-debugger.log", ctx->paths.log_path);
+    // Ensure sufficient space for the suffix
+    if (strlen(ctx->paths.log_path) + strlen("/remote-debugger.log") < sizeof(ctx->paths.rrd_file)) {
+        snprintf(ctx->paths.rrd_file, sizeof(ctx->paths.rrd_file), 
+                 "%s/remote-debugger.log", ctx->paths.log_path);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing RRD_LOG_FILE\n", 
+                __FUNCTION__, __LINE__);
+        strncpy(ctx->paths.rrd_file, "/opt/logs/remote-debugger.log", sizeof(ctx->paths.rrd_file) - 1);
+        ctx->paths.rrd_file[sizeof(ctx->paths.rrd_file) - 1] = '\0';
+    }
 
     // Load DIRECT_BLOCK_TIME from /etc/include.properties (default: 86400 = 24 hours)
     memset(buffer, 0, sizeof(buffer));
