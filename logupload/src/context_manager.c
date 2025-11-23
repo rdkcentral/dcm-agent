@@ -165,9 +165,11 @@ bool load_environment(RuntimeContext* ctx)
 
     // Construct PREV_LOG_PATH = "$LOG_PATH/PreviousLogs"
     // Ensure sufficient space for the suffix
-    if (strlen(ctx->paths.log_path) + strlen("/PreviousLogs") + 1 <= sizeof(ctx->paths.prev_log_path)) {
-        snprintf(ctx->paths.prev_log_path, sizeof(ctx->paths.prev_log_path), 
-                 "%s/PreviousLogs", ctx->paths.log_path);
+    size_t log_path_len = strlen(ctx->paths.log_path);
+    if (log_path_len + 14 <= sizeof(ctx->paths.prev_log_path)) {
+        memset(ctx->paths.prev_log_path, 0, sizeof(ctx->paths.prev_log_path));
+        strcpy(ctx->paths.prev_log_path, ctx->paths.log_path);
+        strcat(ctx->paths.prev_log_path, "/PreviousLogs");
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing PREV_LOG_PATH\n", 
                 __FUNCTION__, __LINE__);
@@ -182,9 +184,10 @@ bool load_environment(RuntimeContext* ctx)
 
     // Set RRD_LOG_FILE = "$LOG_PATH/remote-debugger.log"
     // Ensure sufficient space for the suffix
-    if (strlen(ctx->paths.log_path) + strlen("/remote-debugger.log") + 1 <= sizeof(ctx->paths.rrd_file)) {
-        snprintf(ctx->paths.rrd_file, sizeof(ctx->paths.rrd_file), 
-                 "%s/remote-debugger.log", ctx->paths.log_path);
+    if (log_path_len + 21 <= sizeof(ctx->paths.rrd_file)) {
+        memset(ctx->paths.rrd_file, 0, sizeof(ctx->paths.rrd_file));
+        strcpy(ctx->paths.rrd_file, ctx->paths.log_path);
+        strcat(ctx->paths.rrd_file, "/remote-debugger.log");
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing RRD_LOG_FILE\n", 
                 __FUNCTION__, __LINE__);
