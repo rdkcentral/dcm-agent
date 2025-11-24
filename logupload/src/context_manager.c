@@ -178,6 +178,8 @@ bool load_environment(RuntimeContext* ctx)
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
     }
 
+
+
     // Construct PREV_LOG_PATH = "$LOG_PATH/PreviousLogs"
     // Ensure sufficient space for the suffix
     size_t log_path_len = strlen(ctx->paths.log_path);
@@ -236,6 +238,82 @@ bool load_environment(RuntimeContext* ctx)
     ctx->retry.curl_timeout = 10;            // CURL_TIMEOUT=10
     ctx->retry.curl_tls_timeout = 30;        // CURL_TLS_TIMEOUT=30
 
+    // Load DEVICE_TYPE from /etc/device.properties
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("DEVICE_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        strncpy(ctx->device.device_type, buffer, sizeof(ctx->device.device_type) - 1);
+        ctx->device.device_type[sizeof(ctx->device.device_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.device_type);
+    } else {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
+    }
+
+    // Load BUILD_TYPE from /etc/device.properties
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("BUILD_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        strncpy(ctx->device.build_type, buffer, sizeof(ctx->device.build_type) - 1);
+        ctx->device.build_type[sizeof(ctx->device.build_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.build_type);
+    } else {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
+    }
+
+    // Set TELEMETRY_PATH (hardcoded in script)
+    strncpy(ctx->paths.telemetry_path, "/opt/.telemetry", sizeof(ctx->paths.telemetry_path) - 1);
+    ctx->paths.telemetry_path[sizeof(ctx->paths.telemetry_path) - 1] = '\0';
+
+    // Set DCM_LOG_FILE path
+    if (log_path_len + 16 <= sizeof(ctx->paths.dcm_log_file)) {
+        memset(ctx->paths.dcm_log_file, 0, sizeof(ctx->paths.dcm_log_file));
+        strcpy(ctx->paths.dcm_log_file, ctx->paths.log_path);
+        strcat(ctx->paths.dcm_log_file, "/dcmscript.log");
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing DCM_LOG_FILE\n", 
+                __FUNCTION__, __LINE__);
+        strncpy(ctx->paths.dcm_log_file, "/opt/logs/dcmscript.log", sizeof(ctx->paths.dcm_log_file) - 1);
+        ctx->paths.dcm_log_file[sizeof(ctx->paths.dcm_log_file) - 1] = '\0';
+    }
+
+    // Load DCM_LOG_PATH from /etc/device.properties (default: /tmp/DCM/)
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("DCM_LOG_PATH", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        strncpy(ctx->paths.dcm_log_path, buffer, sizeof(ctx->paths.dcm_log_path) - 1);
+        ctx->paths.dcm_log_path[sizeof(ctx->paths.dcm_log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+    } else {
+        strncpy(ctx->paths.dcm_log_path, "/tmp/DCM/", sizeof(ctx->paths.dcm_log_path) - 1);
+        ctx->paths.dcm_log_path[sizeof(ctx->paths.dcm_log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+    }
+
+    // Check for TLS support (set TLS flag if /etc/os-release exists)
+    if (access("/etc/os-release", F_OK) == 0) {
+        ctx->settings.tls_enabled = true;
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] TLS 1.2 support enabled\n", __FUNCTION__, __LINE__);
+    } else {
+        ctx->settings.tls_enabled = false;
+    }
+
+    // Set IARM event binary location based on os-release
+    if (access("/etc/os-release", F_OK) == 0) {
+        strncpy(ctx->paths.iarm_event_binary, "/usr/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
+    } else {
+        strncpy(ctx->paths.iarm_event_binary, "/usr/local/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
+    }
+    ctx->paths.iarm_event_binary[sizeof(ctx->paths.iarm_event_binary) - 1] = '\0';
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] IARM_EVENT_BINARY_LOCATION=%s\n", 
+            __FUNCTION__, __LINE__, ctx->paths.iarm_event_binary);
+
+    // Check for maintenance mode enable
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("ENABLE_MAINTENANCE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        if (strcasecmp(buffer, "true") == 0) {
+            ctx->settings.maintenance_enabled = true;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Maintenance mode enabled\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+    
     // Check for OCSP marker files
     // EnableOCSPStapling="/tmp/.EnableOCSPStapling"
     // EnableOCSP="/tmp/.EnableOCSPCA"
