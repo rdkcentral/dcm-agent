@@ -33,7 +33,7 @@
 #include "file_operations.h"
 #include "system_utils.h"
 #include "rdk_debug.h"
-
+#include "uploadstblogs_types.h"
 bool file_exists(const char* filepath)
 {
     if (!filepath || filepath[0] == '\0') {
