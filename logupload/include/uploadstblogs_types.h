@@ -122,6 +122,9 @@ typedef struct {
     bool codebig_blocked;           /**< CodeBig path blocked */
     bool include_pcap;              /**< Include PCAP files */
     bool include_dri;               /**< Include DRI logs */
+    bool tls_enabled;               /**< TLS 1.2 support enabled */
+    bool maintenance_enabled;       /**< Maintenance mode enabled */
+
 } UploadSettings;
 
 /**
@@ -135,6 +138,10 @@ typedef struct {
     char rrd_file[MAX_PATH_LENGTH];           /**< RRD log file path */
     char dri_log_path[MAX_PATH_LENGTH];       /**< DRI logs directory */
     char temp_dir[MAX_PATH_LENGTH];           /**< Temporary directory */
+    char telemetry_path[MAX_PATH_LENGTH];     /**< Telemetry directory */
+    char dcm_log_file[MAX_PATH_LENGTH];       /**< DCM log file path */
+    char dcm_log_path[MAX_PATH_LENGTH];       /**< DCM log directory */
+    char iarm_event_binary[MAX_PATH_LENGTH];  /**< IARM event sender location */
 } PathConfig;
 
 /**
@@ -153,6 +160,8 @@ typedef struct {
  */
 typedef struct {
     char mac_address[MAX_MAC_LENGTH];         /**< Device MAC address */
+    char device_type[32];                     /**< Device type (mediaclient, etc.) */
+    char build_type[32];                      /**< Build type */                 /**< Device name */
 } DeviceInfo;
 
 /**
