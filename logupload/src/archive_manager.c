@@ -629,7 +629,7 @@ bool prepare_archive(RuntimeContext* ctx, SessionState* session)
 
     // Construct full archive path with larger buffer
     char archive_path[2048];
-    int ret = snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->paths.temp_dir, archive_filename);
+    ret = snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->paths.temp_dir, archive_filename);
     
     if (ret < 0 || ret >= (int)sizeof(archive_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Archive path too long\n", 
