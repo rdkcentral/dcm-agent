@@ -1,0 +1,347 @@
+/*
+ * If not stated otherwise in this file or this component's LICENSE file the
+ * following copyright and licenses apply:
+ *
+ * Copyright 2025 RDK Management
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file log_collector.c
+ * @brief Log collection implementation
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+#include "log_collector.h"
+#include "file_operations.h"
+#include "system_utils.h"
+#include "rdk_debug.h"
+
+/**
+ * @brief Check if filename has a valid log extension
+ * @param filename File name to check
+ * @return true if file should be collected
+ */
+bool should_collect_file(const char* filename)
+{
+    if (!filename || filename[0] == '\0') {
+        return false;
+    }
+
+    // Skip . and .. directories
+    if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) {
+        return false;
+    }
+
+    // Get file extension
+    const char* ext = strrchr(filename, '.');
+    if (!ext) {
+        return false; // No extension
+    }
+    ext++; // Skip the '.'
+
+    // Collect .log and .txt files
+    if (strcasecmp(ext, "log") == 0 || strcasecmp(ext, "txt") == 0) {
+        return true;
+    }
+
+    // Also collect .dmesg files
+    if (strcasecmp(ext, "dmesg") == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief Copy a single file to destination directory
+ * @param src_path Source file path
+ * @param dest_dir Destination directory
+ * @return true on success, false on failure
+ */
+static bool copy_log_file(const char* src_path, const char* dest_dir)
+{
+    if (!src_path || !dest_dir) {
+        return false;
+    }
+
+    // Extract filename from source path
+    const char* filename = strrchr(src_path, '/');
+    if (filename) {
+        filename++; // Skip the '/'
+    } else {
+        filename = src_path;
+    }
+
+    // Construct destination path
+    char dest_path[1024];
+    snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, filename);
+
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copying %s to %s\n", 
+            __FUNCTION__, __LINE__, src_path, dest_path);
+
+    return copy_file(src_path, dest_path);
+}
+
+/**
+ * @brief Collect files from a directory matching filter
+ * @param src_dir Source directory
+ * @param dest_dir Destination directory
+ * @param filter_func Filter function (NULL = collect all)
+ * @return Number of files collected, or -1 on error
+ */
+static int collect_files_from_dir(const char* src_dir, const char* dest_dir, 
+                                   bool (*filter_func)(const char*))
+{
+    if (!src_dir || !dest_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    if (!dir_exists(src_dir)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Source directory does not exist: %s\n", 
+                __FUNCTION__, __LINE__, src_dir);
+        return 0;
+    }
+
+    DIR* dir = opendir(src_dir);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, src_dir);
+        return -1;
+    }
+
+    int count = 0;
+    struct dirent* entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories
+        if (entry->d_type == DT_DIR) {
+            continue;
+        }
+
+        // Apply filter if provided
+        if (filter_func && !filter_func(entry->d_name)) {
+            continue;
+        }
+
+        // Construct full source path
+        char src_path[1024];
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+
+        // Copy file to destination
+        if (copy_log_file(src_path, dest_dir)) {
+            count++;
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Collected: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+        }
+    }
+
+    closedir(dir);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d files from %s\n", 
+            __FUNCTION__, __LINE__, count, src_dir);
+
+    return count;
+}
+
+int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir)
+{
+    if (!ctx || !session || !dest_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Starting log collection\n", __FUNCTION__, __LINE__);
+
+    int total_count = 0;
+    int count = 0;
+
+    // Collect logs from main LOG_PATH
+    if (strlen(ctx->paths.log_path) > 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting logs from: %s\n", 
+                __FUNCTION__, __LINE__, ctx->paths.log_path);
+        
+        count = collect_files_from_dir(ctx->paths.log_path, dest_dir, should_collect_file);
+        if (count > 0) {
+            total_count += count;
+        }
+    }
+
+    // Collect previous logs if not RRD strategy
+    if (session->strategy != STRAT_RRD && strlen(ctx->paths.prev_log_path) > 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting previous logs from: %s\n", 
+                __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+        
+        count = collect_previous_logs(ctx->paths.prev_log_path, dest_dir);
+        if (count > 0) {
+            total_count += count;
+        }
+    }
+
+    // Collect PCAP files if enabled
+    if (ctx->settings.include_pcap) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting PCAP files\n", __FUNCTION__, __LINE__);
+        count = collect_pcap_logs(ctx, dest_dir);
+        if (count > 0) {
+            total_count += count;
+        }
+    }
+
+    // Collect DRI logs if enabled
+    if (ctx->settings.include_dri) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting DRI logs\n", __FUNCTION__, __LINE__);
+        count = collect_dri_logs(ctx, dest_dir);
+        if (count > 0) {
+            total_count += count;
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Total files collected: %d\n", 
+            __FUNCTION__, __LINE__, total_count);
+
+    return total_count;
+}
+
+int collect_previous_logs(const char* src_dir, const char* dest_dir)
+{
+    if (!src_dir || !dest_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    if (!dir_exists(src_dir)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Previous logs directory does not exist: %s\n", 
+                __FUNCTION__, __LINE__, src_dir);
+        return 0;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting previous logs from: %s\n", 
+            __FUNCTION__, __LINE__, src_dir);
+
+    // Collect .log and .txt files from previous logs directory
+    int count = collect_files_from_dir(src_dir, dest_dir, should_collect_file);
+
+    if (count > 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d previous log files\n", 
+                __FUNCTION__, __LINE__, count);
+    }
+
+    return count;
+}
+
+/**
+ * @brief Check if file is a PCAP file
+ * @param filename File name to check
+ * @return true if PCAP file
+ */
+static bool is_pcap_file(const char* filename)
+{
+    if (!filename) {
+        return false;
+    }
+
+    // Skip . and ..
+    if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) {
+        return false;
+    }
+
+    // Check for .pcap extension
+    const char* ext = strrchr(filename, '.');
+    if (ext && strcasecmp(ext, ".pcap") == 0) {
+        return true;
+    }
+
+    // Also check for .pcap.* (backup files)
+    if (strstr(filename, ".pcap") != NULL) {
+        return true;
+    }
+
+    return false;
+}
+
+int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
+{
+    if (!ctx || !dest_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    if (!ctx->settings.include_pcap) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PCAP collection not enabled\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting PCAP files from: %s\n", 
+            __FUNCTION__, __LINE__, ctx->paths.log_path);
+
+    // Collect PCAP files from LOG_PATH
+    int count = collect_files_from_dir(ctx->paths.log_path, dest_dir, is_pcap_file);
+
+    if (count > 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d PCAP files\n", 
+                __FUNCTION__, __LINE__, count);
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No PCAP files found\n", __FUNCTION__, __LINE__);
+    }
+
+    return count;
+}
+
+int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
+{
+    if (!ctx || !dest_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    if (!ctx->settings.include_dri) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DRI log collection not enabled\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    if (strlen(ctx->paths.dri_log_path) == 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log path not configured\n", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    if (!dir_exists(ctx->paths.dri_log_path)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log directory does not exist: %s\n", 
+                __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+        return 0;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting DRI logs from: %s\n", 
+            __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+
+    // Collect all files from DRI log directory (no filter)
+    int count = collect_files_from_dir(ctx->paths.dri_log_path, dest_dir, NULL);
+
+    if (count > 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d DRI log files\n", 
+                __FUNCTION__, __LINE__, count);
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No DRI log files found\n", __FUNCTION__, __LINE__);
+    }
+
+    return count;
+}
