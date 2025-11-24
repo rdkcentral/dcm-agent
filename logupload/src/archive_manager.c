@@ -145,10 +145,16 @@ bool insert_timestamp(const char* log_dir)
         }
 
         // Construct old and new paths
-        char old_path[1024];
-        char new_path[1024];
-        snprintf(old_path, sizeof(old_path), "%s/%s", log_dir, entry->d_name);
-        snprintf(new_path, sizeof(new_path), "%s/%s%s", log_dir, timestamp, entry->d_name);
+        char old_path[2048];
+        char new_path[2048];
+        int ret1 = snprintf(old_path, sizeof(old_path), "%s/%s", log_dir, entry->d_name);
+        int ret2 = snprintf(new_path, sizeof(new_path), "%s/%s%s", log_dir, timestamp, entry->d_name);
+        
+        if (ret1 < 0 || ret1 >= (int)sizeof(old_path) || ret2 < 0 || ret2 >= (int)sizeof(new_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+            continue;
+        }
 
         // Rename file with timestamp prefix
         if (rename(old_path, new_path) == 0) {
@@ -223,10 +229,16 @@ bool reverse_timestamp(const char* log_dir)
         }
 
         // Construct old and new paths
-        char old_path[1024];
-        char new_path[1024];
-        snprintf(old_path, sizeof(old_path), "%s/%s", log_dir, entry->d_name);
-        snprintf(new_path, sizeof(new_path), "%s/%s", log_dir, original_name);
+        char old_path[2048];
+        char new_path[2048];
+        int ret1 = snprintf(old_path, sizeof(old_path), "%s/%s", log_dir, entry->d_name);
+        int ret2 = snprintf(new_path, sizeof(new_path), "%s/%s", log_dir, original_name);
+        
+        if (ret1 < 0 || ret1 >= (int)sizeof(old_path) || ret2 < 0 || ret2 >= (int)sizeof(new_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+            continue;
+        }
 
         // Rename file to remove timestamp prefix
         if (rename(old_path, new_path) == 0) {
@@ -382,11 +394,17 @@ static bool add_directory_to_tar(FILE* tar_fp, const char* dir_path, const char*
             continue;
         }
 
-        char full_path[1024];
-        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
+        char full_path[2048];
+        int ret = snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
+        
+        if (ret < 0 || ret >= (int)sizeof(full_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Path too long, skipping: %s/%s\n", 
+                    __FUNCTION__, __LINE__, dir_path, entry->d_name);
+            continue;
+        }
 
         // Calculate relative path for archive
-        char arc_name[512];
+        char arc_name[1024];
         const char* rel_start = full_path + strlen(base_path);
         if (*rel_start == '/') {
             rel_start++;
@@ -497,9 +515,15 @@ bool create_tarball(const char* source_dir, const char* archive_path)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Creating tarball: %s from %s\n", 
             __FUNCTION__, __LINE__, archive_path, source_dir);
 
-    // Create temporary tar file (uncompressed)
-    char temp_tar[1024];
-    snprintf(temp_tar, sizeof(temp_tar), "%s.tmp.tar", archive_path);
+    // Create temporary tar file (uncompressed) with larger buffer
+    char temp_tar[2048];
+    int ret = snprintf(temp_tar, sizeof(temp_tar), "%s.tmp.tar", archive_path);
+    
+    if (ret < 0 || ret >= (int)sizeof(temp_tar)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Temp tar path too long\n", 
+                __FUNCTION__, __LINE__);
+        return false;
+    }
 
     // Create tar archive
     if (!create_tar(source_dir, temp_tar)) {
@@ -556,10 +580,16 @@ bool prepare_archive(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Preparing archive for strategy: %d\n", 
             __FUNCTION__, __LINE__, session->strategy);
 
-    // Create temporary collection directory
-    char temp_collection_dir[512];
-    snprintf(temp_collection_dir, sizeof(temp_collection_dir), "%s/logcollection_%ld", 
-             ctx->paths.temp_dir, (long)time(NULL));
+    // Create temporary collection directory with larger buffer
+    char temp_collection_dir[1024];
+    int ret = snprintf(temp_collection_dir, sizeof(temp_collection_dir), "%s/logcollection_%ld", 
+                       ctx->paths.temp_dir, (long)time(NULL));
+    
+    if (ret < 0 || ret >= (int)sizeof(temp_collection_dir)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Temp directory path too long\n", 
+                __FUNCTION__, __LINE__);
+        return false;
+    }
 
     if (!create_directory(temp_collection_dir)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create temp collection directory\n", 
@@ -597,9 +627,16 @@ bool prepare_archive(RuntimeContext* ctx, SessionState* session)
         return false;
     }
 
-    // Construct full archive path
-    char archive_path[1024];
-    snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->paths.temp_dir, archive_filename);
+    // Construct full archive path with larger buffer
+    char archive_path[2048];
+    int ret = snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->paths.temp_dir, archive_filename);
+    
+    if (ret < 0 || ret >= (int)sizeof(archive_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Archive path too long\n", 
+                __FUNCTION__, __LINE__);
+        remove_directory(temp_collection_dir);
+        return false;
+    }
 
     // Create tarball
     if (!create_tarball(temp_collection_dir, archive_path)) {
