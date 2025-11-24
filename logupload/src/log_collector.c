@@ -89,9 +89,15 @@ static bool copy_log_file(const char* src_path, const char* dest_dir)
         filename = src_path;
     }
 
-    // Construct destination path
-    char dest_path[1024];
-    snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, filename);
+    // Construct destination path with larger buffer to avoid truncation
+    char dest_path[2048];
+    int ret = snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, filename);
+    
+    if (ret < 0 || ret >= (int)sizeof(dest_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Destination path too long: %s/%s\n", 
+                __FUNCTION__, __LINE__, dest_dir, filename);
+        return false;
+    }
 
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copying %s to %s\n", 
             __FUNCTION__, __LINE__, src_path, dest_path);
@@ -141,9 +147,15 @@ static int collect_files_from_dir(const char* src_dir, const char* dest_dir,
             continue;
         }
 
-        // Construct full source path
-        char src_path[1024];
-        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        // Construct full source path with larger buffer
+        char src_path[2048];
+        int ret = snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        
+        if (ret < 0 || ret >= (int)sizeof(src_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Source path too long, skipping: %s/%s\n", 
+                    __FUNCTION__, __LINE__, src_dir, entry->d_name);
+            continue;
+        }
 
         // Copy file to destination
         if (copy_log_file(src_path, dest_dir)) {
