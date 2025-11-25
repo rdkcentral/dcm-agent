@@ -31,14 +31,41 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <archive.h>
-#include <archive_entry.h>
+#include <zlib.h>
 #include "archive_manager.h"
 #include "log_collector.h"
 #include "file_operations.h"
 #include "system_utils.h"
 #include "strategy_handler.h"
 #include "rdk_debug.h"
+
+/* TAR header structure (POSIX ustar format) */
+struct tar_header {
+    char name[100];
+    char mode[8];
+    char uid[8];
+    char gid[8];
+    char size[12];
+    char mtime[12];
+    char checksum[8];
+    char typeflag;
+    char linkname[100];
+    char magic[6];
+    char version[2];
+    char uname[32];
+    char gname[32];
+    char devmajor[8];
+    char devminor[8];
+    char prefix[155];
+    char pad[12];
+};
+
+#define TAR_BLOCK_SIZE 512
+
+/* Forward declarations */
+static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
+                                       const char* source_dir, const char* output_dir,
+                                       const char* prefix);
 
 /**
  * @brief Generate archive filename with MAC and timestamp (script format)
@@ -76,126 +103,178 @@ static bool generate_archive_name(char* buffer, size_t buffer_size,
 }
 
 /**
- * @brief Add a file to archive using libarchive
- * @param archive Archive handle
- * @param filepath Full path to file
- * @param archive_path Path within archive
- * @return 0 on success, -1 on failure
+ * @brief Calculate TAR checksum
  */
-static int add_file_to_archive(struct archive* archive, const char* filepath, const char* archive_path)
+static unsigned int calculate_tar_checksum(struct tar_header* header)
 {
-    struct archive_entry* entry;
-    struct stat st;
-    char buff[16384];
-    int fd;
-    ssize_t len;
+    unsigned int sum = 0;
+    unsigned char* ptr = (unsigned char*)header;
+    
+    // Initialize checksum field with spaces
+    memset(header->checksum, ' ', 8);
+    
+    // Calculate checksum
+    for (int i = 0; i < TAR_BLOCK_SIZE; i++) {
+        sum += ptr[i];
+    }
+    
+    return sum;
+}
 
-    if (stat(filepath, &st) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to stat file: %s\n", __FUNCTION__, __LINE__, filepath);
+/**
+ * @brief Write TAR header for a file
+ */
+static int write_tar_header(gzFile gz, const char* filename, struct stat* st)
+{
+    struct tar_header header;
+    memset(&header, 0, sizeof(header));
+    
+    // Filename (strip leading path for archive)
+    strncpy(header.name, filename, sizeof(header.name) - 1);
+    
+    // File mode
+    snprintf(header.mode, sizeof(header.mode), "%07o", (unsigned int)st->st_mode & 0777);
+    
+    // UID and GID
+    snprintf(header.uid, sizeof(header.uid), "%07o", 0);
+    snprintf(header.gid, sizeof(header.gid), "%07o", 0);
+    
+    // File size
+    snprintf(header.size, sizeof(header.size), "%011lo", (unsigned long)st->st_size);
+    
+    // Modification time
+    snprintf(header.mtime, sizeof(header.mtime), "%011lo", (unsigned long)st->st_mtime);
+    
+    // Type flag (regular file)
+    header.typeflag = '0';
+    
+    // Magic and version (ustar)
+    strncpy(header.magic, "ustar", 6);
+    strncpy(header.version, "00", 2);
+    
+    // Calculate and write checksum
+    unsigned int checksum = calculate_tar_checksum(&header);
+    snprintf(header.checksum, sizeof(header.checksum), "%06o", checksum);
+    
+    // Write header to gzip file
+    if (gzwrite(gz, &header, sizeof(header)) != sizeof(header)) {
         return -1;
     }
-
-    // Skip directories, sockets, etc. - only regular files
-    if (!S_ISREG(st.st_mode)) {
-        return 0;
-    }
-
-    entry = archive_entry_new();
-    archive_entry_set_pathname(entry, archive_path);
-    archive_entry_set_size(entry, st.st_size);
-    archive_entry_set_filetype(entry, AE_IFREG);
-    archive_entry_set_perm(entry, 0644);
-    archive_entry_set_mtime(entry, st.st_mtime, 0);
-
-    if (archive_write_header(archive, entry) != ARCHIVE_OK) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to write archive header: %s\n", 
-                __FUNCTION__, __LINE__, archive_error_string(archive));
-        archive_entry_free(entry);
-        return -1;
-    }
-
-    fd = open(filepath, O_RDONLY);
-    if (fd < 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open file: %s\n", __FUNCTION__, __LINE__, filepath);
-        archive_entry_free(entry);
-        return -1;
-    }
-
-    while ((len = read(fd, buff, sizeof(buff))) > 0) {
-        if (archive_write_data(archive, buff, len) < 0) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                    "[%s:%d] Failed to write data: %s\n", 
-                    __FUNCTION__, __LINE__, archive_error_string(archive));
-            close(fd);
-            archive_entry_free(entry);
-            return -1;
-        }
-    }
-
-    close(fd);
-    archive_entry_free(entry);
+    
     return 0;
 }
 
 /**
- * @brief Add directory contents to archive recursively
- * @param archive Archive handle
- * @param dirpath Directory to add
- * @param base_path Base path to strip from archive paths
- * @return 0 on success, -1 on failure
+ * @brief Add file content to TAR archive
  */
-static int add_directory_to_archive(struct archive* archive, const char* dirpath, const char* base_path)
+static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
+{
+    struct stat st;
+    
+    if (stat(filepath, &st) != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to stat file: %s\n", __FUNCTION__, __LINE__, filepath);
+        return -1;
+    }
+    
+    // Skip non-regular files
+    if (!S_ISREG(st.st_mode)) {
+        return 0;
+    }
+    
+    // Write TAR header
+    if (write_tar_header(gz, arcname, &st) != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to write TAR header\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    
+    // Open and write file content
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open file: %s\n", __FUNCTION__, __LINE__, filepath);
+        return -1;
+    }
+    
+    char buffer[8192];
+    size_t bytes_read;
+    size_t total_written = 0;
+    
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+        if (gzwrite(gz, buffer, bytes_read) != (int)bytes_read) {
+            fclose(fp);
+            return -1;
+        }
+        total_written += bytes_read;
+    }
+    
+    fclose(fp);
+    
+    // Pad to 512-byte boundary
+    size_t padding = (TAR_BLOCK_SIZE - (total_written % TAR_BLOCK_SIZE)) % TAR_BLOCK_SIZE;
+    if (padding > 0) {
+        char pad[TAR_BLOCK_SIZE] = {0};
+        if (gzwrite(gz, pad, padding) != (int)padding) {
+            return -1;
+        }
+    }
+    
+    return 0;
+}
+
+/**
+ * @brief Recursively add directory to TAR archive
+ */
+static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base_path, const char* exclude_file)
 {
     DIR* dir = opendir(dirpath);
     if (!dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open directory: %s\n", __FUNCTION__, __LINE__, dirpath);
         return -1;
     }
-
+    
     struct dirent* entry;
     int base_len = strlen(base_path);
     
     while ((entry = readdir(dir)) != NULL) {
-        // Skip . and ..
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-
+        
         char fullpath[MAX_PATH_LENGTH];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
-
+        
+        // Skip excluded file
+        if (exclude_file && strcmp(fullpath, exclude_file) == 0) {
+            continue;
+        }
+        
         struct stat st;
         if (stat(fullpath, &st) != 0) {
             continue;
         }
-
-        // Calculate relative path for archive
-        const char* archive_path = fullpath + base_len;
-        if (archive_path[0] == '/') {
-            archive_path++; // Skip leading slash
+        
+        // Calculate archive path (relative path)
+        const char* arcname = fullpath + base_len;
+        if (arcname[0] == '/') {
+            arcname++;
         }
-
+        
         if (S_ISDIR(st.st_mode)) {
-            // Recursively add subdirectory
-            if (add_directory_to_archive(archive, fullpath, base_path) != 0) {
+            // Recursively process subdirectory
+            if (add_directory_to_tar(gz, fullpath, base_path, exclude_file) != 0) {
                 closedir(dir);
                 return -1;
             }
         } else if (S_ISREG(st.st_mode)) {
-            // Add regular file
-            if (add_file_to_archive(archive, fullpath, archive_path) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                        "[%s:%d] Failed to add file to archive: %s\n", 
-                        __FUNCTION__, __LINE__, fullpath);
-                // Continue with other files
+            // Add file
+            if (add_file_to_tar(gz, fullpath, arcname) != 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
             }
         }
     }
-
+    
     closedir(dir);
     return 0;
 }
@@ -297,15 +376,27 @@ long get_archive_size(const char* archive_path)
 }
 
 /**
- * @brief Create tar.gz archive from directory
+ * @brief Create tar.gz archive from directory using zlib
  * @param ctx Runtime context
- * @param session Session state
+ * @param session Session state (optional, can be NULL for DRI archives)
  * @param source_dir Source directory to archive
+ * @param output_dir Output directory for archive (NULL = use source_dir)
+ * @param prefix Archive name prefix ("Logs" or "DRI_Logs")
  * @return 0 on success, -1 on failure
  */
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir)
 {
-    if (!ctx || !session || !source_dir) {
+    return create_archive_with_options(ctx, session, source_dir, NULL, "Logs");
+}
+
+/**
+ * @brief Create archive with custom options
+ */
+static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
+                                       const char* source_dir, const char* output_dir,
+                                       const char* prefix)
+{
+    if (!ctx || !source_dir || !prefix) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
         return -1;
@@ -321,69 +412,57 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
     // Generate archive filename with MAC and timestamp (script format)
     char archive_filename[MAX_FILENAME_LENGTH];
     if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
-                               ctx->device.mac_address, "Logs")) {
+                               ctx->device.mac_address, prefix)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
-    // Archive created in source directory
+    // Determine output directory
+    const char* target_dir = output_dir ? output_dir : source_dir;
+    
+    // Archive path
     char archive_path[MAX_PATH_LENGTH];
-    snprintf(archive_path, sizeof(archive_path), "%s/%s", source_dir, archive_filename);
+    snprintf(archive_path, sizeof(archive_path), "%s/%s", target_dir, archive_filename);
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Creating archive: %s from %s\n", 
             __FUNCTION__, __LINE__, archive_path, source_dir);
 
-    // Create tar.gz archive using libarchive
-    struct archive* a = archive_write_new();
-    if (!a) {
+    // Create gzip file
+    gzFile gz = gzopen(archive_path, "wb9");
+    if (!gz) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create archive handle\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Failed to create gzip file\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
-    // Set format to ustar tar and gzip compression
-    archive_write_add_filter_gzip(a);
-    archive_write_set_format_ustar(a);
+    // Add all files from directory
+    int ret = add_directory_to_tar(gz, source_dir, source_dir, archive_path);
+    
+    // Write two 512-byte blocks of zeros (TAR EOF marker)
+    char eof_blocks[TAR_BLOCK_SIZE * 2];
+    memset(eof_blocks, 0, sizeof(eof_blocks));
+    gzwrite(gz, eof_blocks, sizeof(eof_blocks));
+    
+    // Close gzip file
+    gzclose(gz);
 
-    // Open the archive file
-    if (archive_write_open_filename(a, archive_path) != ARCHIVE_OK) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open archive file: %s\n", 
-                __FUNCTION__, __LINE__, archive_error_string(a));
-        archive_write_free(a);
-        return -1;
-    }
-
-    // Add all files from source directory
-    int ret = add_directory_to_archive(a, source_dir, source_dir);
-    
-    // Close the archive
-    if (archive_write_close(a) != ARCHIVE_OK) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to close archive: %s\n", 
-                __FUNCTION__, __LINE__, archive_error_string(a));
-        archive_write_free(a);
-        return -1;
-    }
-    
-    archive_write_free(a);
-    
     if (ret == 0 && file_exists(archive_path)) {
         long size = get_archive_size(archive_path);
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Archive created successfully, size: %ld bytes\n", 
                 __FUNCTION__, __LINE__, size);
         
-        // Store archive filename in session
-        strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
-        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        // Store archive filename in session (if provided)
+        if (session) {
+            strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
+            session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        }
         return 0;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create archive, return code: %d\n", 
-                __FUNCTION__, __LINE__, ret);
+                "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
 }
@@ -391,7 +470,7 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 /**
  * @brief Create DRI logs archive
  * @param ctx Runtime context
- * @param archive_path Output archive file path
+ * @param archive_path Output archive file path (directory portion used)
  * @return 0 on success, -1 on failure
  */
 int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
@@ -415,81 +494,21 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
         return -1;
     }
 
-    // Generate DRI archive filename with MAC and timestamp (script format)
-    char dri_filename[MAX_FILENAME_LENGTH];
-    if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
-                               ctx->device.mac_address, "DRI_Logs")) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to generate DRI archive filename\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // Use provided archive_path or construct in temp dir
-    char final_archive_path[MAX_PATH_LENGTH];
-    if (archive_path && strlen(archive_path) > 0) {
-        // Extract directory from provided path and use generated filename
-        const char* last_slash = strrchr(archive_path, '/');
-        if (last_slash) {
-            size_t dir_len = last_slash - archive_path;
-            snprintf(final_archive_path, sizeof(final_archive_path), "%.*s/%s", 
-                     (int)dir_len, archive_path, dri_filename);
-        } else {
-            snprintf(final_archive_path, sizeof(final_archive_path), "%s", dri_filename);
-        }
+    // Extract output directory from archive_path
+    char output_dir[MAX_PATH_LENGTH];
+    const char* last_slash = strrchr(archive_path, '/');
+    if (last_slash) {
+        size_t dir_len = last_slash - archive_path;
+        snprintf(output_dir, sizeof(output_dir), "%.*s", (int)dir_len, archive_path);
     } else {
-        snprintf(final_archive_path, sizeof(final_archive_path), "/tmp/%s", dri_filename);
+        strcpy(output_dir, "/tmp");
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Creating DRI archive: %s from %s\n", 
-            __FUNCTION__, __LINE__, final_archive_path, ctx->paths.dri_log_path);
+            "[%s:%d] Creating DRI archive from %s to %s\n", 
+            __FUNCTION__, __LINE__, ctx->paths.dri_log_path, output_dir);
 
-    // Create tar.gz archive using libarchive
-    struct archive* a = archive_write_new();
-    if (!a) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create archive handle\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // Set format to ustar tar and gzip compression
-    archive_write_add_filter_gzip(a);
-    archive_write_set_format_ustar(a);
-
-    // Open the archive file
-    if (archive_write_open_filename(a, final_archive_path) != ARCHIVE_OK) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open archive file: %s\n", 
-                __FUNCTION__, __LINE__, archive_error_string(a));
-        archive_write_free(a);
-        return -1;
-    }
-
-    // Add all files from DRI log directory
-    int ret = add_directory_to_archive(a, ctx->paths.dri_log_path, ctx->paths.dri_log_path);
-    
-    // Close the archive
-    if (archive_write_close(a) != ARCHIVE_OK) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to close archive: %s\n", 
-                __FUNCTION__, __LINE__, archive_error_string(a));
-        archive_write_free(a);
-        return -1;
-    }
-    
-    archive_write_free(a);
-    
-    if (ret == 0 && file_exists(final_archive_path)) {
-        long size = get_archive_size(final_archive_path);
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] DRI archive created successfully, size: %ld bytes\n", 
-                __FUNCTION__, __LINE__, size);
-        return 0;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create DRI archive, return code: %d\n", 
-                __FUNCTION__, __LINE__, ret);
-        return -1;
-    }
+    // Use the common archive creation with DRI_Logs prefix
+    return create_archive_with_options(ctx, NULL, ctx->paths.dri_log_path, output_dir, "DRI_Logs");
 }
 
