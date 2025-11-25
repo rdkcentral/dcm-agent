@@ -52,32 +52,31 @@ bool prepare_archive(RuntimeContext* ctx, SessionState* session);
 bool prepare_rrd_archive(RuntimeContext* ctx, SessionState* session);
 
 /**
- * @brief Insert timestamp into log filenames
- * @param log_dir Directory containing logs
- * @return true on success, false on failure
- */
-bool insert_timestamp(const char* log_dir);
-
-/**
- * @brief Reverse timestamp insertion (restore original names)
- * @param log_dir Directory containing logs
- * @return true on success, false on failure
- */
-bool reverse_timestamp(const char* log_dir);
-
-/**
- * @brief Create tar.gz archive from directory
- * @param source_dir Source directory with logs
- * @param archive_path Output archive file path
- * @return true on success, false on failure
- */
-bool create_tarball(const char* source_dir, const char* archive_path);
-
-/**
  * @brief Get size of archive file
  * @param archive_path Path to archive file
  * @return Size in bytes, or -1 on error
  */
 long get_archive_size(const char* archive_path);
+
+/**
+ * @brief Create tar.gz archive from directory
+ * @param ctx Runtime context
+ * @param session Session state
+ * @param source_dir Source directory to archive
+ * @return 0 on success, -1 on failure
+ *
+ * Creates archive named logs.tar.gz in source_dir
+ */
+int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir);
+
+/**
+ * @brief Create DRI logs archive
+ * @param ctx Runtime context
+ * @param archive_path Output archive file path
+ * @return 0 on success, -1 on failure
+ *
+ * Creates tar.gz archive containing DRI logs from DRI_LOG_PATH
+ */
+int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
 
 #endif /* ARCHIVE_MANAGER_H */
