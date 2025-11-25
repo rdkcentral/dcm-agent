@@ -49,20 +49,9 @@ bool should_collect_file(const char* filename)
         return false;
     }
 
-    // Get file extension
-    const char* ext = strrchr(filename, '.');
-    if (!ext) {
-        return false; // No extension
-    }
-    ext++; // Skip the '.'
-
-    // Collect .log and .txt files
-    if (strcasecmp(ext, "log") == 0 || strcasecmp(ext, "txt") == 0) {
-        return true;
-    }
-
-    // Also collect .dmesg files
-    if (strcasecmp(ext, "dmesg") == 0) {
+    // Collect files with .log or .txt extensions (including rotated logs like .log.0, .txt.1)
+    // Shell script uses: *.txt* and *.log* patterns
+    if (strstr(filename, ".log") != NULL || strstr(filename, ".txt") != NULL) {
         return true;
     }
 
@@ -183,55 +172,28 @@ int collect_logs(const RuntimeContext* ctx, const SessionState* session, const c
         return -1;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Starting log collection\n", __FUNCTION__, __LINE__);
+    // This function is used ONLY by ONDEMAND strategy to copy files from LOG_PATH to temp directory
+    // Other strategies (REBOOT/DCM) work directly in their source directories and don't call this
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting log files from LOG_PATH to: %s\n", 
+            __FUNCTION__, __LINE__, dest_dir);
 
-    int total_count = 0;
-    int count = 0;
-
-    // Collect logs from main LOG_PATH
-    if (strlen(ctx->paths.log_path) > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting logs from: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.log_path);
-        
-        count = collect_files_from_dir(ctx->paths.log_path, dest_dir, should_collect_file);
-        if (count > 0) {
-            total_count += count;
-        }
+    if (strlen(ctx->paths.log_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH is not set\n", __FUNCTION__, __LINE__);
+        return -1;
     }
 
-    // Collect previous logs if not RRD strategy
-    if (session->strategy != STRAT_RRD && strlen(ctx->paths.prev_log_path) > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting previous logs from: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
-        
-        count = collect_previous_logs(ctx->paths.prev_log_path, dest_dir);
-        if (count > 0) {
-            total_count += count;
-        }
+    // Collect *.txt* and *.log* files from LOG_PATH
+    int count = collect_files_from_dir(ctx->paths.log_path, dest_dir, should_collect_file);
+    
+    if (count <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] No log files collected\n", __FUNCTION__, __LINE__);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d log files\n", 
+                __FUNCTION__, __LINE__, count);
     }
 
-    // Collect PCAP files if enabled
-    if (ctx->settings.include_pcap) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting PCAP files\n", __FUNCTION__, __LINE__);
-        count = collect_pcap_logs(ctx, dest_dir);
-        if (count > 0) {
-            total_count += count;
-        }
-    }
-
-    // Collect DRI logs if enabled
-    if (ctx->settings.include_dri) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting DRI logs\n", __FUNCTION__, __LINE__);
-        count = collect_dri_logs(ctx, dest_dir);
-        if (count > 0) {
-            total_count += count;
-        }
-    }
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Total files collected: %d\n", 
-            __FUNCTION__, __LINE__, total_count);
-
-    return total_count;
+    return count;
 }
 
 int collect_previous_logs(const char* src_dir, const char* dest_dir)
@@ -303,20 +265,68 @@ int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
         return 0;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting PCAP files from: %s\n", 
+    // Shell script behavior: Only collect LAST (most recent) pcap file if device is mediaclient
+    // Script: lastPcapCapture=`ls -lst $LOG_PATH/*.pcap | head -n 1`
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting most recent PCAP file from: %s\n", 
             __FUNCTION__, __LINE__, ctx->paths.log_path);
 
-    // Collect PCAP files from LOG_PATH
-    int count = collect_files_from_dir(ctx->paths.log_path, dest_dir, is_pcap_file);
+    DIR* dir = opendir(ctx->paths.log_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to open LOG_PATH: %s\n", 
+                __FUNCTION__, __LINE__, ctx->paths.log_path);
+        return 0;
+    }
 
-    if (count > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d PCAP files\n", 
-                __FUNCTION__, __LINE__, count);
+    struct dirent* entry;
+    time_t newest_time = 0;
+    char newest_pcap[1024] = {0};
+    
+    // Find the most recent .pcap file (specifically looking for -moca.pcap pattern)
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            continue;
+        }
+
+        // Check for .pcap extension
+        if (!strstr(entry->d_name, ".pcap")) {
+            continue;
+        }
+
+        char full_path[2048];
+        int ret = snprintf(full_path, sizeof(full_path), "%s/%s", ctx->paths.log_path, entry->d_name);
+        
+        if (ret < 0 || ret >= (int)sizeof(full_path)) {
+            continue;
+        }
+
+        struct stat st;
+        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode)) {
+            if (st.st_mtime > newest_time) {
+                newest_time = st.st_mtime;
+                strncpy(newest_pcap, full_path, sizeof(newest_pcap) - 1);
+                newest_pcap[sizeof(newest_pcap) - 1] = '\0';
+            }
+        }
+    }
+
+    closedir(dir);
+
+    // Copy the most recent PCAP file if found
+    if (newest_time > 0 && strlen(newest_pcap) > 0) {
+        if (copy_log_file(newest_pcap, dest_dir)) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected most recent PCAP file: %s\n", 
+                    __FUNCTION__, __LINE__, newest_pcap);
+            return 1;
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy PCAP file: %s\n", 
+                    __FUNCTION__, __LINE__, newest_pcap);
+        }
     } else {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No PCAP files found\n", __FUNCTION__, __LINE__);
     }
 
-    return count;
+    return 0;
 }
 
 int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
