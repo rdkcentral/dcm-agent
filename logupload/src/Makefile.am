@@ -1,6 +1,6 @@
 bin_PROGRAMS = logupload
 
-logupload_SOURCES = context_manager.c file_operations.c rbus_interface.c validation.c log_collector.c archive_manager.c test_mod.c strategy_dcm.c strategy_handler.c strategy_ondemand.c strategy_reboot.c strategy_selector.c
+logupload_SOURCES = context_manager.c upload_engine.c file_operations.c rbus_interface.c validation.c log_collector.c archive_manager.c test_mod.c strategy_dcm.c strategy_handler.c strategy_ondemand.c strategy_reboot.c strategy_selector.c
 #logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
 
 logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
