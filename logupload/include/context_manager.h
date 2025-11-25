@@ -18,143 +18,56 @@
  */
 
 /**
- * @file file_operations.h
- * @brief Common file operations utilities
+ * @file context_manager.h
+ * @brief Runtime context initialization and management
  *
- * This module provides common file system operations used throughout
- * the application.
+ * This module handles initialization of the runtime context including
+ * loading environment variables, TR-181 parameters, and RFC values.
  */
 
-#ifndef FILE_OPERATIONS_H
-#define FILE_OPERATIONS_H
+#ifndef CONTEXT_MANAGER_H
+#define CONTEXT_MANAGER_H
 
-#include <stdbool.h>
-#include <stddef.h>
-
-/**
- * @brief Check if file exists
- * @param filepath Path to file
- * @return true if exists, false otherwise
- */
-bool file_exists(const char* filepath);
+#include "uploadstblogs_types.h"
 
 /**
- * @brief Check if directory exists
- * @param dirpath Path to directory
- * @return true if exists, false otherwise
- */
-bool dir_exists(const char* dirpath);
-
-/**
- * @brief Create directory recursively
- * @param dirpath Path to directory
+ * @brief Initialize runtime context
+ * @param ctx Runtime context to initialize
  * @return true on success, false on failure
- */
-bool create_directory(const char* dirpath);
-
-/**
- * @brief Remove file
- * @param filepath Path to file
- * @return true on success, false on failure
- */
-bool remove_file(const char* filepath);
-
-/**
- * @brief Remove directory recursively
- * @param dirpath Path to directory
- * @return true on success, false on failure
- */
-bool remove_directory(const char* dirpath);
-
-/**
- * @brief Copy file
- * @param src Source file path
- * @param dest Destination file path
- * @return true on success, false on failure
- */
-bool copy_file(const char* src, const char* dest);
-
-/**
- * @brief Get file size
- * @param filepath Path to file
- * @return File size in bytes, or -1 on error
- */
-long get_file_size(const char* filepath);
-
-/**
- * @brief Check if directory is empty
- * @param dirpath Path to directory
- * @return true if empty, false otherwise
- */
-bool is_directory_empty(const char* dirpath);
-
-/**
- * @brief Write string to file
- * @param filepath Path to file
- * @param content Content to write
- * @return true on success, false on failure
- */
-bool write_file(const char* filepath, const char* content);
-
-/**
- * @brief Read file into buffer
- * @param filepath Path to file
- * @param buffer Output buffer
- * @param buffer_size Size of buffer
- * @return Number of bytes read, or -1 on error
- */
-int read_file(const char* filepath, char* buffer, size_t buffer_size);
-
-/**
- * @brief Add timestamp prefix to all files in directory
- * @param dir_path Directory containing files
- * @return 0 on success, -1 on failure
  *
- * Renames files with MM-DD-YY-HH-MMAM- prefix
- * Example: file.log -> 11-25-25-10-30AM-file.log
+ * Loads environment variables, device properties, TR-181 values,
+ * and RFC settings into the runtime context.
  */
-int add_timestamp_to_files(const char* dir_path);
+bool init_context(RuntimeContext* ctx);
 
 /**
- * @brief Remove timestamp prefix from all files in directory
- * @param dir_path Directory containing files
- * @return 0 on success, -1 on failure
- *
- * Restores original filenames by removing MM-DD-YY-HH-MMAM- prefix
+ * @brief Cleanup runtime context resources
+ * 
+ * Releases any resources held by the context (e.g., RBUS connection).
+ * Call this when done using the context.
  */
-int remove_timestamp_from_files(const char* dir_path);
+void cleanup_context(void);
 
 /**
- * @brief Move all contents from source to destination directory
- * @param src_dir Source directory
- * @param dest_dir Destination directory
- * @return 0 on success, -1 on failure
+ * @brief Load environment variables
+ * @param ctx Runtime context
+ * @return true on success, false on failure
  */
-int move_directory_contents(const char* src_dir, const char* dest_dir);
+bool load_environment(RuntimeContext* ctx);
 
 /**
- * @brief Remove all files and subdirectories from directory
- * @param dir_path Directory to clean
- * @return 0 on success, -1 on failure
- *
- * Note: Directory itself is not deleted, only its contents
+ * @brief Load TR-181 parameters
+ * @param ctx Runtime context
+ * @return true on success, false on failure
  */
-int clean_directory(const char* dir_path);
+bool load_tr181_params(RuntimeContext* ctx);
 
 /**
- * @brief Clear old packet capture files, keeping only most recent 10
- * @param log_path Directory containing PCAP files
- * @return 0 on success, -1 on failure
+ * @brief Get device MAC address
+ * @param mac_buf Buffer to store MAC address
+ * @param buf_size Size of buffer
+ * @return true on success, false on failure
  */
-int clear_old_packet_captures(const char* log_path);
+bool get_mac_address(char* mac_buf, size_t buf_size);
 
-/**
- * @brief Remove old directories matching pattern and older than days
- * @param base_path Base directory to search
- * @param pattern Glob pattern to match (e.g., "*-*-*-*-*M-logbackup")
- * @param days_old Minimum age in days for removal
- * @return Number of directories removed, or -1 on error
- */
-int remove_old_directories(const char* base_path, const char* pattern, int days_old);
-
-#endif /* FILE_OPERATIONS_H */
+#endif /* CONTEXT_MANAGER_H */
