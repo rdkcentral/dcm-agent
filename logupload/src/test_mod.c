@@ -289,7 +289,6 @@ int main(void) {
     printf("DCM Log File:     %s\n", ctx.paths.dcm_log_file);
     printf("DCM Log Path:     %s\n", ctx.paths.dcm_log_path);
     printf("IARM Binary:      %s\n", ctx.paths.iarm_event_binary);
-    printf("Persistent Path:  %s\n\n", ctx.paths.persistent_path);
     
 
     printf("=== Retry Configuration ===\n");
@@ -317,12 +316,7 @@ int main(void) {
     } else {
         printf("Upload Endpoint URL:   (not configured)\n");
     }
-    if (strlen(ctx.endpoints.proxy_bucket) > 0) {
-        printf("Proxy Bucket:          %s\n\n", ctx.endpoints.proxy_bucket);
-    } else {
-        printf("Proxy Bucket:          (not configured)\n\n");
-    }
-
+   
     printf("=== Device Information ===\n");
     if (strlen(ctx.device.mac_address) > 0) {
         printf("MAC Address:           %s\n", ctx.device.mac_address);
