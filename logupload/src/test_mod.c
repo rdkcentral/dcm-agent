@@ -8,7 +8,7 @@
 #include "file_operations.h"
 #include "archive_manager.h"
 #include "log_collector.h"
-#include "upload_engine.h"
+
 
 // Test counters
 static int tests_passed = 0;
@@ -207,7 +207,6 @@ void test_integration_workflow(RuntimeContext* ctx) {
     memset(&session, 0, sizeof(SessionState));
     
     session.strategy = STRAT_ONDEMAND;
-    strncpy(session.source_dir, "/tmp/test_logs", sizeof(session.source_dir) - 1);
     
     const StrategyHandler* handler = get_strategy_handler(session.strategy);
     TEST_ASSERT(handler != NULL, "Strategy handler retrieved for workflow");
@@ -289,7 +288,6 @@ int main(void) {
     printf("DCM Log File:     %s\n", ctx.paths.dcm_log_file);
     printf("DCM Log Path:     %s\n", ctx.paths.dcm_log_path);
     printf("IARM Binary:      %s\n", ctx.paths.iarm_event_binary);
-    
 
     printf("=== Retry Configuration ===\n");
     printf("Direct Block Time:     %d seconds (%d hours)\n", 
@@ -308,7 +306,6 @@ int main(void) {
     printf("CodeBig Blocked:       %s\n", ctx.settings.codebig_blocked ? "YES" : "NO");
     printf("TLS Enabled:           %s\n", ctx.settings.tls_enabled ? "YES" : "NO");
     printf("Maintenance Enabled:   %s\n", ctx.settings.maintenance_enabled ? "YES" : "NO");
-    printf("Syslog-NG Enabled:     %s\n\n", ctx.settings.syslog_ng_enabled ? "YES" : "NO");
 
     printf("=== Upload Endpoints (TR-181) ===\n");
     if (strlen(ctx.endpoints.endpoint_url) > 0) {
@@ -316,7 +313,6 @@ int main(void) {
     } else {
         printf("Upload Endpoint URL:   (not configured)\n");
     }
-   
     printf("=== Device Information ===\n");
     if (strlen(ctx.device.mac_address) > 0) {
         printf("MAC Address:           %s\n", ctx.device.mac_address);
@@ -333,18 +329,13 @@ int main(void) {
     } else {
         printf("Build Type:            (not configured)\n");
     }
-    if (strlen(ctx.device.device_name) > 0) {
-        printf("Device Name:           %s\n\n", ctx.device.device_name);
-    } else {
-        printf("Device Name:           (not configured)\n\n");
-    }
 
     printf("========================================\n");
-    printf("Test completed successfully!\n");
+    printf("All tests completed!\n");
     printf("========================================\n");
 
     // Cleanup resources
     cleanup_context();
 
-    return 0;
+    return (tests_failed == 0) ? 0 : 1;
 }
