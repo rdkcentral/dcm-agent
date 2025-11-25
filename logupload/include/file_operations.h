@@ -105,4 +105,56 @@ bool write_file(const char* filepath, const char* content);
  */
 int read_file(const char* filepath, char* buffer, size_t buffer_size);
 
+/**
+ * @brief Add timestamp prefix to all files in directory
+ * @param dir_path Directory containing files
+ * @return 0 on success, -1 on failure
+ *
+ * Renames files with MM-DD-YY-HH-MMAM- prefix
+ * Example: file.log -> 11-25-25-10-30AM-file.log
+ */
+int add_timestamp_to_files(const char* dir_path);
+
+/**
+ * @brief Remove timestamp prefix from all files in directory
+ * @param dir_path Directory containing files
+ * @return 0 on success, -1 on failure
+ *
+ * Restores original filenames by removing MM-DD-YY-HH-MMAM- prefix
+ */
+int remove_timestamp_from_files(const char* dir_path);
+
+/**
+ * @brief Move all contents from source to destination directory
+ * @param src_dir Source directory
+ * @param dest_dir Destination directory
+ * @return 0 on success, -1 on failure
+ */
+int move_directory_contents(const char* src_dir, const char* dest_dir);
+
+/**
+ * @brief Remove all files and subdirectories from directory
+ * @param dir_path Directory to clean
+ * @return 0 on success, -1 on failure
+ *
+ * Note: Directory itself is not deleted, only its contents
+ */
+int clean_directory(const char* dir_path);
+
+/**
+ * @brief Clear old packet capture files, keeping only most recent 10
+ * @param log_path Directory containing PCAP files
+ * @return 0 on success, -1 on failure
+ */
+int clear_old_packet_captures(const char* log_path);
+
+/**
+ * @brief Remove old directories matching pattern and older than days
+ * @param base_path Base directory to search
+ * @param pattern Glob pattern to match (e.g., "*-*-*-*-*M-logbackup")
+ * @param days_old Minimum age in days for removal
+ * @return Number of directories removed, or -1 on error
+ */
+int remove_old_directories(const char* base_path, const char* pattern, int days_old);
+
 #endif /* FILE_OPERATIONS_H */
