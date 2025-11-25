@@ -41,6 +41,7 @@
 #include "archive_manager.h"
 #include "upload_engine.h"
 #include "file_operations.h"
+#include "t2MtlsUtils.h"
 #include "common_device_api.h"
 #include "rdk_debug.h"
 
@@ -49,6 +50,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session);
 static int reboot_archive(RuntimeContext* ctx, SessionState* session);
 static int reboot_upload(RuntimeContext* ctx, SessionState* session);
 static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+/* Static storage for permanent log path (used across phases) */
+static char perm_log_path_storage[MAX_PATH_LENGTH] = {0};
 
 /* Handler definition */
 const StrategyHandler reboot_strategy_handler = {
@@ -123,16 +127,29 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
 
     char perm_log_path[MAX_PATH_LENGTH];
-    snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
-             ctx->paths.log_path, timestamp);
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
+                          ctx->paths.log_path, timestamp);
+    
+    if (written >= (int)sizeof(perm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Permanent log path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     // Store for use in cleanup phase
-    strncpy(session->archive_file, perm_log_path, sizeof(session->archive_file) - 1);
+    strncpy(perm_log_path_storage, perm_log_path, sizeof(perm_log_path_storage) - 1);
+    perm_log_path_storage[sizeof(perm_log_path_storage) - 1] = '\0';
 
     // Log to lastlog_path
     char lastlog_path_file[MAX_PATH_LENGTH];
-    snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
-             ctx->paths.telemetry_path);
+    written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
+                      ctx->paths.telemetry_path);
+    
+    if (written >= (int)sizeof(lastlog_path_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Lastlog path file too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     FILE* fp = fopen(lastlog_path_file, "a");
     if (fp) {
@@ -145,7 +162,13 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 
     // Delete old tar file if exists
     char old_tar[MAX_PATH_LENGTH];
-    snprintf(old_tar, sizeof(old_tar), "%s/logs.tar.gz", ctx->paths.prev_log_path);
+    written = snprintf(old_tar, sizeof(old_tar), "%s/logs.tar.gz", ctx->paths.prev_log_path);
+    
+    if (written >= (int)sizeof(old_tar)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Old tar path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
     
     if (file_exists(old_tar)) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -235,10 +258,16 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         return 0;
     }
 
-    // Construct full archive path
+    // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
-    snprintf(archive_path, sizeof(archive_path), "%s/logs.tar.gz", 
-             ctx->paths.prev_log_path);
+    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
+                          ctx->paths.prev_log_path, session->archive_file);
+    
+    if (written >= (int)sizeof(archive_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Uploading main logs: %s\n", 
@@ -330,7 +359,14 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     // Delete tar file
     char tar_path[MAX_PATH_LENGTH];
-    snprintf(tar_path, sizeof(tar_path), "%s/logs.tar.gz", ctx->paths.prev_log_path);
+    int written = snprintf(tar_path, sizeof(tar_path), "%s/%s", 
+                          ctx->paths.prev_log_path, session->archive_file);
+    
+    if (written >= (int)sizeof(tar_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Tar path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     if (file_exists(tar_path)) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -352,7 +388,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     }
 
     // Get permanent backup path (stored in setup phase)
-    const char* perm_log_path = session->archive_file;
+    const char* perm_log_path = perm_log_path_storage;
 
     // Create permanent backup directory
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
