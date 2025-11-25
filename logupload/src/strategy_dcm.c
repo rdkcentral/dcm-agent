@@ -155,10 +155,16 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
 
-    // Construct full archive path
+    // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
-    snprintf(archive_path, sizeof(archive_path), "%s/logs.tar.gz", 
-             ctx->paths.dcm_log_path);
+    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
+                          ctx->paths.dcm_log_path, session->archive_file);
+    
+    if (written >= (int)sizeof(archive_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Uploading DCM logs: %s\n", 
