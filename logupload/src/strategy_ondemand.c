@@ -119,13 +119,25 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
 
     char perm_log_path[MAX_PATH_LENGTH];
-    snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
-             ctx->paths.log_path, timestamp);
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
+                          ctx->paths.log_path, timestamp);
+    
+    if (written >= (int)sizeof(perm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Permanent log path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     // Log to lastlog_path file
     char lastlog_path_file[MAX_PATH_LENGTH];
-    snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
-             ctx->paths.telemetry_path);
+    written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
+                      ctx->paths.telemetry_path);
+    
+    if (written >= (int)sizeof(lastlog_path_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Lastlog path file too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     FILE* fp = fopen(lastlog_path_file, "a");
     if (fp) {
