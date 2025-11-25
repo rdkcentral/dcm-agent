@@ -264,30 +264,35 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 __FUNCTION__, __LINE__);
 
         char dri_archive[MAX_PATH_LENGTH];
-        snprintf(dri_archive, sizeof(dri_archive), "%s/dri_logs.tar.gz", 
-                 ctx->paths.prev_log_path);
-
-        // Create DRI archive
-        int dri_ret = create_dri_archive(ctx, dri_archive);
+        int written = snprintf(dri_archive, sizeof(dri_archive), "%s/dri_logs.tar.gz", 
+                              ctx->paths.prev_log_path);
         
-        if (dri_ret == 0) {
-            sleep(60);
-            
-            // Upload DRI logs
-            dri_ret = upload_archive(ctx, session, dri_archive);
-            
+        if (written >= (int)sizeof(dri_archive)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
+        } else {
+            // Create DRI archive
+            int dri_ret = create_dri_archive(ctx, dri_archive);
+        
             if (dri_ret == 0) {
-                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                        "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
-                        __FUNCTION__, __LINE__);
-                remove_directory(ctx->paths.dri_log_path);
-            } else {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                        "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
-            }
+                sleep(60);
             
-            // Clean up DRI archive
-            remove_file(dri_archive);
+                // Upload DRI logs
+                dri_ret = upload_archive(ctx, session, dri_archive);
+            
+                if (dri_ret == 0) {
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                            "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
+                            __FUNCTION__, __LINE__);
+                    remove_directory(ctx->paths.dri_log_path);
+                } else {
+                    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                            "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
+                }
+            
+                // Clean up DRI archive
+                remove_file(dri_archive);
+            }
         }
     }
 
