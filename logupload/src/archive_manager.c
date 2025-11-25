@@ -149,8 +149,9 @@ static int write_tar_header(gzFile gz, const char* filename, struct stat* st)
     header.typeflag = '0';
     
     // Magic and version (ustar)
-    strncpy(header.magic, "ustar", 6);
-    strncpy(header.version, "00", 2);
+    memcpy(header.magic, "ustar", 5);
+    header.magic[5] = '\0';
+    memcpy(header.version, "00", 2);
     
     // Calculate and write checksum
     unsigned int checksum = calculate_tar_checksum(&header);
