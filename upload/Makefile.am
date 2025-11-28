@@ -22,7 +22,7 @@ AM_CFLAGS += -Wall -Werror $(curl_CFLAGS) $(CFLAGS) -DLIBRDKCERTSELECTOR
 bin_PROGRAMS = uploadutil_test
 uploadutil_test_SOURCES = main.c
 
-#uploadutil_test_CFLAGS = -I${top_srcdir}/dwnlutils
+uploadutil_test_CFLAGS = -I${top_srcdir}
 
 uploadutil_test_LDADD = -lrfcapi -lrdkloggers -lpthread $(curl_LIBS)
 
