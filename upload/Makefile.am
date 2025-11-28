@@ -21,8 +21,23 @@ uploadutil_test_SOURCES = main.c
 AM_CFLAGS += -Wall -Werror $(curl_CFLAGS) $(CFLAGS) -DLIBRDKCERTSELECTOR
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 
-uploadutil_test_CFLAGS = -I${top_srcdir}
+# Include local source dir and sysroot include dirs where DEPENDS-installed headers are staged
+uploadutil_test_CFLAGS = -I${top_srcdir} \
+    -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
+    -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util
 
 uploadutil_test_LDADD = -shared -fPIC $(GLIB_LIBS)
 uploadutil_test_LDADD += -lrdkloggers -lpthread $(curl_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
+
+#bin_PROGRAMS = uploadutil_test
+
+#uploadutil_test_SOURCES = main.c
+
+#AM_CFLAGS += -Wall -Werror $(curl_CFLAGS) $(CFLAGS) -DLIBRDKCERTSELECTOR
+#AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
+
+#uploadutil_test_CFLAGS = -I${top_srcdir}
+
+#uploadutil_test_LDADD = -shared -fPIC $(GLIB_LIBS)
+#uploadutil_test_LDADD += -lrdkloggers -lpthread $(curl_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
 
