@@ -18,7 +18,7 @@
 ##########################################################################
 
 AUTOMAKE_OPTIONS = foreign
-
+SUBDIRS = upload
 dcmd_CFLAGS += -fPIC -pthread
 
 bin_PROGRAMS = dcmd
