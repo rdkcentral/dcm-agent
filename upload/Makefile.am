@@ -18,7 +18,7 @@ bin_PROGRAMS = uploadutil_test
 
 uploadutil_test_SOURCES = main.c
 
-AM_CFLAGS += -Wall -Werror $(curl_CFLAGS) $(CFLAGS) -DLIBRDKCERTSELECTOR
+AM_CFLAGS = -Wall -Werror $(curl_CFLAGS) $(CFLAGS) -DLIBRDKCERTSELECTOR
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 
 # Include local source dir and sysroot include dirs where DEPENDS-installed headers are staged
