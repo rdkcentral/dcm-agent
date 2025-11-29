@@ -34,7 +34,6 @@
 #include "system_utils.h"
 #include "rdk_debug.h"
 #include "uploadstblogs_types.h"
-#include <ctype.h>
 
 bool file_exists(const char* filepath)
 {
