@@ -27,7 +27,7 @@ uploadutil_test_CFLAGS = -I${top_srcdir} \
     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util
 
 #uploadutil_test_LDADD = -shared -fPIC $(GLIB_LIBS)
-uploadutil_test_LDADD += -lrdkloggers -lpthread $(curl_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
+uploadutil_test_LDADD = -lrdkloggers -lpthread $(curl_LIBS) -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
 
 #bin_PROGRAMS = uploadutil_test
 
