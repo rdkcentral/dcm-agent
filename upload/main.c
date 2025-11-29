@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include "uploadUtil.h"
 #include "mtls_upload.h"
-//#include "codebig_upload.h"
+#include "codebig_upload.h"
 #include "rdk_debug.h"
 
 int main(int argc, char *argv[])
