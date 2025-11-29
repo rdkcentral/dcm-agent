@@ -41,6 +41,7 @@
 #include "archive_manager.h"
 #include "upload_engine.h"
 #include "file_operations.h"
+#include "t2MtlsUtils.h"
 #include "common_device_api.h"
 #include "rdk_debug.h"
 
