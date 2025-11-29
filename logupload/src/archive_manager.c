@@ -403,6 +403,14 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
         return -1;
     }
 
+    // Note: session can be NULL for DRI archives, so only validate when it's expected
+    // For regular archive creation, session is required
+    if (!session && strcmp(prefix, "Logs") == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Session required for regular log archives\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
     if (!dir_exists(source_dir)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Source directory does not exist: %s\n", 
