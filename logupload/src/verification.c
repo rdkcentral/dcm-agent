@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include "verification.h"
+#include "uploadstblogs_types.h"
+#include "rdk_debug.h"
 #include "rdkv_cdl_log_wrapper.h"
 
 /**
