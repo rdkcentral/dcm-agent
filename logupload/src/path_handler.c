@@ -46,7 +46,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Invalid parameters for direct path\n",
                 __FUNCTION__, __LINE__);
-        return (UploadResult)1;
+        return UPLOADSTB_FAILED;
     }
 
     // Prepare upload parameters
@@ -108,12 +108,12 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
     
-    if (verified_result == (UploadResult)0) {
+    if (verified_result == UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Direct upload verified successful\n",
                 __FUNCTION__, __LINE__);
         session->success = true;
-        return (UploadResult)0;
+        return UPLOADSTB_SUCCESS;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Direct upload failed with result: %d\n",
@@ -185,12 +185,12 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
                         }
                         
                         UploadResult proxy_verified = verify_upload(session);
-                        if (proxy_verified == (UploadResult)0) {
+                        if (proxy_verified == UPLOADSTB_SUCCESS) {
                             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                                     "[%s:%d] Proxy upload verified successful\n",
                                     __FUNCTION__, __LINE__);
                             session->success = true;
-                            return (UploadResult)0;
+                            return UPLOADSTB_SUCCESS;
                         } else {
                             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                                     "[%s:%d] Proxy upload failed with result: %d\n",
@@ -207,7 +207,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
         }
         
         session->success = false;
-        return (UploadResult)1;
+        return UPLOADSTB_FAILED;
     }
 }
 
@@ -221,7 +221,7 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Invalid parameters for CodeBig path\n",
                 __FUNCTION__, __LINE__);
-        return (UploadResult)1;
+        return UPLOADSTB_FAILED;
     }
 
     // Prepare upload parameters
@@ -269,12 +269,12 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
     
-    if (verified_result == (UploadResult)0) {
+    if (verified_result == UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] CodeBig upload verified successful\n",
                 __FUNCTION__, __LINE__);
         session->success = true;
-        return (UploadResult)0;
+        return UPLOADSTB_SUCCESS;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] CodeBig upload failed - HTTP: %d, Curl: %d, Message: %s\n",

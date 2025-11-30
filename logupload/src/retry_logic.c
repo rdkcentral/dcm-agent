@@ -37,7 +37,7 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Invalid parameters for retry upload\n",
                 __FUNCTION__, __LINE__);
-        return UPLOAD_FAILED;
+        return UPLOADSTB_FAILED;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -46,7 +46,7 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
             path == PATH_DIRECT ? "Direct" : 
             path == PATH_CODEBIG ? "CodeBig" : "Unknown");
 
-    UploadResult result = UPLOAD_FAILED;
+    UploadResult result = UPLOADSTB_FAILED;
     
     do {
         // Increment attempt counter before trying
@@ -59,7 +59,7 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
         result = attempt_func(ctx, session, path);
         
         // If successful, we're done
-        if (result == UPLOAD_SUCCESS) {
+        if (result == UPLOADSTB_SUCCESS) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "[%s:%d] Upload successful after %d attempts\n",
                     __FUNCTION__, __LINE__, 
@@ -95,7 +95,7 @@ bool should_retry(const RuntimeContext* ctx, const SessionState* session, Upload
     }
 
     // Never retry if upload was successful or explicitly aborted
-    if (result == UPLOAD_SUCCESS || result == UPLOAD_ABORTED) {
+    if (result == UPLOADSTB_SUCCESS || result == UPLOADSTB_ABORTED) {
         return false;
     }
     
@@ -147,7 +147,7 @@ bool should_retry(const RuntimeContext* ctx, const SessionState* session, Upload
     }
 
     // Retry for failed or retry-marked uploads
-    return (result == UPLOAD_FAILED || result == UPLOAD_RETRY);
+    return (result == UPLOADSTB_FAILED || result == UPLOADSTB_RETRY);
 }
 
 void increment_attempts(SessionState* session, UploadPath path)

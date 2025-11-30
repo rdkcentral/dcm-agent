@@ -51,7 +51,7 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
     // Try primary path first
     UploadResult primary_result = attempt_upload(ctx, session, session->primary);
     
-    if (primary_result == UPLOAD_SUCCESS) {
+    if (primary_result == UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload successful on primary path\n", __FUNCTION__, __LINE__);
         session->success = true;
@@ -67,7 +67,7 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
         switch_to_fallback(session);
         UploadResult fallback_result = attempt_upload(ctx, session, session->fallback);
         
-        if (fallback_result == UPLOAD_SUCCESS) {
+        if (fallback_result == UPLOADSTB_SUCCESS) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Upload successful on fallback path\n", __FUNCTION__, __LINE__);
             session->used_fallback = true;
@@ -89,7 +89,7 @@ UploadResult attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPa
     if (!ctx || !session) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return UPLOAD_FAILED;
+        return UPLOADSTB_FAILED;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
@@ -111,7 +111,7 @@ UploadResult attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPa
 static UploadResult single_attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPath path)
 {
     if (!ctx || !session) {
-        return UPLOAD_FAILED;
+        return UPLOADSTB_FAILED;
     }
 
     // Execute the appropriate upload path without retry logic
@@ -126,7 +126,7 @@ static UploadResult single_attempt_upload(RuntimeContext* ctx, SessionState* ses
         default:
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                     "[%s:%d] Invalid upload path: %d\n", __FUNCTION__, __LINE__, path);
-            return UPLOAD_FAILED;
+            return UPLOADSTB_FAILED;
     }
 }
 
@@ -137,7 +137,7 @@ bool should_fallback(const RuntimeContext* ctx, const SessionState* session, Upl
     }
 
     // Don't fallback if upload was successful or explicitly aborted
-    if (result == UPLOAD_SUCCESS || result == UPLOAD_ABORTED) {
+    if (result == UPLOADSTB_SUCCESS || result == UPLOADSTB_ABORTED) {
         return false;
     }
 
@@ -153,7 +153,7 @@ bool should_fallback(const RuntimeContext* ctx, const SessionState* session, Upl
 
     // Since retry_logic handles all retries, fallback should only occur
     // when a path has been completely exhausted (failed after all retries)
-    if (result == UPLOAD_FAILED || result == UPLOAD_RETRY) {
+    if (result == UPLOADSTB_FAILED || result == UPLOADSTB_RETRY) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Primary path exhausted after retries, fallback available\n", 
                 __FUNCTION__, __LINE__);

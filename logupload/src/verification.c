@@ -42,7 +42,7 @@ UploadResult verify_upload(const SessionState* session)
 {
     if (!session) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "verify_upload: NULL session\n");
-        return UPLOAD_FAILED;
+        return UPLOADSTB_FAILED;
     }
 
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "Verifying upload: HTTP=%d, Curl=%d\n", 
@@ -52,20 +52,20 @@ UploadResult verify_upload(const SessionState* session)
     if (!is_curl_success(session->curl_code)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "Upload failed at curl level: %s\n", 
                 get_curl_error_desc(session->curl_code));
-        return UPLOAD_FAILED;
+        return UPLOADSTB_FAILED;
     }
 
     // Script considers only HTTP 200 as success
     if (session->http_code == 200) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Upload successful: HTTP %d\n", 
                 session->http_code);
-        return UPLOAD_SUCCESS;
+        return UPLOADSTB_SUCCESS;
     }
 
     // All other HTTP codes are failures
     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "Upload failed: HTTP %d\n", 
             session->http_code);
-    return UPLOAD_FAILED;
+    return UPLOADSTB_FAILED;
 }
 
 /**
