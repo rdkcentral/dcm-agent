@@ -25,8 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "path_handler.h"
-#include "mtls_handler.h"
-#include "oauth_handler.h"
 #include "verification.h"
 #include "telemetry.h"
 #include "md5_utils.h"
@@ -287,5 +285,6 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
         return verified_result;
     }
 }
+
 
 
