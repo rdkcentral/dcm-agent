@@ -8,7 +8,9 @@ logupload_SOURCES = uploadstblogs.c context_manager.c validation.c strategy_sele
 
 logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
                      -I${top_srcdir}/logupload \
-                     -I${top_srcdir}/logupload/include
+                     -I${top_srcdir}/logupload/include \
+                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
+                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util
 
 AM_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 AM_LDFLAGS += $(curl_LIBS)
