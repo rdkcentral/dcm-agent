@@ -46,6 +46,7 @@
 #include "system_utils.h"
 #include "rbus_interface.h"
 #include "rdk_debug.h"
+#include "event_manager.h"
 
 /* Forward declarations */
 static int reboot_setup(RuntimeContext* ctx, SessionState* session);
@@ -488,4 +489,5 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
+
 
