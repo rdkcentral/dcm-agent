@@ -30,6 +30,7 @@
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include "md5_utils.h"
+#include "uploadstblogs_types.h"
 #include "rdk_debug.h"
 
 /**
@@ -82,23 +83,51 @@ bool calculate_file_md5(const char *filepath, char *md5_base64, size_t output_si
         return false;
     }
     
-    MD5_CTX md5_context;
-    MD5_Init(&md5_context);
+    // Use modern EVP API instead of deprecated MD5 functions
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_new();
+    if (!md_ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to create MD5 context\n", __FUNCTION__, __LINE__);
+        fclose(file);
+        return false;
+    }
+    
+    if (EVP_DigestInit_ex(md_ctx, EVP_md5(), NULL) != 1) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to initialize MD5 digest\n", __FUNCTION__, __LINE__);
+        EVP_MD_CTX_free(md_ctx);
+        fclose(file);
+        return false;
+    }
     
     unsigned char buffer[8192];
     size_t bytes_read;
     
     while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        MD5_Update(&md5_context, buffer, bytes_read);
+        if (EVP_DigestUpdate(md_ctx, buffer, bytes_read) != 1) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to update MD5 digest\n", __FUNCTION__, __LINE__);
+            EVP_MD_CTX_free(md_ctx);
+            fclose(file);
+            return false;
+        }
     }
     
     fclose(file);
     
-    unsigned char md5_binary[MD5_DIGEST_LENGTH];
-    MD5_Final(md5_binary, &md5_context);
+    unsigned char md5_binary[EVP_MAX_MD_SIZE];
+    unsigned int md5_len;
+    if (EVP_DigestFinal_ex(md_ctx, md5_binary, &md5_len) != 1) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to finalize MD5 digest\n", __FUNCTION__, __LINE__);
+        EVP_MD_CTX_free(md_ctx);
+        return false;
+    }
+    
+    EVP_MD_CTX_free(md_ctx);
     
     // Encode to base64 (matches script: openssl md5 -binary < file | openssl enc -base64)
-    if (!base64_encode(md5_binary, MD5_DIGEST_LENGTH, md5_base64, output_size)) {
+    if (!base64_encode(md5_binary, md5_len, md5_base64, output_size)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Base64 encoding failed\n", __FUNCTION__, __LINE__);
         return false;
