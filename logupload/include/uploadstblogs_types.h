@@ -152,6 +152,7 @@ typedef struct {
     char endpoint_url[MAX_URL_LENGTH];        /**< Upload endpoint URL */
     char upload_http_link[MAX_URL_LENGTH];    /**< HTTP upload link */
     char presign_url[MAX_URL_LENGTH];         /**< Pre-signed URL */
+    char proxy_bucket[MAX_URL_LENGTH];        /**< Proxy bucket for fallback uploads */
 } EndpointConfig;
 
 /**

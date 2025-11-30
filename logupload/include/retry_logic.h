@@ -48,18 +48,13 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
 
 /**
  * @brief Check if retry should continue
+ * @param ctx Runtime context
  * @param session Session state
  * @param path Current upload path
  * @param result Last upload result
  * @return true if should retry, false otherwise
  */
-bool should_retry(const SessionState* session, UploadPath path, UploadResult result);
-
-/**
- * @brief Sleep for retry delay
- * @param path Upload path (determines delay duration)
- */
-void retry_delay(UploadPath path);
+bool should_retry(const RuntimeContext* ctx, const SessionState* session, UploadPath path, UploadResult result);
 
 /**
  * @brief Increment attempt counter for path

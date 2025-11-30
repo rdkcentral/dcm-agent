@@ -70,4 +70,18 @@ bool load_tr181_params(RuntimeContext* ctx);
  */
 bool get_mac_address(char* mac_buf, size_t buf_size);
 
+/**
+ * @brief Check if direct upload path is blocked
+ * @param block_time Maximum blocking time in seconds
+ * @return true if blocked, false if not blocked or block expired
+ */
+bool is_direct_blocked(int block_time);
+
+/**
+ * @brief Check if CodeBig upload path is blocked
+ * @param block_time Maximum blocking time in seconds
+ * @return true if blocked, false if not blocked or block expired
+ */
+bool is_codebig_blocked(int block_time);
+
 #endif /* CONTEXT_MANAGER_H */

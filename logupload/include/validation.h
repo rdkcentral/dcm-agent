@@ -58,4 +58,15 @@ bool validate_binaries(void);
  */
 bool validate_configuration(void);
 
+/**
+ * @brief Check if CodeBig access is available (checkcodebigaccess equivalent)
+ * @return true if CodeBig access is available, false otherwise
+ *
+ * Performs equivalent of script's checkcodebigaccess function by:
+ * - Checking for CodeBig configuration
+ * - Validating OAuth access capabilities  
+ * - Testing network connectivity if needed
+ */
+bool validate_codebig_access(void);
+
 #endif /* VALIDATION_H */

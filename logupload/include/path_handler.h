@@ -39,6 +39,8 @@
  * Steps:
  * 1. Pre-sign request with mTLS authentication
  * 2. S3 PUT with mTLS
+ * 3. If upload fails and device is mediaclient with PROXY_BUCKET configured,
+ *    attempt proxy fallback upload
  */
 UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session);
 
@@ -53,33 +55,5 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session);
  * 2. S3 PUT with standard TLS
  */
 UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session);
-
-/**
- * @brief Perform pre-sign request (Direct path)
- * @param ctx Runtime context
- * @param presign_url_out Buffer to store pre-signed URL
- * @param url_size Size of buffer
- * @return true on success, false on failure
- */
-bool presign_request_direct(RuntimeContext* ctx, char* presign_url_out, size_t url_size);
-
-/**
- * @brief Perform pre-sign request (CodeBig path)
- * @param ctx Runtime context
- * @param presign_url_out Buffer to store pre-signed URL
- * @param url_size Size of buffer
- * @return true on success, false on failure
- */
-bool presign_request_codebig(RuntimeContext* ctx, char* presign_url_out, size_t url_size);
-
-/**
- * @brief Upload archive to S3 using pre-signed URL
- * @param ctx Runtime context
- * @param session Session state
- * @param presign_url Pre-signed URL
- * @param use_mtls Use mTLS for upload
- * @return true on success, false on failure
- */
-bool upload_to_s3(RuntimeContext* ctx, SessionState* session, const char* presign_url, bool use_mtls);
 
 #endif /* PATH_HANDLER_H */
