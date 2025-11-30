@@ -42,7 +42,6 @@
 #include "archive_manager.h"
 #include "upload_engine.h"
 #include "file_operations.h"
-#include "t2MtlsUtils.h"
 #include "common_device_api.h"
 #include "system_utils.h"
 #include "rbus_interface.h"
@@ -489,3 +488,4 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
+
