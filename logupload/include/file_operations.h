@@ -89,6 +89,13 @@ long get_file_size(const char* filepath);
 bool is_directory_empty(const char* dirpath);
 
 /**
+ * @brief Check if directory has .txt or .log files
+ * @param dirpath Path to directory
+ * @return true if has .txt or .log files, false otherwise
+ */
+bool has_log_files(const char* dirpath);
+
+/**
  * @brief Write string to file
  * @param filepath Path to file
  * @param content Content to write
