@@ -59,6 +59,20 @@ AC_SUBST([dcmd_CFLAGS])
 
 # Checks for typedefs, structures, and compiler characteristics.
 
+AC_ARG_ENABLE([t2api],
+	      AS_HELP_STRING([--enable-t2api],[enables telemetry]),
+	      [
+	        case "${enableval}" in
+                 yes) IS_TELEMETRY2_ENABLED=true
+                      T2_EVENT_FLAG=" -DT2_EVENT_ENABLED ";;
+                 no)  IS_TELEMETRY2_ENABLED=false ;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-t2enable]) ;;
+	       esac
+	       ],
+	   [echo "telemetry is disabled"])
+AM_CONDITIONAL([IS_TELEMETRY2_ENABLED], [test x$IS_TELEMETRY2_ENABLED = xtrue])
+AC_SUBST(T2_EVENT_FLAG)
+
 IS_LIBRDKCERTSEL_ENABLED=""
 IS_LIBRDKCERTSEL_ENABLED=""
 
