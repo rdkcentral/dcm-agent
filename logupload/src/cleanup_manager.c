@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <regex.h>
 #include "cleanup_manager.h"
+#include "uploadstblogs_types.h"
 #include "rdk_debug.h"
 
 /**
