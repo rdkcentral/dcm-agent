@@ -41,6 +41,7 @@
 #include "upload_engine.h"
 #include "file_operations.h"
 #include "rdk_debug.h"
+#include "event_manager.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
