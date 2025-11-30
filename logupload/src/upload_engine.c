@@ -31,8 +31,10 @@
 #include "retry_logic.h"
 #include "event_manager.h"
 #include "file_operations.h"
-#include "uploadUtil.h"
 #include "rdk_debug.h"
+
+/* Forward declaration for internal function */
+static UploadResult single_attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPath path);
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
 {
@@ -236,4 +238,3 @@ int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archi
         return -1;
     }
 }
-
