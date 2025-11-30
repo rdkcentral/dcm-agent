@@ -88,10 +88,10 @@ typedef enum {
  * @brief Upload operation result codes
  */
 typedef enum {
-    UPLOAD_SUCCESS = 0,
-    UPLOAD_FAILED = 1,
-    UPLOAD_ABORTED = 2,
-    UPLOAD_RETRY = 3
+    UPLOADSTB_SUCCESS = 0,
+    UPLOADSTB_FAILED = 1,
+    UPLOADSTB_ABORTED = 2,
+    UPLOADSTB_RETRY = 3
 } UploadResult;
 
 /* ==========================

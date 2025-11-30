@@ -36,9 +36,9 @@
  * @return UploadResult code
  *
  * Verification logic:
- * - HTTP 200 + curl success → UPLOAD_SUCCESS
- * - HTTP 404 → UPLOAD_FAILED (terminal)
- * - Other → UPLOAD_RETRY or UPLOAD_FAILED
+ * - HTTP 200 + curl success → UPLOADSTB_SUCCESS
+ * - HTTP 404 → UPLOADSTB_FAILED (terminal)
+ * - Other → UPLOADSTB_RETRY or UPLOADSTB_FAILED
  */
 UploadResult verify_upload(const SessionState* session);
 
