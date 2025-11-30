@@ -224,7 +224,7 @@ int main(int argc, char** argv)
 
     /* Handle early abort strategies */
     if (strategy == STRAT_PRIVACY_ABORT) {
-        enforce_privacy(ctx.log_path);
+        enforce_privacy(ctx.paths.log_path);
         emit_privacy_abort();
         release_lock();
         return 0;
