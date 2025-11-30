@@ -292,8 +292,17 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
         return UPLOADSTB_FAILED;
     }
     
-    snprintf(proxy_url, sizeof(proxy_url), "https://%s%s", 
-            ctx->endpoints.proxy_bucket, path_part);
+    // Use safer string construction to avoid truncation warnings
+    int ret = snprintf(proxy_url, sizeof(proxy_url), "https://%.*s%.*s", 
+                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->endpoints.proxy_bucket,
+                       (int)(sizeof(proxy_url) - 9 - proxy_bucket_len - 1), path_part);
+    
+    if (ret < 0 || ret >= sizeof(proxy_url)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to construct proxy URL, truncation occurred\n",
+                __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
     
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Original S3 URL: %s\n", __FUNCTION__, __LINE__, s3_url);
