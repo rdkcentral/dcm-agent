@@ -31,7 +31,7 @@
 #include "retry_logic.h"
 #include "event_manager.h"
 #include "file_operations.h"
-#include "uploadutil.h"
+#include "uploadUtil.h"
 #include "rdk_debug.h"
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
@@ -236,3 +236,4 @@ int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archi
         return -1;
     }
 }
+
