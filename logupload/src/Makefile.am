@@ -7,6 +7,7 @@ logupload_SOURCES = uploadstblogs.c context_manager.c validation.c strategy_sele
 #logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
 
 logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
+                     -I${top_srcdir} \
                      -I${top_srcdir}/logupload \
                      -I${top_srcdir}/logupload/include \
                      -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
