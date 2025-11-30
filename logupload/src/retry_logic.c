@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include "retry_logic.h"
 #include "verification.h"
+#include "telemetry.h"
 #include "rdk_debug.h"
 
 UploadResult retry_upload(RuntimeContext* ctx, SessionState* session, 
@@ -50,6 +51,9 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
     do {
         // Increment attempt counter before trying
         increment_attempts(session, path);
+        
+        // Report upload attempt telemetry (matches script line 511)
+        report_upload_attempt();
         
         // Attempt the upload
         result = attempt_func(ctx, session, path);

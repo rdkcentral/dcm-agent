@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <dirent.h>
 #include "strategy_selector.h"
 #include "file_operations.h"
@@ -54,14 +55,13 @@ Strategy early_checks(const RuntimeContext* ctx)
         return STRAT_PRIVACY_ABORT;
     }
 
-    // 3. No previous logs → STRAT_NO_LOGS
-    if (has_no_logs(ctx)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Strategy: NO_LOGS (no previous logs found)\n", __FUNCTION__, __LINE__);
-        return STRAT_NO_LOGS;
-    }
+    // Note: "No logs" check removed from early_checks
+    // Script checks logs INSIDE each strategy function with different directories:
+    // - uploadLogOnDemand checks $LOG_PATH
+    // - uploadLogOnReboot checks $PREV_LOG_PATH  
+    // - uploadDCMLogs does NOT check for logs
 
-    // 4. TriggerType == 5 → STRAT_ONDEMAND
+    // 3. TriggerType == 5 → STRAT_ONDEMAND
     if (ctx->flags.trigger_type == TRIGGER_ONDEMAND) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Strategy: ONDEMAND (trigger_type=5)\n", __FUNCTION__, __LINE__);
@@ -95,11 +95,21 @@ bool is_privacy_mode(const RuntimeContext* ctx)
         return false;
     }
 
+    // Privacy mode check is ONLY for mediaclient devices (matches script line 985)
+    if (strlen(ctx->device.device_type) == 0 || 
+        strcasecmp(ctx->device.device_type, "mediaclient") != 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Privacy mode check skipped - not a mediaclient device (device_type=%s)\n", 
+                __FUNCTION__, __LINE__, 
+                strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "empty");
+        return false;
+    }
+
     bool privacy_enabled = ctx->settings.privacy_do_not_share;
     
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-            "[%s:%d] Privacy mode: %s\n", 
-            __FUNCTION__, __LINE__, privacy_enabled ? "ENABLED" : "DISABLED");
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Privacy mode for mediaclient: %s\n", 
+            __FUNCTION__, __LINE__, privacy_enabled ? "DO_NOT_SHARE (ENABLED)" : "SHARE (DISABLED)");
 
     return privacy_enabled;
 }

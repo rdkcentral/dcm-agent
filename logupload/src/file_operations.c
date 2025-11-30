@@ -203,6 +203,47 @@ bool is_directory_empty(const char* dirpath)
     return (count == 0);
 }
 
+bool has_log_files(const char* dirpath)
+{
+    if (!dirpath || dirpath[0] == '\0') {
+        return false;
+    }
+
+    if (!dir_exists(dirpath)) {
+        return false;
+    }
+
+    DIR* dir = opendir(dirpath);
+    if (!dir) {
+        return false;
+    }
+
+    struct dirent* entry;
+    bool found = false;
+
+    // Script checks specifically for *.txt and *.log files
+    // uploadLogOnDemand line 741: ret=`ls $LOG_PATH/*.txt`
+    // uploadLogOnReboot line 805: ret=`ls $PREV_LOG_PATH/*.txt`
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip . and ..
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+        
+        // Check if file ends with .txt or .log (matches script behavior)
+        const char* name = entry->d_name;
+        size_t len = strlen(name);
+        
+        if (len > 4 && (strcmp(name + len - 4, ".txt") == 0 || strcmp(name + len - 4, ".log") == 0)) {
+            found = true;
+            break; // Found at least one .txt or .log file
+        }
+    }
+
+    closedir(dir);
+    return found;
+}
+
 bool write_file(const char* filepath, const char* content)
 {
     if (!filepath || filepath[0] == '\0' || !content) {
@@ -257,6 +298,9 @@ int read_file(const char* filepath, char* buffer, size_t buffer_size)
  * @param dir_path Directory containing files to rename
  * @return 0 on success, -1 on failure
  */
+// Global to store timestamp prefix for removal
+static char g_timestamp_prefix[32] = {0};
+
 int add_timestamp_to_files(const char* dir_path)
 {
     if (!dir_path || !dir_exists(dir_path)) {
@@ -266,11 +310,14 @@ int add_timestamp_to_files(const char* dir_path)
         return -1;
     }
 
-    // Get current timestamp
+    // Get current timestamp in script format: MM-DD-YY-HH-MMAM/PM-
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     char timestamp[32];
-    strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", tm_info);
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", tm_info);
+    
+    // Store timestamp prefix globally for removal later (matches script behavior)
+    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
 
     DIR* dir = opendir(dir_path);
     if (!dir) {
@@ -296,7 +343,7 @@ int add_timestamp_to_files(const char* dir_path)
         char new_path[MAX_PATH_LENGTH];
         
         snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
-        snprintf(new_path, sizeof(new_path), "%s/%s-%s", dir_path, timestamp, entry->d_name);
+        snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
 
         // Skip if not a regular file
         struct stat st;
@@ -348,6 +395,15 @@ int remove_timestamp_from_files(const char* dir_path)
         return -1;
     }
 
+    // Get stored timestamp prefix length (matches script behavior: cut -c$len-)
+    size_t prefix_len = strlen(g_timestamp_prefix);
+    
+    if (prefix_len == 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] No timestamp prefix stored, attempting pattern detection\n", 
+                __FUNCTION__, __LINE__);
+    }
+
     int success_count = 0;
     int error_count = 0;
     struct dirent* entry;
@@ -358,35 +414,49 @@ int remove_timestamp_from_files(const char* dir_path)
             continue;
         }
 
-        // Look for files with timestamp prefix (14 digits followed by hyphen)
-        if (strlen(entry->d_name) > 15 && entry->d_name[14] == '-') {
-            // Check if first 14 chars are digits (timestamp)
-            int is_timestamp = 1;
-            for (int i = 0; i < 14; i++) {
-                if (!isdigit(entry->d_name[i])) {
-                    is_timestamp = 0;
-                    break;
+        // Look for files with timestamp prefix matching script pattern
+        // Pattern: MM-DD-YY-HH-MMAM/PM- (matches script modifyTimestampPrefixWithOriginalName)
+        int has_timestamp = 0;
+        size_t cut_pos = prefix_len;
+        
+        if (prefix_len > 0 && strlen(entry->d_name) > prefix_len) {
+            // Use stored prefix length (matches script: cut -c$len-)
+            has_timestamp = (strncmp(entry->d_name, g_timestamp_prefix, prefix_len) == 0);
+        } else if (strlen(entry->d_name) > 19) {
+            // Fallback pattern detection: XX-XX-XX-XX-XXAM/PM- or XX-XX-XX-XX-XXPM-
+            has_timestamp = (entry->d_name[2] == '-' && entry->d_name[5] == '-' && 
+                            entry->d_name[8] == '-' && entry->d_name[11] == '-');
+            if (has_timestamp) {
+                // Find the end of timestamp (look for AM- or PM-)
+                const char* am_pos = strstr(entry->d_name, "AM-");
+                const char* pm_pos = strstr(entry->d_name, "PM-");
+                if (am_pos) {
+                    cut_pos = (am_pos - entry->d_name) + 3;
+                } else if (pm_pos) {
+                    cut_pos = (pm_pos - entry->d_name) + 3;
+                } else {
+                    has_timestamp = 0;
                 }
             }
+        }
 
-            if (is_timestamp) {
-                char old_path[MAX_PATH_LENGTH];
-                char new_path[MAX_PATH_LENGTH];
-                
-                snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
-                snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name + 15);
+        if (has_timestamp && cut_pos > 0 && strlen(entry->d_name) > cut_pos) {
+            char old_path[MAX_PATH_LENGTH];
+            char new_path[MAX_PATH_LENGTH];
+            
+            snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
+            snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name + cut_pos);
 
-                if (rename(old_path, new_path) == 0) {
-                    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                            "[%s:%d] Removed timestamp: %s -> %s\n", 
-                            __FUNCTION__, __LINE__, entry->d_name, entry->d_name + 15);
-                    success_count++;
-                } else {
-                    RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                            "[%s:%d] Failed to rename %s: %s\n", 
-                            __FUNCTION__, __LINE__, old_path, strerror(errno));
-                    error_count++;
-                }
+            if (rename(old_path, new_path) == 0) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                        "[%s:%d] Removed timestamp: %s -> %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name, entry->d_name + cut_pos);
+                success_count++;
+            } else {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                        "[%s:%d] Failed to rename %s: %s\n", 
+                        __FUNCTION__, __LINE__, old_path, strerror(errno));
+                error_count++;
             }
         }
     }

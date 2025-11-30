@@ -382,6 +382,21 @@ bool load_tr181_params(RuntimeContext* ctx)
         ctx->settings.encryption_enable = false;
     }
 
+    // Load Privacy Mode (Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode)
+    // Used to check if user has disabled telemetry/log upload
+    char privacy_mode[32] = {0};
+    if (rbus_get_string_param("Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode",
+                             privacy_mode, sizeof(privacy_mode))) {
+        // PrivacyMode values: "DO_NOT_SHARE" or "SHARE"
+        ctx->settings.privacy_do_not_share = (strcasecmp(privacy_mode, "DO_NOT_SHARE") == 0);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Privacy Mode: %s (do_not_share=%d)\n", 
+                __FUNCTION__, __LINE__, privacy_mode, ctx->settings.privacy_do_not_share);
+    } else {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get PrivacyMode, using default: false\n", 
+                __FUNCTION__, __LINE__);
+        ctx->settings.privacy_do_not_share = false;
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] TR-181 parameters loaded via RBUS\n", __FUNCTION__, __LINE__);
     
     // Note: UploadLogsOnUnscheduledReboot.Disable is loaded at runtime when needed in maintenance window

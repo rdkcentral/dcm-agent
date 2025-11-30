@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <time.h>
 #include "strategy_handler.h"
@@ -43,6 +44,8 @@
 #include "file_operations.h"
 #include "t2MtlsUtils.h"
 #include "common_device_api.h"
+#include "system_utils.h"
+#include "rbus_interface.h"
 #include "rdk_debug.h"
 
 /* Forward declarations */
@@ -78,11 +81,21 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
-    // Check if PREV_LOG_PATH exists and has files
+    // Check if PREV_LOG_PATH exists and has .txt or .log files
+    // Script uploadLogOnReboot lines 805-816:
+    // ret=`ls $PREV_LOG_PATH/*.txt`
+    // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
     if (!dir_exists(ctx->paths.prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
                 __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+        return -1;
+    }
+
+    if (!has_log_files(ctx->paths.prev_log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] No .txt or .log files in PREV_LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
+        emit_no_logs_reboot(ctx);
         return -1;
     }
 
@@ -250,10 +263,58 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
 
-    // Check if upload is allowed
-    if (!ctx->flags.flag) {
+    // Check reboot reason and RFC settings (matches script logic)
+    // Script: if [ "$uploadLog" == "true" ] || [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+    bool should_upload = false;
+    const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
+    
+    // Check if upload flag is explicitly set (uploadLog == "true")
+    if (ctx->flags.flag) {
+        should_upload = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Upload not allowed, skipping upload\n", 
+                "[%s:%d] Upload flag is set, will upload logs\n", __FUNCTION__, __LINE__);
+    } else {
+        // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
+        bool is_scheduled_reboot = false;
+        FILE* reboot_file = fopen(reboot_info_path, "r");
+        if (reboot_file) {
+            char line[512];
+            while (fgets(line, sizeof(line), reboot_file)) {
+                // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
+                if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
+                    is_scheduled_reboot = true;
+                    break;
+                }
+            }
+            fclose(reboot_file);
+        }
+        
+        // Get RFC setting for unscheduled reboot upload via RBUS
+        bool disable_unscheduled_upload = false;
+        if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
+                                &disable_unscheduled_upload)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to get UploadLogsOnUnscheduledReboot.Disable RFC, assuming false\n", 
+                    __FUNCTION__, __LINE__);
+            disable_unscheduled_upload = false;
+        }
+        
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Reboot reason check - Scheduled: %d, Disable unscheduled RFC: %d\n", 
+                __FUNCTION__, __LINE__, is_scheduled_reboot, disable_unscheduled_upload);
+        
+        // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
+        // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+        if (!is_scheduled_reboot && !disable_unscheduled_upload) {
+            should_upload = true;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Unscheduled reboot and RFC allows upload\n", __FUNCTION__, __LINE__);
+        }
+    }
+    
+    if (!should_upload) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
         return 0;
     }
@@ -286,7 +347,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         session->success = false;
     }
 
-    // Upload DRI logs if directory exists
+    // Upload DRI logs if directory exists (using separate session to avoid state corruption)
     if (ctx->settings.include_dri && dir_exists(ctx->paths.dri_log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
@@ -306,8 +367,11 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             if (dri_ret == 0) {
                 sleep(60);
             
-                // Upload DRI logs
-                dri_ret = upload_archive(ctx, session, dri_archive);
+                // Upload DRI logs using separate session state
+                SessionState dri_session = *session;  // Copy current session config
+                dri_session.direct_attempts = 0;       // Reset attempt counters
+                dri_session.codebig_attempts = 0;
+                dri_ret = upload_archive(ctx, &dri_session, dri_archive);
             
                 if (dri_ret == 0) {
                     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 

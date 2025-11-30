@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "cleanup_handler.h"
 #include "context_manager.h"
 #include "event_manager.h"
@@ -85,30 +86,62 @@ void finalize(RuntimeContext* ctx, SessionState* session)
 
 void enforce_privacy(const char* log_path)
 {
-    if (!log_path) {
+    if (!log_path || !dir_exists(log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Invalid or non-existent log path: %s\n", 
+                __FUNCTION__, __LINE__, log_path ? log_path : "NULL");
         return;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Enforcing privacy mode for: %s\n", __FUNCTION__, __LINE__, log_path);
+            "[%s:%d] Enforcing privacy mode - clearing all files in: %s\n", 
+            __FUNCTION__, __LINE__, log_path);
 
-    // Truncate log file to enforce privacy
-    FILE* log_file = fopen(log_path, "w");
-    if (log_file) {
-        // Write a privacy marker
-        fprintf(log_file, "[PRIVACY MODE] Log content cleared at %ld\n", time(NULL));
-        fclose(log_file);
-        
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Log file truncated for privacy: %s\n", 
-                __FUNCTION__, __LINE__, log_path);
-    } else {
+    // Truncate all files in log directory to enforce privacy (matches script: for f in $LOG_PATH/*; do >$f; done)
+    DIR* dir = opendir(log_path);
+    if (!dir) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to truncate log file: %s (error: %s)\n", 
-                __FUNCTION__, __LINE__, log_path, strerror(errno));
+                "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, log_path);
+        return;
     }
+
+    struct dirent* entry;
+    int cleared_count = 0;
+    
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories and special entries
+        if (entry->d_name[0] == '.' || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        char file_path[MAX_PATH_LENGTH];
+        snprintf(file_path, sizeof(file_path), "%s/%s", log_path, entry->d_name);
+
+        // Check if it's a regular file
+        struct stat st;
+        if (stat(file_path, &st) == 0 && S_ISREG(st.st_mode)) {
+            // Truncate the file (matches script: >$f)
+            FILE* log_file = fopen(file_path, "w");
+            if (log_file) {
+                fclose(log_file);
+                cleared_count++;
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                        "[%s:%d] Cleared file: %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                        "[%s:%d] Failed to clear file: %s (error: %s)\n", 
+                        __FUNCTION__, __LINE__, file_path, strerror(errno));
+            }
+        }
+    }
+
+    closedir(dir);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Privacy mode enforced - cleared %d files in %s\n", 
+            __FUNCTION__, __LINE__, cleared_count, log_path);
 }
 
 void update_block_markers(const RuntimeContext* ctx, const SessionState* session)

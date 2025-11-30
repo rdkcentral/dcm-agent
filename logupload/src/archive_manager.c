@@ -35,6 +35,7 @@
 #include "archive_manager.h"
 #include "log_collector.h"
 #include "file_operations.h"
+#include "system_utils.h"
 #include "strategy_handler.h"
 #include "rdk_debug.h"
 
@@ -335,23 +336,15 @@ bool prepare_rrd_archive(RuntimeContext* ctx, SessionState* session)
             __FUNCTION__, __LINE__, rrd_file);
 
     // For RRD, the archive path is the rrd_file itself (already a tar.gz from command line)
-    // Just validate and store the filename
-    const char* filename = strrchr(rrd_file, '/');
-    if (filename) {
-        filename++; // Skip the '/'
-    } else {
-        filename = rrd_file;
-    }
-
-    // RRD file is already provided as archive (tar.gz) via command line
+    // Validate the file
     long size = get_archive_size(rrd_file);
     if (size > 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] RRD archive ready for upload, size: %ld bytes\n", 
                 __FUNCTION__, __LINE__, size);
         
-        // Store archive filename in session
-        strncpy(session->archive_file, filename, sizeof(session->archive_file) - 1);
+        // Store full RRD file path in session (required by execute_upload_cycle)
+        strncpy(session->archive_file, rrd_file, sizeof(session->archive_file) - 1);
         session->archive_file[sizeof(session->archive_file) - 1] = '\0';
         return true;
     } else {
@@ -399,14 +392,6 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     if (!ctx || !source_dir || !prefix) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // Note: session can be NULL for DRI archives, so only validate when it's expected
-    // For regular archive creation, session is required
-    if (!session && strcmp(prefix, "Logs") == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Session required for regular log archives\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
@@ -519,4 +504,3 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
     // Use the common archive creation with DRI_Logs prefix
     return create_archive_with_options(ctx, NULL, ctx->paths.dri_log_path, output_dir, "DRI_Logs");
 }
-

@@ -29,8 +29,8 @@
 #include "upload_engine.h"
 #include "path_handler.h"
 #include "retry_logic.h"
-#include "file_operations.h"
 #include "event_manager.h"
+#include "file_operations.h"
 #include "uploadutil.h"
 #include "rdk_debug.h"
 
@@ -52,6 +52,8 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
     if (primary_result == UPLOAD_SUCCESS) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload successful on primary path\n", __FUNCTION__, __LINE__);
+        session->success = true;
+        emit_upload_success(ctx, session);
         return true;
     }
 
@@ -67,12 +69,16 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Upload successful on fallback path\n", __FUNCTION__, __LINE__);
             session->used_fallback = true;
+            session->success = true;
+            emit_upload_success(ctx, session);
             return true;
         }
     }
 
     RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
             "[%s:%d] Upload failed on all available paths\n", __FUNCTION__, __LINE__);
+    session->success = false;
+    emit_upload_failure(ctx, session);
     return false;
 }
 
@@ -212,24 +218,21 @@ int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archi
             "[%s:%d] Uploading archive: %s (size: %ld bytes)\n", 
             __FUNCTION__, __LINE__, archive_path, file_size);
 
-    // TODO: Implement actual upload logic with execute_upload_cycle
-    // For now, this is a placeholder that logs the upload attempt
+    // Set archive path in session for upload functions
+    strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1);
     
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Upload simulation - would upload to endpoint: %s\n", 
-            __FUNCTION__, __LINE__, 
-            ctx->endpoints.endpoint_url[0] ? ctx->endpoints.endpoint_url : "(not configured)");
-
-    // Track attempt based on current path
-    if (session->primary == PATH_DIRECT) {
-        session->direct_attempts++;
-    } else if (session->primary == PATH_CODEBIG) {
-        session->codebig_attempts++;
+    // Execute the upload cycle with the configured paths
+    bool upload_success = execute_upload_cycle(ctx, session);
+    
+    if (upload_success) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Archive upload completed successfully\n", 
+                __FUNCTION__, __LINE__);
+        return 0;
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive upload failed\n", 
+                __FUNCTION__, __LINE__);
+        return -1;
     }
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Upload completed successfully (placeholder)\n", 
-            __FUNCTION__, __LINE__);
-
-    return 0;
 }

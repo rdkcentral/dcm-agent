@@ -74,11 +74,20 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Starting setup phase\n", __FUNCTION__, __LINE__);
 
-    // Check if LOG_PATH has any log files
+    // Check if LOG_PATH has .txt or .log files
+    // Script uploadLogOnDemand lines 741-752:
+    // ret=`ls $LOG_PATH/*.txt`
+    // if [ ! $ret ]; then ret=`ls $LOG_PATH/*.log`
     if (!dir_exists(ctx->paths.log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] LOG_PATH does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.log_path);
+                "[%s:%d] LOG_PATH does not exist: %s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
+        return -1;
+    }
+
+    if (!has_log_files(ctx->paths.log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] No .txt or .log files in LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
+        emit_no_logs_ondemand();
         return -1;
     }
 

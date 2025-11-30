@@ -41,6 +41,8 @@
 #include "upload_engine.h"
 #include "cleanup_handler.h"
 #include "event_manager.h"
+#include "system_utils.h"
+#include "telemetry.h"
 
 static int lock_fd = -1;
 
@@ -169,9 +171,12 @@ void release_lock(void)
 
 bool is_maintenance_enabled(void)
 {
-    // Check if maintenance mode is enabled (matches script ENABLE_MAINTENANCE check)
-    char* enable_maintenance = getenv("ENABLE_MAINTENANCE");
-    return (enable_maintenance && strcmp(enable_maintenance, "true") == 0);
+    // Check if maintenance mode is enabled from /etc/device.properties
+    char buffer[256] = {0};
+    if (getDevicePropertyData("ENABLE_MAINTENANCE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        return (strcasecmp(buffer, "true") == 0);
+    }
+    return false;
 }
 
 int main(int argc, char** argv)
@@ -195,6 +200,9 @@ int main(int argc, char** argv)
         }
         return 1;
     }
+
+    /* Initialize telemetry system (matches rdm-agent pattern) */
+    telemetry_init();
 
     /* Initialize runtime context */
     if (!init_context(&ctx)) {
@@ -222,11 +230,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    if (strategy == STRAT_NO_LOGS) {
-        emit_no_logs();
-        release_lock();
-        return 0;
-    }
+    /* Note: STRAT_NO_LOGS removed - each strategy now checks for logs internally */
 
     /* Emit upload start event (matches script MAINT_LOGUPLOAD_INPROGRESS) */
     emit_upload_start();
@@ -259,6 +263,9 @@ int main(int argc, char** argv)
 
     /* Finalize: cleanup, update markers, emit events */
     finalize(&ctx, &session);
+
+    /* Uninitialize telemetry system */
+    telemetry_uninit();
 
     /* Release lock and exit */
     release_lock();

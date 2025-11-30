@@ -25,9 +25,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <secure_wrapper.h>
 #include "validation.h"
 #include "file_operations.h"
+#include "event_manager.h"
 #include "rdk_debug.h"
+
 
 /**
  * @brief Check if a binary is available in PATH or at specific location
@@ -112,11 +115,14 @@ bool validate_directories(const RuntimeContext* ctx)
         }
     }
 
-    // Check PREV_LOG_PATH - will be created if needed
+    // Check PREV_LOG_PATH - critical for upload (matches script behavior)
     if (strlen(ctx->paths.prev_log_path) > 0) {
         if (!dir_exists(ctx->paths.prev_log_path)) {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH does not exist: %s (will be created)\n", 
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] The Previous Logs folder is missing: %s\n", 
                     __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+            // Script sends MAINT_LOGUPLOAD_ERROR=5 when PREV_LOG_PATH is missing
+            emit_folder_missing_error();
+            all_valid = false;
         } else {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH exists: %s\n", 
                     __FUNCTION__, __LINE__, ctx->paths.prev_log_path);

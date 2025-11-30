@@ -28,6 +28,8 @@
 #include "mtls_handler.h"
 #include "oauth_handler.h"
 #include "verification.h"
+#include "telemetry.h"
+#include "md5_utils.h"
 #include "rdk_debug.h"
 
 // Include the upload library headers
@@ -53,17 +55,57 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     char *archive_filepath = session->archive_file;
     char *endpoint_url = ctx->endpoints.endpoint_url;
     
+    // Calculate MD5 if encryption enabled (matches script line 440)
+    char md5_base64[64] = {0};
+    const char *md5_ptr = NULL;
+    if (ctx->settings.encryption_enable) {
+        if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
+            md5_ptr = md5_base64;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n",
+                    __FUNCTION__, __LINE__, md5_base64);
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to calculate MD5 for encryption\n",
+                    __FUNCTION__, __LINE__);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                "[%s:%d] RFC_EncryptCloudUpload_Enable: false\n",
+                __FUNCTION__, __LINE__);
+    }
+    
+    // Report mTLS usage telemetry (matches script line 355)
+    report_mtls_usage();
+    
     // Call the enhanced mTLS upload function
     UploadStatusDetail upload_status;
     int upload_result = uploadFileWithTwoStageFlowEx(
-        endpoint_url,     // upload_url parameter
-        archive_filepath, // src_file parameter
-        &upload_status    // detailed status output
+        endpoint_url,                     // upload_url parameter
+        archive_filepath,                 // src_file parameter
+        md5_ptr,                          // MD5 hash (NULL if not enabled)
+        ctx->settings.ocsp_enabled,       // OCSP enabled flag
+        &upload_status                    // detailed status output
     );
     
     // Update session state with real status codes
     session->curl_code = upload_status.curl_code;
     session->http_code = upload_status.http_code;
+    
+    // Report curl error if present (matches script lines 338, 614, 645)
+    if (upload_status.curl_code != 0) {
+        report_curl_error(upload_status.curl_code);
+    }
+    
+    // Report certificate error if present (matches script line 307)
+    // Certificate error codes: 35,51,53,54,58,59,60,64,66,77,80,82,83,90,91
+    int curl_code = upload_status.curl_code;
+    if (curl_code == 35 || curl_code == 51 || curl_code == 53 || curl_code == 54 ||
+        curl_code == 58 || curl_code == 59 || curl_code == 60 || curl_code == 64 ||
+        curl_code == 66 || curl_code == 77 || curl_code == 80 || curl_code == 82 ||
+        curl_code == 83 || curl_code == 90 || curl_code == 91) {
+        report_cert_error(curl_code, upload_status.fqdn);
+    }
     
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
@@ -132,11 +174,17 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
                         
                         // Upload to proxy using enhanced function
                         UploadStatusDetail proxy_status;
-                        int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, &proxy_status);
+                        int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, 
+                                                                md5_ptr, ctx->settings.ocsp_enabled, &proxy_status);
                         
                         // Update session state with real status codes
                         session->curl_code = proxy_status.curl_code;
                         session->http_code = proxy_status.http_code;
+                        
+                        // Report curl error if present
+                        if (proxy_status.curl_code != 0) {
+                            report_curl_error(proxy_status.curl_code);
+                        }
                         
                         UploadResult proxy_verified = verify_upload(session);
                         if (proxy_verified == UPLOAD_SUCCESS) {
@@ -182,17 +230,44 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     char *archive_filepath = session->archive_file;
     char *endpoint_url = ctx->endpoints.endpoint_url;
     
+    // Calculate MD5 if encryption enabled (matches script line 440)
+    char md5_base64[64] = {0};
+    const char *md5_ptr = NULL;
+    if (ctx->settings.encryption_enable) {
+        if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
+            md5_ptr = md5_base64;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n",
+                    __FUNCTION__, __LINE__, md5_base64);
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to calculate MD5 for encryption\n",
+                    __FUNCTION__, __LINE__);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                "[%s:%d] RFC_EncryptCloudUpload_Enable: false\n",
+                __FUNCTION__, __LINE__);
+    }
+    
     // Call the enhanced CodeBig upload function
     UploadStatusDetail upload_status;
     int upload_result = uploadFileWithCodeBigFlowEx(
-        archive_filepath,    // src_file parameter
-        HTTP_SSR_CODEBIG,   // server_type parameter
-        &upload_status      // detailed status output
+        archive_filepath,                 // src_file parameter
+        HTTP_SSR_CODEBIG,                 // server_type parameter
+        md5_ptr,                          // MD5 hash (NULL if not enabled)
+        ctx->settings.ocsp_enabled,       // OCSP enabled flag
+        &upload_status                    // detailed status output
     );
     
     // Update session state with real status codes
     session->curl_code = upload_status.curl_code;
     session->http_code = upload_status.http_code;
+    
+    // Report curl error if present (matches script line 338)
+    if (upload_status.curl_code != 0) {
+        report_curl_error(upload_status.curl_code);
+    }
     
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
