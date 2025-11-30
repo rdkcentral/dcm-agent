@@ -223,36 +223,6 @@ int collect_previous_logs(const char* src_dir, const char* dest_dir)
     return count;
 }
 
-/**
- * @brief Check if file is a PCAP file
- * @param filename File name to check
- * @return true if PCAP file
- */
-static bool is_pcap_file(const char* filename)
-{
-    if (!filename) {
-        return false;
-    }
-
-    // Skip . and ..
-    if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) {
-        return false;
-    }
-
-    // Check for .pcap extension
-    const char* ext = strrchr(filename, '.');
-    if (ext && strcasecmp(ext, ".pcap") == 0) {
-        return true;
-    }
-
-    // Also check for .pcap.* (backup files)
-    if (strstr(filename, ".pcap") != NULL) {
-        return true;
-    }
-
-    return false;
-}
-
 int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
 {
     if (!ctx || !dest_dir) {
@@ -367,3 +337,4 @@ int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
 
     return count;
 }
+
