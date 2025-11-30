@@ -108,12 +108,12 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
     
-    if (verified_result == UPLOAD_SUCCESS) {
+    if (verified_result == ((UploadResult)UPLOAD_SUCCESS)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Direct upload verified successful\n",
                 __FUNCTION__, __LINE__);
         session->success = true;
-        return UPLOAD_SUCCESS;
+        return ((UploadResult)UPLOAD_SUCCESS);
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Direct upload failed with result: %d\n",
@@ -185,12 +185,12 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
                         }
                         
                         UploadResult proxy_verified = verify_upload(session);
-                        if (proxy_verified == UPLOAD_SUCCESS) {
+                        if (proxy_verified == ((UploadResult)UPLOAD_SUCCESS)) {
                             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                                     "[%s:%d] Proxy upload verified successful\n",
                                     __FUNCTION__, __LINE__);
                             session->success = true;
-                            return UPLOAD_SUCCESS;
+                            return ((UploadResult)UPLOAD_SUCCESS);
                         } else {
                             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                                     "[%s:%d] Proxy upload failed with result: %d\n",
@@ -226,7 +226,6 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
 
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
-    char *endpoint_url = ctx->endpoints.endpoint_url;
     
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
@@ -250,7 +249,7 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     
     // Call the enhanced CodeBig upload function
     UploadStatusDetail upload_status;
-    int upload_result = uploadFileWithCodeBigFlowEx(
+    uploadFileWithCodeBigFlowEx(
         archive_filepath,                 // src_file parameter
         HTTP_SSR_CODEBIG,                 // server_type parameter
         md5_ptr,                          // MD5 hash (NULL if not enabled)
@@ -270,12 +269,12 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     // Use verification module to determine result
     UploadResult verified_result = verify_upload(session);
     
-    if (verified_result == UPLOAD_SUCCESS) {
+    if (verified_result == ((UploadResult)UPLOAD_SUCCESS)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] CodeBig upload verified successful\n",
                 __FUNCTION__, __LINE__);
         session->success = true;
-        return UPLOAD_SUCCESS;
+        return ((UploadResult)UPLOAD_SUCCESS);
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] CodeBig upload failed - HTTP: %d, Curl: %d, Message: %s\n",
@@ -285,6 +284,5 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
         return verified_result;
     }
 }
-
 
 
