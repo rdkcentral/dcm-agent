@@ -82,6 +82,12 @@ bool validate_system(const RuntimeContext* ctx)
         return false;
     }
 
+    // Validate CodeBig access (checkcodebigaccess equivalent)
+    if (!validate_codebig_access()) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] CodeBig access validation failed - CodeBig uploads may not work\n", __FUNCTION__, __LINE__);
+        // Note: This is a warning, not a failure - Direct uploads can still work
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] System validation successful\n", __FUNCTION__, __LINE__);
     return true;
 }
@@ -222,4 +228,22 @@ bool validate_configuration(void)
     }
 
     return all_valid;
+}
+
+bool validate_codebig_access(void)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Starting CodeBig access validation (checkcodebigaccess)\n", __FUNCTION__, __LINE__);
+
+    // Execute GetServiceUrl command to test CodeBig access
+    // This is equivalent to the original script's checkCodebigAccess function
+    int ret = v_secure_system("GetServiceUrl 2 temp");
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Exit code for codebigcheck: %d\n", __FUNCTION__, __LINE__, ret);
+    
+    if (ret == 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] CodebigAccess Present: %d\n", __FUNCTION__, __LINE__, ret);
+        return true;
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] CodebigAccess Not Present: %d\n", __FUNCTION__, __LINE__, ret);
+        return false;
+    }
 }

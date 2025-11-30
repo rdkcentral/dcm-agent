@@ -25,33 +25,157 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "upload_engine.h"
 #include "path_handler.h"
 #include "retry_logic.h"
 #include "file_operations.h"
+#include "event_manager.h"
+#include "uploadutil.h"
 #include "rdk_debug.h"
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session)
 {
-    /* TODO: Orchestrate upload cycle with retry and fallback */
+    if (!ctx || !session) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return false;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Starting upload cycle for archive: %s\n", 
+            __FUNCTION__, __LINE__, session->archive_file);
+
+    // Try primary path first
+    UploadResult primary_result = attempt_upload(ctx, session, session->primary);
+    
+    if (primary_result == UPLOAD_SUCCESS) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload successful on primary path\n", __FUNCTION__, __LINE__);
+        return true;
+    }
+
+    // Check if we should try fallback
+    if (should_fallback(ctx, session, primary_result) && session->fallback != PATH_NONE) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Primary path failed, attempting fallback\n", __FUNCTION__, __LINE__);
+        
+        switch_to_fallback(session);
+        UploadResult fallback_result = attempt_upload(ctx, session, session->fallback);
+        
+        if (fallback_result == UPLOAD_SUCCESS) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Upload successful on fallback path\n", __FUNCTION__, __LINE__);
+            session->used_fallback = true;
+            return true;
+        }
+    }
+
+    RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+            "[%s:%d] Upload failed on all available paths\n", __FUNCTION__, __LINE__);
     return false;
 }
 
 UploadResult attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPath path)
 {
-    /* TODO: Attempt upload on specified path */
-    return UPLOAD_FAILED;
+    if (!ctx || !session) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return UPLOAD_FAILED;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Attempting upload with retry on path: %s\n", __FUNCTION__, __LINE__, 
+            path == PATH_DIRECT ? "Direct" : 
+            path == PATH_CODEBIG ? "CodeBig" : "Unknown");
+
+    // Use retry_logic module to handle retries for this path
+    return retry_upload(ctx, session, path, single_attempt_upload);
+}
+
+/**
+ * @brief Single upload attempt function for retry logic
+ * @param ctx Runtime context
+ * @param session Session state  
+ * @param path Upload path
+ * @return UploadResult code
+ */
+static UploadResult single_attempt_upload(RuntimeContext* ctx, SessionState* session, UploadPath path)
+{
+    if (!ctx || !session) {
+        return UPLOAD_FAILED;
+    }
+
+    // Execute the appropriate upload path without retry logic
+    switch (path) {
+        case PATH_DIRECT:
+            return execute_direct_path(ctx, session);
+        
+        case PATH_CODEBIG:
+            return execute_codebig_path(ctx, session);
+        
+        case PATH_NONE:
+        default:
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] Invalid upload path: %d\n", __FUNCTION__, __LINE__, path);
+            return UPLOAD_FAILED;
+    }
 }
 
 bool should_fallback(const RuntimeContext* ctx, const SessionState* session, UploadResult result)
 {
-    /* TODO: Determine if fallback should be attempted */
+    if (!ctx || !session) {
+        return false;
+    }
+
+    // Don't fallback if upload was successful or explicitly aborted
+    if (result == UPLOAD_SUCCESS || result == UPLOAD_ABORTED) {
+        return false;
+    }
+
+    // Don't fallback if no fallback path is configured
+    if (session->fallback == PATH_NONE) {
+        return false;
+    }
+
+    // Don't fallback if we've already used the fallback
+    if (session->used_fallback) {
+        return false;
+    }
+
+    // Since retry_logic handles all retries, fallback should only occur
+    // when a path has been completely exhausted (failed after all retries)
+    if (result == UPLOAD_FAILED || result == UPLOAD_RETRY) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Primary path exhausted after retries, fallback available\n", 
+                __FUNCTION__, __LINE__);
+        return true;
+    }
+
     return false;
 }
 
 void switch_to_fallback(SessionState* session)
 {
-    /* TODO: Switch from primary to fallback path */
+    if (!session) {
+        return;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Switching from primary path %s to fallback path %s\n", 
+            __FUNCTION__, __LINE__, 
+            session->primary == PATH_DIRECT ? "Direct" : 
+            session->primary == PATH_CODEBIG ? "CodeBig" : "Unknown",
+            session->fallback == PATH_DIRECT ? "Direct" : 
+            session->fallback == PATH_CODEBIG ? "CodeBig" : "Unknown");
+
+    // Swap primary and fallback paths
+    UploadPath temp = session->primary;
+    session->primary = session->fallback;
+    session->fallback = temp;
+    
+    // Mark that we're using fallback
+    session->used_fallback = true;
 }
 
 /**

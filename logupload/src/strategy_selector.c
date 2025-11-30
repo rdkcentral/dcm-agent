@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include "strategy_selector.h"
 #include "file_operations.h"
+#include "validation.h"
 #include "rdk_debug.h"
 
 Strategy early_checks(const RuntimeContext* ctx)
@@ -141,15 +142,28 @@ void decide_paths(const RuntimeContext* ctx, SessionState* session)
         return;
     }
 
-    // Path selection logic based on block status
+    // Path selection logic based on block status and CodeBig access
     bool direct_blocked = ctx->settings.direct_blocked;
     bool codebig_blocked = ctx->settings.codebig_blocked;
+    
+    // Check CodeBig access if not already blocked
+    bool codebig_access_available = true;
+    if (!codebig_blocked) {
+        codebig_access_available = validate_codebig_access();
+        if (!codebig_access_available) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] CodeBig access validation failed - CodeBig uploads not possible\n", 
+                    __FUNCTION__, __LINE__);
+            codebig_blocked = true;  // Block CodeBig completely for this session
+        }
+    }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Path decision - Direct blocked: %s, CodeBig blocked: %s\n", 
+            "[%s:%d] Path decision - Direct blocked: %s, CodeBig blocked: %s, CodeBig access: %s\n", 
             __FUNCTION__, __LINE__, 
             direct_blocked ? "YES" : "NO",
-            codebig_blocked ? "YES" : "NO");
+            codebig_blocked ? "YES" : "NO",
+            codebig_access_available ? "YES" : "NO");
 
     // Default: Direct primary, CodeBig fallback
     if (!direct_blocked && !codebig_blocked) {
@@ -167,13 +181,14 @@ void decide_paths(const RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Paths: Primary=CODEBIG, Fallback=NONE (direct blocked)\n", 
                 __FUNCTION__, __LINE__);
     }
-    // CodeBig blocked: Direct primary, no fallback
+    // CodeBig blocked or access unavailable: Direct primary, no fallback
     else if (!direct_blocked && codebig_blocked) {
         session->primary = PATH_DIRECT;
         session->fallback = PATH_NONE;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Paths: Primary=DIRECT, Fallback=NONE (codebig blocked)\n", 
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Paths: Primary=DIRECT, Fallback=NONE (%s)\n", 
+                __FUNCTION__, __LINE__,
+                !codebig_access_available ? "codebig access unavailable" : "codebig blocked");
     }
     // Both blocked: No upload possible
     else {

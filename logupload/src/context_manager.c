@@ -46,7 +46,7 @@ static int g_rdk_logger_enabled = 0;
  * @param block_time Maximum blocking time in seconds
  * @return true if blocked, false if not blocked or block expired
  */
-static bool is_direct_blocked(int block_time)
+bool is_direct_blocked(int block_time)
 {
     const char *block_file = "/tmp/.lastdirectfail_upl";
     struct stat file_stat;
@@ -82,7 +82,7 @@ static bool is_direct_blocked(int block_time)
  * @param block_time Maximum blocking time in seconds
  * @return true if blocked, false if not blocked or block expired
  */
-static bool is_codebig_blocked(int block_time)
+bool is_codebig_blocked(int block_time)
 {
     const char *block_file = "/tmp/.lastcodebigfail_upl";
     struct stat file_stat;
@@ -230,6 +230,17 @@ bool load_environment(RuntimeContext* ctx)
     } else {
         ctx->retry.codebig_retry_delay = 1800;  // Default 30 minutes
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] CB_BLOCK_TIME not found, using default: %d\n", __FUNCTION__, __LINE__, ctx->retry.codebig_retry_delay);
+    }
+
+    // Load PROXY_BUCKET from /etc/device.properties (for mediaclient proxy fallback)
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("PROXY_BUCKET", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        strncpy(ctx->endpoints.proxy_bucket, buffer, sizeof(ctx->endpoints.proxy_bucket) - 1);
+        ctx->endpoints.proxy_bucket[sizeof(ctx->endpoints.proxy_bucket) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PROXY_BUCKET=%s\n", __FUNCTION__, __LINE__, ctx->endpoints.proxy_bucket);
+    } else {
+        ctx->endpoints.proxy_bucket[0] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PROXY_BUCKET not found, proxy fallback disabled\n", __FUNCTION__, __LINE__);
     }
 
     // Set hardcoded retry attempts and timeouts from script

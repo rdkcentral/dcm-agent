@@ -35,7 +35,6 @@
 #include "archive_manager.h"
 #include "log_collector.h"
 #include "file_operations.h"
-#include "system_utils.h"
 #include "strategy_handler.h"
 #include "rdk_debug.h"
 
