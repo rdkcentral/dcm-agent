@@ -193,7 +193,7 @@ int main(int argc, char** argv)
 
     /* Parse command-line arguments */
     if (!parse_args(argc, argv, &ctx)) {
-`        fprintf(stderr, "Failed to parse arguments\n");
+        fprintf(stderr, "Failed to parse arguments\n");
         return 1;
     }
 
@@ -280,3 +280,4 @@ int main(int argc, char** argv)
     release_lock();
     return ret;
 }
+
