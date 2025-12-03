@@ -191,12 +191,6 @@ int main(int argc, char** argv)
     SessionState session = {0};
     int ret = 1;
 
-    /* Parse command-line arguments */
-    if (!parse_args(argc, argv, &ctx)) {
-        fprintf(stderr, "Failed to parse arguments\n");
-        return 1;
-    }
-
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
         fprintf(stderr, "Failed to acquire lock - another instance running\n");
@@ -213,6 +207,13 @@ int main(int argc, char** argv)
     /* Initialize runtime context */
     if (!init_context(&ctx)) {
         fprintf(stderr, "Failed to initialize context\n");
+        release_lock();
+        return 1;
+    }
+
+    /* Parse command-line arguments */
+    if (!parse_args(argc, argv, &ctx)) {
+        fprintf(stderr, "Failed to parse arguments\n");
         release_lock();
         return 1;
     }
@@ -273,9 +274,10 @@ int main(int argc, char** argv)
     /* Uninitialize telemetry system */
     telemetry_uninit();
 
+    /* Cleanup IARM connection */
+    cleanup_iarm_connection();
+
     /* Release lock and exit */
     release_lock();
     return ret;
 }
-
-
