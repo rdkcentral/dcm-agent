@@ -30,8 +30,10 @@
 #include <time.h>
 #include "log_collector.h"
 #include "file_operations.h"
+#ifndef GTEST_ENABLE
 #include "system_utils.h"
 #include "rdk_debug.h"
+#endif
 
 /**
  * @brief Check if filename has a valid log extension
@@ -337,4 +339,3 @@ int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
 
     return count;
 }
-

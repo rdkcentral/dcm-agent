@@ -35,7 +35,9 @@
 #include "archive_manager.h"
 #include "log_collector.h"
 #include "file_operations.h"
+#ifndef GTEST_ENABLE
 #include "system_utils.h"
+#endif
 #include "strategy_handler.h"
 #include "rdk_debug.h"
 

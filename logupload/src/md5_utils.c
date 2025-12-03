@@ -25,16 +25,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/md5.h>
-#include <openssl/bio.h>
+#include <stdint.h>
 #include <openssl/evp.h>
-#include <openssl/buffer.h>
 #include "md5_utils.h"
 #include "uploadstblogs_types.h"
 #include "rdk_debug.h"
 
 /**
- * @brief Base64 encode binary data
+ * @brief Base64 encode binary data using simple implementation
  * @param input Binary data to encode
  * @param length Length of input data
  * @param output Buffer to store base64 encoded string
@@ -44,27 +42,28 @@
 static bool base64_encode(const unsigned char *input, size_t length, 
                          char *output, size_t output_size)
 {
-    BIO *bio, *b64;
-    BUF_MEM *buffer_ptr;
+    const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    size_t output_length = ((length + 2) / 3) * 4;
     
-    b64 = BIO_new(BIO_f_base64());
-    bio = BIO_new(BIO_s_mem());
-    bio = BIO_push(b64, bio);
-    
-    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); // No newlines
-    BIO_write(bio, input, length);
-    BIO_flush(bio);
-    BIO_get_mem_ptr(bio, &buffer_ptr);
-    
-    if (buffer_ptr->length >= output_size) {
-        BIO_free_all(bio);
+    if (output_length >= output_size) {
         return false;
     }
     
-    memcpy(output, buffer_ptr->data, buffer_ptr->length);
-    output[buffer_ptr->length] = '\0';
+    size_t i, j;
+    for (i = 0, j = 0; i < length; i += 3, j += 4) {
+        uint32_t a = i < length ? input[i] : 0;
+        uint32_t b = (i + 1) < length ? input[i + 1] : 0;
+        uint32_t c = (i + 2) < length ? input[i + 2] : 0;
+        
+        uint32_t triple = (a << 16) | (b << 8) | c;
+        
+        output[j] = base64_chars[(triple >> 18) & 0x3F];
+        output[j + 1] = base64_chars[(triple >> 12) & 0x3F];
+        output[j + 2] = (i + 1) < length ? base64_chars[(triple >> 6) & 0x3F] : '=';
+        output[j + 3] = (i + 2) < length ? base64_chars[triple & 0x3F] : '=';
+    }
     
-    BIO_free_all(bio);
+    output[output_length] = '\0';
     return true;
 }
 

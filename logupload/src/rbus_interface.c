@@ -27,9 +27,9 @@
 #include <string.h>
 #include "rbus_interface.h"
 #include "rdk_debug.h"
-
+#ifndef GTEST_ENABLE
 #include "rbus/rbus.h"
-
+#endif
 
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
 
