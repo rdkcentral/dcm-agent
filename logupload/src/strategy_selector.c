@@ -39,6 +39,10 @@ Strategy early_checks(const RuntimeContext* ctx)
         return STRAT_DCM; // Default fallback
     }
 
+    // Debug: Print all flag values
+    fprintf(stderr, "DEBUG: early_checks() - rrd_flag=%d, dcm_flag=%d, trigger_type=%d\n", 
+            ctx->flags.rrd_flag, ctx->flags.dcm_flag, ctx->flags.trigger_type);
+
     // Decision tree as per HLD:
     
     // 1. RRD_FLAG == 1 → STRAT_RRD
