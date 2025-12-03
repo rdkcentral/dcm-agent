@@ -37,7 +37,7 @@
 #if defined(IARM_ENABLED)
 #include "libIBus.h"
 #include "sysMgr.h"
-#ifdef EN_MAINTENANCE_MANAGER
+#ifdef HAS_MAINTENANCE_MANAGER
 #include "mfrMgr.h"
 #endif
 static bool iarm_initialized = false;
@@ -338,7 +338,7 @@ void send_iarm_event(const char* event_name, int event_code)
  */
 void send_iarm_event_maintenance(int maint_event_code)
 {
-#ifdef EN_MAINTENANCE_MANAGER
+#ifdef HAS_MAINTENANCE_MANAGER
     if (!init_iarm_connection()) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] IARM not initialized, skipping maintenance event\n", __FUNCTION__, __LINE__);
@@ -422,3 +422,4 @@ void emit_folder_missing_error(void)
     // Send maintenance error event (matches script behavior)
     send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
 }
+
