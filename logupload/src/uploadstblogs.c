@@ -78,16 +78,19 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     if (argc >= 3 && argv[2]) {
         // Parse FLAG
         ctx->flags.flag = atoi(argv[2]);
+        fprintf(stderr, "DEBUG: FLAG (argv[2]) = '%s' -> %d\n", argv[2], ctx->flags.flag);
     }
     
     if (argc >= 4 && argv[3]) {
         // Parse DCM_FLAG
         ctx->flags.dcm_flag = atoi(argv[3]);
+        fprintf(stderr, "DEBUG: DCM_FLAG (argv[3]) = '%s' -> %d\n", argv[3], ctx->flags.dcm_flag);
     }
     
     if (argc >= 5 && argv[4]) {
         // Parse UploadOnReboot
         ctx->flags.upload_on_reboot = (strcmp(argv[4], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: UploadOnReboot (argv[4]) = '%s' -> %d\n", argv[4], ctx->flags.upload_on_reboot);
     }
     
     if (argc >= 6 && argv[5]) {
@@ -104,6 +107,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     
     if (argc >= 8 && argv[7]) {
         // Parse TriggerType
+        fprintf(stderr, "DEBUG: TriggerType (argv[7]) = '%s'\n", argv[7]);
         if (strcmp(argv[7], "cron") == 0) {
             ctx->flags.trigger_type = TRIGGER_SCHEDULED;
         } else if (strcmp(argv[7], "ondemand") == 0) {
@@ -113,11 +117,13 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         } else if (strcmp(argv[7], "reboot") == 0) {
             ctx->flags.trigger_type = TRIGGER_REBOOT;
         }
+        fprintf(stderr, "DEBUG: trigger_type = %d\n", ctx->flags.trigger_type);
     }
     
     if (argc >= 9 && argv[8]) {
         // Parse RRD_FLAG
         ctx->flags.rrd_flag = (strcmp(argv[8], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: RRD_FLAG (argv[8]) = '%s' -> %d\n", argv[8], ctx->flags.rrd_flag);
     }
     
     if (argc >= 10 && argv[9]) {
@@ -187,7 +193,7 @@ int main(int argc, char** argv)
 
     /* Parse command-line arguments */
     if (!parse_args(argc, argv, &ctx)) {
-        fprintf(stderr, "Failed to parse arguments\n");
+`        fprintf(stderr, "Failed to parse arguments\n");
         return 1;
     }
 
@@ -266,6 +272,9 @@ int main(int argc, char** argv)
 
     /* Uninitialize telemetry system */
     telemetry_uninit();
+
+    /* Cleanup IARM connection */
+    cleanup_iarm_connection();
 
     /* Release lock and exit */
     release_lock();
