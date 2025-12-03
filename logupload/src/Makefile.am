@@ -12,6 +12,9 @@ logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -D
                      -I${top_srcdir}/logupload/include \
                      -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
                      -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
 
 logupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 logupload_LDFLAGS += $(curl_LIBS)
