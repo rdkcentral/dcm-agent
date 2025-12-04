@@ -6,29 +6,17 @@ logupload_SOURCES = uploadstblogs.c context_manager.c validation.c strategy_sele
 
 #logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
 
-logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR\
+logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR -DHAS_MAINTENANCE_MANAGER\
                      -I${top_srcdir} \
                      -I${top_srcdir}/logupload \
                      -I${top_srcdir}/logupload/include \
                      -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
-                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util
+                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
+                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
 
 logupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 logupload_LDFLAGS += $(curl_LIBS)
-logupload_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
+logupload_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
 
-if IS_LIBRDKCERTSEL_ENABLED
-logupload_CFLAGS += $(LIBRDKCERTSEL_FLAG)
-logupload_CFLAGS += $(LIBRDKCERTSEL_FLAG)
-if IS_LIBRDKCONFIG_ENABLED
-logupload_CFLAGS += $(LIBRDKCONFIG_FLAG)
-logupload_LDFLAGS += -lRdkCertSelector -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib64 -lrdkconfig
-else
-logupload_LDFLAGS += -lRdkCertSelector
-endif
-else
-if IS_LIBRDKCONFIG_ENABLED
-logupload_CFLAGS += $(LIBRDKCONFIG_FLAG)
-logupload_LDFLAGS += -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib64 -lrdkconfig
-endif
-endif

@@ -59,6 +59,20 @@ AC_SUBST([dcmd_CFLAGS])
 
 # Checks for typedefs, structures, and compiler characteristics.
 
+AC_ARG_ENABLE([iarmevent],
+        AS_HELP_STRING([--enable-iarmevent],[enables IARM event]),
+        [
+          case "${enableval}" in
+           yes) IS_IARMEVENT_ENABLED=true
+                IARM_EVENT_FLAG=" -DIARM_ENABLED ";;
+           no)  IS_IARMEVENT_ENABLED=false ;;
+          *) AC_MSG_ERROR([bad value ${enableval} for --enable-iarmevent]) ;;
+           esac
+           ],
+        [echo "iarm is disabled"])
+AM_CONDITIONAL([IS_IARMEVENT_ENABLED], [test x$IS_IARMEVENT_ENABLED = xtrue])
+AC_SUBST(IARM_EVENT_FLAG)
+
 AC_ARG_ENABLE([t2api],
 	      AS_HELP_STRING([--enable-t2api],[enables telemetry]),
 	      [

@@ -81,7 +81,7 @@ void emit_fallback(UploadPath from_path, UploadPath to_path);
 
 /**
  * @brief Send IARM event
- * @param event_name Event name (e.g., "LogUploadEvent", "MaintenanceMGR")
+ * @param event_name Event name (e.g., "LogUploadEvent")
  * @param event_code Event code
  */
 void send_iarm_event(const char* event_name, int event_code);
@@ -91,6 +91,12 @@ void send_iarm_event(const char* event_name, int event_code);
  * @param maint_event_code Maintenance event code
  */
 void send_iarm_event_maintenance(int maint_event_code);
+
+/**
+ * @brief Cleanup IARM connection resources
+ * Should be called during application shutdown
+ */
+void cleanup_iarm_connection(void);
 
 /**
  * @brief Emit folder missing error event

@@ -65,6 +65,12 @@ const StrategyHandler dcm_strategy_handler = {
  */
 static int dcm_setup(RuntimeContext* ctx, SessionState* session)
 {
+    if (!ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
@@ -113,6 +119,13 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
  */
 static int dcm_archive(RuntimeContext* ctx, SessionState* session)
 {
+    if (!ctx || !session) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters (ctx=%p, session=%p)\n", 
+                __FUNCTION__, __LINE__, (void*)ctx, (void*)session);
+        return -1;
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
 
@@ -152,6 +165,13 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
  */
 static int dcm_upload(RuntimeContext* ctx, SessionState* session)
 {
+    if (!ctx || !session) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters (ctx=%p, session=%p)\n", 
+                __FUNCTION__, __LINE__, (void*)ctx, (void*)session);
+        return -1;
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
 
@@ -206,6 +226,12 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
  */
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success)
 {
+    if (!ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting cleanup phase (upload_success=%d)\n", 
             __FUNCTION__, __LINE__, upload_success);
