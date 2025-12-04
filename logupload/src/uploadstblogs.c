@@ -103,6 +103,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     if (argc >= 7 && argv[6]) {
         // Parse UploadHttpLink
         strncpy(ctx->endpoints.upload_http_link, argv[6], sizeof(ctx->endpoints.upload_http_link) - 1);
+        fprintf(stderr, "DEBUG: upload_http_link (argv[6]) = '%s'\n", argv[6]);
     }
     
     if (argc >= 8 && argv[7]) {
@@ -191,12 +192,6 @@ int main(int argc, char** argv)
     SessionState session = {0};
     int ret = 1;
 
-    /* Parse command-line arguments */
-    if (!parse_args(argc, argv, &ctx)) {
-        fprintf(stderr, "Failed to parse arguments\n");
-        return 1;
-    }
-
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
         fprintf(stderr, "Failed to acquire lock - another instance running\n");
@@ -213,6 +208,13 @@ int main(int argc, char** argv)
     /* Initialize runtime context */
     if (!init_context(&ctx)) {
         fprintf(stderr, "Failed to initialize context\n");
+        release_lock();
+        return 1;
+    }
+
+    /* Parse command-line arguments */
+    if (!parse_args(argc, argv, &ctx)) {
+        fprintf(stderr, "Failed to parse arguments\n");
         release_lock();
         return 1;
     }
@@ -273,11 +275,7 @@ int main(int argc, char** argv)
     /* Uninitialize telemetry system */
     telemetry_uninit();
 
-    /* Cleanup IARM connection */
-    cleanup_iarm_connection();
-
     /* Release lock and exit */
     release_lock();
     return ret;
 }
-
