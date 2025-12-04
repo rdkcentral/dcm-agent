@@ -18,342 +18,274 @@
  */
 
 /**
- * @file path_handler.c
- * @brief Upload path handling implementation
+ * @file cleanup_handler.c
+ * @brief Cleanup operations implementation
  */
 
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
-#include "path_handler.h"
-#include "verification.h"
+#include <errno.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include "cleanup_handler.h"
+#include "context_manager.h"
+#include "event_manager.h"
 #include "telemetry.h"
-#include "md5_utils.h"
+#include "file_operations.h"
 #include "rdk_debug.h"
 
-// Include the upload library headers
-#ifndef GTEST_ENABLE
-#include "uploadUtil.h"
-#include "mtls_upload.h"
-#include "codebig_upload.h"
-#include "upload_status.h"
-#endif
-
-/* Forward declarations */
-static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr);
-
-UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
+void finalize(RuntimeContext* ctx, SessionState* session)
 {
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Executing Direct (mTLS) upload path for file: %s\n",
-            __FUNCTION__, __LINE__, session->archive_file);
-    
     if (!ctx || !session) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Invalid parameters for direct path\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return;
     }
 
-    // Prepare upload parameters
-    char *archive_filepath = session->archive_file;
-    
-    // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
-    char *endpoint_url = (strlen(ctx->endpoints.endpoint_url) > 0) ? 
-                          ctx->endpoints.endpoint_url : 
-                          ctx->endpoints.upload_http_link;
-    
-    // Debug: Log the URL being used
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Using upload URL: %s\n",
-            __FUNCTION__, __LINE__, endpoint_url ? endpoint_url : "(NULL)");
-    
-    if (!endpoint_url || strlen(endpoint_url) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] No valid upload URL configured (endpoint_url and upload_http_link both empty)\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
-    }
-    
-    // Calculate MD5 if encryption enabled (matches script line 440)
-    char md5_base64[64] = {0};
-    const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
-        if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
-            md5_ptr = md5_base64;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n",
-                    __FUNCTION__, __LINE__, md5_base64);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Finalizing upload session (success=%s, attempts: direct=%d, codebig=%d)\n", 
+            __FUNCTION__, __LINE__, session->success ? "true" : "false",
+            session->direct_attempts, session->codebig_attempts);
+
+    // Update block markers based on upload results (script-aligned behavior)
+    update_block_markers(ctx, session);
+
+    // Remove archive file if upload was successful
+    if (session->success && strlen(session->archive_file) > 0) {
+        if (remove_archive(session->archive_file)) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Successfully removed archive: %s\n", 
+                    __FUNCTION__, __LINE__, session->archive_file);
         } else {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to calculate MD5 for encryption\n",
-                    __FUNCTION__, __LINE__);
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove archive: %s\n", 
+                    __FUNCTION__, __LINE__, session->archive_file);
         }
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-                "[%s:%d] RFC_EncryptCloudUpload_Enable: false\n",
+    }
+
+    // Clean up temporary directories
+    if (!cleanup_temp_dirs(ctx)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to clean some temporary directories\n", 
                 __FUNCTION__, __LINE__);
     }
+
+    // Send telemetry events based on final result
+    const char* result_str = session->success ? "SUCCESS" : "FAILED";
+    const char* path_used = session->used_fallback ? "FALLBACK" : "PRIMARY";
     
-    // Report mTLS usage telemetry (matches script line 355)
-    report_mtls_usage();
-    
-    // Call the enhanced mTLS upload function
-    UploadStatusDetail upload_status;
-    int upload_result = uploadFileWithTwoStageFlowEx(
-        endpoint_url,                     // upload_url parameter
-        archive_filepath,                 // src_file parameter
-        md5_ptr,                          // MD5 hash (NULL if not enabled)
-        ctx->settings.ocsp_enabled,       // OCSP enabled flag
-        &upload_status                    // detailed status output
-    );
-    
-    // Update session state with real status codes
-    session->curl_code = upload_status.curl_code;
-    session->http_code = upload_status.http_code;
-    
-    // Report curl error if present (matches script lines 338, 614, 645)
-    if (upload_status.curl_code != 0) {
-        report_curl_error(upload_status.curl_code);
-    }
-    
-    // Report certificate error if present (matches script line 307)
-    // Certificate error codes: 35,51,53,54,58,59,60,64,66,77,80,82,83,90,91
-    int curl_code = upload_status.curl_code;
-    if (curl_code == 35 || curl_code == 51 || curl_code == 53 || curl_code == 54 ||
-        curl_code == 58 || curl_code == 59 || curl_code == 60 || curl_code == 64 ||
-        curl_code == 66 || curl_code == 77 || curl_code == 80 || curl_code == 82 ||
-        curl_code == 83 || curl_code == 90 || curl_code == 91) {
-        report_cert_error(curl_code, upload_status.fqdn);
-    }
-    
-    // Use verification module to determine result
-    UploadResult verified_result = verify_upload(session);
-    
-    if (verified_result == UPLOADSTB_SUCCESS) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Direct upload verified successful\n",
-                __FUNCTION__, __LINE__);
-        session->success = true;
-        return UPLOADSTB_SUCCESS;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Direct upload failed with result: %d\n",
-                __FUNCTION__, __LINE__, upload_result);
-        
-        // Try proxy fallback for mediaclient devices (matching script behavior)
-        UploadResult fallback_result = attempt_proxy_fallback(ctx, session, archive_filepath, md5_ptr);
-        if (fallback_result == UPLOADSTB_SUCCESS) {
-            return UPLOADSTB_SUCCESS;
-        }
-        
-        session->success = false;
-        return UPLOADSTB_FAILED;
-    }
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Upload session complete: %s via %s path\n", 
+            __FUNCTION__, __LINE__, result_str, path_used);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Upload session finalized\n", __FUNCTION__, __LINE__);
 }
 
-UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
+void enforce_privacy(const char* log_path)
 {
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Executing CodeBig (OAuth) upload path for file: %s\n",
-            __FUNCTION__, __LINE__, session->archive_file);
+    if (!log_path || !dir_exists(log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid or non-existent log path: %s\n", 
+                __FUNCTION__, __LINE__, log_path ? log_path : "NULL");
+        return;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Enforcing privacy mode - clearing all files in: %s\n", 
+            __FUNCTION__, __LINE__, log_path);
+
+    // Truncate all files in log directory to enforce privacy (matches script: for f in $LOG_PATH/*; do >$f; done)
+    DIR* dir = opendir(log_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, log_path);
+        return;
+    }
+
+    struct dirent* entry;
+    int cleared_count = 0;
     
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories and special entries
+        if (entry->d_name[0] == '.' || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        char file_path[MAX_PATH_LENGTH];
+        snprintf(file_path, sizeof(file_path), "%s/%s", log_path, entry->d_name);
+
+        // Check if it's a regular file
+        struct stat st;
+        if (stat(file_path, &st) == 0 && S_ISREG(st.st_mode)) {
+            // Truncate the file (matches script: >$f)
+            FILE* log_file = fopen(file_path, "w");
+            if (log_file) {
+                fclose(log_file);
+                cleared_count++;
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                        "[%s:%d] Cleared file: %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                        "[%s:%d] Failed to clear file: %s (error: %s)\n", 
+                        __FUNCTION__, __LINE__, file_path, strerror(errno));
+            }
+        }
+    }
+
+    closedir(dir);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Privacy mode enforced - cleared %d files in %s\n", 
+            __FUNCTION__, __LINE__, cleared_count, log_path);
+}
+
+void update_block_markers(const RuntimeContext* ctx, const SessionState* session)
+{
     if (!ctx || !session) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Invalid parameters for CodeBig path\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return;
     }
 
-    // Prepare upload parameters
-    char *archive_filepath = session->archive_file;
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+            "[%s:%d] Updating block markers based on upload results\n", __FUNCTION__, __LINE__);
+
+    // Script behavior for blocking logic:
+    // 1. If CodeBig succeeds → block Direct for 24 hours
+    // 2. If CodeBig fails → block CodeBig for 30 minutes  
+    // 3. If Direct succeeds → no blocking
+    // 4. If Direct fails and CodeBig not attempted → no immediate blocking
     
-    // Calculate MD5 if encryption enabled (matches script line 440)
-    char md5_base64[64] = {0};
-    const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
-        if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
-            md5_ptr = md5_base64;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n",
-                    __FUNCTION__, __LINE__, md5_base64);
-        } else {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to calculate MD5 for encryption\n",
-                    __FUNCTION__, __LINE__);
+    if (session->success) {
+        // Upload succeeded - check which path was used for blocking
+        if (session->used_fallback || session->codebig_attempts > 0) {
+            // CodeBig was used successfully → block Direct path
+            if (create_block_marker(PATH_DIRECT, 24 * 3600)) {  // 24 hours
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                        "[%s:%d] CodeBig success: blocking Direct for 24 hours\n", 
+                        __FUNCTION__, __LINE__);
+            }
         }
+        // If Direct succeeded, no blocking needed (script behavior)
     } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-                "[%s:%d] RFC_EncryptCloudUpload_Enable: false\n",
-                __FUNCTION__, __LINE__);
-    }
-    
-    // Call the enhanced CodeBig upload function
-    UploadStatusDetail upload_status;
-    uploadFileWithCodeBigFlowEx(
-        archive_filepath,                 // src_file parameter
-        HTTP_SSR_CODEBIG,                 // server_type parameter
-        md5_ptr,                          // MD5 hash (NULL if not enabled)
-        ctx->settings.ocsp_enabled,       // OCSP enabled flag
-        &upload_status                    // detailed status output
-    );
-    
-    // Update session state with real status codes
-    session->curl_code = upload_status.curl_code;
-    session->http_code = upload_status.http_code;
-    
-    // Report curl error if present (matches script line 338)
-    if (upload_status.curl_code != 0) {
-        report_curl_error(upload_status.curl_code);
-    }
-    
-    // Use verification module to determine result
-    UploadResult verified_result = verify_upload(session);
-    
-    if (verified_result == UPLOADSTB_SUCCESS) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] CodeBig upload verified successful\n",
-                __FUNCTION__, __LINE__);
-        session->success = true;
-        return UPLOADSTB_SUCCESS;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] CodeBig upload failed - HTTP: %d, Curl: %d, Message: %s\n",
-                __FUNCTION__, __LINE__, session->http_code, session->curl_code, 
-                upload_status.error_message);
-        session->success = false;
-        return verified_result;
+        // Upload failed - create appropriate block markers
+        
+        if (session->codebig_attempts > 0) {
+            // CodeBig was attempted but failed → block CodeBig
+            if (create_block_marker(PATH_CODEBIG, 30 * 60)) {  // 30 minutes
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                        "[%s:%d] CodeBig failure: blocking CodeBig for 30 minutes\n", 
+                        __FUNCTION__, __LINE__);
+            }
+        }
+        
+        // Note: Script doesn't block Direct on Direct failure - it may try CodeBig fallback
+        // Direct is only blocked when CodeBig succeeds
     }
 }
 
-/**
- * @brief Attempt proxy fallback upload for mediaclient devices
- * @param ctx Runtime context
- * @param session Session state
- * @param archive_filepath Path to archive file
- * @param md5_ptr MD5 hash pointer (can be NULL)
- * @return UploadResult code
- */
-static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr)
+bool remove_archive(const char* archive_path)
 {
-    // Check if proxy fallback is applicable (mediaclient devices only)
-    if (strlen(ctx->device.device_type) == 0 || 
-        strcmp(ctx->device.device_type, "mediaclient") != 0 ||
-        strlen(ctx->endpoints.proxy_bucket) == 0) {
-        return UPLOADSTB_FAILED;
+    if (!archive_path || strlen(archive_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid archive path\n", __FUNCTION__, __LINE__);
+        return false;
     }
-    
-    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-            "[%s:%d] Trying logupload through Proxy server: %s\n",
-            __FUNCTION__, __LINE__, ctx->endpoints.proxy_bucket);
-    
-    // Read S3 URL from /tmp/httpresult.txt (saved during presign step)
-    char s3_url[1024] = {0};
-    char proxy_url[1024] = {0};
-    
-    FILE* result_file = fopen("/tmp/httpresult.txt", "r");
-    if (!result_file || !fgets(s3_url, sizeof(s3_url), result_file)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Could not read S3 URL from /tmp/httpresult.txt for proxy fallback\n",
-                __FUNCTION__, __LINE__);
-        if (result_file) fclose(result_file);
-        return UPLOADSTB_FAILED;
+
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+            "[%s:%d] Attempting to remove archive: %s\n", __FUNCTION__, __LINE__, archive_path);
+
+    // Check if file exists first
+    if (access(archive_path, F_OK) != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Archive file does not exist: %s\n", __FUNCTION__, __LINE__, archive_path);
+        return true;  // Consider non-existent file as "successfully removed"
     }
-    fclose(result_file);
-    
-    // Remove trailing newline
-    char* newline = strchr(s3_url, '\n');
-    if (newline) *newline = '\0';
-    
-    // Extract S3 bucket hostname: sed "s|.*https://||g" | cut -d "/" -f1
-    char* https_pos = strstr(s3_url, "https://");
-    if (!https_pos) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Invalid S3 URL format in httpresult.txt\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
-    }
-    
-    char* bucket_start = https_pos + 8; // Skip "https://"
-    char* path_start = strchr(bucket_start, '/');
-    char* query_start = strchr(bucket_start, '?');
-    
-    if (!path_start && !query_start) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] No path component found in S3 URL\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
-    }
-    
-    // Build proxy URL: replace bucket with PROXY_BUCKET, keep path, remove query
-    const char* path_part = path_start ? path_start : "";
-    if (query_start && (!path_start || query_start < path_start)) {
-        // Query comes before path, no path part
-        path_part = "";
-    } else if (query_start && path_start && query_start > path_start) {
-        // Remove query parameters from path
-        size_t path_len = query_start - path_start;
-        static char clean_path[512];
-        strncpy(clean_path, path_start, path_len);
-        clean_path[path_len] = '\0';
-        path_part = clean_path;
-    }
-    
-    // Check if the combined URL will fit in the buffer
-    size_t proxy_bucket_len = strlen(ctx->endpoints.proxy_bucket);
-    size_t path_part_len = strlen(path_part);
-    size_t total_len = 8 + proxy_bucket_len + path_part_len + 1; // "https://" + bucket + path + null
-    
-    if (total_len >= sizeof(proxy_url)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Proxy URL too long (%zu bytes), skipping proxy fallback\n",
-                __FUNCTION__, __LINE__, total_len);
-        return UPLOADSTB_FAILED;
-    }
-    
-    // Use safer string construction to avoid truncation warnings
-    int ret = snprintf(proxy_url, sizeof(proxy_url), "https://%.*s%.*s", 
-                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->endpoints.proxy_bucket,
-                       (int)(sizeof(proxy_url) - 9 - proxy_bucket_len - 1), path_part);
-    
-    if (ret < 0 || ret >= sizeof(proxy_url)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to construct proxy URL, truncation occurred\n",
-                __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
-    }
-    
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-            "[%s:%d] Original S3 URL: %s\n", __FUNCTION__, __LINE__, s3_url);
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-            "[%s:%d] Constructed proxy URL: %s\n", __FUNCTION__, __LINE__, proxy_url);
-    
-    // Upload to proxy using enhanced function
-    UploadStatusDetail proxy_status;
-    int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, 
-                                            md5_ptr, ctx->settings.ocsp_enabled, &proxy_status);
-    
-    // Update session state with real status codes
-    session->curl_code = proxy_status.curl_code;
-    session->http_code = proxy_status.http_code;
-    
-    // Report curl error if present
-    if (proxy_status.curl_code != 0) {
-        report_curl_error(proxy_status.curl_code);
-    }
-    
-    UploadResult proxy_verified = verify_upload(session);
-    if (proxy_verified == UPLOADSTB_SUCCESS) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Proxy upload verified successful\n",
-                __FUNCTION__, __LINE__);
-        session->success = true;
-        return UPLOADSTB_SUCCESS;
+
+    // Remove the file
+    if (unlink(archive_path) == 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Successfully removed archive: %s\n", __FUNCTION__, __LINE__, archive_path);
+        return true;
     } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Proxy upload failed with result: %d\n",
-                __FUNCTION__, __LINE__, proxy_result);
-        return UPLOADSTB_FAILED;
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to remove archive %s: %s\n", 
+                __FUNCTION__, __LINE__, archive_path, strerror(errno));
+        return false;
     }
 }
 
+bool cleanup_temp_dirs(const RuntimeContext* ctx)
+{
+    if (!ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid context\n", __FUNCTION__, __LINE__);
+        return false;
+    }
 
+    bool success = true;
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+            "[%s:%d] Cleaning up temporary directories\n", __FUNCTION__, __LINE__);
+
+    // Clean up temporary files used during upload
+    const char* httpresult_file = "/tmp/httpresult.txt";  // S3 presigned URL storage
+    
+    if (access(httpresult_file, F_OK) == 0) {
+        if (unlink(httpresult_file) == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                    "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, httpresult_file);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove temp file %s: %s\n", 
+                    __FUNCTION__, __LINE__, httpresult_file, strerror(errno));
+            success = false;
+        }
+    }
+    
+    return success;
+}
+
+bool create_block_marker(UploadPath path, int duration_seconds)
+{
+    const char* block_filename = NULL;
+    
+    // Determine block filename based on path (matching script behavior)
+    switch (path) {
+        case PATH_DIRECT:
+            block_filename = "/tmp/.lastdirectfail_upl";  // Script: DIRECT_BLOCK_FILENAME
+            break;
+            
+        case PATH_CODEBIG:
+            block_filename = "/tmp/.lastcodebigfail_upl";  // Script: CB_BLOCK_FILENAME  
+            break;
+            
+        default:
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] Invalid path for block marker creation\n", __FUNCTION__, __LINE__);
+            return false;
+    }
+    
+    // Create the block marker file (touch equivalent)
+    FILE* block_file = fopen(block_filename, "w");
+    if (block_file) {
+        // Write a timestamp for reference
+        fprintf(block_file, "Block created at %ld for %d seconds\n", time(NULL), duration_seconds);
+        fclose(block_file);
+        
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Created block marker: %s (duration: %d seconds)\n", 
+                __FUNCTION__, __LINE__, block_filename, duration_seconds);
+        return true;
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create block marker %s: %s\n", 
+                __FUNCTION__, __LINE__, block_filename, strerror(errno));
+        return false;
+    }
+}
