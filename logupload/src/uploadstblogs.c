@@ -103,6 +103,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     if (argc >= 7 && argv[6]) {
         // Parse UploadHttpLink
         strncpy(ctx->endpoints.upload_http_link, argv[6], sizeof(ctx->endpoints.upload_http_link) - 1);
+        fprintf(stderr, "DEBUG: upload_http_link (argv[6]) = '%s'\n", argv[6]);
     }
     
     if (argc >= 8 && argv[7]) {
@@ -274,9 +275,10 @@ int main(int argc, char** argv)
     /* Uninitialize telemetry system */
     telemetry_uninit();
 
+    /* Cleanup IARM connection */
+    cleanup_iarm_connection();
 
     /* Release lock and exit */
     release_lock();
     return ret;
 }
-
