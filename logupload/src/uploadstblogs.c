@@ -275,7 +275,11 @@ int main(int argc, char** argv)
     /* Uninitialize telemetry system */
     telemetry_uninit();
 
+    /* Cleanup IARM connection */
+    cleanup_iarm_connection();
+
     /* Release lock and exit */
     release_lock();
     return ret;
 }
+
