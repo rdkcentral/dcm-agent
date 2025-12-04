@@ -31,12 +31,10 @@
 #include "rdk_debug.h"
 
 // Include the upload library headers
-#ifndef GTEST_ENABLE
 #include "uploadUtil.h"
 #include "mtls_upload.h"
 #include "codebig_upload.h"
 #include "upload_status.h"
-#endif
 
 /* Forward declarations */
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr);
