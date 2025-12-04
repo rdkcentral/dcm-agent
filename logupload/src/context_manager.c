@@ -371,6 +371,9 @@ bool load_tr181_params(RuntimeContext* ctx)
                                sizeof(ctx->endpoints.endpoint_url))) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n", 
                 __FUNCTION__, __LINE__);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] LogUploadEndpoint.URL = '%s'\n", 
+                __FUNCTION__, __LINE__, ctx->endpoints.endpoint_url);
     }
 
     // Load EncryptCloudUpload Enable flag (boolean parameter)
