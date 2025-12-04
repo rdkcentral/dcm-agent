@@ -31,10 +31,12 @@
 #include "rdk_debug.h"
 
 // Include the upload library headers
+#ifndef GTEST_ENABLE
 #include "uploadUtil.h"
 #include "mtls_upload.h"
 #include "codebig_upload.h"
 #include "upload_status.h"
+#endif
 
 /* Forward declarations */
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr);
@@ -54,7 +56,23 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
 
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
-    char *endpoint_url = ctx->endpoints.endpoint_url;
+    
+    // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
+    char *endpoint_url = (strlen(ctx->endpoints.endpoint_url) > 0) ? 
+                          ctx->endpoints.endpoint_url : 
+                          ctx->endpoints.upload_http_link;
+    
+    // Debug: Log the URL being used
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Using upload URL: %s\n",
+            __FUNCTION__, __LINE__, endpoint_url ? endpoint_url : "(NULL)");
+    
+    if (!endpoint_url || strlen(endpoint_url) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] No valid upload URL configured (endpoint_url and upload_http_link both empty)\n",
+                __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
     
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
@@ -337,5 +355,4 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
         return UPLOADSTB_FAILED;
     }
 }
-
 
