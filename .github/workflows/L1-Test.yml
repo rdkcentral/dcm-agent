@@ -32,7 +32,7 @@ jobs:
           docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L1_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Run L1 Unit Tests inside container
-        run: docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && sh test/unit_test.sh"
+        run: docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && sh unit_test.sh"
 
       - name: Copy L1 test results to runner
         run: |
