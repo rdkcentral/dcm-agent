@@ -213,6 +213,12 @@ int main(int argc, char** argv)
         release_lock();
         return 1;
     }
+    
+    /* Verify context after initialization */
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[main] Context after init: ctx addr=%p, MAC='%s', device_type='%s'\n",
+            (void*)&ctx, ctx.device.mac_address,
+            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
 
     /* Parse command-line arguments */
     if (!parse_args(argc, argv, &ctx)) {
@@ -220,6 +226,12 @@ int main(int argc, char** argv)
         release_lock();
         return 1;
     }
+    
+    /* Verify context after parse_args */
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
+            ctx.device.mac_address,
+            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
 
     /* Validate system prerequisites */
     if (!validate_system(&ctx)) {

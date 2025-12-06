@@ -74,6 +74,13 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
 {
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Starting setup phase\n", __FUNCTION__, __LINE__);
+    
+    // Verify context
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Context in setup: ctx=%p, MAC='%s', device_type='%s'\n",
+            __FUNCTION__, __LINE__, (void*)ctx,
+            ctx ? ctx->device.mac_address : "(NULL CTX)",
+            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
 
     // Check if LOG_PATH has .txt or .log files
     // Script uploadLogOnDemand lines 741-752:
@@ -189,8 +196,20 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Starting archive phase\n", __FUNCTION__, __LINE__);
 
+    // Debug: verify context is valid
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
+            __FUNCTION__, __LINE__, 
+            (void*)ctx,
+            ctx && ctx->device.mac_address ? ctx->device.mac_address : "(NULL/INVALID)",
+            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
+
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] After create_archive: ret=%d, session->archive_file='%s'\n",
+            __FUNCTION__, __LINE__, ret, session ? session->archive_file : "(NULL SESSION)");
     if (ret != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
@@ -226,6 +245,10 @@ static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
     }
 
     // Construct full archive path
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] session->archive_file='%s'\n",
+            __FUNCTION__, __LINE__, session->archive_file);
+    
     char archive_path[MAX_PATH_LENGTH];
     snprintf(archive_path, sizeof(archive_path), "%s/%s", 
              ONDEMAND_TEMP_DIR, session->archive_file);

@@ -69,6 +69,13 @@ int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
+    // Verify context has valid data
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Context check: ctx=%p, MAC='%s', device_type='%s'\n",
+            __FUNCTION__, __LINE__, (void*)ctx,
+            ctx->device.mac_address,
+            strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "(empty)");
+
     const StrategyHandler* handler = get_strategy_handler(session->strategy);
     if (!handler) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
