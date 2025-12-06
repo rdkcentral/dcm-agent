@@ -78,16 +78,19 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     if (argc >= 3 && argv[2]) {
         // Parse FLAG
         ctx->flags.flag = atoi(argv[2]);
+        fprintf(stderr, "DEBUG: FLAG (argv[2]) = '%s' -> %d\n", argv[2], ctx->flags.flag);
     }
     
     if (argc >= 4 && argv[3]) {
         // Parse DCM_FLAG
         ctx->flags.dcm_flag = atoi(argv[3]);
+        fprintf(stderr, "DEBUG: DCM_FLAG (argv[3]) = '%s' -> %d\n", argv[3], ctx->flags.dcm_flag);
     }
     
     if (argc >= 5 && argv[4]) {
         // Parse UploadOnReboot
         ctx->flags.upload_on_reboot = (strcmp(argv[4], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: UploadOnReboot (argv[4]) = '%s' -> %d\n", argv[4], ctx->flags.upload_on_reboot);
     }
     
     if (argc >= 6 && argv[5]) {
@@ -100,10 +103,12 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     if (argc >= 7 && argv[6]) {
         // Parse UploadHttpLink
         strncpy(ctx->endpoints.upload_http_link, argv[6], sizeof(ctx->endpoints.upload_http_link) - 1);
+        fprintf(stderr, "DEBUG: upload_http_link (argv[6]) = '%s'\n", argv[6]);
     }
     
     if (argc >= 8 && argv[7]) {
         // Parse TriggerType
+        fprintf(stderr, "DEBUG: TriggerType (argv[7]) = '%s'\n", argv[7]);
         if (strcmp(argv[7], "cron") == 0) {
             ctx->flags.trigger_type = TRIGGER_SCHEDULED;
         } else if (strcmp(argv[7], "ondemand") == 0) {
@@ -113,11 +118,13 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         } else if (strcmp(argv[7], "reboot") == 0) {
             ctx->flags.trigger_type = TRIGGER_REBOOT;
         }
+        fprintf(stderr, "DEBUG: trigger_type = %d\n", ctx->flags.trigger_type);
     }
     
     if (argc >= 9 && argv[8]) {
         // Parse RRD_FLAG
         ctx->flags.rrd_flag = (strcmp(argv[8], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: RRD_FLAG (argv[8]) = '%s' -> %d\n", argv[8], ctx->flags.rrd_flag);
     }
     
     if (argc >= 10 && argv[9]) {
@@ -185,12 +192,6 @@ int main(int argc, char** argv)
     SessionState session = {0};
     int ret = 1;
 
-    /* Parse command-line arguments */
-    if (!parse_args(argc, argv, &ctx)) {
-        fprintf(stderr, "Failed to parse arguments\n");
-        return 1;
-    }
-
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
         fprintf(stderr, "Failed to acquire lock - another instance running\n");
@@ -207,6 +208,13 @@ int main(int argc, char** argv)
     /* Initialize runtime context */
     if (!init_context(&ctx)) {
         fprintf(stderr, "Failed to initialize context\n");
+        release_lock();
+        return 1;
+    }
+
+    /* Parse command-line arguments */
+    if (!parse_args(argc, argv, &ctx)) {
+        fprintf(stderr, "Failed to parse arguments\n");
         release_lock();
         return 1;
     }
@@ -237,28 +245,33 @@ int main(int argc, char** argv)
 
     /* Prepare archive based on strategy */
     if (strategy == STRAT_RRD) {
-        if (!prepare_rrd_archive(&ctx, &session)) {
-            fprintf(stderr, "Failed to prepare RRD archive\n");
+        // RRD: Upload pre-existing archive file directly (provided via command line)
+        if (!file_exists(ctx.paths.rrd_file)) {
+            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.paths.rrd_file);
             release_lock();
             return 1;
         }
+        
+        // Store RRD file path in session for upload
+        strncpy(session.archive_file, ctx.paths.rrd_file, sizeof(session.archive_file) - 1);
+        session.archive_file[sizeof(session.archive_file) - 1] = '\0';
+        
+        // Decide paths and upload
+        decide_paths(&ctx, &session);
+        if (!execute_upload_cycle(&ctx, &session)) {
+            fprintf(stderr, "RRD upload failed\n");
+            ret = 1;
+        } else {
+            ret = 0;
+        }
     } else {
-        if (!prepare_archive(&ctx, &session)) {
-            fprintf(stderr, "Failed to prepare archive\n");
+        // Other strategies: execute full workflow (setup, archive, upload, cleanup)
+        if (!execute_strategy_workflow(&ctx, &session)) {
+            fprintf(stderr, "Strategy workflow failed\n");
             release_lock();
             return 1;
         }
-    }
-
-    /* Decide upload paths (primary and fallback) */
-    decide_paths(&ctx, &session);
-
-    /* Execute upload cycle with retry and fallback logic */
-    if (!execute_upload_cycle(&ctx, &session)) {
-        fprintf(stderr, "Upload failed\n");
-        ret = 1;
-    } else {
-        ret = 0;
+        ret = session.success ? 0 : 1;
     }
 
     /* Finalize: cleanup, update markers, emit events */

@@ -69,12 +69,16 @@ UploadResult retry_upload(RuntimeContext* ctx, SessionState* session,
         
         // Check if we should continue retrying
         if (should_retry(ctx, session, path, result)) {
+            // Determine retry delay based on path (matches script behavior)
+            int retry_delay = (path == PATH_DIRECT) ? 60 : 10;  // Direct: 60s, CodeBig: 10s
+            
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Upload failed, retrying immediately (attempt %d)\n",
-                    __FUNCTION__, __LINE__,
+                    "[%s:%d] Upload failed, retrying after %d seconds (attempt %d)\n",
+                    __FUNCTION__, __LINE__, retry_delay,
                     path == PATH_DIRECT ? session->direct_attempts : session->codebig_attempts);
             
-            // No delay - retry immediately like the original script
+            // Sleep before retry (matches script line 522 for direct, line 473 for codebig)
+            sleep(retry_delay);
         } else {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                     "[%s:%d] Upload failed, no more retries (total attempts: %d)\n",

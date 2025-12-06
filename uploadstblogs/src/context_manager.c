@@ -324,6 +324,21 @@ bool load_environment(RuntimeContext* ctx)
         }
     }
 
+    // Enable PCAP collection for mediaclient devices
+    if (strcasecmp(ctx->device.device_type, "mediaclient") == 0) {
+        ctx->settings.include_pcap = true;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] PCAP collection enabled for mediaclient\n", __FUNCTION__, __LINE__);
+    }
+
+    // Enable DRI logs inclusion (check device property or default to false)
+    memset(buffer, 0, sizeof(buffer));
+    if (getDevicePropertyData("INCLUDE_DRI_LOGS", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        if (strcasecmp(buffer, "true") == 0) {
+            ctx->settings.include_dri = true;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
+        }
+    }
+
     
     // Check for OCSP marker files
     // EnableOCSPStapling="/tmp/.EnableOCSPStapling"
@@ -371,6 +386,10 @@ bool load_tr181_params(RuntimeContext* ctx)
                                sizeof(ctx->endpoints.endpoint_url))) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n", 
                 __FUNCTION__, __LINE__);
+    } else {
+        fprintf(stderr, "DEBUG: endpoint_url from TR-181 = '%s'\n", ctx->endpoints.endpoint_url);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] LogUploadEndpoint.URL = '%s'\n", 
+                __FUNCTION__, __LINE__, ctx->endpoints.endpoint_url);
     }
 
     // Load EncryptCloudUpload Enable flag (boolean parameter)

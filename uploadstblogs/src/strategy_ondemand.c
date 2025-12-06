@@ -234,18 +234,12 @@ static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Uploading archive: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
 
-    // Upload the archive
+    // Upload the archive (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
     
-    if (ret == 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] ONDEMAND: Upload succeeded\n", __FUNCTION__, __LINE__);
-        session->success = true;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] ONDEMAND: Upload failed\n", __FUNCTION__, __LINE__);
-        session->success = false;
-    }
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Upload phase complete (result=%d)\n", 
+            __FUNCTION__, __LINE__, ret);
 
     return ret;
 }

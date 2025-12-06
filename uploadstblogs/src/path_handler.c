@@ -40,6 +40,8 @@
 
 /* Forward declarations */
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr);
+static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* session, const char* endpoint_url, const char* archive_filepath, const char* md5_ptr, MtlsAuth_t* auth);
+static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr, MtlsAuth_t* auth);
 
 UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
 {
@@ -56,7 +58,23 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
 
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
-    char *endpoint_url = ctx->endpoints.endpoint_url;
+    
+    // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
+    char *endpoint_url = (strlen(ctx->endpoints.endpoint_url) > 0) ? 
+                          ctx->endpoints.endpoint_url : 
+                          ctx->endpoints.upload_http_link;
+    
+    // Debug: Log the URL being used
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Using upload URL: %s\n",
+            __FUNCTION__, __LINE__, endpoint_url ? endpoint_url : "(NULL)");
+    
+    if (!endpoint_url || strlen(endpoint_url) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] No valid upload URL configured (endpoint_url and upload_http_link both empty)\n",
+                __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
     
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
@@ -81,58 +99,28 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Report mTLS usage telemetry (matches script line 355)
     report_mtls_usage();
     
-    // Call the enhanced mTLS upload function
-    UploadStatusDetail upload_status;
-    int upload_result = uploadFileWithTwoStageFlowEx(
-        endpoint_url,                     // upload_url parameter
-        archive_filepath,                 // src_file parameter
-        md5_ptr,                          // MD5 hash (NULL if not enabled)
-        ctx->settings.ocsp_enabled,       // OCSP enabled flag
-        &upload_status                    // detailed status output
-    );
+    // NOTE: This function is called by retry_upload(), which handles the retry loop
+    // Script behavior (line 508-525):
+    // - Retry loop calls sendTLSSSRRequest (metadata POST only)
+    // - If POST succeeds (HTTP 200), S3 PUT is done ONCE outside retry loop
+    // - If S3 PUT fails, proxy fallback is attempted
     
-    // Update session state with real status codes
-    session->curl_code = upload_status.curl_code;
-    session->http_code = upload_status.http_code;
+    // Stage 1: Metadata POST (this will be retried by retry_upload)
+    UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, NULL);
     
-    // Report curl error if present (matches script lines 338, 614, 645)
-    if (upload_status.curl_code != 0) {
-        report_curl_error(upload_status.curl_code);
-    }
-    
-    // Report certificate error if present (matches script line 307)
-    // Certificate error codes: 35,51,53,54,58,59,60,64,66,77,80,82,83,90,91
-    int curl_code = upload_status.curl_code;
-    if (curl_code == 35 || curl_code == 51 || curl_code == 53 || curl_code == 54 ||
-        curl_code == 58 || curl_code == 59 || curl_code == 60 || curl_code == 64 ||
-        curl_code == 66 || curl_code == 77 || curl_code == 80 || curl_code == 82 ||
-        curl_code == 83 || curl_code == 90 || curl_code == 91) {
-        report_cert_error(curl_code, upload_status.fqdn);
-    }
-    
-    // Use verification module to determine result
-    UploadResult verified_result = verify_upload(session);
-    
-    if (verified_result == UPLOADSTB_SUCCESS) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Direct upload verified successful\n",
-                __FUNCTION__, __LINE__);
-        session->success = true;
-        return UPLOADSTB_SUCCESS;
-    } else {
+    if (post_result != UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Direct upload failed with result: %d\n",
-                __FUNCTION__, __LINE__, upload_result);
-        
-        // Try proxy fallback for mediaclient devices (matching script behavior)
-        UploadResult fallback_result = attempt_proxy_fallback(ctx, session, archive_filepath, md5_ptr);
-        if (fallback_result == UPLOADSTB_SUCCESS) {
-            return UPLOADSTB_SUCCESS;
-        }
-        
-        session->success = false;
-        return UPLOADSTB_FAILED;
+                "[%s:%d] Metadata POST failed - HTTP: %d, Curl: %d\n",
+                __FUNCTION__, __LINE__, session->http_code, session->curl_code);
+        return post_result;  // Return to retry_upload for potential retry
     }
+    
+    // Stage 2: S3 PUT (done once, with proxy fallback if it fails)
+    // Matches script lines 576-650
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Metadata POST succeeded, proceeding with S3 PUT\n", __FUNCTION__, __LINE__);
+    
+    return perform_s3_put_with_fallback(ctx, session, archive_filepath, md5_ptr, NULL);
 }
 
 UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
@@ -171,41 +159,42 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
                 __FUNCTION__, __LINE__);
     }
     
-    // Call the enhanced CodeBig upload function
+    // Call the enhanced CodeBig upload function (two-stage flow)
     UploadStatusDetail upload_status;
-    uploadFileWithCodeBigFlowEx(
+
+    // Stage 1: Metadata POST
+    int metadata_result = performCodeBigMetadataPost(
         archive_filepath,                 // src_file parameter
         HTTP_SSR_CODEBIG,                 // server_type parameter
         md5_ptr,                          // MD5 hash (NULL if not enabled)
         ctx->settings.ocsp_enabled,       // OCSP enabled flag
         &upload_status                    // detailed status output
     );
-    
+
+    if (metadata_result != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Metadata POST failed with error code: %d\n",
+                __FUNCTION__, __LINE__, metadata_result);
+        session->curl_code = upload_status.curl_code;
+        session->http_code = upload_status.http_code;
+        return;
+    }
+
+    // Stage 2: S3 PUT
+    int s3_result = performCodeBigS3Put(
+        archive_filepath,                 // src_file parameter
+        &upload_status                    // detailed status output
+    );
+
     // Update session state with real status codes
     session->curl_code = upload_status.curl_code;
     session->http_code = upload_status.http_code;
-    
-    // Report curl error if present (matches script line 338)
-    if (upload_status.curl_code != 0) {
-        report_curl_error(upload_status.curl_code);
-    }
-    
-    // Use verification module to determine result
-    UploadResult verified_result = verify_upload(session);
-    
-    if (verified_result == UPLOADSTB_SUCCESS) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] CodeBig upload verified successful\n",
-                __FUNCTION__, __LINE__);
-        session->success = true;
-        return UPLOADSTB_SUCCESS;
-    } else {
+
+    if (s3_result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] CodeBig upload failed - HTTP: %d, Curl: %d, Message: %s\n",
-                __FUNCTION__, __LINE__, session->http_code, session->curl_code, 
-                upload_status.error_message);
-        session->success = false;
-        return verified_result;
+                "[%s:%d] S3 PUT failed with error code: %d\n",
+                __FUNCTION__, __LINE__, s3_result);
+        report_curl_error(upload_status.curl_code);
     }
 }
 
@@ -338,6 +327,191 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
                 __FUNCTION__, __LINE__, proxy_result);
         return UPLOADSTB_FAILED;
     }
+}
+
+/**
+ * @brief Perform metadata POST to get S3 presigned URL
+ * @param ctx Runtime context
+ * @param session Session state
+ * @param endpoint_url Upload endpoint URL
+ * @param archive_filepath Path to archive file
+ * @param md5_ptr MD5 hash (can be NULL)
+ * @param auth mTLS auth (can be NULL)
+ * @return UploadResult code
+ * 
+ * Matches script sendTLSSSRRequest (line 344-370): POST filename to get presigned URL
+ * Result saved to /tmp/httpresult.txt
+ */
+static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* session, 
+                                          const char* endpoint_url, const char* archive_filepath, 
+                                          const char* md5_ptr, MtlsAuth_t* auth)
+{
+    // Initialize CURL
+    void* curl = doCurlInit();
+    if (!curl) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] CURL init failed\n", __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
+    
+    // Prepare FileUpload_t structure
+    FileUpload_t file_upload;
+    memset(&file_upload, 0, sizeof(FileUpload_t));
+    
+    char url_buf[512];
+    char path_buf[256];
+    char postfields[256] = {0};
+    
+    strncpy(url_buf, endpoint_url, sizeof(url_buf) - 1);
+    strncpy(path_buf, archive_filepath, sizeof(path_buf) - 1);
+    
+    file_upload.url = url_buf;
+    file_upload.pathname = path_buf;
+    file_upload.sslverify = 1;
+    file_upload.hashData = NULL;
+    
+    // Add MD5 to POST fields if provided (matches script line 351)
+    if (md5_ptr) {
+        snprintf(postfields, sizeof(postfields), "md5=%s", md5_ptr);
+        file_upload.pPostFields = postfields;
+    } else {
+        file_upload.pPostFields = NULL;
+    }
+    
+    // Apply OCSP if enabled
+    if (ctx->settings.ocsp_enabled) {
+        CURLcode ret = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, 1L);
+        if (ret != CURLE_OK) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] CURLOPT_SSL_VERIFYSTATUS failed: %s\n",
+                    __FUNCTION__, __LINE__, curl_easy_strerror(ret));
+        }
+    }
+    
+    // Perform metadata POST
+    long http_code = 0;
+    int curl_ret = performHttpMetadataPost(curl, &file_upload, auth, &http_code);
+    
+    // Update session state
+    session->curl_code = curl_ret;
+    session->http_code = (int)http_code;
+    
+    // Cleanup
+    doStopUpload(curl);
+    
+    // Report curl error if present
+    if (curl_ret != 0) {
+        report_curl_error(curl_ret);
+    }
+    
+    // Report certificate errors
+    if (curl_ret == 35 || curl_ret == 51 || curl_ret == 53 || curl_ret == 54 ||
+        curl_ret == 58 || curl_ret == 59 || curl_ret == 60 || curl_ret == 64 ||
+        curl_ret == 66 || curl_ret == 77 || curl_ret == 80 || curl_ret == 82 ||
+        curl_ret == 83 || curl_ret == 90 || curl_ret == 91) {
+        // Extract FQDN from endpoint_url
+        char fqdn[256] = {0};
+        const char* start = strstr(endpoint_url, "://");
+        if (start) {
+            start += 3;
+            const char* end = strchr(start, '/');
+            size_t len = end ? (size_t)(end - start) : strlen(start);
+            if (len < sizeof(fqdn)) {
+                strncpy(fqdn, start, len);
+            }
+        }
+        report_cert_error(curl_ret, fqdn);
+    }
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Metadata POST result - HTTP: %ld, Curl: %d\n",
+            __FUNCTION__, __LINE__, http_code, curl_ret);
+    
+    // Verify result
+    return verify_upload(session);
+}
+
+/**
+ * @brief Perform S3 PUT with proxy fallback
+ * @param ctx Runtime context
+ * @param session Session state
+ * @param archive_filepath Path to archive file
+ * @param md5_ptr MD5 hash (can be NULL)
+ * @param auth mTLS auth (can be NULL)
+ * @return UploadResult code
+ * 
+ * Matches script lines 576-650: Extract S3 URL, do S3 PUT, try proxy on failure
+ */
+static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionState* session,
+                                                  const char* archive_filepath, const char* md5_ptr,
+                                                  MtlsAuth_t* auth)
+{
+    // Extract S3 presigned URL from /tmp/httpresult.txt
+    char s3_url[1024] = {0};
+    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
+                __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] S3 upload query success. Got S3 URL: %s\n",
+            __FUNCTION__, __LINE__, s3_url);
+    
+    // Perform S3 PUT upload
+    int s3_result = performS3PutUpload(s3_url, archive_filepath, auth);
+    
+    // Get HTTP code from curl info (script line 608)
+    // Note: performS3PutUpload already updates session state via __uploadutil_set_status
+    
+    // Read curl info file to get codes (matches script pattern)
+    FILE* curl_info = fopen("/tmp/logupload_curl_info", "r");
+    if (curl_info) {
+        long http_code = 0;
+        fscanf(curl_info, "%ld", &http_code);
+        session->http_code = (int)http_code;
+        fclose(curl_info);
+    }
+    session->curl_code = s3_result;
+    
+    // Report curl error
+    if (s3_result != 0) {
+        report_curl_error(s3_result);
+        t2_val_notify("LUCurlErr_split", ""); // Script line 614
+    }
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] S3 PUT result - HTTP: %d, Curl: %d\n",
+            __FUNCTION__, __LINE__, session->http_code, session->curl_code);
+    
+    // Verify S3 PUT result
+    UploadResult s3_verified = verify_upload(session);
+    
+    if (s3_verified == UPLOADSTB_SUCCESS) {
+        t2_count_notify("TEST_lu_success");  // Script line 616
+        session->success = true;
+        return UPLOADSTB_SUCCESS;
+    }
+    
+    // S3 PUT failed - try proxy fallback (matches script line 625-650)
+    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+            "[%s:%d] S3 PUT failed, attempting proxy fallback\n", __FUNCTION__, __LINE__);
+    
+    UploadResult proxy_result = attempt_proxy_fallback(ctx, session, archive_filepath, md5_ptr);
+    if (proxy_result == UPLOADSTB_SUCCESS) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Proxy fallback succeeded\n", __FUNCTION__, __LINE__);
+        session->success = true;
+        return UPLOADSTB_SUCCESS;
+    }
+    
+    // Both S3 PUT and proxy failed
+    RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+            "[%s:%d] Failed uploading logs through HTTP\n", __FUNCTION__, __LINE__);
+    t2_count_notify("SYST_ERR_LogUpload_Failed");  // Script line 656
+    session->success = false;
+    return s3_verified;  // Return original S3 result for retry decision
 }
 
 

@@ -190,18 +190,8 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Uploading DCM logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
 
-    // Upload the archive
+    // Upload the archive (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-    
-    if (ret == 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] DCM log upload succeeded\n", __FUNCTION__, __LINE__);
-        session->success = true;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] DCM log upload failed\n", __FUNCTION__, __LINE__);
-        session->success = false;
-    }
 
     // Clear old packet captures
     if (ctx->settings.include_pcap) {

@@ -334,18 +334,12 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Uploading main logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
 
-    // Upload main logs
+    // Upload main logs (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
     
-    if (ret == 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Main log upload succeeded\n", __FUNCTION__, __LINE__);
-        session->success = true;
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Main log upload failed\n", __FUNCTION__, __LINE__);
-        session->success = false;
-    }
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Main log upload complete (result=%d)\n", 
+            __FUNCTION__, __LINE__, ret);
 
     // Upload DRI logs if directory exists (using separate session to avoid state corruption)
     if (ctx->settings.include_dri && dir_exists(ctx->paths.dri_log_path)) {
