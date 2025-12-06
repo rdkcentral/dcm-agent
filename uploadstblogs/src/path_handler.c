@@ -45,16 +45,19 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
 
 UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
 {
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Executing Direct (mTLS) upload path for file: %s\n",
-            __FUNCTION__, __LINE__, session->archive_file);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] ENTRY: execute_direct_path called\n", __FUNCTION__, __LINE__);
     
     if (!ctx || !session) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Invalid parameters for direct path\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Invalid parameters for direct path: ctx=%p, session=%p\n",
+                __FUNCTION__, __LINE__, (void*)ctx, (void*)session);
         return UPLOADSTB_FAILED;
     }
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Executing Direct (mTLS) upload path for file: %s\n",
+            __FUNCTION__, __LINE__, session->archive_file);
 
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
@@ -106,7 +109,10 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // - If S3 PUT fails, proxy fallback is attempted
     
     // Stage 1: Metadata POST (this will be retried by retry_upload)
-    UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, NULL);
+    // Certificate will be obtained and stored for Stage 2
+    MtlsAuth_t cert_for_s3;
+    memset(&cert_for_s3, 0, sizeof(MtlsAuth_t));
+    UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
     
     if (post_result != UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
@@ -117,10 +123,11 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     
     // Stage 2: S3 PUT (done once, with proxy fallback if it fails)
     // Matches script lines 576-650
+    // Use the same certificate that succeeded in Stage 1
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
             "[%s:%d] Metadata POST succeeded, proceeding with S3 PUT\n", __FUNCTION__, __LINE__);
     
-    return perform_s3_put_with_fallback(ctx, session, archive_filepath, md5_ptr, NULL);
+    return perform_s3_put_with_fallback(ctx, session, archive_filepath, md5_ptr, &cert_for_s3);
 }
 
 UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
@@ -361,35 +368,42 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
                                           const char* endpoint_url, const char* archive_filepath, 
                                           const char* md5_ptr, MtlsAuth_t* auth)
 {
-    // Use library function performHttpMetadataPostEx which handles all curl operations internally
-    UploadStatusDetail upload_status;
-    memset(&upload_status, 0, sizeof(UploadStatusDetail));
+    // Set OCSP if enabled (uploadutils will read this via __uploadutil_get_ocsp)
+    __uploadutil_set_ocsp(ctx->settings.ocsp_enabled);
     
-    // Call library function - it handles curl init, OCSP setup, POST, and cleanup
-    int result = performHttpMetadataPostEx(
+    // Call uploadutils wrapper that handles:
+    // - curl initialization
+    // - certificate selector management  
+    // - certificate rotation loop
+    // - cleanup
+    long http_code = 0;
+    int result = performMetadataPostWithCertRotationEx(
         endpoint_url,                   // upload URL
         archive_filepath,               // file path
         md5_ptr,                        // extra_fields (MD5 hash, can be NULL)
-        auth,                           // mTLS auth (can be NULL)
-        ctx->settings.ocsp_enabled,     // OCSP enabled flag
-        &upload_status                  // output status
+        auth,                           // output: successful certificate for Stage 2
+        &http_code                      // output: HTTP response code
     );
     
-    // Update session state with results
-    session->curl_code = upload_status.curl_code;
-    session->http_code = upload_status.http_code;
+    // Get curl error code from internal state
+    long http_status = 0;
+    int curl_code = 0;
+    __uploadutil_get_status(&http_status, &curl_code);
+    
+    // Update session with results
+    session->http_code = (int)http_code;
+    session->curl_code = curl_code;
     
     // Report curl error if present
-    if (upload_status.curl_code != 0) {
-        report_curl_error(upload_status.curl_code);
+    if (curl_code != 0) {
+        report_curl_error(curl_code);
     }
     
     // Report certificate errors
-    int curl_ret = upload_status.curl_code;
-    if (curl_ret == 35 || curl_ret == 51 || curl_ret == 53 || curl_ret == 54 ||
-        curl_ret == 58 || curl_ret == 59 || curl_ret == 60 || curl_ret == 64 ||
-        curl_ret == 66 || curl_ret == 77 || curl_ret == 80 || curl_ret == 82 ||
-        curl_ret == 83 || curl_ret == 90 || curl_ret == 91) {
+    if (curl_code == 35 || curl_code == 51 || curl_code == 53 || curl_code == 54 ||
+        curl_code == 58 || curl_code == 59 || curl_code == 60 || curl_code == 64 ||
+        curl_code == 66 || curl_code == 77 || curl_code == 80 || curl_code == 82 ||
+        curl_code == 83 || curl_code == 90 || curl_code == 91) {
         // Extract FQDN from endpoint_url
         char fqdn[256] = {0};
         const char* start = strstr(endpoint_url, "://");
@@ -401,12 +415,12 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
                 strncpy(fqdn, start, len);
             }
         }
-        report_cert_error(curl_ret, fqdn);
+        report_cert_error(curl_code, fqdn);
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Metadata POST result - HTTP: %ld, Curl: %d, Result: %d\n",
-            __FUNCTION__, __LINE__, upload_status.http_code, upload_status.curl_code, result);
+            "[%s:%d] Metadata POST result - HTTP: %d, Curl: %d, Result: %d\n",
+            __FUNCTION__, __LINE__, session->http_code, session->curl_code, result);
     
     // Verify result
     return verify_upload(session);
@@ -440,8 +454,8 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
             "[%s:%d] S3 upload query success. Got S3 URL: %s\n",
             __FUNCTION__, __LINE__, s3_url);
     
-    // Perform S3 PUT upload
-    int s3_result = performS3PutUpload(s3_url, archive_filepath, auth);
+    // Perform S3 PUT upload with the certificate from Stage 1
+    int s3_result = performS3PutWithCert(s3_url, archive_filepath, auth);
     
     // Get HTTP code from curl info (script line 608)
     // Note: performS3PutUpload already updates session state via __uploadutil_set_status
