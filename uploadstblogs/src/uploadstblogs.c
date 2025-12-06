@@ -45,6 +45,7 @@
 #include "event_manager.h"
 #include "system_utils.h"
 #include "telemetry.h"
+#include "rdk_debug.h"
 
 static int lock_fd = -1;
 
