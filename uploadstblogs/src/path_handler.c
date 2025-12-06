@@ -159,43 +159,58 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
                 __FUNCTION__, __LINE__);
     }
     
-    // Call the enhanced CodeBig upload function (two-stage flow)
-    UploadStatusDetail upload_status;
-
     // Stage 1: Metadata POST
+    // performCodeBigMetadataPost signature: (curl, filepath, extra_fields, server_type, http_code_out)
+    long http_code = 0;
     int metadata_result = performCodeBigMetadataPost(
-        archive_filepath,                 // src_file parameter
+        NULL,                             // curl (NULL = library will init/cleanup)
+        archive_filepath,                 // filepath
+        md5_ptr,                          // extra_fields (MD5 hash, can be NULL)
         HTTP_SSR_CODEBIG,                 // server_type parameter
-        md5_ptr,                          // MD5 hash (NULL if not enabled)
-        ctx->settings.ocsp_enabled,       // OCSP enabled flag
-        &upload_status                    // detailed status output
+        &http_code                        // http_code_out
     );
 
     if (metadata_result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Metadata POST failed with error code: %d\n",
-                __FUNCTION__, __LINE__, metadata_result);
-        session->curl_code = upload_status.curl_code;
-        session->http_code = upload_status.http_code;
-        return;
+                "[%s:%d] Metadata POST failed with error code: %d, HTTP: %ld\n",
+                __FUNCTION__, __LINE__, metadata_result, http_code);
+        session->curl_code = metadata_result;
+        session->http_code = (int)http_code;
+        return UPLOADSTB_FAILED;
     }
 
-    // Stage 2: S3 PUT
-    int s3_result = performCodeBigS3Put(
-        archive_filepath,                 // src_file parameter
-        &upload_status                    // detailed status output
-    );
+    // Read S3 presigned URL from /tmp/httpresult.txt
+    char s3_url[1024] = {0};
+    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
+                __FUNCTION__, __LINE__);
+        return UPLOADSTB_FAILED;
+    }
 
-    // Update session state with real status codes
-    session->curl_code = upload_status.curl_code;
-    session->http_code = upload_status.http_code;
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] CodeBig metadata POST succeeded. S3 URL: %s\n",
+            __FUNCTION__, __LINE__, s3_url);
+
+    // Stage 2: S3 PUT
+    // performCodeBigS3Put signature: (s3_url, src_file)
+    int s3_result = performCodeBigS3Put(s3_url, archive_filepath);
+
+    // Update session state with result
+    session->curl_code = s3_result;
+    session->http_code = (s3_result == 0) ? 200 : 0;  // Assume 200 on success
 
     if (s3_result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] S3 PUT failed with error code: %d\n",
                 __FUNCTION__, __LINE__, s3_result);
-        report_curl_error(upload_status.curl_code);
+        report_curl_error(s3_result);
+        return UPLOADSTB_FAILED;
     }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] CodeBig upload completed successfully\n", __FUNCTION__, __LINE__);
+    return UPLOADSTB_SUCCESS;
 }
 
 /**
