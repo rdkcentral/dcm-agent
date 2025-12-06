@@ -318,7 +318,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     // Upload to proxy using enhanced function
     UploadStatusDetail proxy_status;
     int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, 
-                                            md5_ptr, ctx->settings.ocsp_enable, &proxy_status);
+                                            md5_ptr, ctx->settings.ocsp_enabled, &proxy_status);
     
     // Update session state with real status codes
     session->curl_code = proxy_status.curl_code;
@@ -372,7 +372,7 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
         archive_filepath,               // file path
         md5_ptr,                        // extra_fields (MD5 hash, can be NULL)
         auth,                           // mTLS auth (can be NULL)
-        ctx->settings.ocsp_enable,      // OCSP enabled flag
+        ctx->settings.ocsp_enabled,     // OCSP enabled flag
         &upload_status                  // output status
     );
     
@@ -406,7 +406,7 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Metadata POST result - HTTP: %d, Curl: %d, Result: %d\n",
+            "[%s:%d] Metadata POST result - HTTP: %ld, Curl: %d, Result: %d\n",
             __FUNCTION__, __LINE__, upload_status.http_code, upload_status.curl_code, result);
     
     // Verify result
