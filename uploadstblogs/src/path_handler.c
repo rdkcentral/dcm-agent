@@ -367,7 +367,6 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     
     // Call library function - it handles curl init, OCSP setup, POST, and cleanup
     int result = performHttpMetadataPostEx(
-        NULL,                           // curl (NULL = library will init/cleanup)
         endpoint_url,                   // upload URL
         archive_filepath,               // file path
         md5_ptr,                        // extra_fields (MD5 hash, can be NULL)
