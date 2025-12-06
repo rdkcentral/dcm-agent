@@ -346,65 +346,31 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
                                           const char* endpoint_url, const char* archive_filepath, 
                                           const char* md5_ptr, MtlsAuth_t* auth)
 {
-    // Initialize CURL
-    void* curl = doCurlInit();
-    if (!curl) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] CURL init failed\n", __FUNCTION__, __LINE__);
-        return UPLOADSTB_FAILED;
-    }
+    // Use library function performHttpMetadataPostEx which handles all curl operations internally
+    UploadStatus_t upload_status;
+    memset(&upload_status, 0, sizeof(UploadStatus_t));
     
-    // Prepare FileUpload_t structure
-    FileUpload_t file_upload;
-    memset(&file_upload, 0, sizeof(FileUpload_t));
+    // Call library function - it handles curl init, OCSP setup, POST, and cleanup
+    int result = performHttpMetadataPostEx(
+        NULL,                           // curl (NULL = library will init/cleanup)
+        endpoint_url,                   // upload URL
+        archive_filepath,               // file path
+        md5_ptr,                        // MD5 hash (can be NULL)
+        ctx->settings.ocsp_enabled,     // OCSP enabled flag
+        &upload_status                  // output status
+    );
     
-    char url_buf[512];
-    char path_buf[256];
-    char postfields[256] = {0};
-    
-    strncpy(url_buf, endpoint_url, sizeof(url_buf) - 1);
-    strncpy(path_buf, archive_filepath, sizeof(path_buf) - 1);
-    
-    file_upload.url = url_buf;
-    file_upload.pathname = path_buf;
-    file_upload.sslverify = 1;
-    file_upload.hashData = NULL;
-    
-    // Add MD5 to POST fields if provided (matches script line 351)
-    if (md5_ptr) {
-        snprintf(postfields, sizeof(postfields), "md5=%s", md5_ptr);
-        file_upload.pPostFields = postfields;
-    } else {
-        file_upload.pPostFields = NULL;
-    }
-    
-    // Apply OCSP if enabled
-    if (ctx->settings.ocsp_enabled) {
-        CURLcode ret = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, 1L);
-        if (ret != CURLE_OK) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] CURLOPT_SSL_VERIFYSTATUS failed: %s\n",
-                    __FUNCTION__, __LINE__, curl_easy_strerror(ret));
-        }
-    }
-    
-    // Perform metadata POST
-    long http_code = 0;
-    int curl_ret = performHttpMetadataPost(curl, &file_upload, auth, &http_code);
-    
-    // Update session state
-    session->curl_code = curl_ret;
-    session->http_code = (int)http_code;
-    
-    // Cleanup
-    doStopUpload(curl);
+    // Update session state with results
+    session->curl_code = upload_status.curl_code;
+    session->http_code = upload_status.http_code;
     
     // Report curl error if present
-    if (curl_ret != 0) {
-        report_curl_error(curl_ret);
+    if (upload_status.curl_code != 0) {
+        report_curl_error(upload_status.curl_code);
     }
     
     // Report certificate errors
+    int curl_ret = upload_status.curl_code;
     if (curl_ret == 35 || curl_ret == 51 || curl_ret == 53 || curl_ret == 54 ||
         curl_ret == 58 || curl_ret == 59 || curl_ret == 60 || curl_ret == 64 ||
         curl_ret == 66 || curl_ret == 77 || curl_ret == 80 || curl_ret == 82 ||
@@ -424,8 +390,8 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Metadata POST result - HTTP: %ld, Curl: %d\n",
-            __FUNCTION__, __LINE__, http_code, curl_ret);
+            "[%s:%d] Metadata POST result - HTTP: %d, Curl: %d, Result: %d\n",
+            __FUNCTION__, __LINE__, upload_status.http_code, upload_status.curl_code, result);
     
     // Verify result
     return verify_upload(session);
