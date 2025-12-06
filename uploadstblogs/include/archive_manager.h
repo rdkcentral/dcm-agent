@@ -31,28 +31,7 @@
 #include "uploadstblogs_types.h"
 
 /**
- * @brief Prepare standard log archive
- * @param ctx Runtime context
- * @param session Session state
- * @return true on success, false on failure
- *
- * Creates .tgz archive with collected logs, applies timestamp
- * insertion for non-OnDemand/Privacy strategies.
- */
-bool prepare_archive(RuntimeContext* ctx, SessionState* session);
-
-/**
- * @brief Prepare RRD (Remote Debug) archive
- * @param ctx Runtime context
- * @param session Session state
- * @return true on success, false on failure
- *
- * Creates archive containing only RRD log file.
- */
-bool prepare_rrd_archive(RuntimeContext* ctx, SessionState* session);
-
-/**
- * @brief Get size of archive file
+ * @brief Create tar.gz archive from directory
  * @param archive_path Path to archive file
  * @return Size in bytes, or -1 on error
  */

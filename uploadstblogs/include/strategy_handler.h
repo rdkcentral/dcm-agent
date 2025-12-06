@@ -83,6 +83,7 @@ const StrategyHandler* get_strategy_handler(Strategy strategy);
  * @return 0 on success, -1 on failure
  */
 int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session);
+int execute_strategy_cleanup(RuntimeContext* ctx, SessionState* session);
 
 /* Strategy-specific handler implementations */
 
