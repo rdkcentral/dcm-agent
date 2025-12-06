@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include "strategy_handler.h"
 #include "rdk_debug.h"
+#include <string.h>
 
 // Forward declarations of strategy handlers
 extern const StrategyHandler ondemand_strategy_handler;
@@ -156,3 +157,4 @@ cleanup:
 
     return ret;
 }
+
