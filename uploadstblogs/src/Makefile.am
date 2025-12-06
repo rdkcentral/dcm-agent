@@ -6,7 +6,7 @@ logupload_SOURCES = uploadstblogs.c context_manager.c validation.c strategy_sele
 
 #logupload_SOURCES = context.c  test_context.c privacy_mode.c mtls_cert_selector.c http_upload.c
 
-logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED \
+logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR \
                      -I${top_srcdir} \
                      -I${top_srcdir}/uploadstblogs \
                      -I${top_srcdir}/uploadstblogs/include \
