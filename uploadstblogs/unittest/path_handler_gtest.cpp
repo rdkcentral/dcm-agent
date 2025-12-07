@@ -69,6 +69,10 @@ void report_curl_error(int curl_code);
 void report_cert_error(int curl_code, const char* fqdn);
 UploadResult verify_upload(const SessionState* session);
 
+// Mock telemetry 2.0 functions
+void t2_count_notify(const char* marker);
+void t2_val_notify(const char* marker, const char* value);
+
 // Mock MtlsAuth_t type
 typedef struct {
     char cert_name[256];
