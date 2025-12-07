@@ -62,8 +62,9 @@ for test in \
   ./dcm_cronparse_gtest \
   ./dcm_parseconf_gtest \
   ./dcm_rbus_gtest \
-  ./dcm_gtest
- 
+  ./dcm_gtest \
+  ./../uploadstblogs/unittest/context_manager_gtest \
+  ./../uploadstblogs/unittest/md5_utils_gtest 
 do
     $test
     status=$?
