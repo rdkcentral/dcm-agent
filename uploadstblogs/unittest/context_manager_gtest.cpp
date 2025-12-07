@@ -36,7 +36,7 @@
 #endif
 
 #include "uploadstblogs_types.h"
-#include "./mocks/mock_rdk_utils.h"
+//#include "./mocks/mock_rdk_utils.h"
 #include "./mocks/mock_rbus.h"
 
 // Include the source file to test internal functions
