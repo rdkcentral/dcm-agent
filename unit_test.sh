@@ -81,6 +81,7 @@ for test in \
   ./../uploadstblogs/unittest/strategy_dcm_gtest \
   ./../uploadstblogs/unittest/strategy_handler_gtest \
   ./../uploadstblogs/unittest/strategy_ondemand_gtest
+  
 do
     $test
     status=$?
