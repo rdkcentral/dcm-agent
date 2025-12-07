@@ -32,7 +32,6 @@
 #include "cleanup_handler.h"
 #include "context_manager.h"
 #include "event_manager.h"
-#include "telemetry.h"
 #include "file_operations.h"
 #include "rdk_debug.h"
 
