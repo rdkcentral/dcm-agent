@@ -55,17 +55,8 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         return false;
     }
     
-    // Initialize context with defaults
-    memset(ctx, 0, sizeof(RuntimeContext));
-    
-    // Set default paths
-    strncpy(ctx->paths.log_path, "/opt/logs", sizeof(ctx->paths.log_path) - 1);
-    strncpy(ctx->paths.temp_dir, "/tmp", sizeof(ctx->paths.temp_dir) - 1);
-    
-    // Set default retry configuration
-    ctx->retry.direct_max_attempts = 3;
-    ctx->retry.codebig_max_attempts = 1;
-    ctx->retry.curl_timeout = 30;
+    // DO NOT memset - context is already initialized with device info
+    // Only parse command line arguments and set those specific fields
     
     // Parse arguments (script passes 9 arguments)
     // argv[1] - TFTP_SERVER (legacy, may be unused)

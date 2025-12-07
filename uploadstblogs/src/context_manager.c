@@ -150,7 +150,13 @@ bool init_context(RuntimeContext* ctx)
         return false;
     }
 
+    // Final context validation summary
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Context initialization successful\n", __FUNCTION__, __LINE__);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Device MAC: '%s', Type: '%s'\n",
+            __FUNCTION__, __LINE__, 
+            ctx->device.mac_address,
+            strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "(empty)");
+    
     return true;
 }
 
@@ -328,15 +334,6 @@ bool load_environment(RuntimeContext* ctx)
     if (strcasecmp(ctx->device.device_type, "mediaclient") == 0) {
         ctx->settings.include_pcap = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] PCAP collection enabled for mediaclient\n", __FUNCTION__, __LINE__);
-    }
-
-    // Enable DRI logs inclusion (check device property or default to false)
-    memset(buffer, 0, sizeof(buffer));
-    if (getDevicePropertyData("INCLUDE_DRI_LOGS", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        if (strcasecmp(buffer, "true") == 0) {
-            ctx->settings.include_dri = true;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
-        }
     }
 
     
