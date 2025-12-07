@@ -70,6 +70,7 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::InSequence;
 using ::testing::StrictMock;
+using ::testing::Invoke;
 
 // Mock class for external dependencies
 class MockFileOperations {
@@ -400,7 +401,9 @@ TEST_F(StrategyOndemandTest, UploadPhase_Success) {
     ctx.flags.flag = true;  // Upload enabled
     
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, _))
-        .WillOnce(Return(0));
+        .WillOnce(DoAll(Invoke([](RuntimeContext* ctx, SessionState* session, const char* path) {
+            session->success = true;
+        }), Return(0)));
     
     int result = ondemand_strategy_handler.upload_phase(&ctx, &session);
     
@@ -423,7 +426,12 @@ TEST_F(StrategyOndemandTest, UploadPhase_UploadFails) {
     ctx.flags.flag = true;  // Upload enabled
     
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, _))
-        .WillOnce(Return(-1));
+        .WillOnce(DoAll(
+            Invoke([](RuntimeContext* ctx, SessionState* session, const char* path) {
+                if (session) session->success = false;
+            }),
+            Return(-1)
+        ));
     
     int result = ondemand_strategy_handler.upload_phase(&ctx, &session);
     
@@ -440,7 +448,12 @@ TEST_F(StrategyOndemandTest, UploadPhase_CorrectArchivePath) {
              ONDEMAND_TEMP_DIR, session.archive_file);
     
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, StrEq(expected_path)))
-        .WillOnce(Return(0));
+        .WillOnce(DoAll(
+            Invoke([](RuntimeContext* ctx, SessionState* session, const char* path) {
+                if (session) session->success = true;
+            }),
+            Return(0)
+        ));
     
     int result = ondemand_strategy_handler.upload_phase(&ctx, &session);
     EXPECT_EQ(0, result);
@@ -574,7 +587,12 @@ TEST_F(StrategyOndemandTest, FullWorkflow_Success) {
     
     // === UPLOAD PHASE ===
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, _))
-        .WillOnce(Return(0));
+        .WillOnce(DoAll(
+            Invoke([](RuntimeContext* ctx, SessionState* session, const char* path) {
+                if (session) session->success = true;
+            }),
+            Return(0)
+        ));
     
     // === CLEANUP PHASE ===
     EXPECT_CALL(mock_file_ops, file_exists(_))
