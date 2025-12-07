@@ -19,11 +19,6 @@
 #include "uploadstblogs_types.h"
 #include "./mocks/mock_file_operations.h"
 
-// Forward declare functions needed for testing
-extern bool collect_logs_for_strategy(RuntimeContext* ctx, SessionState* session, const char* target_dir);
-extern bool insert_timestamp(const char* archive_path, time_t timestamp);
-extern int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session);
-
 // Windows-compatible definitions for directory operations
 #ifndef _WIN32
 #include <dirent.h>
