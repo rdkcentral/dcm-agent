@@ -99,6 +99,13 @@ void send_iarm_event(const char* event_name, int event_code) {
     mock_last_event_code = event_code;
 }
 
+// Mock send_iarm_event_maintenance for testing
+void send_iarm_event_maintenance(int maint_event_code) {
+    // Mock implementation - just track the call
+    mock_iarm_event_calls++;
+    mock_last_event_code = maint_event_code;
+}
+
 // Mock implementations
 int access(const char *pathname, int mode) {
     if (pathname && strstr(pathname, "IARM_event_sender")) {
