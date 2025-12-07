@@ -84,7 +84,16 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
 static bool generate_archive_name(char* buffer, size_t buffer_size, 
                                    const char* mac_address, const char* prefix)
 {
-    if (!buffer || !mac_address || !prefix || buffer_size < 64) {
+    if (!buffer || !prefix || buffer_size < 64) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Invalid parameters: buffer=%p, prefix=%p, buffer_size=%zu\n",
+                __FUNCTION__, __LINE__, (void*)buffer, (void*)prefix, buffer_size);
+        return false;
+    }
+
+    if (!mac_address || strlen(mac_address) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] MAC address is NULL or empty\n", __FUNCTION__, __LINE__);
         return false;
     }
 
@@ -92,6 +101,8 @@ static bool generate_archive_name(char* buffer, size_t buffer_size,
     struct tm* tm_info = localtime(&now);
     
     if (!tm_info) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to get local time\n", __FUNCTION__, __LINE__);
         return false;
     }
 
@@ -99,8 +110,25 @@ static bool generate_archive_name(char* buffer, size_t buffer_size,
     // Format: MM-DD-YY-HH-MMAM/PM (matches script: date "+%m-%d-%y-%I-%M%p")
     strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", tm_info);
     
+    // Remove colons from MAC address for filename (A8:4A:63 -> A84A63)
+    char mac_clean[32];
+    const char* src = mac_address;
+    char* dst = mac_clean;
+    while (*src && (dst - mac_clean) < sizeof(mac_clean) - 1) {
+        if (*src != ':') {
+            *dst++ = *src;
+        }
+        src++;
+    }
+    *dst = '\0';
+    
     // Format: <MAC>_<prefix>_<timestamp>.tgz (matches script format)
-    snprintf(buffer, buffer_size, "%s_%s_%s.tgz", mac_address, prefix, timestamp);
+    snprintf(buffer, buffer_size, "%s_%s_%s.tgz", mac_clean, prefix, timestamp);
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Generated archive name: %s (MAC=%s, prefix=%s)\n",
+            __FUNCTION__, __LINE__, buffer, mac_address, prefix);
+    
     return true;
 }
 
@@ -331,6 +359,12 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     }
 
     // Generate archive filename with MAC and timestamp (script format)
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
+            __FUNCTION__, __LINE__, 
+            ctx->device.mac_address ? ctx->device.mac_address : "(NULL)", 
+            prefix);
+    
     char archive_filename[MAX_FILENAME_LENGTH];
     if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
                                ctx->device.mac_address, prefix)) {
