@@ -32,32 +32,6 @@
 #include "rdk_debug.h"
 
 
-/**
- * @brief Check if a binary is available in PATH or at specific location
- * @param binary_name Name or path of the binary
- * @return true if binary exists, false otherwise
- */
-static bool binary_exists(const char* binary_name)
-{
-    // First check if it's an absolute path
-    if (binary_name[0] == '/' && file_exists(binary_name)) {
-        return true;
-    }
-    
-    // Check common locations
-    char binary_path[256];
-    const char* paths[] = {"/usr/bin/", "/bin/", "/usr/local/bin/", NULL};
-    
-    for (int i = 0; paths[i] != NULL; i++) {
-        snprintf(binary_path, sizeof(binary_path), "%s%s", paths[i], binary_name);
-        if (file_exists(binary_path)) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
 bool validate_system(const RuntimeContext* ctx)
 {
     if (!ctx) {
@@ -70,12 +44,6 @@ bool validate_system(const RuntimeContext* ctx)
     // Validate directories
     if (!validate_directories(ctx)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Directory validation failed\n", __FUNCTION__, __LINE__);
-        return false;
-    }
-
-    // Validate binaries
-    if (!validate_binaries()) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Binary validation failed\n", __FUNCTION__, __LINE__);
         return false;
     }
 
@@ -162,38 +130,6 @@ bool validate_directories(const RuntimeContext* ctx)
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log path does not exist: %s\n", 
                     __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
         }
-    }
-
-    return all_valid;
-}
-
-bool validate_binaries(void)
-{
-    bool all_valid = true;
-
-    // Check for curl - critical for upload
-    if (!binary_exists("curl")) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] curl binary not found\n", __FUNCTION__, __LINE__);
-        all_valid = false;
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] curl binary found\n", __FUNCTION__, __LINE__);
-    }
-
-    // Check for tar - critical for archive creation
-    if (!binary_exists("tar")) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] tar binary not found\n", __FUNCTION__, __LINE__);
-        all_valid = false;
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] tar binary found\n", __FUNCTION__, __LINE__);
-    }
-
-    // Check for gzip (usually bundled with tar, but verify)
-    if (!binary_exists("gzip")) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] gzip binary not found (may affect compression)\n", 
-                __FUNCTION__, __LINE__);
-        // Not critical - tar might have built-in gzip support
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] gzip binary found\n", __FUNCTION__, __LINE__);
     }
 
     return all_valid;
