@@ -18,4 +18,4 @@ logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -D
 
 logupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 logupload_LDFLAGS += $(curl_LIBS)
-logupload_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus -lt2utils -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
+logupload_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus -lt2utils -ltelemetry_msgsender -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
