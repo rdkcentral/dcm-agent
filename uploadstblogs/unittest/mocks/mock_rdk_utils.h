@@ -26,7 +26,7 @@
 // Define UTILS constants directly (avoiding common_device_api.h dependency)
 #define UTILS_SUCCESS 1
 #define UTILS_FAIL -1
-/*
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -50,7 +50,7 @@ public:
     MOCK_METHOD2(GetEstbMac, size_t(char* mac_buf, size_t buf_size));
     MOCK_METHOD1(rdk_logger_init, int(const char* debug_ini));
 };
-*/
+
 // Global mock instance
 extern MockRdkUtils* g_mockRdkUtils;
 
