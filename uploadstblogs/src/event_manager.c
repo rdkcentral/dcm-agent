@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "event_manager.h"
-#include "telemetry.h"
 #include "rdk_debug.h"
 #ifndef GTEST_ENABLE
 #include "system_utils.h"
@@ -133,12 +132,7 @@ void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
             __FUNCTION__, __LINE__, path_used, session->direct_attempts, session->codebig_attempts);
     
     // Send telemetry for successful upload (matches script t2CountNotify)
-    if (session->used_fallback) {
-        // Use telemetry.h functions instead
-        report_upload_success(session);
-    } else {
-        report_upload_success(session);
-    }
+    t2_count_notify("SYST_INFO_lu_success");
     
     // Send success events (matches script behavior)
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_SUCCESS);
@@ -162,7 +156,7 @@ void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
             __FUNCTION__, __LINE__, session->direct_attempts, session->codebig_attempts);
     
     // Send telemetry for failed upload (matches script t2CountNotify)
-    report_upload_failure(session);
+    t2_count_notify("SYST_ERR_LogUpload_Failed");
     
     // Send failure events (matches script behavior)  
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);
