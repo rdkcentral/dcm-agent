@@ -74,7 +74,7 @@ for test in \
   ./../uploadstblogs/unittest/verification_gtest \
   ./../uploadstblogs/unittest/telemetry_gtest \
   ./../uploadstblogs/unittest/rbus_interface_gtest \
-  ./../uploadstblogs/unittest/uploadstblogs_gtest 
+  ./../uploadstblogs/unittest/uploadstblogs_gtest \
   ./../uploadstblogs/unittest/event_manager_gtest \
   ./../uploadstblogs/unittest/log_collector_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
