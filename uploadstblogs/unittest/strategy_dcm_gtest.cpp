@@ -101,6 +101,14 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path) {
     g_upload_archive_call_count++;
     strncpy(g_last_upload_archive_path, archive_path, sizeof(g_last_upload_archive_path) - 1);
+    
+    // Simulate execute_upload_cycle behavior: set session->success based on result
+    if (session && g_mock_upload_archive_result == 0) {
+        session->success = true;
+    } else if (session) {
+        session->success = false;
+    }
+    
     return g_mock_upload_archive_result;
 }
 
