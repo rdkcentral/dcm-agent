@@ -29,8 +29,10 @@
 #include <sys/stat.h>
 #include <time.h>
 #include "context_manager.h"
+#ifndef GTEST_ENABLE
 #include "rdk_fwdl_utils.h"
 #include "common_device_api.h"
+#endif
 #include "rdk_debug.h"
 #include "rbus_interface.h"
 
@@ -446,4 +448,5 @@ bool get_mac_address(char* mac_buf, size_t buf_size)
 void cleanup_context(void)
 {
     rbus_cleanup();
+
 }
