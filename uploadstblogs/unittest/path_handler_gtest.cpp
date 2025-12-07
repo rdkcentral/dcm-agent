@@ -69,16 +69,29 @@ void report_curl_error(int curl_code);
 void report_cert_error(int curl_code, const char* fqdn);
 UploadResult verify_upload(const SessionState* session);
 
+// Mock MtlsAuth_t type
+typedef struct {
+    char cert_name[256];
+    char key_pas[256];
+    char cert_type[16];
+    char engine[64];
+} MtlsAuth_t;
+
 // Mock upload library functions
-int uploadFileWithTwoStageFlowEx(const char* upload_url, const char* src_file, 
-                                 const char* md5_hash, bool ocsp_enabled, 
-                                 UploadStatusDetail* status);
-void uploadFileWithCodeBigFlowEx(const char* src_file, int server_type,
-                                 const char* md5_hash, bool ocsp_enabled,
-                                 UploadStatusDetail* status);
+void __uploadutil_set_ocsp(bool enabled);
+void __uploadutil_get_status(long *http_code, int *curl_code);
+int performMetadataPostWithCertRotationEx(const char *upload_url, const char *filepath,
+                                          const char *extra_fields, MtlsAuth_t *sec_out,
+                                          long *http_code_out);
+int performS3PutWithCert(const char *s3_url, const char *src_file, MtlsAuth_t *sec);
+int performCodeBigMetadataPost(void *curl, const char *filepath,
+                               const char *extra_fields, int server_type,
+                               long *http_code_out);
+int performCodeBigS3Put(const char *s3_url, const char *src_file);
 int performS3PutUploadEx(const char* upload_url, const char* src_file,
-                         const char* auth_header, const char* md5_hash,
+                         MtlsAuth_t* auth, const char* md5_hash,
                          bool ocsp_enabled, UploadStatusDetail* status);
+int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_url_size);
 }
 
 #ifndef UTILS_SUCCESS
@@ -134,33 +147,70 @@ UploadResult verify_upload(const SessionState* session) {
     return mock_verify_result;
 }
 
-int uploadFileWithTwoStageFlowEx(const char* upload_url, const char* src_file, 
-                                 const char* md5_hash, bool ocsp_enabled, 
-                                 UploadStatusDetail* status) {
+void __uploadutil_set_ocsp(bool enabled) {
+    // Mock - do nothing
+}
+
+static long mock_http_code_status = 200;
+static int mock_curl_code_status = 0;
+
+void __uploadutil_get_status(long *http_code, int *curl_code) {
+    if (http_code) *http_code = mock_http_code_status;
+    if (curl_code) *curl_code = mock_curl_code_status;
+}
+
+int performMetadataPostWithCertRotationEx(const char *upload_url, const char *filepath,
+                                          const char *extra_fields, MtlsAuth_t *sec_out,
+                                          long *http_code_out) {
     mock_upload_mtls_calls++;
-    if (status) {
-        *status = mock_upload_status;
+    if (http_code_out) {
+        *http_code_out = mock_upload_status.http_code;
+    }
+    if (sec_out) {
+        strcpy(sec_out->cert_name, "mock_cert.p12");
+        strcpy(sec_out->key_pas, "mock_pass");
+        strcpy(sec_out->cert_type, "P12");
     }
     return mock_upload_function_result;
 }
 
-void uploadFileWithCodeBigFlowEx(const char* src_file, int server_type,
-                                 const char* md5_hash, bool ocsp_enabled,
-                                 UploadStatusDetail* status) {
+int performS3PutWithCert(const char *s3_url, const char *src_file, MtlsAuth_t *sec) {
+    mock_upload_s3_calls++;
+    return mock_upload_function_result;
+}
+
+int performCodeBigMetadataPost(void *curl, const char *filepath,
+                               const char *extra_fields, int server_type,
+                               long *http_code_out) {
     mock_upload_codebig_calls++;
-    if (status) {
-        *status = mock_upload_status;
+    if (http_code_out) {
+        *http_code_out = mock_upload_status.http_code;
     }
+    return mock_upload_function_result;
+}
+
+int performCodeBigS3Put(const char *s3_url, const char *src_file) {
+    mock_upload_s3_calls++;
+    return mock_upload_function_result;
 }
 
 int performS3PutUploadEx(const char* upload_url, const char* src_file,
-                         const char* auth_header, const char* md5_hash,
+                         MtlsAuth_t* auth, const char* md5_hash,
                          bool ocsp_enabled, UploadStatusDetail* status) {
     mock_upload_s3_calls++;
     if (status) {
         *status = mock_upload_status;
     }
     return mock_upload_function_result;
+}
+
+int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_url_size) {
+    if (s3_url && s3_url_size > 0 && strlen(mock_file_content) > 0) {
+        strncpy(s3_url, mock_file_content, s3_url_size - 1);
+        s3_url[s3_url_size - 1] = '\0';
+        return 0;
+    }
+    return -1;
 }
 
 FILE* fopen(const char *pathname, const char *mode) {
