@@ -64,7 +64,23 @@ for test in \
   ./dcm_rbus_gtest \
   ./dcm_gtest \
   ./../uploadstblogs/unittest/context_manager_gtest \
-  ./../uploadstblogs/unittest/md5_utils_gtest 
+  ./../uploadstblogs/unittest/md5_utils_gtest \
+  ./../uploadstblogs/unittest/validation_gtest \
+  ./../uploadstblogs/unittest/strategy_selector_gtest \
+  ./../uploadstblogs/unittest/path_handler_gtest \ 
+  ./../uploadstblogs/unittest/archive_manager_gtest \
+  ./../uploadstblogs/unittest/upload_engine_gtest \
+  ./../uploadstblogs/unittest/cleanup_manager_gtest \
+  ./../uploadstblogs/unittest/verification_gtest \
+  ./../uploadstblogs/unittest/telemetry_gtest \
+  ./../uploadstblogs/unittest/rbus_interface_gtest \
+  ./../uploadstblogs/unittest/uploadstblogs_gtest 
+  ./../uploadstblogs/unittest/event_manager_gtest \
+  ./../uploadstblogs/unittest/log_collector_gtest \
+  ./../uploadstblogs/unittest/retry_logic_gtest \
+  ./../uploadstblogs/unittest/strategy_dcm_gtest \
+  ./../uploadstblogs/unittest/strategy_handler_gtest \
+  ./../uploadstblogs/unittest/strategy_ondemand_gtest
 do
     $test
     status=$?
