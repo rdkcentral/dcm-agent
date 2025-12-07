@@ -44,10 +44,33 @@
 #include "cleanup_handler.h"
 #include "event_manager.h"
 #include "system_utils.h"
-#include "telemetry.h"
 #include "rdk_debug.h"
 
+#ifdef T2_EVENT_ENABLED
+#include <telemetry_busmessage_sender.h>
+#endif
+
 static int lock_fd = -1;
+
+/* Telemetry helper functions */
+void t2_count_notify(char *marker)
+{
+#ifdef T2_EVENT_ENABLED
+    t2_event_d(marker, 1);
+#else
+    (void)marker;
+#endif
+}
+
+void t2_val_notify(char *marker, char *val)
+{
+#ifdef T2_EVENT_ENABLED
+    t2_event_s(marker, val);
+#else
+    (void)marker;
+    (void)val;
+#endif
+}
 
 bool parse_args(int argc, char** argv, RuntimeContext* ctx)
 {
@@ -197,7 +220,9 @@ int main(int argc, char** argv)
     }
 
     /* Initialize telemetry system (matches rdm-agent pattern) */
-    telemetry_init();
+#ifdef T2_EVENT_ENABLED
+    t2_init("uploadstblogs");
+#endif
 
     /* Initialize runtime context */
     if (!init_context(&ctx)) {
@@ -284,7 +309,9 @@ int main(int argc, char** argv)
     finalize(&ctx, &session);
 
     /* Uninitialize telemetry system */
-    telemetry_uninit();
+#ifdef T2_EVENT_ENABLED
+    t2_uninit();
+#endif
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
