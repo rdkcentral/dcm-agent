@@ -38,10 +38,15 @@
 #include "libIBus.h"
 #include "sysMgr.h"
 #ifdef EN_MAINTENANCE_MANAGER
-#include "mfrMgr.h"
+#include "maintenanceMGR.h"
 #endif
 static bool iarm_initialized = false;
 #define IARM_UPLOADSTB_EVENT "UploadSTBLogsEvent"
+
+// Define log upload system state ID if not defined in sysMgr.h
+#ifndef IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD
+#define IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD 10
+#endif
 #endif
 
 // Event constants matching script behavior
@@ -292,17 +297,17 @@ void send_iarm_event(const char* event_name, int event_code)
         // Map log upload status to appropriate system state
         switch (event_code) {
             case LOG_UPLOAD_SUCCESS:
-                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOGUPLOAD_INPROGRESS;
+                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD;
                 event_data.data.systemStates.state = 0; // Success
                 event_sent = true;
                 break;
             case LOG_UPLOAD_FAILED:
-                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOGUPLOAD_INPROGRESS;
+                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD;
                 event_data.data.systemStates.state = 1; // Failure
                 event_sent = true;
                 break;
             case LOG_UPLOAD_ABORTED:
-                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOGUPLOAD_INPROGRESS;
+                event_data.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD;
                 event_data.data.systemStates.state = 2; // Aborted
                 event_sent = true;
                 break;
@@ -378,7 +383,7 @@ void send_iarm_event_maintenance(int maint_event_code)
 
 /**
  * @brief Cleanup IARM connection
- * Based on rdkfwupdater iarmInterface.c term_event_handler()
+ * Based on rdkfwupdater iarmrInterface.c term_event_handler()
  */
 void cleanup_iarm_connection(void)
 {
