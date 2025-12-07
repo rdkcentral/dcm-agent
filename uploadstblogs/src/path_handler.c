@@ -26,7 +26,6 @@
 #include <string.h>
 #include "path_handler.h"
 #include "verification.h"
-#include "telemetry.h"
 #include "md5_utils.h"
 #include "rdk_debug.h"
 
@@ -100,7 +99,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     }
     
     // Report mTLS usage telemetry (matches script line 355)
-    report_mtls_usage();
+    t2_count_notify("SYST_INFO_mtls_xpki");
     
     // NOTE: This function is called by retry_upload(), which handles the retry loop
     // Script behavior (line 508-525):
@@ -211,7 +210,12 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] S3 PUT failed with error code: %d\n",
                 __FUNCTION__, __LINE__, s3_result);
-        report_curl_error(s3_result);
+        char curl_value[32];
+        snprintf(curl_value, sizeof(curl_value), "%d", s3_result);
+        t2_val_notify("LUCurlErr_split", curl_value);
+        if (s3_result == 28) {
+            t2_count_notify("SYST_ERR_Curl28");
+        }
         return UPLOADSTB_FAILED;
     }
 
@@ -333,7 +337,12 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     
     // Report curl error if present
     if (proxy_status.curl_code != 0) {
-        report_curl_error(proxy_status.curl_code);
+        char curl_value[32];
+        snprintf(curl_value, sizeof(curl_value), "%d", proxy_status.curl_code);
+        t2_val_notify("LUCurlErr_split", curl_value);
+        if (proxy_status.curl_code == 28) {
+            t2_count_notify("SYST_ERR_Curl28");
+        }
     }
     
     UploadResult proxy_verified = verify_upload(session);
@@ -396,7 +405,12 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     
     // Report curl error if present
     if (curl_code != 0) {
-        report_curl_error(curl_code);
+        char curl_value[32];
+        snprintf(curl_value, sizeof(curl_value), "%d", curl_code);
+        t2_val_notify("LUCurlErr_split", curl_value);
+        if (curl_code == 28) {
+            t2_count_notify("SYST_ERR_Curl28");
+        }
     }
     
     // Report certificate errors
@@ -415,7 +429,13 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
                 strncpy(fqdn, start, len);
             }
         }
-        report_cert_error(curl_code, fqdn);
+        char error_value[256];
+        if (fqdn[0] != '\0') {
+            snprintf(error_value, sizeof(error_value), "STBLogUL, %d, %s", curl_code, fqdn);
+        } else {
+            snprintf(error_value, sizeof(error_value), "STBLogUL, %d", curl_code);
+        }
+        t2_val_notify("certerr_split", error_value);
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -472,8 +492,12 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     
     // Report curl error
     if (s3_result != 0) {
-        report_curl_error(s3_result);
-        t2_val_notify("LUCurlErr_split", ""); // Script line 614
+        char curl_value[32];
+        snprintf(curl_value, sizeof(curl_value), "%d", s3_result);
+        t2_val_notify("LUCurlErr_split", curl_value);
+        if (s3_result == 28) {
+            t2_count_notify("SYST_ERR_Curl28");
+        }
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
