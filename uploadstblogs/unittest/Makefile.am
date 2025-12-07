@@ -47,7 +47,7 @@ COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -l
                -lfwutils -lrdkloggers
 
 # Common compiler flags
-COMMON_CXXFLAGS = -frtti -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result -Wno-error
+COMMON_CXXFLAGS = -frtti -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result -Wno-error -Wno-format-truncation
 
 # Define source files for each test
 
@@ -159,3 +159,4 @@ strategy_ondemand_gtest_LDADD = $(COMMON_LDADD)
 strategy_ondemand_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 
 strategy_ondemand_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
