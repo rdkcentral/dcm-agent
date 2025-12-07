@@ -35,6 +35,9 @@ struct dirent {
 
 // Mock system functions that archive_manager depends on
 extern "C" {
+// Forward declare gzFile type from zlib
+typedef struct gzFile_s *gzFile;
+
 // Mock functions for file operations
 FILE* fopen(const char* filename, const char* mode);
 int fclose(FILE* stream);
@@ -48,8 +51,14 @@ int system(const char* command);
 time_t time(time_t* tloc);
 struct tm* localtime(const time_t* timep);
 
+// Mock zlib functions
+gzFile gzopen(const char* path, const char* mode);
+int gzwrite(gzFile file, const void* buf, unsigned len);
+int gzclose(gzFile file);
+
 // Global mock variables
 static FILE* mock_file_ptr = (FILE*)0x12345678;
+static gzFile mock_gz_ptr = (gzFile)0xABCDEF01;
 static struct stat mock_stat_buf;
 static DIR* mock_dir_ptr = (DIR*)0x87654321;
 static struct dirent mock_dirent_buf;
@@ -57,21 +66,34 @@ static time_t mock_time_value = 1642780800; // 2022-01-21 12:00:00
 static struct tm mock_tm_buf = {0, 0, 14, 21, 0, 122, 5, 20, 0, 0, 0}; // 2022-01-21 14:00
 static int g_readdir_call_count = 0; // Global counter for readdir calls
 static int g_opendir_call_count = 0; // Global counter for opendir calls
+static int g_fread_call_count = 0; // Global counter for fread calls per file
 
 // Mock implementations
 FILE* fopen(const char* filename, const char* mode) {
     if (filename && strstr(filename, "fail")) return nullptr;
+    g_fread_call_count = 0; // Reset read counter for new file
     return mock_file_ptr;
 }
 
 int fclose(FILE* stream) {
+    g_fread_call_count = 0; // Reset on close
     return (stream == mock_file_ptr) ? 0 : -1;
 }
 
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
     if (stream != mock_file_ptr || !ptr) return 0;
-    memset(ptr, 0x41, size * nmemb); // Fill with 'A'
-    return nmemb;
+    
+    // Simulate EOF after first read to prevent infinite loops
+    g_fread_call_count++;
+    if (g_fread_call_count > 1) {
+        return 0; // EOF
+    }
+    
+    // First read: return some data (simulating file content)
+    size_t bytes = size * nmemb;
+    if (bytes > 1024) bytes = 1024; // Cap at 1KB
+    memset(ptr, 0x41, bytes); // Fill with 'A'
+    return bytes / size; // Return number of items read
 }
 
 size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -84,14 +106,31 @@ int stat(const char* path, struct stat* buf) {
     if (strstr(path, "missing")) return -1;
     
     memcpy(buf, &mock_stat_buf, sizeof(struct stat));
-    buf->st_size = 1024;
-    buf->st_mode = S_IFREG | 0644;
+    
+    // Check if path looks like a file (has extension) vs directory
+    const char* last_slash = strrchr(path, '/');
+    const char* name = last_slash ? last_slash + 1 : path;
+    bool is_file = (strchr(name, '.') != nullptr);
+    
+    if (is_file) {
+        buf->st_size = 1024;
+        buf->st_mode = S_IFREG | 0644;
+    } else {
+        buf->st_size = 4096;
+        buf->st_mode = S_IFDIR | 0755;
+    }
     return 0;
 }
 
 DIR* opendir(const char* name) {
     if (!name || strstr(name, "fail")) return nullptr;
     g_opendir_call_count++;
+    
+    // Prevent infinite recursion - limit depth
+    if (g_opendir_call_count > 3) {
+        return nullptr;
+    }
+    
     // Reset readdir count for each new directory open
     g_readdir_call_count = 0;
     return mock_dir_ptr;
@@ -102,26 +141,26 @@ struct dirent* readdir(DIR* dirp) {
     
     g_readdir_call_count++;
     
-    // Limit total readdir calls to prevent infinite loops
-    if (g_readdir_call_count > 10) {
-        return nullptr;
+    // For first opendir call (root), return some files
+    // For subsequent calls (subdirectories), return nothing
+    if (g_opendir_call_count == 1) {
+        if (g_readdir_call_count == 1) {
+            strcpy(mock_dirent_buf.d_name, ".");
+            return &mock_dirent_buf;
+        } else if (g_readdir_call_count == 2) {
+            strcpy(mock_dirent_buf.d_name, "..");
+            return &mock_dirent_buf;
+        } else if (g_readdir_call_count == 3) {
+            strcpy(mock_dirent_buf.d_name, "test.log");
+            return &mock_dirent_buf;
+        } else if (g_readdir_call_count == 4) {
+            strcpy(mock_dirent_buf.d_name, "another.log");
+            return &mock_dirent_buf;
+        }
     }
     
-    int cycle_pos = (g_readdir_call_count - 1) % 4;
-    
-    if (cycle_pos == 0) {
-        strcpy(mock_dirent_buf.d_name, ".");
-        return &mock_dirent_buf;
-    } else if (cycle_pos == 1) {
-        strcpy(mock_dirent_buf.d_name, "..");
-        return &mock_dirent_buf;
-    } else if (cycle_pos == 2) {
-        strcpy(mock_dirent_buf.d_name, "test.log");
-        return &mock_dirent_buf;
-    } else {
-        // Return nullptr to end this directory cycle
-        return nullptr;
-    }
+    // End directory listing
+    return nullptr;
 }
 
 int closedir(DIR* dirp) {
@@ -141,6 +180,21 @@ time_t time(time_t* tloc) {
 
 struct tm* localtime(const time_t* timep) {
     return (timep && *timep == mock_time_value) ? &mock_tm_buf : nullptr;
+}
+
+// Mock zlib functions implementations
+gzFile gzopen(const char* path, const char* mode) {
+    if (!path || !mode || strstr(path, "fail")) return nullptr;
+    return mock_gz_ptr;
+}
+
+int gzwrite(gzFile file, const void* buf, unsigned len) {
+    if (file != mock_gz_ptr || !buf) return 0;
+    return len; // Pretend we wrote everything
+}
+
+int gzclose(gzFile file) {
+    return (file == mock_gz_ptr) ? 0 : -1;
 }
 
 bool collect_logs_for_strategy(RuntimeContext* ctx, SessionState* session, const char* target_dir) {
@@ -227,10 +281,13 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_RemovesColons) {
     // MAC address with colons should have them removed in archive name
     strcpy(ctx.device.mac_address, "A8:4A:63:1E:37:A5");
     
+    // Mock directory and file existence checks
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
     
-    int ret = create_archive(&ctx, &session, "/tmp/test");
+    int ret = create_archive(&ctx, &session, "/tmp");
     // Archive name should contain MAC without colons: A84A631E37A5
     EXPECT_TRUE(strstr(session.archive_file, "A84A631E37A5") != nullptr);
     EXPECT_TRUE(strstr(session.archive_file, ":") == nullptr);
@@ -243,9 +300,9 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_EmptyMAC) {
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
     
-    int ret = create_archive(&ctx, &session, "/tmp/test");
-    // Should fail or handle empty MAC gracefully
-    EXPECT_TRUE(ret == 0 || ret == -1);
+    int ret = create_archive(&ctx, &session, "/tmp");
+    // Should fail when MAC is empty
+    EXPECT_EQ(ret, -1);
 }
 
 // Test get_archive_size function
