@@ -40,6 +40,15 @@ autoreconf --install
 make clean
 make
 
+cd uploadstblogs/unittest
+automake --add-missing
+autoreconf --install
+
+./configure
+
+make clean
+make
+
 fail=0
 
 for test in \
