@@ -40,7 +40,7 @@ autoreconf --install
 make clean
 make
 
-cd uploadstblogs/unittest
+cd ../uploadstblogs/unittest
 automake --add-missing
 autoreconf --install
 
@@ -49,6 +49,7 @@ autoreconf --install
 make clean
 make
 
+cd -
 fail=0
 
 for test in \
