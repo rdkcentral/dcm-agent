@@ -101,8 +101,9 @@ void send_iarm_event(const char* event_name, int event_code) {
 
 // Mock send_iarm_event_maintenance for testing
 void send_iarm_event_maintenance(int maint_event_code) {
-    // Mock implementation - just track the call
+    // Mock implementation - track the call with MaintenanceMGR event name
     mock_iarm_event_calls++;
+    strcpy(mock_last_event_name, "MaintenanceMGR");
     mock_last_event_code = maint_event_code;
 }
 
