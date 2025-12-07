@@ -64,6 +64,7 @@ for test in \
   ./dcm_rbus_gtest \
   ./dcm_gtest \
   ./../uploadstblogs/unittest/context_manager_gtest \
+  ./../uploadstblogs/unittest/archive_manager_gtest \
   ./../uploadstblogs/unittest/md5_utils_gtest \
   ./../uploadstblogs/unittest/validation_gtest \
   ./../uploadstblogs/unittest/strategy_selector_gtest \
