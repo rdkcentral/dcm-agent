@@ -240,4 +240,21 @@ typedef struct {
     char last_error[256];           /**< Last error message */
 } UploadMetrics;
 
+/* ==========================
+   Telemetry Helper Functions
+   ========================== */
+
+/**
+ * @brief Send telemetry count notification
+ * @param marker Telemetry marker name
+ */
+void t2_count_notify(char *marker);
+
+/**
+ * @brief Send telemetry value notification
+ * @param marker Telemetry marker name
+ * @param val Telemetry value
+ */
+void t2_val_notify(char *marker, char *val);
+
 #endif /* UPLOADSTBLOGS_TYPES_H */
