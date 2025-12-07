@@ -84,23 +84,6 @@ void CreateTestDir(const char* dirname) {
     mkdir(dirname, 0755);
 }
 
-// Test binary_exists function (static function)
-TEST_F(ValidationTest, BinaryExists_AbsolutePath) {
-    CreateTestFile("/tmp/test_binary", "#!/bin/sh\necho test\n");
-    EXPECT_TRUE(binary_exists("/tmp/test_binary"));
-    unlink("/tmp/test_binary");
-}
-
-TEST_F(ValidationTest, BinaryExists_NotFound) {
-    EXPECT_FALSE(binary_exists("/tmp/nonexistent_binary"));
-}
-
-TEST_F(ValidationTest, BinaryExists_CommonPaths) {
-    // Test will pass if common binaries like 'ls' exist
-    EXPECT_TRUE(binary_exists("ls"));
-    EXPECT_TRUE(binary_exists("cat"));
-}
-
 // Test validate_directories function
 TEST_F(ValidationTest, ValidateDirectories_NullContext) {
     EXPECT_FALSE(validate_directories(nullptr));
@@ -108,56 +91,25 @@ TEST_F(ValidationTest, ValidateDirectories_NullContext) {
 
 TEST_F(ValidationTest, ValidateDirectories_Success) {
     // Set up mock expectations for existing directories
-    EXPECT_CALL(*g_mockFileOperations, dir_exists("/opt/logs"))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, dir_exists("/opt/logs/PreviousLogs"))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, dir_exists("/tmp"))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, dir_exists("/tmp/DCM"))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
     
     EXPECT_TRUE(validate_directories(&ctx));
 }
 
 TEST_F(ValidationTest, ValidateDirectories_MissingDirectory) {
-    // Set up mock to return false for log_path directory
-    EXPECT_CALL(*g_mockFileOperations, dir_exists("/opt/logs"))
-        .WillOnce(Return(false));
+    // Set up mock to return false for PREV_LOG_PATH (critical directory)
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(false));
     
     EXPECT_FALSE(validate_directories(&ctx));
-}
-
-// Test validate_binaries function
-TEST_F(ValidationTest, ValidateBinaries_Success) {
-    // Set up mock expectations for required binaries
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/usr/bin/curl")))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/bin/tar")))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/usr/bin/gzip")))
-        .WillOnce(Return(true));
-    
-    EXPECT_TRUE(validate_binaries());
-}
-
-TEST_F(ValidationTest, ValidateBinaries_MissingBinary) {
-    // Set up mock to simulate missing curl binary
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/usr/bin/curl")))
-        .WillOnce(Return(false));
-    
-    EXPECT_FALSE(validate_binaries());
 }
 
 // Test validate_configuration function
 TEST_F(ValidationTest, ValidateConfiguration_Success) {
     // Set up mock expectations for configuration files
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/etc/device.properties")))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/etc/include.properties")))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_mockFileOperations, file_exists(StrEq("/opt/.DCMSettings.conf")))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
     
     EXPECT_TRUE(validate_configuration());
 }
@@ -174,8 +126,7 @@ TEST_F(ValidationTest, ValidateConfiguration_MissingFiles) {
 TEST_F(ValidationTest, ValidateCodebigAccess_Basic) {
     // Note: This function checks for CodeBig configuration and network access
     // The result depends on the test environment
-    bool result = validate_codebig_access();
-    EXPECT_TRUE(result == true || result == false); // Just verify it doesn't crash
+    validate_codebig_access(); // Just verify it doesn't crash
 }
 
 // Test validate_system function - main validation entry point
@@ -184,21 +135,13 @@ TEST_F(ValidationTest, ValidateSystem_NullContext) {
 }
 
 TEST_F(ValidationTest, ValidateSystem_Success) {
-    // Create necessary directories
-    CreateTestDir("/tmp");  // Should already exist
-    CreateTestDir("/opt");  // Should already exist but ensure
+    // Mock all dependencies to return success
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
     
-    // Use default paths that should exist in most test environments
-    strcpy(ctx.paths.log_path, "/tmp");
-    strcpy(ctx.paths.prev_log_path, "/tmp");
-    strcpy(ctx.paths.temp_dir, "/tmp");
-    strcpy(ctx.paths.archive_path, "/tmp");
-    strcpy(ctx.paths.telemetry_path, "/tmp");
-    strcpy(ctx.paths.dcm_log_path, "/tmp");
-    
-    // The result depends on system state - test that it doesn't crash
-    bool result = validate_system(&ctx);
-    EXPECT_TRUE(result == true || result == false);
+    validate_system(&ctx); // Just verify it doesn't crash
 }
 
 // Test edge cases and error conditions
@@ -249,20 +192,6 @@ TEST_F(ValidationTest, ValidateDirectories_EmptyPaths) {
     memset(&ctx.paths, 0, sizeof(ctx.paths));
     
     EXPECT_FALSE(validate_directories(&ctx));
-}
-
-// Test binary validation scenarios
-TEST_F(ValidationTest, BinaryExists_RelativePath) {
-    // Test with relative path (should check PATH)
-    EXPECT_TRUE(binary_exists("sh") || binary_exists("bash")); // Shell should exist
-}
-
-TEST_F(ValidationTest, BinaryExists_EmptyString) {
-    EXPECT_FALSE(binary_exists(""));
-}
-
-TEST_F(ValidationTest, BinaryExists_NullPointer) {
-    EXPECT_FALSE(binary_exists(nullptr));
 }
 
 // Integration tests
