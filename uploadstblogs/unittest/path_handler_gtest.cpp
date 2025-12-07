@@ -151,6 +151,14 @@ UploadResult verify_upload(const SessionState* session) {
     return mock_verify_result;
 }
 
+void t2_count_notify(const char* marker) {
+    // Mock - do nothing
+}
+
+void t2_val_notify(const char* marker, const char* value) {
+    // Mock - do nothing
+}
+
 void __uploadutil_set_ocsp(bool enabled) {
     // Mock - do nothing
 }
