@@ -419,19 +419,18 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
         curl_code == 66 || curl_code == 77 || curl_code == 80 || curl_code == 82 ||
         curl_code == 83 || curl_code == 90 || curl_code == 91) {
         // Extract FQDN from endpoint_url
-        char fqdn[256] = {0};
+        char fqdn[128] = {0};
         const char* start = strstr(endpoint_url, "://");
         if (start) {
             start += 3;
             const char* end = strchr(start, '/');
             size_t len = end ? (size_t)(end - start) : strlen(start);
-            if (len < sizeof(fqdn)) {
-                strncpy(fqdn, start, len);
-            }
+            if (len >= sizeof(fqdn)) len = sizeof(fqdn) - 1;
+            strncpy(fqdn, start, len);
         }
         char error_value[256];
         if (fqdn[0] != '\0') {
-            snprintf(error_value, sizeof(error_value), "STBLogUL, %d, %s", curl_code, fqdn);
+            snprintf(error_value, sizeof(error_value), "STBLogUL, %d, %.120s", curl_code, fqdn);
         } else {
             snprintf(error_value, sizeof(error_value), "STBLogUL, %d", curl_code);
         }
