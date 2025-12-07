@@ -1,29 +1,59 @@
 
-name: Unit tests dcm-agent
+name: L1 Unit Tests
+
 on:
   push:
-    branches: [ develop, main, feature/logupload_copilot ]
+    branches: [ feature/logupload_copilot ]
 
 env:
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
   AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
 
 jobs:
-  execute-unit-tests-on-pr:
-    name: Execute unit tests in dcm-agent GTest suite
+  execute-L1-tests-on-pr:
+    name: Execute L1 test suite in test container environment
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Run unit tests
-        run: sh unit_test.sh
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload test results to automatic test result management system
+      - name: Pull test container image
+        run: docker pull ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Start test container
+        run: |
+          docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L1_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
+
+      - name: Run L1 Unit Tests inside container
+        run: docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && sh unit_test.sh"
+
+      - name: Copy L1 test results to runner
+        run: |
+          docker cp native-platform:/tmp/Gtest_Report /tmp/Gtest_Report
+          ls -l /tmp/Gtest_Report
+
+  upload-test-results:
+    name: Upload L1 test results to automatic test result management system
+    needs: execute-L1-tests-on-pr
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+      volumes:
+        - /tmp/Gtest_Report:/tmp/Gtest_Report
+
+    steps:
+      - name: Upload results
         if: github.repository_owner == 'rdkcentral'
         run: |
+          echo "Contents in /tmp/Gtest_Report:"
+          ls -l /tmp/Gtest_Report
           git config --global --add safe.directory `pwd`
           gtest-json-result-push.py /tmp/Gtest_Report https://rdkeorchestrationservice.apps.cloud.comcast.net/rdke_orchestration_api/push_unit_test_results `pwd`
