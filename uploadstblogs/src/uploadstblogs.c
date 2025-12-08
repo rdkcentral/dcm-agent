@@ -297,7 +297,7 @@ int main(int argc, char** argv)
         }
     } else {
         // Other strategies: execute full workflow (setup, archive, upload, cleanup)
-        if (!execute_strategy_workflow(&ctx, &session)) {
+        if (execute_strategy_workflow(&ctx, &session) != 0) {
             fprintf(stderr, "Strategy workflow failed\n");
             release_lock();
             return 1;
