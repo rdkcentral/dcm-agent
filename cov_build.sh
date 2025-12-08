@@ -44,6 +44,7 @@ cd ${ROOT}
 rm -rf telemetry
 git clone https://github.com/rdkcentral/telemetry.git
 cd telemetry
+cp include/*.h /usr/local/include
 sh  build_inside_container.sh 
 
 
