@@ -46,6 +46,15 @@ bool dir_exists(const char* dirpath) {
     return (stat(dirpath, &st) == 0 && S_ISDIR(st.st_mode));
 }
 
+bool create_directory(const char* dirpath) {
+    if (g_mockFileOperations) {
+        return g_mockFileOperations->create_directory(dirpath);
+    }
+    // Default implementation - assume success
+    (void)dirpath;
+    return true;
+}
+
 void emit_system_validation_event(const char* component, bool success) {
     if (g_mockFileOperations) {
         g_mockFileOperations->emit_system_validation_event(component, success);
