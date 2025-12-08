@@ -29,6 +29,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <regex.h>
 #include "cleanup_manager.h"
 #include "uploadstblogs_types.h"
@@ -136,22 +138,32 @@ int cleanup_old_log_backups(const char *log_path, int max_age_days)
         
         snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
         
-        struct stat st;
-        // Use lstat to not follow symlinks (prevents TOCTOU symlink attacks)
-        if (lstat(fullpath, &st) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to stat: %s\n", 
-                    __FUNCTION__, __LINE__, fullpath);
+        // Open with O_RDONLY|O_NOFOLLOW to prevent TOCTOU and symlink attacks
+        int fd = open(fullpath, O_RDONLY | O_NOFOLLOW);
+        if (fd < 0) {
+            if (errno == ELOOP) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                        "[%s:%d] Skipping symbolic link: %s\n",
+                        __FUNCTION__, __LINE__, fullpath);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to open: %s\n", 
+                        __FUNCTION__, __LINE__, fullpath);
+            }
             continue;
         }
         
-        // Skip symbolic links for security
-        if (S_ISLNK(st.st_mode)) {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-                    "[%s:%d] Skipping symbolic link: %s\n",
+        struct stat st;
+        // Use fstat on the open file descriptor to avoid TOCTOU race
+        if (fstat(fd, &st) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to stat: %s\n", 
                     __FUNCTION__, __LINE__, fullpath);
+            close(fd);
             continue;
         }
+        
+        close(fd);
         
         // Check if older than max_age_days (matches script: -mtime +3)
         if (st.st_mtime < cutoff) {
