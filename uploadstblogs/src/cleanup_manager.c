@@ -55,19 +55,17 @@ static int remove_directory_recursive(const char *path)
         
         snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
         
-        struct stat st;
-        if (stat(filepath, &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
-                result = remove_directory_recursive(filepath);
-            } else {
-                result = remove(filepath);
-            }
-            
-            if (result != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to remove: %s\n", 
-                        __FUNCTION__, __LINE__, filepath);
-            }
+        // Try as directory first, then as file (avoids TOCTOU race)
+        result = remove_directory_recursive(filepath);
+        if (result != 0) {
+            // If directory removal failed, try as regular file
+            result = unlink(filepath);
+        }
+        
+        if (result != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove: %s\n", 
+                    __FUNCTION__, __LINE__, filepath);
         }
     }
     
@@ -139,9 +137,18 @@ int cleanup_old_log_backups(const char *log_path, int max_age_days)
         snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
         
         struct stat st;
-        if (stat(fullpath, &st) != 0) {
+        // Use lstat to not follow symlinks (prevents TOCTOU symlink attacks)
+        if (lstat(fullpath, &st) != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                     "[%s:%d] Failed to stat: %s\n", 
+                    __FUNCTION__, __LINE__, fullpath);
+            continue;
+        }
+        
+        // Skip symbolic links for security
+        if (S_ISLNK(st.st_mode)) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                    "[%s:%d] Skipping symbolic link: %s\n",
                     __FUNCTION__, __LINE__, fullpath);
             continue;
         }
@@ -158,7 +165,7 @@ int cleanup_old_log_backups(const char *log_path, int max_age_days)
                     removed_count++;
                 }
             } else {
-                if (remove(fullpath) == 0) {
+                if (unlink(fullpath) == 0) {
                     removed_count++;
                 }
             }
@@ -207,7 +214,8 @@ int cleanup_old_archives(const char *log_path)
                 "[%s:%d] Removing old archive: %s\n",
                 __FUNCTION__, __LINE__, fullpath);
         
-        if (remove(fullpath) == 0) {
+        // Use unlink to remove file (more explicit than remove)
+        if (unlink(fullpath) == 0) {
             removed_count++;
         } else {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
