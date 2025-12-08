@@ -53,8 +53,8 @@ autoreconf --install
 make clean
 make
 
-cd -
 fail=0
+cd -
 
 for test in \
   ./dcm_utils_gtest \
