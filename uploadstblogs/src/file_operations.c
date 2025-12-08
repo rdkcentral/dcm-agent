@@ -53,6 +53,41 @@ bool dir_exists(const char* dirpath)
     return (folderCheck((char*)dirpath) == 1);
 }
 
+bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename)
+{
+    if (!buffer || !dir || !filename) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return false;
+    }
+    
+    size_t dir_len = strlen(dir);
+    size_t file_len = strlen(filename);
+    
+    // Check if directory path ends with a slash
+    bool has_trailing_slash = (dir_len > 0 && dir[dir_len - 1] == '/');
+    bool needs_separator = !has_trailing_slash;
+    
+    // Calculate required size: dir + separator (if needed) + filename + null terminator
+    size_t required = dir_len + (needs_separator ? 1 : 0) + file_len + 1;
+    
+    if (required > buffer_size) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Path too long: %zu > %zu\n", 
+                __FUNCTION__, __LINE__, required, buffer_size);
+        return false;
+    }
+    
+    // Build the path
+    strcpy(buffer, dir);
+    if (needs_separator) {
+        strcat(buffer, "/");
+    }
+    strcat(buffer, filename);
+    
+    return true;
+}
+
 bool create_directory(const char* dirpath)
 {
     if (!dirpath || dirpath[0] == '\0') {

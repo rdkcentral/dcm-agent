@@ -232,10 +232,8 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
 
     // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
-    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
-                          ctx->paths.dcm_log_path, session->archive_file);
-    
-    if (written >= (int)sizeof(archive_path)) {
+    if (!join_path(archive_path, sizeof(archive_path), 
+                   ctx->paths.dcm_log_path, session->archive_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;

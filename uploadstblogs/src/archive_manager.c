@@ -70,6 +70,43 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
                                        const char* prefix);
 
 /**
+ * @brief Safely join directory path and filename, handling trailing slashes
+ * @param buffer Output buffer for joined path
+ * @param buffer_size Size of output buffer
+ * @param dir Directory path (may have trailing slash)
+ * @param filename Filename to append
+ * @return true on success, false if path would exceed buffer size
+ */
+static bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename) {
+    if (!buffer || !dir || !filename) {
+        return false;
+    }
+    
+    size_t dir_len = strlen(dir);
+    size_t file_len = strlen(filename);
+    
+    // Check if we need to add a separator
+    bool has_trailing_slash = (dir_len > 0 && dir[dir_len - 1] == '/');
+    bool needs_separator = !has_trailing_slash;
+    
+    // Calculate required size: dir + separator (if needed) + filename + null terminator
+    size_t required = dir_len + (needs_separator ? 1 : 0) + file_len + 1;
+    
+    if (required > buffer_size) {
+        return false;
+    }
+    
+    // Build the path
+    strcpy(buffer, dir);
+    if (needs_separator) {
+        strcat(buffer, "/");
+    }
+    strcat(buffer, filename);
+    
+    return true;
+}
+
+/**
  * @brief Generate archive filename with MAC and timestamp (script format)
  * @param buffer Buffer to store filename
  * @param buffer_size Size of buffer
