@@ -146,6 +146,7 @@ void report_upload_failure(const SessionState* session) {
     mock_report_failure_calls++;
 }
 
+} // extern "C"
 void t2_count_notify(char* marker) {
     // Mock - do nothing
 }
@@ -153,9 +154,6 @@ void t2_count_notify(char* marker) {
 void t2_val_notify(char* marker, char* value) {
     // Mock - do nothing
 }
-
-} // extern "C"
-
 #endif
 
 // Include the actual event manager implementation
@@ -557,3 +555,4 @@ int main(int argc, char** argv) {
     cout << "Starting Event Manager Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
+
