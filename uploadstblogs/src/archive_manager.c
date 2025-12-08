@@ -81,8 +81,8 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
  * Example: AA-BB-CC-DD-EE-FF_Logs_11-25-25-02-30PM.tgz
  *          AA-BB-CC-DD-EE-FF_DRI_Logs_11-25-25-02-30PM.tgz
  */
-static bool generate_archive_name(char* buffer, size_t buffer_size, 
-                                   const char* mac_address, const char* prefix)
+bool generate_archive_name(char* buffer, size_t buffer_size, 
+                          const char* mac_address, const char* prefix)
 {
     if (!buffer || !prefix || buffer_size < 64) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
