@@ -124,6 +124,8 @@ static int mock_upload_codebig_calls = 0;
 static int mock_upload_s3_calls = 0;
 static int mock_fopen_calls = 0;
 static int mock_fgets_calls = 0;
+static int mock_t2_count_calls = 0;
+static int mock_t2_val_calls = 0;
 
 // Mock implementations
 bool calculate_file_md5(const char* filepath, char* md5_hash, size_t hash_size) {
@@ -166,11 +168,20 @@ UploadResult verify_upload(const SessionState* session) {
 }
 
 void t2_count_notify(char* marker) {
-    // Mock - do nothing
+    mock_t2_count_calls++;
+    if (marker && strcmp(marker, "SYST_INFO_mtls_xpki") == 0) {
+        mock_report_mtls_calls++;
+    }
 }
 
 void t2_val_notify(char* marker, char* value) {
-    // Mock - do nothing
+    mock_t2_val_calls++;
+    if (marker && strcmp(marker, "LUCurlErr_split") == 0) {
+        mock_report_curl_error_calls++;
+    }
+    if (marker && strcmp(marker, "certerr_split") == 0) {
+        mock_report_cert_error_calls++;
+    }
 }
 
 void __uploadutil_set_ocsp(bool enabled) {
@@ -331,6 +342,8 @@ protected:
         mock_upload_s3_calls = 0;
         mock_fopen_calls = 0;
         mock_fgets_calls = 0;
+        mock_t2_count_calls = 0;
+        mock_t2_val_calls = 0;
         
         // Reset CodeBig specific results
         mock_codebig_metadata_result = 0;
