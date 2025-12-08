@@ -349,11 +349,15 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
         // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
         char dri_filename[MAX_FILENAME_LENGTH];
-        generate_archive_filename(ctx, dri_filename, sizeof(dri_filename), "DRI_Logs");
-        
-        char dri_archive[MAX_PATH_LENGTH];
-        int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
-                              ctx->paths.prev_log_path, dri_filename);
+        if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
+                                   ctx->device.mac_address, "DRI_Logs")) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to generate DRI archive filename\n", 
+                    __FUNCTION__, __LINE__);
+        } else {
+            char dri_archive[MAX_PATH_LENGTH];
+            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
+                                  ctx->paths.prev_log_path, dri_filename);
         
         if (written >= (int)sizeof(dri_archive)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
