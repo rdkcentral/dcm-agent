@@ -75,6 +75,16 @@ bool remove_directory(const char* dirpath);
 bool copy_file(const char* src, const char* dest);
 
 /**
+ * @brief Safely join directory path and filename, handling trailing slashes
+ * @param buffer Output buffer for joined path
+ * @param buffer_size Size of output buffer
+ * @param dir Directory path (may have trailing slash)
+ * @param filename Filename to append
+ * @return true on success, false if path would exceed buffer size
+ */
+bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename);
+
+/**
  * @brief Get file size
  * @param filepath Path to file
  * @return File size in bytes, or -1 on error
