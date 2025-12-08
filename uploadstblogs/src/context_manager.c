@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <errno.h>
 #include "context_manager.h"
 #ifndef GTEST_ENABLE
 #include "rdk_fwdl_utils.h"
@@ -53,8 +54,17 @@ bool is_direct_blocked(int block_time)
     const char *block_file = "/tmp/.lastdirectfail_upl";
     struct stat file_stat;
     
-    if (stat(block_file, &file_stat) != 0) {
+    // Use lstat to avoid following symlinks (prevents symlink attacks)
+    if (lstat(block_file, &file_stat) != 0) {
         // File doesn't exist, not blocked
+        return false;
+    }
+    
+    // Skip symbolic links for security
+    if (S_ISLNK(file_stat.st_mode)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
+                __FUNCTION__, __LINE__, block_file);
         return false;
     }
     
@@ -70,11 +80,15 @@ bool is_direct_blocked(int block_time)
                 __FUNCTION__, __LINE__, remaining_hours);
         return true;
     } else {
-        // Block period expired, remove file
+        // Block period expired, remove file (ignore errors if file disappeared)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Last direct failed blocking has expired, removing %s, allowing direct\n",
                 __FUNCTION__, __LINE__, block_file);
-        unlink(block_file);
+        if (unlink(block_file) != 0 && errno != ENOENT) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove expired block file: %s\n",
+                    __FUNCTION__, __LINE__, block_file);
+        }
         return false;
     }
 }
@@ -89,8 +103,17 @@ bool is_codebig_blocked(int block_time)
     const char *block_file = "/tmp/.lastcodebigfail_upl";
     struct stat file_stat;
     
-    if (stat(block_file, &file_stat) != 0) {
+    // Use lstat to avoid following symlinks (prevents symlink attacks)
+    if (lstat(block_file, &file_stat) != 0) {
         // File doesn't exist, not blocked
+        return false;
+    }
+    
+    // Skip symbolic links for security
+    if (S_ISLNK(file_stat.st_mode)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
+                __FUNCTION__, __LINE__, block_file);
         return false;
     }
     
@@ -106,11 +129,15 @@ bool is_codebig_blocked(int block_time)
                 __FUNCTION__, __LINE__, remaining_mins);
         return true;
     } else {
-        // Block period expired, remove file
+        // Block period expired, remove file (ignore errors if file disappeared)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Last Codebig failed blocking has expired, removing %s, allowing Codebig\n",
                 __FUNCTION__, __LINE__, block_file);
-        unlink(block_file);
+        if (unlink(block_file) != 0 && errno != ENOENT) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove expired block file: %s\n",
+                    __FUNCTION__, __LINE__, block_file);
+        }
         return false;
     }
 }
@@ -306,7 +333,8 @@ bool load_environment(RuntimeContext* ctx)
     }
 
     // Check for TLS support (set TLS flag if /etc/os-release exists)
-    if (access("/etc/os-release", F_OK) == 0) {
+    struct stat st_osrelease;
+    if (stat("/etc/os-release", &st_osrelease) == 0) {
         ctx->settings.tls_enabled = true;
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] TLS 1.2 support enabled\n", __FUNCTION__, __LINE__);
     } else {
@@ -314,7 +342,7 @@ bool load_environment(RuntimeContext* ctx)
     }
 
     // Set IARM event binary location based on os-release
-    if (access("/etc/os-release", F_OK) == 0) {
+    if (stat("/etc/os-release", &st_osrelease) == 0) {
         strncpy(ctx->paths.iarm_event_binary, "/usr/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
     } else {
         strncpy(ctx->paths.iarm_event_binary, "/usr/local/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
@@ -342,8 +370,9 @@ bool load_environment(RuntimeContext* ctx)
     // Check for OCSP marker files
     // EnableOCSPStapling="/tmp/.EnableOCSPStapling"
     // EnableOCSP="/tmp/.EnableOCSPCA"
-    if (access("/tmp/.EnableOCSPStapling", F_OK) == 0 || 
-        access("/tmp/.EnableOCSPCA", F_OK) == 0) {
+    struct stat st_ocsp;
+    if (stat("/tmp/.EnableOCSPStapling", &st_ocsp) == 0 || 
+        stat("/tmp/.EnableOCSPCA", &st_ocsp) == 0) {
         ctx->settings.ocsp_enabled = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] OCSP validation enabled\n", __FUNCTION__, __LINE__);
     }
