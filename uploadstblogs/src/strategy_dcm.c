@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include "strategy_handler.h"
 #include "log_collector.h"
@@ -46,6 +47,60 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session);
 static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+/**
+ * @brief Read upload_flag from DCMSettings.conf
+ * @return true if upload is enabled, false otherwise
+ * 
+ * Shell script equivalent:
+ * if [ -f "/tmp/DCMSettings.conf" ]; then
+ *     upload_flag=`cat /tmp/DCMSettings.conf | grep 'urn:settings:LogUploadSettings:upload' | cut -d '=' -f2 | sed 's/^"//' | sed 's/"$//'`
+ * fi
+ */
+static bool read_dcm_upload_flag(void)
+{
+    const char* dcm_settings_file = "/tmp/DCMSettings.conf";
+    FILE* fp = fopen(dcm_settings_file, "r");
+    
+    if (!fp) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                "[%s:%d] DCMSettings.conf not found, assuming upload enabled\n",
+                __FUNCTION__, __LINE__);
+        return true;  // Default to enabled if file doesn't exist
+    }
+    
+    bool upload_enabled = false;
+    char line[512];
+    
+    // Search for "urn:settings:LogUploadSettings:upload" line
+    while (fgets(line, sizeof(line), fp)) {
+        if (strstr(line, "urn:settings:LogUploadSettings:upload")) {
+            // Extract value after '='
+            char* equals = strchr(line, '=');
+            if (equals) {
+                equals++; // Move past '='
+                
+                // Skip whitespace and quotes
+                while (*equals && (isspace(*equals) || *equals == '"')) {
+                    equals++;
+                }
+                
+                // Check if value is "true"
+                if (strncasecmp(equals, "true", 4) == 0) {
+                    upload_enabled = true;
+                }
+                
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                        "[%s:%d] DCM upload_flag from DCMSettings.conf: %s\n",
+                        __FUNCTION__, __LINE__, upload_enabled ? "true" : "false");
+            }
+            break;
+        }
+    }
+    
+    fclose(fp);
+    return upload_enabled;
+}
 
 /* Handler definition */
 const StrategyHandler dcm_strategy_handler = {
@@ -82,10 +137,10 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    // Check if upload flag is set
-    if (!ctx->flags.flag) {
+    // Check upload_flag from DCMSettings.conf (matches script behavior)
+    if (!read_dcm_upload_flag()) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Upload flag is false, skipping DCM upload\n", 
+                "[%s:%d] DCM upload_flag is false, skipping DCM upload\n", 
                 __FUNCTION__, __LINE__);
         return -1;  // Signal to skip upload
     }
