@@ -334,7 +334,9 @@ bool load_environment(RuntimeContext* ctx)
 
     // Check for TLS support (set TLS flag if /etc/os-release exists)
     struct stat st_osrelease;
-    if (stat("/etc/os-release", &st_osrelease) == 0) {
+    bool os_release_exists = (stat("/etc/os-release", &st_osrelease) == 0);
+    
+    if (os_release_exists) {
         ctx->settings.tls_enabled = true;
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] TLS 1.2 support enabled\n", __FUNCTION__, __LINE__);
     } else {
@@ -342,7 +344,7 @@ bool load_environment(RuntimeContext* ctx)
     }
 
     // Set IARM event binary location based on os-release
-    if (stat("/etc/os-release", &st_osrelease) == 0) {
+    if (os_release_exists) {
         strncpy(ctx->paths.iarm_event_binary, "/usr/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
     } else {
         strncpy(ctx->paths.iarm_event_binary, "/usr/local/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
