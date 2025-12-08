@@ -58,4 +58,15 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
  */
 int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
 
+/**
+ * @brief Generate archive filename with MAC and timestamp
+ * @param buffer Buffer to store filename
+ * @param buffer_size Size of buffer
+ * @param mac_address Device MAC address
+ * @param prefix Filename prefix ("Logs" or "DRI_Logs")
+ * @return true on success, false on failure
+ */
+bool generate_archive_name(char* buffer, size_t buffer_size, 
+                           const char* mac_address, const char* prefix);
+
 #endif /* ARCHIVE_MANAGER_H */
