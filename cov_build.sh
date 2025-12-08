@@ -51,7 +51,7 @@ cd ${ROOT}
 git clone https://github.com/rdkcentral/common_utilities.git -b feature/copilot_twostage
 cd common_utilities
 autoreconf -i
-./configure
+./configure CFLAGS="-Wno-stringop-truncation"
 cp uploadutils/*.h /usr/local/include
 make
 make install
