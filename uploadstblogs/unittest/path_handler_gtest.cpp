@@ -75,7 +75,6 @@ UploadResult verify_upload(const SessionState* session);
 void t2_count_notify(const char* marker);
 void t2_val_notify(const char* marker, const char* value);
 */
-
 // Mock MtlsAuth_t type
 typedef struct {
     char cert_name[256];
@@ -166,11 +165,11 @@ UploadResult verify_upload(const SessionState* session) {
     return mock_verify_result;
 }
 
-void t2_count_notify(const char* marker) {
+void t2_count_notify(char* marker) {
     // Mock - do nothing
 }
 
-void t2_val_notify(const char* marker, const char* value) {
+void t2_val_notify(char* marker, char* value) {
     // Mock - do nothing
 }
 
@@ -638,4 +637,3 @@ int main(int argc, char** argv) {
     cout << "Starting Path Handler Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
-
