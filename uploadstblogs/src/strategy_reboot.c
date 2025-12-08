@@ -393,6 +393,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 remove_file(dri_archive);
             }
         }
+        }
     }
 
     // Clear old packet captures
