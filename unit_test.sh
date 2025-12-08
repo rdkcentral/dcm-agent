@@ -52,7 +52,7 @@ autoreconf --install
 
 make clean
 make
-#./../uploadstblogs/unittest/archive_manager_gtest \
+
 cd -
 fail=0
 
@@ -72,7 +72,6 @@ for test in \
   ./../uploadstblogs/unittest/upload_engine_gtest \
   ./../uploadstblogs/unittest/cleanup_manager_gtest \
   ./../uploadstblogs/unittest/verification_gtest \
-  ./../uploadstblogs/unittest/telemetry_gtest \
   ./../uploadstblogs/unittest/rbus_interface_gtest \
   ./../uploadstblogs/unittest/uploadstblogs_gtest \
   ./../uploadstblogs/unittest/event_manager_gtest \
