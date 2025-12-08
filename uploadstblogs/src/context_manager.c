@@ -345,6 +345,17 @@ bool load_environment(RuntimeContext* ctx)
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
     }
 
+    // Create DCM log directory if it doesn't exist (matches script behavior)
+    if (!dir_exists(ctx->paths.dcm_log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DCM log folder does not exist. Creating now: %s\n", 
+                __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+        if (!create_directory(ctx->paths.dcm_log_path)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create DCM log directory: %s\n", 
+                    __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+            // Continue anyway - not a fatal error
+        }
+    }
+
     // Check for TLS support (set TLS flag if /etc/os-release exists)
     struct stat st_osrelease;
     bool os_release_exists = (stat("/etc/os-release", &st_osrelease) == 0);
@@ -380,6 +391,10 @@ bool load_environment(RuntimeContext* ctx)
         ctx->settings.include_pcap = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] PCAP collection enabled for mediaclient\n", __FUNCTION__, __LINE__);
     }
+
+    // Enable DRI log collection (always enabled in script)
+    ctx->settings.include_dri = true;
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
 
     
     // Check for OCSP marker files
