@@ -27,6 +27,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include "cleanup_handler.h"
@@ -117,22 +118,22 @@ void enforce_privacy(const char* log_path)
         char file_path[MAX_PATH_LENGTH];
         snprintf(file_path, sizeof(file_path), "%s/%s", log_path, entry->d_name);
 
-        // Check if it's a regular file
-        struct stat st;
-        if (stat(file_path, &st) == 0 && S_ISREG(st.st_mode)) {
-            // Truncate the file (matches script: >$f)
-            FILE* log_file = fopen(file_path, "w");
-            if (log_file) {
-                fclose(log_file);
+        // Open file with O_NOFOLLOW to prevent TOCTOU race condition
+        int fd = open(file_path, O_WRONLY | O_TRUNC | O_NOFOLLOW);
+        if (fd >= 0) {
+            // Verify it's a regular file using fstat on the open file descriptor
+            struct stat st;
+            if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode)) {
                 cleared_count++;
                 RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                         "[%s:%d] Cleared file: %s\n", 
                         __FUNCTION__, __LINE__, entry->d_name);
-            } else {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                        "[%s:%d] Failed to clear file: %s (error: %s)\n", 
-                        __FUNCTION__, __LINE__, file_path, strerror(errno));
             }
+            close(fd);
+        } else if (errno != ELOOP) {  // ELOOP = symlink detected
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to clear file: %s (error: %s)\n", 
+                    __FUNCTION__, __LINE__, file_path, strerror(errno));
         }
     }
 
@@ -199,17 +200,15 @@ bool remove_archive(const char* archive_path)
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
             "[%s:%d] Attempting to remove archive: %s\n", __FUNCTION__, __LINE__, archive_path);
 
-    // Check if file exists first
-    if (access(archive_path, F_OK) != 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Archive file does not exist: %s\n", __FUNCTION__, __LINE__, archive_path);
-        return true;  // Consider non-existent file as "successfully removed"
-    }
-
-    // Remove the file
+    // Remove the file directly (no TOCTOU race - unlink handles non-existent files)
     if (unlink(archive_path) == 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Successfully removed archive: %s\n", __FUNCTION__, __LINE__, archive_path);
+        return true;
+    } else if (errno == ENOENT) {
+        // File doesn't exist - consider this as successful removal
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Archive file does not exist: %s\n", __FUNCTION__, __LINE__, archive_path);
         return true;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -235,16 +234,15 @@ bool cleanup_temp_dirs(const RuntimeContext* ctx)
     // Clean up temporary files used during upload
     const char* httpresult_file = "/tmp/httpresult.txt";  // S3 presigned URL storage
     
-    if (access(httpresult_file, F_OK) == 0) {
-        if (unlink(httpresult_file) == 0) {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                    "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, httpresult_file);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                    "[%s:%d] Failed to remove temp file %s: %s\n", 
-                    __FUNCTION__, __LINE__, httpresult_file, strerror(errno));
-            success = false;
-        }
+    // Remove file directly (no TOCTOU race - unlink handles non-existent files)
+    if (unlink(httpresult_file) == 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, httpresult_file);
+    } else if (errno != ENOENT) {  // ENOENT = file doesn't exist (acceptable)
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to remove temp file %s: %s\n", 
+                __FUNCTION__, __LINE__, httpresult_file, strerror(errno));
+        success = false;
     }
     
     return success;
