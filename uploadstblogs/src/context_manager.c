@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
@@ -54,19 +55,25 @@ bool is_direct_blocked(int block_time)
     const char *block_file = "/tmp/.lastdirectfail_upl";
     struct stat file_stat;
     
-    // Use lstat to avoid following symlinks (prevents symlink attacks)
-    if (lstat(block_file, &file_stat) != 0) {
-        // File doesn't exist, not blocked
+    // Open file with O_NOFOLLOW to prevent symlink attacks, O_RDONLY for reading metadata
+    int fd = open(block_file, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        // File doesn't exist or is a symlink, not blocked
+        if (errno == ELOOP) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
+                    __FUNCTION__, __LINE__, block_file);
+        }
         return false;
     }
     
-    // Skip symbolic links for security
-    if (S_ISLNK(file_stat.st_mode)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
-                __FUNCTION__, __LINE__, block_file);
+    // Use fstat on the open file descriptor to avoid TOCTOU race
+    if (fstat(fd, &file_stat) != 0) {
+        close(fd);
         return false;
     }
+    
+    close(fd);
     
     time_t current_time = time(NULL);
     time_t mod_time = file_stat.st_mtime;
@@ -103,19 +110,25 @@ bool is_codebig_blocked(int block_time)
     const char *block_file = "/tmp/.lastcodebigfail_upl";
     struct stat file_stat;
     
-    // Use lstat to avoid following symlinks (prevents symlink attacks)
-    if (lstat(block_file, &file_stat) != 0) {
-        // File doesn't exist, not blocked
+    // Open file with O_NOFOLLOW to prevent symlink attacks, O_RDONLY for reading metadata
+    int fd = open(block_file, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        // File doesn't exist or is a symlink, not blocked
+        if (errno == ELOOP) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
+                    __FUNCTION__, __LINE__, block_file);
+        }
         return false;
     }
     
-    // Skip symbolic links for security
-    if (S_ISLNK(file_stat.st_mode)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] Block file is a symbolic link, ignoring: %s\n",
-                __FUNCTION__, __LINE__, block_file);
+    // Use fstat on the open file descriptor to avoid TOCTOU race
+    if (fstat(fd, &file_stat) != 0) {
+        close(fd);
         return false;
     }
+    
+    close(fd);
     
     time_t current_time = time(NULL);
     time_t mod_time = file_stat.st_mtime;
