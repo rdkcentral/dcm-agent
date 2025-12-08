@@ -202,14 +202,28 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
 {
     struct stat st;
     
-    if (stat(filepath, &st) != 0) {
+    // Open file first with O_NOFOLLOW to prevent symlink attacks (TOCTOU fix)
+    int fd = open(filepath, O_RDONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        if (errno != ELOOP) {  // ELOOP = symlink detected
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to open file: %s (errno=%d)\n", 
+                    __FUNCTION__, __LINE__, filepath, errno);
+        }
+        return -1;
+    }
+    
+    // Use fstat on the open file descriptor to avoid TOCTOU race condition
+    if (fstat(fd, &st) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to stat file: %s\n", __FUNCTION__, __LINE__, filepath);
+                "[%s:%d] Failed to fstat file: %s\n", __FUNCTION__, __LINE__, filepath);
+        close(fd);
         return -1;
     }
     
     // Skip non-regular files
     if (!S_ISREG(st.st_mode)) {
+        close(fd);
         return 0;
     }
     
@@ -217,14 +231,16 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
     if (write_tar_header(gz, arcname, &st) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to write TAR header\n", __FUNCTION__, __LINE__);
+        close(fd);
         return -1;
     }
     
-    // Open and write file content
-    FILE* fp = fopen(filepath, "rb");
+    // Convert file descriptor to FILE* for reading
+    FILE* fp = fdopen(fd, "rb");
     if (!fp) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to open file: %s\n", __FUNCTION__, __LINE__, filepath);
+                "[%s:%d] Failed to fdopen file: %s\n", __FUNCTION__, __LINE__, filepath);
+        close(fd);
         return -1;
     }
     
