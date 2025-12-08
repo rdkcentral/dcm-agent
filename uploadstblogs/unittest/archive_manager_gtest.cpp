@@ -1,3 +1,4 @@
+
 /**
  * Copyright 2025 RDK Management
  */
@@ -124,15 +125,17 @@ int stat(const char* path, struct stat* buf) {
 
 DIR* opendir(const char* name) {
     if (!name || strstr(name, "fail")) return nullptr;
-    g_opendir_call_count++;
-    
-    // Prevent infinite recursion - limit depth
-    if (g_opendir_call_count > 3) {
-        return nullptr;
-    }
     
     // Reset readdir count for each new directory open
     g_readdir_call_count = 0;
+    g_opendir_call_count++;
+    
+    // Prevent infinite recursion - limit depth
+    // Only return valid DIR for first opendir call to avoid deep recursion
+    if (g_opendir_call_count > 1) {
+        return nullptr;
+    }
+    
     return mock_dir_ptr;
 }
 
@@ -141,8 +144,8 @@ struct dirent* readdir(DIR* dirp) {
     
     g_readdir_call_count++;
     
-    // For first opendir call (root), return some files
-    // For subsequent calls (subdirectories), return nothing
+    // For first opendir call (root), return only dot entries and files (no subdirectories)
+    // This prevents infinite recursion into subdirectories
     if (g_opendir_call_count == 1) {
         if (g_readdir_call_count == 1) {
             strcpy(mock_dirent_buf.d_name, ".");
@@ -164,6 +167,9 @@ struct dirent* readdir(DIR* dirp) {
 }
 
 int closedir(DIR* dirp) {
+    if (dirp == mock_dir_ptr && g_opendir_call_count > 0) {
+        g_opendir_call_count--;
+    }
     return (dirp == mock_dir_ptr) ? 0 : -1;
 }
 
@@ -185,16 +191,19 @@ struct tm* localtime(const time_t* timep) {
 // Mock zlib functions implementations
 gzFile gzopen(const char* path, const char* mode) {
     if (!path || !mode || strstr(path, "fail")) return nullptr;
+    g_fread_call_count = 0; // Reset read counter for new archive
     return mock_gz_ptr;
 }
 
 int gzwrite(gzFile file, const void* buf, unsigned len) {
-    if (file != mock_gz_ptr || !buf) return 0;
+    if (file != mock_gz_ptr || !buf || len == 0) return 0;
     return len; // Pretend we wrote everything
 }
 
 int gzclose(gzFile file) {
-    return (file == mock_gz_ptr) ? 0 : -1;
+    if (file != mock_gz_ptr) return -1;
+    g_fread_call_count = 0; // Reset on close
+    return 0; // Z_OK
 }
 
 bool collect_logs_for_strategy(RuntimeContext* ctx, SessionState* session, const char* target_dir) {
@@ -264,6 +273,8 @@ protected:
         
         // Set up default mock expectations
         ON_CALL(*g_mockFileOperations, dir_exists(_))
+            .WillByDefault(Return(true));
+        ON_CALL(*g_mockFileOperations, file_exists(_))
             .WillByDefault(Return(true));
     }
 
@@ -398,7 +409,10 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_VariousFormats) {
     };
     
     for (size_t i = 0; i < sizeof(test_macs)/sizeof(test_macs[0]); i++) {
-        SetUp(); // Reset for each test
+        // Reset counters for each iteration
+        g_readdir_call_count = 0;
+        g_opendir_call_count = 0;
+        
         strcpy(ctx.device.mac_address, test_macs[i]);
         
         EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
@@ -510,5 +524,13 @@ TEST_F(ArchiveManagerTest, FileFiltering_LogCollection) {
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+    
+    // Ensure global mock is cleaned up
+    if (g_mockFileOperations) {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    
+    return result;
 }
