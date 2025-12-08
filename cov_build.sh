@@ -53,7 +53,7 @@ cd common_utilities
 autoreconf -i
 ./configure
 cd uploadutils
-cp include/*.h /usr/local/include
+cp *.h /usr/local/include
 make
 make install
 
