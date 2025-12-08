@@ -335,6 +335,11 @@ long get_archive_size(const char* archive_path)
  */
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir)
 {
+    if (!ctx || !session || !source_dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
     return create_archive_with_options(ctx, session, source_dir, NULL, "Logs");
 }
 
@@ -345,7 +350,7 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
                                        const char* source_dir, const char* output_dir,
                                        const char* prefix)
 {
-    if (!ctx || !source_dir || !prefix) {
+    if (!ctx || !session || !source_dir || !prefix) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
         return -1;
@@ -409,11 +414,10 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
                 "[%s:%d] Archive created successfully, size: %ld bytes\n", 
                 __FUNCTION__, __LINE__, size);
         
-        // Store archive filename in session (if provided)
-        if (session) {
-            strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
-            session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-        }
+        // Store archive filename in session
+        strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
+        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        
         return 0;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
