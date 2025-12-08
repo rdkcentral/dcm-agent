@@ -167,6 +167,13 @@ protected:
         memset(g_last_clear_log_path, 0, sizeof(g_last_clear_log_path));
         memset(g_last_remove_directory, 0, sizeof(g_last_remove_directory));
         
+        // Create DCMSettings.conf with upload enabled for tests
+        FILE* fp = fopen("/tmp/DCMSettings.conf", "w");
+        if (fp) {
+            fprintf(fp, "urn:settings:LogUploadSettings:upload=true\\n");
+            fclose(fp);
+        }
+        
         // Initialize test context
         memset(&ctx, 0, sizeof(ctx));
         strcpy(ctx.paths.dcm_log_path, "/tmp/dcm_logs");
@@ -181,7 +188,8 @@ protected:
     }
     
     void TearDown() override {
-        // Clean up any test state
+        // Clean up test file
+        remove("/tmp/DCMSettings.conf");
     }
     
     // Test data
