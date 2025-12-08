@@ -52,7 +52,7 @@ COMMON_CXXFLAGS = -frtti -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-
 
 # Define source files for each test
 
-context_manager_gtest_SOURCES = context_manager_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp
+context_manager_gtest_SOURCES = context_manager_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp ./mocks/mock_file_operations.cpp
 context_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 context_manager_gtest_LDADD = $(COMMON_LDADD)
 context_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
@@ -154,6 +154,7 @@ strategy_ondemand_gtest_LDADD = $(COMMON_LDADD)
 strategy_ondemand_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 
 strategy_ondemand_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
 
 
 
