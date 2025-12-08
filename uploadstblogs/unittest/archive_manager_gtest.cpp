@@ -334,14 +334,17 @@ TEST_F(ArchiveManagerTest, GetArchiveSize_Success) {
 
 // Test create_archive function
 TEST_F(ArchiveManagerTest, CreateArchive_NullParams) {
+    // Test null context
     int result = create_archive(nullptr, &session, "/tmp");
-    EXPECT_EQ(-1, result);
+    EXPECT_EQ(-1, result) << "create_archive should return -1 when ctx is NULL";
     
+    // Test null session
     result = create_archive(&ctx, nullptr, "/tmp");
-    EXPECT_EQ(-1, result);
+    EXPECT_EQ(-1, result) << "create_archive should return -1 when session is NULL";
     
+    // Test null source_dir
     result = create_archive(&ctx, &session, nullptr);
-    EXPECT_EQ(-1, result);
+    EXPECT_EQ(-1, result) << "create_archive should return -1 when source_dir is NULL";
 }
 
 TEST_F(ArchiveManagerTest, CreateArchive_Success) {
