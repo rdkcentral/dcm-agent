@@ -71,8 +71,10 @@ void report_cert_error(int curl_code, const char* fqdn);
 UploadResult verify_upload(const SessionState* session);
 
 // Mock telemetry 2.0 functions
+/*
 void t2_count_notify(const char* marker);
 void t2_val_notify(const char* marker, const char* value);
+*/
 
 // Mock MtlsAuth_t type
 typedef struct {
@@ -636,3 +638,4 @@ int main(int argc, char** argv) {
     cout << "Starting Path Handler Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
+
