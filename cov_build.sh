@@ -52,8 +52,7 @@ git clone https://github.com/rdkcentral/common_utilities.git -b feature/copilot_
 cd common_utilities
 autoreconf -i
 ./configure
-cd uploadutils
-cp *.h /usr/local/include
+cp uploadutils/*.h /usr/local/include
 make
 make install
 
