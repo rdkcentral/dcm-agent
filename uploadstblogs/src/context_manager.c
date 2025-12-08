@@ -31,6 +31,7 @@
 #include <time.h>
 #include <errno.h>
 #include "context_manager.h"
+#include "file_operations.h"
 #ifndef GTEST_ENABLE
 #include "rdk_fwdl_utils.h"
 #include "common_device_api.h"
