@@ -21,7 +21,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 # Define the test executables
 bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_selector_gtest \
                path_handler_gtest archive_manager_gtest upload_engine_gtest \
-               cleanup_manager_gtest verification_gtest telemetry_gtest \
+               cleanup_manager_gtest verification_gtest \
                rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
                log_collector_gtest retry_logic_gtest strategy_dcm_gtest \
                strategy_handler_gtest strategy_ondemand_gtest
@@ -105,12 +105,6 @@ verification_gtest_LDADD = $(COMMON_LDADD)
 verification_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 verification_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-telemetry_gtest_SOURCES = telemetry_gtest.cpp
-telemetry_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-telemetry_gtest_LDADD = $(COMMON_LDADD)
-telemetry_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-telemetry_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
 rbus_interface_gtest_SOURCES = rbus_interface_gtest.cpp ./mocks/mock_rbus.cpp
 rbus_interface_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 rbus_interface_gtest_LDADD = $(COMMON_LDADD)
@@ -159,4 +153,5 @@ strategy_ondemand_gtest_LDADD = $(COMMON_LDADD)
 strategy_ondemand_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 
 strategy_ondemand_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
 
