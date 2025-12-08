@@ -347,9 +347,13 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
                 __FUNCTION__, __LINE__);
 
+        // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
+        char dri_filename[MAX_FILENAME_LENGTH];
+        generate_archive_filename(ctx, dri_filename, sizeof(dri_filename), "DRI_Logs");
+        
         char dri_archive[MAX_PATH_LENGTH];
-        int written = snprintf(dri_archive, sizeof(dri_archive), "%s/dri_logs.tar.gz", 
-                              ctx->paths.prev_log_path);
+        int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
+                              ctx->paths.prev_log_path, dri_filename);
         
         if (written >= (int)sizeof(dri_archive)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -367,6 +371,10 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 dri_session.codebig_attempts = 0;
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
             
+                // Send telemetry for DRI upload (matches script lines 883, 886)
+                // Script sends SYST_INFO_PDRILogUpload for both success and failure
+                t2_count_notify("SYST_INFO_PDRILogUpload");
+                
                 if (dri_ret == 0) {
                     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
