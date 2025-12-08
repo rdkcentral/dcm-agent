@@ -146,6 +146,14 @@ void report_upload_failure(const SessionState* session) {
     mock_report_failure_calls++;
 }
 
+void t2_count_notify(char* marker) {
+    // Mock - do nothing
+}
+
+void t2_val_notify(char* marker, char* value) {
+    // Mock - do nothing
+}
+
 } // extern "C"
 
 #endif
