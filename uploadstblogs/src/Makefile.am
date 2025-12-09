@@ -7,7 +7,7 @@ libuploadstblogs_la_SOURCES = context_manager.c validation.c strategy_selector.c
                                file_operations.c event_manager.c cleanup_handler.c cleanup_manager.c \
                                verification.c rbus_interface.c md5_utils.c telemetry.c uploadstblogs.c
 
-libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED \
+libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR \
                               -I${top_srcdir} \
                               -I${top_srcdir}/uploadstblogs \
                               -I${top_srcdir}/uploadstblogs/include \
@@ -37,5 +37,6 @@ logupload_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENAB
                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
+
 
 logupload_LDADD = libuploadstblogs.la
