@@ -41,6 +41,7 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path);
 int clear_old_packet_captures(const char* log_path);
 bool remove_directory(const char* dirpath);
+bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename);
 
 // Mock sleep function to avoid delays in tests
 unsigned int sleep(unsigned int seconds);
@@ -129,6 +130,35 @@ unsigned int sleep(unsigned int seconds) {
     g_last_sleep_seconds = seconds;
     // Return immediately instead of sleeping in tests
     return 0;
+}
+
+bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename) {
+    if (!buffer || !dir || !filename) {
+        return false;
+    }
+    
+    size_t dir_len = strlen(dir);
+    size_t file_len = strlen(filename);
+    
+    // Check if directory path ends with a slash
+    bool has_trailing_slash = (dir_len > 0 && dir[dir_len - 1] == '/');
+    bool needs_separator = !has_trailing_slash;
+    
+    // Calculate required size
+    size_t required = dir_len + (needs_separator ? 1 : 0) + file_len + 1;
+    
+    if (required > buffer_size) {
+        return false;
+    }
+    
+    // Build the path
+    strcpy(buffer, dir);
+    if (needs_separator) {
+        strcat(buffer, "/");
+    }
+    strcat(buffer, filename);
+    
+    return true;
 }
 
 // Include the actual implementation for testing
