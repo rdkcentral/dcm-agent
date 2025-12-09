@@ -200,7 +200,7 @@ protected:
         // Create DCMSettings.conf with upload enabled for tests
         FILE* fp = fopen("/tmp/DCMSettings.conf", "w");
         if (fp) {
-            fprintf(fp, "urn:settings:LogUploadSettings:upload=true\\n");
+            fprintf(fp, "urn:settings:LogUploadSettings:upload=true\n");
             fclose(fp);
         }
         
@@ -255,7 +255,12 @@ TEST_F(StrategyDcmTest, Setup_DcmLogPathNotExists) {
 }
 
 TEST_F(StrategyDcmTest, Setup_UploadFlagFalse) {
-    ctx.flags.flag = false;
+    // Write upload=false to DCMSettings.conf
+    FILE* fp = fopen("/tmp/DCMSettings.conf", "w");
+    if (fp) {
+        fprintf(fp, "urn:settings:LogUploadSettings:upload=false\n");
+        fclose(fp);
+    }
     
     int result = dcm_strategy_handler.setup_phase(&ctx, &session);
     
@@ -535,7 +540,12 @@ TEST_F(StrategyDcmTest, Integration_CompleteWorkflow_WithPcap) {
 }
 
 TEST_F(StrategyDcmTest, Integration_WorkflowFailure_SetupFails) {
-    ctx.flags.flag = false; // Setup will fail
+    // Write upload=false to DCMSettings.conf - Setup will fail
+    FILE* fp = fopen("/tmp/DCMSettings.conf", "w");
+    if (fp) {
+        fprintf(fp, "urn:settings:LogUploadSettings:upload=false\n");
+        fclose(fp);
+    }
     
     int setup_result = dcm_strategy_handler.setup_phase(&ctx, &session);
     EXPECT_EQ(setup_result, -1);
