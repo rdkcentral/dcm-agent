@@ -455,8 +455,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     INT32  uploadCheck   = 0;
     INT8  *pUploadURL    = NULL;
     INT8  *pUploadprtl   = NULL;
-    INT8  *pRDKPath      = NULL;
-    INT8  *pExBuff       = NULL;
     INT8  *pTimezone     = NULL;
 
     DCMSettingsHandle *pdcmSetHandle = (DCMSettingsHandle *)pHandle;
@@ -468,8 +466,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
 
     pUploadURL  = pdcmSetHandle->cUploadURL;
     pUploadprtl = pdcmSetHandle->cUploadPrtl;
-    pRDKPath    = pdcmSetHandle->cRdkPath;
-    pExBuff     = pdcmSetHandle->ctBuff;
     pTimezone   = pdcmSetHandle->cTimeZone;
 
     ret = dcmSettingJsonInit(pdcmSetHandle, pConffile, &pJsonHandle);
@@ -774,4 +770,5 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
     return &dcmSettingJsonGetVal;
 }
 #endif
+
 
