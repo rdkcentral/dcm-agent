@@ -42,6 +42,21 @@
 #define MAX_CERT_PATH_LENGTH 256
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
 
+/**
+ * @struct UploadSTBLogsParams
+ * @brief Parameters for calling uploadSTBLogs API from external components
+ */
+typedef struct {
+    int flag;                       /**< Upload flag */
+    int dcm_flag;                   /**< DCM flag */
+    bool upload_on_reboot;          /**< Upload on reboot flag */
+    const char* upload_protocol;    /**< Upload protocol ("HTTPS" or "HTTP") */
+    const char* upload_http_link;   /**< Upload HTTP link URL */
+    TriggerType trigger_type;       /**< Trigger type (TRIGGER_SCHEDULED, TRIGGER_ONDEMAND, etc.) */
+    bool rrd_flag;                  /**< RRD flag */
+    const char* rrd_file;           /**< RRD upload log file path (optional) */
+} UploadSTBLogsParams;
+
 /* ==========================
    Enumerations
    ========================== */
