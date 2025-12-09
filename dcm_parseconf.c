@@ -36,7 +36,7 @@
 #include "dcm_utils.h"
 #include "dcm_rbus.h"
 #include "dcm_parseconf.h"
-#include "uploadstblogs/include/uploadstblogs.h"
+#include "uploadstblogs.h"
 
 static INT32 g_bMMEnable = 0;
 
@@ -774,3 +774,4 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
     return &dcmSettingJsonGetVal;
 }
 #endif
+
