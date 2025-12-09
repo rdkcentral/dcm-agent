@@ -39,5 +39,6 @@ logupload_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENAB
                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
 
 
-logupload_LDADD = libuploadstblogs.la
+logupload_LDADD = libuploadstblogs.la -lrdkloggers
+
 
