@@ -3,7 +3,7 @@ name: L1 Unit Tests
 
 on:
   push:
-    branches: [ feature/logupload_copilot ]
+    branches: [ feature/logupload_copilot_lib ]
 
 env:
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
