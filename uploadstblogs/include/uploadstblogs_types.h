@@ -42,6 +42,23 @@
 #define MAX_CERT_PATH_LENGTH 256
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
 
+/* ==========================
+   Enumerations
+   ========================== */
+
+/**
+ * @enum TriggerType
+ * @brief Upload trigger types
+ */
+typedef enum {
+    TRIGGER_SCHEDULED = 0,
+    TRIGGER_MANUAL = 1,
+    TRIGGER_REBOOT = 2,
+    TRIGGER_CRASH = 3,
+    TRIGGER_DEBUG = 4,
+    TRIGGER_ONDEMAND = 5
+} TriggerType;
+
 /**
  * @struct UploadSTBLogsParams
  * @brief Parameters for calling uploadSTBLogs API from external components
@@ -56,10 +73,6 @@ typedef struct {
     bool rrd_flag;                  /**< RRD flag */
     const char* rrd_file;           /**< RRD upload log file path (optional) */
 } UploadSTBLogsParams;
-
-/* ==========================
-   Enumerations
-   ========================== */
 
 /**
  * @enum Strategy
@@ -84,19 +97,6 @@ typedef enum {
     PATH_CODEBIG,          /**< CodeBig upload using OAuth */
     PATH_NONE              /**< No path available */
 } UploadPath;
-
-/**
- * @enum TriggerType
- * @brief Upload trigger types
- */
-typedef enum {
-    TRIGGER_SCHEDULED = 0,
-    TRIGGER_MANUAL = 1,
-    TRIGGER_REBOOT = 2,
-    TRIGGER_CRASH = 3,
-    TRIGGER_DEBUG = 4,
-    TRIGGER_ONDEMAND = 5
-} TriggerType;
 
 /**
  * @enum UploadResult
