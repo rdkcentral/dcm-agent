@@ -18,7 +18,6 @@
 ##########################################################################
 
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = uploadstblogs/src
 
 dcmd_CFLAGS += -fPIC -pthread
 
@@ -34,10 +33,14 @@ dcmd_SOURCES = dcm.c \
 
 dcmd_LDFLAGS += -shared -fPIC $(GLIB_LIBS)
 
+dcmd_LDADD = ${top_builddir}/uploadstblogs/src/libuploadstblogs.la
+
 dcmd_CFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
                -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
                -I${top_srcdir}/include \
+               -I${top_srcdir}/uploadstblogs/include \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
                -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
+
