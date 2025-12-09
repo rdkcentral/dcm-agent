@@ -37,7 +37,7 @@
 #include "dcm_rbus.h"
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
-#include "uploadstblogs/include/uploadstblogs.h"
+#include "uploadstblogs.h"
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -417,3 +417,4 @@ void get_sig_handler(INT32 sig)
      sig_handler(sig);
 }
 #endif
+
