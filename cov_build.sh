@@ -39,13 +39,24 @@ autoreconf --install
 cd ${ROOT}
 rm -rf iarmmgrs
 git clone https://github.com/rdkcentral/iarmmgrs.git
+cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
+cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 
 cd ${ROOT}
 rm -rf telemetry
 git clone https://github.com/rdkcentral/telemetry.git
 cd telemetry
+cp include/*.h /usr/local/include
 sh  build_inside_container.sh 
 
+cd ${ROOT}
+git clone https://github.com/rdkcentral/common_utilities.git -b feature/copilot_twostage
+cd common_utilities
+autoreconf -i
+./configure --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation"
+cp uploadutils/*.h /usr/local/include
+make
+make install
 
 cd $WORKDIR
 ./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -I$ROOT/iarmmgrs/maintenance/include"
