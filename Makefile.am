@@ -18,7 +18,7 @@
 ##########################################################################
 
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = logupload/src
+SUBDIRS = uploadstblogs/src
 
 dcmd_CFLAGS += -fPIC -pthread
 
