@@ -513,16 +513,27 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     // Recreate PREV_LOG_BACKUP_PATH for next boot cycle
     // Script lines 900-902: rm -rf + mkdir -p PREV_LOG_BACKUP_PATH
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Recreating PREV_LOG_BACKUP_PATH for next boot\n", __FUNCTION__, __LINE__);
+    // PREV_LOG_BACKUP_PATH = $LOG_PATH/PreviousLogs_backup/
+    char prev_log_backup_path[MAX_PATH_LENGTH];
+    written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
+                      ctx->paths.log_path);
     
-    if (dir_exists(ctx->paths.prev_log_backup_path)) {
-        remove_directory(ctx->paths.prev_log_backup_path);
-    }
-    
-    if (!create_directory(ctx->paths.prev_log_backup_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create PREV_LOG_BACKUP_PATH\n", __FUNCTION__, __LINE__);
+    if (written >= (int)sizeof(prev_log_backup_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] PREV_LOG_BACKUP_PATH too long\n", __FUNCTION__, __LINE__);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Recreating PREV_LOG_BACKUP_PATH for next boot: %s\n", 
+                __FUNCTION__, __LINE__, prev_log_backup_path);
+        
+        if (dir_exists(prev_log_backup_path)) {
+            remove_directory(prev_log_backup_path);
+        }
+        
+        if (!create_directory(prev_log_backup_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to create PREV_LOG_BACKUP_PATH\n", __FUNCTION__, __LINE__);
+        }
     }
 
     // If DCM mode with upload_on_reboot=false, add permanent path to DCM batch list
