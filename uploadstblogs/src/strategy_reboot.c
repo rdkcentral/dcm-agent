@@ -100,18 +100,29 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     }
 
     // Check system uptime and sleep if needed
+    // Script lines 818-836: if uptime < 900s, sleep 330s
     double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds) && uptime_seconds < 900.0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] System uptime %.0f seconds < 900s, sleeping for 330s\n", 
-                __FUNCTION__, __LINE__, uptime_seconds);
-        sleep(330);
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
-    } else if (uptime_seconds >= 900.0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Device uptime %.0f seconds >= 900s, skipping sleep\n", 
-                __FUNCTION__, __LINE__, uptime_seconds);
+    if (get_system_uptime(&uptime_seconds)) {
+        if (uptime_seconds < 900.0) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] System uptime %.0f seconds < 900s, sleeping for 330s\n", 
+                    __FUNCTION__, __LINE__, uptime_seconds);
+            
+            // Script checks ENABLE_MAINTENANCE but both paths result in 330s sleep
+            // For simplicity, just sleep (background job with wait has same effect)
+            sleep(330);
+            
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Device uptime %.0f seconds >= 900s, skipping sleep\n", 
+                    __FUNCTION__, __LINE__, uptime_seconds);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to get system uptime, skipping sleep\n", 
+                __FUNCTION__, __LINE__);
     }
 
     // Delete old backup files (3+ days old)
@@ -265,14 +276,24 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     // Check reboot reason and RFC settings (matches script logic)
     // Script: if [ "$uploadLog" == "true" ] || [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+    // Note: When DCM_FLAG=0 (Non-DCM), script ALWAYS passes "true" regardless of UploadOnReboot value
+    //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
     bool should_upload = false;
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
     
-    // Check if upload flag is explicitly set (uploadLog == "true")
-    if (ctx->flags.flag) {
+    // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
+    if (ctx->flags.dcm_flag == 0) {
         should_upload = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Upload flag is set, will upload logs\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
+                __FUNCTION__, __LINE__);
+    }
+    // DCM mode (DCM_FLAG=1): Check upload_on_reboot flag
+    else if (ctx->flags.upload_on_reboot) {
+        should_upload = true;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] DCM mode: Upload enabled from settings (upload_on_reboot=true)\n", 
+                __FUNCTION__, __LINE__);
     } else {
         // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
         bool is_scheduled_reboot = false;
@@ -489,6 +510,49 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
     
     clean_directory(ctx->paths.prev_log_path);
+
+    // Recreate PREV_LOG_BACKUP_PATH for next boot cycle
+    // Script lines 900-902: rm -rf + mkdir -p PREV_LOG_BACKUP_PATH
+    // PREV_LOG_BACKUP_PATH = $LOG_PATH/PreviousLogs_backup/
+    char prev_log_backup_path[MAX_PATH_LENGTH];
+    written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
+                      ctx->paths.log_path);
+    
+    if (written >= (int)sizeof(prev_log_backup_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] PREV_LOG_BACKUP_PATH too long\n", __FUNCTION__, __LINE__);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Recreating PREV_LOG_BACKUP_PATH for next boot: %s\n", 
+                __FUNCTION__, __LINE__, prev_log_backup_path);
+        
+        if (dir_exists(prev_log_backup_path)) {
+            remove_directory(prev_log_backup_path);
+        }
+        
+        if (!create_directory(prev_log_backup_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to create PREV_LOG_BACKUP_PATH\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+    // If DCM mode with upload_on_reboot=false, add permanent path to DCM batch list
+    // Script line 1019: echo $PERM_LOG_PATH >> $DCM_UPLOAD_LIST
+    if (ctx->flags.dcm_flag == 1 && ctx->flags.upload_on_reboot == 0) {
+        char dcm_upload_list[MAX_PATH_LENGTH];
+        int written = snprintf(dcm_upload_list, sizeof(dcm_upload_list), "%s/dcm_upload", ctx->paths.log_path);
+        
+        if (written >= (int)sizeof(dcm_upload_list)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] DCM upload list path too long\n", __FUNCTION__, __LINE__);
+        } else {
+            FILE* fp = fopen(dcm_upload_list, "a");
+            if (fp) {
+                fprintf(fp, "%s\n", perm_log_path);
+                fclose(fp);
+            }
+        }
+    }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Cleanup phase complete. Logs backed up to: %s\n", 
