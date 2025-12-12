@@ -65,31 +65,59 @@ Strategy early_checks(const RuntimeContext* ctx)
     // - uploadLogOnReboot checks $PREV_LOG_PATH  
     // - uploadDCMLogs does NOT check for logs
 
-    // 3. TriggerType == 5 → STRAT_ONDEMAND
-    if (ctx->flags.trigger_type == TRIGGER_ONDEMAND) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Strategy: ONDEMAND (trigger_type=5)\n", __FUNCTION__, __LINE__);
-        return STRAT_ONDEMAND;
-    }
+    // Script logic (lines 997-1046):
+    // if [ $DCM_FLAG -eq 0 ] ; then
+    //     uploadLogOnReboot true
+    // else
+    //     if [ $FLAG -eq 1 ] ; then
+    //         if [ $UploadOnReboot -eq 1 ]; then
+    //             if [ $TriggerType -eq 5 ]; then
+    //                 uploadLogOnDemand true
+    //             else
+    //                 uploadLogOnReboot true
+    //             fi
+    //         else
+    //             if [ $TriggerType -eq 5 ]; then
+    //                 uploadLogOnDemand false
+    //             else
+    //                 uploadLogOnReboot false
+    //             fi
+    //         fi
+    //     else
+    //         uploadDCMLogs
+    //     fi
+    // fi
 
-    // 5. DCM_FLAG == 0 → STRAT_NON_DCM
+    // 3. DCM_FLAG == 0 → STRAT_NON_DCM (uploadLogOnReboot true)
     if (ctx->flags.dcm_flag == 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Strategy: NON_DCM (dcm_flag=0)\n", __FUNCTION__, __LINE__);
         return STRAT_NON_DCM;
     }
 
-    // 6. UploadOnReboot == 1 && FLAG == 1 → STRAT_REBOOT
-    if (ctx->flags.upload_on_reboot == 1 && ctx->flags.flag == 1) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Strategy: REBOOT (upload_on_reboot=1, flag=1)\n", 
-                __FUNCTION__, __LINE__);
-        return STRAT_REBOOT;
+    // 4. DCM_FLAG == 1 && FLAG == 1 → Check UploadOnReboot and TriggerType
+    if (ctx->flags.dcm_flag == 1 && ctx->flags.flag == 1) {
+        // Both UploadOnReboot=1 and UploadOnReboot=0 can trigger ondemand or reboot
+        // The difference is the parameter passed (true/false) to the function
+        // which affects upload behavior inside the strategy
+        if (ctx->flags.trigger_type == TRIGGER_ONDEMAND) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Strategy: ONDEMAND (dcm_flag=1, flag=1, upload_on_reboot=%d, trigger_type=5)\n", 
+                    __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot);
+            return STRAT_ONDEMAND;
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Strategy: REBOOT (dcm_flag=1, flag=1, upload_on_reboot=%d, trigger_type=%d)\n", 
+                    __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot, ctx->flags.trigger_type);
+            return STRAT_REBOOT;
+        }
     }
 
-    // 7. Default → STRAT_DCM
+    // 5. DCM_FLAG == 1 && FLAG == 0 → STRAT_DCM (uploadDCMLogs)
+    // Script behavior differs based on UploadOnReboot but both call uploadDCMLogs
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Strategy: DCM (default)\n", __FUNCTION__, __LINE__);
+            "[%s:%d] Strategy: DCM (dcm_flag=1, flag=0, upload_on_reboot=%d)\n", 
+            __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot);
     return STRAT_DCM;
 }
 
