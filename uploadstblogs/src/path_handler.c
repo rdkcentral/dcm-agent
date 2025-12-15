@@ -66,11 +66,6 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
                           ctx->endpoints.endpoint_url : 
                           ctx->endpoints.upload_http_link;
     
-    // Debug: Log the URL being used
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Using upload URL: %s\n",
-            __FUNCTION__, __LINE__, endpoint_url ? endpoint_url : "(NULL)");
-    
     if (!endpoint_url || strlen(endpoint_url) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] No valid upload URL configured (endpoint_url and upload_http_link both empty)\n",
