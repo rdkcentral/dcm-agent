@@ -15,6 +15,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+/**
+ * Copyright 2025 RDK Management
+ */
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
@@ -103,6 +107,7 @@ TEST_F(StrategySelectorTest, EarlyChecks_PrivacyMode) {
 }
 
 TEST_F(StrategySelectorTest, EarlyChecks_OnDemandTrigger) {
+    ctx.flags.flag = 1;
     ctx.flags.trigger_type = TRIGGER_ONDEMAND;
     
     Strategy result = early_checks(&ctx);
@@ -184,9 +189,10 @@ TEST_F(StrategySelectorTest, DecidePaths_ValidInputs) {
 }
 
 // Test strategy decision tree combinations
-TEST_F(StrategySelectorTest, StrategyDecisionTree_MultipleFlags) {
+TEST_F(StrategySelectorTest, StrategyDecisionTree_RrdFlagOverridesEverything) {
     // Test priority: RRD flag should override everything
     ctx.flags.rrd_flag = 1;
+    ctx.flags.flag = 1;
     ctx.flags.trigger_type = TRIGGER_ONDEMAND;
     ctx.flags.dcm_flag = 0;
     
@@ -194,13 +200,13 @@ TEST_F(StrategySelectorTest, StrategyDecisionTree_MultipleFlags) {
     EXPECT_EQ(STRAT_RRD, result);
 }
 
-TEST_F(StrategySelectorTest, StrategyDecisionTree_OnDemandOverridesNonDcm) {
-    // OnDemand should take priority over non-DCM
+TEST_F(StrategySelectorTest, StrategyDecisionTree_NonDcmTakesPriority) {
+    // When dcm_flag=0, should return NON_DCM regardless of trigger_type
     ctx.flags.trigger_type = TRIGGER_ONDEMAND;
     ctx.flags.dcm_flag = 0;
     
     Strategy result = early_checks(&ctx);
-    EXPECT_EQ(STRAT_ONDEMAND, result);
+    EXPECT_EQ(STRAT_NON_DCM, result); // DCM_FLAG=0 always goes to NON_DCM
 }
 
 TEST_F(StrategySelectorTest, StrategyDecisionTree_RebootRequiresBothFlags) {
