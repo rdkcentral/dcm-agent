@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-License-Identifier: Apache-2.0
- */
-/**
- * Copyright 2025 RDK Management
  */
 
 #include <gtest/gtest.h>
