@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <gtest/gtest.h>
@@ -557,3 +556,4 @@ int main(int argc, char** argv) {
     cout << "Starting Event Manager Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
+
