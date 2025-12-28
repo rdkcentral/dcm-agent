@@ -206,10 +206,10 @@ protected:
         
         // Initialize test context
         memset(&ctx, 0, sizeof(ctx));
-        strcpy(ctx.paths.dcm_log_path, "/tmp/dcm_logs");
-        strcpy(ctx.paths.log_path, "/tmp/logs");
-        ctx.flags.flag = true;
-        ctx.settings.include_pcap = false;
+        strcpy(ctx.dcm_log_path, "/tmp/dcm_logs");
+        strcpy(ctx.log_path, "/tmp/logs");
+        ctx.flag = true;
+        ctx.include_pcap = false;
         
         // Initialize test session
         memset(&session, 0, sizeof(session));
@@ -242,7 +242,7 @@ TEST_F(StrategyDcmTest, Setup_Success) {
     
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_add_timestamp_call_count, 1);
-    EXPECT_STREQ(g_last_timestamp_dir, ctx.paths.dcm_log_path);
+    EXPECT_STREQ(g_last_timestamp_dir, ctx.dcm_log_path);
 }
 
 TEST_F(StrategyDcmTest, Setup_DcmLogPathNotExists) {
@@ -303,18 +303,18 @@ TEST_F(StrategyDcmTest, Archive_Success_NoPcap) {
     EXPECT_EQ(g_create_archive_call_count, 1);
     EXPECT_EQ(g_sleep_call_count, 1);
     EXPECT_EQ(g_last_sleep_seconds, 60);
-    EXPECT_STREQ(g_last_archive_source_dir, ctx.paths.dcm_log_path);
+    EXPECT_STREQ(g_last_archive_source_dir, ctx.dcm_log_path);
 }
 
 TEST_F(StrategyDcmTest, Archive_Success_WithPcap) {
-    ctx.settings.include_pcap = true;
+    ctx.include_pcap = true;
     g_mock_collect_pcap_result = 2; // 2 PCAP files collected
     
     int result = dcm_strategy_handler.archive_phase(&ctx, &session);
     
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_collect_pcap_call_count, 1);
-    EXPECT_STREQ(g_last_pcap_target_dir, ctx.paths.dcm_log_path);
+    EXPECT_STREQ(g_last_pcap_target_dir, ctx.dcm_log_path);
     EXPECT_EQ(g_create_archive_call_count, 1);
     EXPECT_EQ(g_sleep_call_count, 1);
     EXPECT_EQ(g_last_sleep_seconds, 60);
@@ -331,7 +331,7 @@ TEST_F(StrategyDcmTest, Archive_CreateArchiveFails) {
 }
 
 TEST_F(StrategyDcmTest, Archive_PcapCollectionNone) {
-    ctx.settings.include_pcap = true;
+    ctx.include_pcap = true;
     g_mock_collect_pcap_result = 0; // No PCAP files found
     
     int result = dcm_strategy_handler.archive_phase(&ctx, &session);
@@ -371,19 +371,19 @@ TEST_F(StrategyDcmTest, Upload_Success) {
     // Check constructed archive path
     char expected_path[MAX_PATH_LENGTH];
     snprintf(expected_path, sizeof(expected_path), "%s/%s", 
-             ctx.paths.dcm_log_path, session.archive_file);
+             ctx.dcm_log_path, session.archive_file);
     EXPECT_STREQ(g_last_upload_archive_path, expected_path);
 }
 
 TEST_F(StrategyDcmTest, Upload_Success_WithPcapClearing) {
-    ctx.settings.include_pcap = true;
+    ctx.include_pcap = true;
     
     int result = dcm_strategy_handler.upload_phase(&ctx, &session);
     
     EXPECT_EQ(result, 0);
     EXPECT_TRUE(session.success);
     EXPECT_EQ(g_clear_packet_captures_call_count, 1);
-    EXPECT_STREQ(g_last_clear_log_path, ctx.paths.log_path);
+    EXPECT_STREQ(g_last_clear_log_path, ctx.log_path);
 }
 
 TEST_F(StrategyDcmTest, Upload_Failure) {
@@ -402,7 +402,7 @@ TEST_F(StrategyDcmTest, Upload_LongArchivePath) {
     char long_path[MAX_PATH_LENGTH - 50]; // Leave room for filename and separator
     memset(long_path, 'a', sizeof(long_path) - 1);
     long_path[sizeof(long_path) - 1] = '\0';
-    strcpy(ctx.paths.dcm_log_path, long_path);
+    strcpy(ctx.dcm_log_path, long_path);
     
     // Create a filename that, when combined with the path, exceeds MAX_PATH_LENGTH
     char long_filename[100]; // This plus the path will exceed MAX_PATH_LENGTH
@@ -449,7 +449,7 @@ TEST_F(StrategyDcmTest, Cleanup_Success_UploadSuccess) {
     
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_remove_directory_call_count, 1);
-    EXPECT_STREQ(g_last_remove_directory, ctx.paths.dcm_log_path);
+    EXPECT_STREQ(g_last_remove_directory, ctx.dcm_log_path);
 }
 
 TEST_F(StrategyDcmTest, Cleanup_Success_UploadFailed) {
@@ -458,7 +458,7 @@ TEST_F(StrategyDcmTest, Cleanup_Success_UploadFailed) {
     // Should still clean up even if upload failed
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_remove_directory_call_count, 1);
-    EXPECT_STREQ(g_last_remove_directory, ctx.paths.dcm_log_path);
+    EXPECT_STREQ(g_last_remove_directory, ctx.dcm_log_path);
 }
 
 TEST_F(StrategyDcmTest, Cleanup_DcmLogPathNotExists) {
@@ -518,7 +518,7 @@ TEST_F(StrategyDcmTest, Integration_CompleteWorkflow_Success) {
 }
 
 TEST_F(StrategyDcmTest, Integration_CompleteWorkflow_WithPcap) {
-    ctx.settings.include_pcap = true;
+    ctx.include_pcap = true;
     g_mock_collect_pcap_result = 3;
     
     // Test complete DCM workflow with PCAP
@@ -575,7 +575,7 @@ TEST_F(StrategyDcmTest, Integration_WorkflowFailure_UploadFails) {
 
 // Edge case tests
 TEST_F(StrategyDcmTest, EdgeCase_EmptyDcmLogPath) {
-    strcpy(ctx.paths.dcm_log_path, "");
+    strcpy(ctx.dcm_log_path, "");
     
     int setup_result = dcm_strategy_handler.setup_phase(&ctx, &session);
     EXPECT_EQ(setup_result, 0); // dir_exists("") might return true
@@ -588,7 +588,7 @@ TEST_F(StrategyDcmTest, EdgeCase_VeryLongPaths) {
     char long_path[MAX_PATH_LENGTH];
     memset(long_path, 'a', sizeof(long_path) - 2);
     long_path[sizeof(long_path) - 2] = '\0';
-    strcpy(ctx.paths.dcm_log_path, long_path);
+    strcpy(ctx.dcm_log_path, long_path);
     
     int setup_result = dcm_strategy_handler.setup_phase(&ctx, &session);
     EXPECT_EQ(setup_result, 0);

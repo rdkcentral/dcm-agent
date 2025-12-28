@@ -79,20 +79,20 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Context in setup: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, (void*)ctx,
-            ctx ? ctx->device.mac_address : "(NULL CTX)",
-            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
+            ctx ? ctx->mac_address : "(NULL CTX)",
+            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
 
     // Check if LOG_PATH has .txt or .log files
     // Script uploadLogOnDemand lines 741-752:
     // ret=`ls $LOG_PATH/*.txt`
     // if [ ! $ret ]; then ret=`ls $LOG_PATH/*.log`
-    if (!dir_exists(ctx->paths.log_path)) {
+    if (!dir_exists(ctx->log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] LOG_PATH does not exist: %s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
+                "[%s:%d] LOG_PATH does not exist: %s\n", __FUNCTION__, __LINE__, ctx->log_path);
         return -1;
     }
 
-    if (!has_log_files(ctx->paths.log_path)) {
+    if (!has_log_files(ctx->log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] No .txt or .log files in LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
         emit_no_logs_ondemand();
@@ -117,7 +117,7 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     // Copy log files from LOG_PATH to temp directory
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Copying logs from %s to %s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.log_path, ONDEMAND_TEMP_DIR);
+            __FUNCTION__, __LINE__, ctx->log_path, ONDEMAND_TEMP_DIR);
 
     int count = collect_logs(ctx, session, ONDEMAND_TEMP_DIR);
     if (count <= 0) {
@@ -137,7 +137,7 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
 
     char perm_log_path[MAX_PATH_LENGTH];
     int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
-                          ctx->paths.log_path, timestamp);
+                          ctx->log_path, timestamp);
     
     if (written >= (int)sizeof(perm_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -148,7 +148,7 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     // Log to lastlog_path file
     char lastlog_path_file[MAX_PATH_LENGTH];
     written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
-                      ctx->paths.telemetry_path);
+                      ctx->telemetry_path);
     
     if (written >= (int)sizeof(lastlog_path_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -201,8 +201,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            ctx && ctx->device.mac_address ? ctx->device.mac_address : "(NULL/INVALID)",
-            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
+            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
@@ -237,7 +237,7 @@ static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] ONDEMAND: Starting upload phase\n", __FUNCTION__, __LINE__);
 
     // Check if upload is enabled
-    if (!ctx->flags.flag) {
+    if (!ctx->flag) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload flag is false, skipping upload\n", 
                 __FUNCTION__, __LINE__);
@@ -309,7 +309,7 @@ static int ondemand_cleanup(RuntimeContext* ctx, SessionState* session, bool upl
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Cleanup phase complete. Original logs preserved in %s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.log_path);
+            __FUNCTION__, __LINE__, ctx->log_path);
 
     return 0;
 }

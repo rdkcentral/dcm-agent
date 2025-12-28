@@ -131,12 +131,12 @@ protected:
         mock_readdir_calls = 0;
 
         // Set up default test context
-        strcpy(test_ctx.paths.log_path, "/opt/logs");
-        strcpy(test_ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
-        strcpy(test_ctx.paths.dri_log_path, "/opt/logs/dri");
-        strcpy(test_ctx.device.device_type, "gateway");
-        test_ctx.settings.include_pcap = false;
-        test_ctx.settings.include_dri = false;
+        strcpy(test_ctx.log_path, "/opt/logs");
+        strcpy(test_ctx.prev_log_path, "/opt/logs/PreviousLogs");
+        strcpy(test_ctx.dri_log_path, "/opt/logs/dri");
+        strcpy(test_ctx.device_type, "gateway");
+        test_ctx.include_pcap = false;
+        test_ctx.include_dri = false;
 
         // Set up default test session
         test_session.strategy = STRAT_DCM;
@@ -256,8 +256,8 @@ TEST_F(LogCollectorTest, CollectPreviousLogs_CopyFailure) {
 
 // Test collect_pcap_logs function
 TEST_F(LogCollectorTest, CollectPcapLogs_Enabled) {
-    test_ctx.settings.include_pcap = true;
-    strcpy(test_ctx.paths.log_path, "/opt/logs");
+    test_ctx.include_pcap = true;
+    strcpy(test_ctx.log_path, "/opt/logs");
 
     // Setup PCAP files
     strcpy(mock_entries[0].d_name, "capture.pcap");
@@ -271,7 +271,7 @@ TEST_F(LogCollectorTest, CollectPcapLogs_Enabled) {
 }
 
 TEST_F(LogCollectorTest, CollectPcapLogs_Disabled) {
-    test_ctx.settings.include_pcap = false;
+    test_ctx.include_pcap = false;
 
     int result = collect_pcap_logs(&test_ctx, "/tmp/dest");
 
@@ -287,8 +287,8 @@ TEST_F(LogCollectorTest, CollectPcapLogs_NullContext) {
 
 // Test collect_dri_logs function
 TEST_F(LogCollectorTest, CollectDriLogs_Enabled) {
-    test_ctx.settings.include_dri = true;
-    strcpy(test_ctx.paths.dri_log_path, "/opt/logs/dri");
+    test_ctx.include_dri = true;
+    strcpy(test_ctx.dri_log_path, "/opt/logs/dri");
 
     // Setup DRI files
     strcpy(mock_entries[0].d_name, "dri_data.log");
@@ -302,7 +302,7 @@ TEST_F(LogCollectorTest, CollectDriLogs_Enabled) {
 }
 
 TEST_F(LogCollectorTest, CollectDriLogs_Disabled) {
-    test_ctx.settings.include_dri = false;
+    test_ctx.include_dri = false;
 
     int result = collect_dri_logs(&test_ctx, "/tmp/dest");
 
@@ -328,7 +328,7 @@ TEST_F(LogCollectorTest, CollectLogs_BasicCollection) {
 
 TEST_F(LogCollectorTest, CollectLogs_WithPreviousLogs) {
     mock_file_count = 2;
-    strcpy(test_ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
+    strcpy(test_ctx.prev_log_path, "/opt/logs/PreviousLogs");
 
     int result = collect_logs(&test_ctx, &test_session, "/tmp/dest");
 
@@ -337,8 +337,8 @@ TEST_F(LogCollectorTest, CollectLogs_WithPreviousLogs) {
 }
 
 TEST_F(LogCollectorTest, CollectLogs_WithPcapAndDri) {
-    test_ctx.settings.include_pcap = true;
-    test_ctx.settings.include_dri = true;
+    test_ctx.include_pcap = true;
+    test_ctx.include_dri = true;
     mock_file_count = 2;
 
     int result = collect_logs(&test_ctx, &test_session, "/tmp/dest");

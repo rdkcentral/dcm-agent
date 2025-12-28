@@ -129,9 +129,9 @@ protected:
         
         // Initialize test context
         memset(&ctx, 0, sizeof(ctx));
-        strcpy(ctx.paths.dcm_log_path, "/tmp/dcm_logs");
-        strcpy(ctx.paths.log_path, "/tmp/logs");
-        ctx.flags.flag = true;
+        strcpy(ctx.dcm_log_path, "/tmp/dcm_logs");
+        strcpy(ctx.log_path, "/tmp/logs");
+        ctx.flag = true;
         
         // Initialize test session
         memset(&session, 0, sizeof(session));

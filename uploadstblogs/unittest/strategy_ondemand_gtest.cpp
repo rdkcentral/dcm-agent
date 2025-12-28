@@ -163,15 +163,15 @@ protected:
         memset(&session, 0, sizeof(session));
         
         // Setup default paths
-        strncpy(ctx.paths.log_path, "/opt/logs", sizeof(ctx.paths.log_path) - 1);
-        strncpy(ctx.paths.telemetry_path, "/tmp/telemetry", sizeof(ctx.paths.telemetry_path) - 1);
+        strncpy(ctx.log_path, "/opt/logs", sizeof(ctx.log_path) - 1);
+        strncpy(ctx.telemetry_path, "/tmp/telemetry", sizeof(ctx.telemetry_path) - 1);
         
         // Default session settings
         strncpy(session.archive_file, "logs_ondemand.tar.gz", sizeof(session.archive_file) - 1);
         session.success = false;
         
         // Default flags
-        ctx.flags.flag = true;  // Upload enabled by default
+        ctx.flag = true;  // Upload enabled by default
     }
     
     void TearDown() override {
@@ -398,7 +398,7 @@ TEST_F(StrategyOndemandTest, ArchivePhase_CreateArchiveFails) {
 // ==================== UPLOAD PHASE TESTS ====================
 
 TEST_F(StrategyOndemandTest, UploadPhase_Success) {
-    ctx.flags.flag = true;  // Upload enabled
+    ctx.flag = true;  // Upload enabled
     
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, _))
         .WillOnce(DoAll(Invoke([](RuntimeContext* ctx, SessionState* session, const char* path) {
@@ -412,7 +412,7 @@ TEST_F(StrategyOndemandTest, UploadPhase_Success) {
 }
 
 TEST_F(StrategyOndemandTest, UploadPhase_UploadDisabled) {
-    ctx.flags.flag = false;  // Upload disabled
+    ctx.flag = false;  // Upload disabled
     
     // upload_archive should not be called
     
@@ -423,7 +423,7 @@ TEST_F(StrategyOndemandTest, UploadPhase_UploadDisabled) {
 }
 
 TEST_F(StrategyOndemandTest, UploadPhase_UploadFails) {
-    ctx.flags.flag = true;  // Upload enabled
+    ctx.flag = true;  // Upload enabled
     
     EXPECT_CALL(mock_file_ops, upload_archive(&ctx, &session, _))
         .WillOnce(DoAll(
@@ -440,7 +440,7 @@ TEST_F(StrategyOndemandTest, UploadPhase_UploadFails) {
 }
 
 TEST_F(StrategyOndemandTest, UploadPhase_CorrectArchivePath) {
-    ctx.flags.flag = true;
+    ctx.flag = true;
     
     // Verify correct archive path is constructed
     char expected_path[256];

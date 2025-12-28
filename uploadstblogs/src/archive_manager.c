@@ -383,12 +383,12 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
             __FUNCTION__, __LINE__, 
-            ctx->device.mac_address ? ctx->device.mac_address : "(NULL)", 
+            ctx->mac_address ? ctx->mac_address : "(NULL)", 
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
     if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
-                               ctx->device.mac_address, prefix)) {
+                               ctx->mac_address, prefix)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
@@ -456,16 +456,16 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
         return -1;
     }
 
-    if (strlen(ctx->paths.dri_log_path) == 0) {
+    if (strlen(ctx->dri_log_path) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] DRI log path not configured\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
-    if (!dir_exists(ctx->paths.dri_log_path)) {
+    if (!dir_exists(ctx->dri_log_path)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] DRI log directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+                __FUNCTION__, __LINE__, ctx->dri_log_path);
         return -1;
     }
 
@@ -481,8 +481,8 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Creating DRI archive from %s to %s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.dri_log_path, output_dir);
+            __FUNCTION__, __LINE__, ctx->dri_log_path, output_dir);
 
     // Use the common archive creation with DRI_Logs prefix
-    return create_archive_with_options(ctx, NULL, ctx->paths.dri_log_path, output_dir, "DRI_Logs");
+    return create_archive_with_options(ctx, NULL, ctx->dri_log_path, output_dir, "DRI_Logs");
 }

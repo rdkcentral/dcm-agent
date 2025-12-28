@@ -130,10 +130,10 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
     // Check if DCM_LOG_PATH exists and has files
-    if (!dir_exists(ctx->paths.dcm_log_path)) {
+    if (!dir_exists(ctx->dcm_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] DCM_LOG_PATH does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+                __FUNCTION__, __LINE__, ctx->dcm_log_path);
         return -1;
     }
 
@@ -150,7 +150,7 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Adding timestamps to files in DCM_LOG_PATH\n", 
             __FUNCTION__, __LINE__);
     
-    int ret = add_timestamp_to_files(ctx->paths.dcm_log_path);
+    int ret = add_timestamp_to_files(ctx->dcm_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to add timestamps to some files\n", 
@@ -185,10 +185,10 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
 
     // Collect PCAP files directly to DCM_LOG_PATH if mediaclient
-    if (ctx->settings.include_pcap) {
+    if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Collecting PCAP file to DCM_LOG_PATH\n", __FUNCTION__, __LINE__);
-        int count = collect_pcap_logs(ctx, ctx->paths.dcm_log_path);
+        int count = collect_pcap_logs(ctx, ctx->dcm_log_path);
         if (count > 0) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
@@ -196,7 +196,7 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
     }
 
     // Create archive from DCM_LOG_PATH (files already have timestamps)
-    int ret = create_archive(ctx, session, ctx->paths.dcm_log_path);
+    int ret = create_archive(ctx, session, ctx->dcm_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
@@ -233,7 +233,7 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
     // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
     if (!join_path(archive_path, sizeof(archive_path), 
-                   ctx->paths.dcm_log_path, session->archive_file)) {
+                   ctx->dcm_log_path, session->archive_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;
@@ -247,10 +247,10 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
     int ret = upload_archive(ctx, session, archive_path);
 
     // Clear old packet captures
-    if (ctx->settings.include_pcap) {
+    if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Clearing old packet captures\n", __FUNCTION__, __LINE__);
-        clear_old_packet_captures(ctx->paths.log_path);
+        clear_old_packet_captures(ctx->log_path);
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
@@ -280,12 +280,12 @@ static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_s
             __FUNCTION__, __LINE__, upload_success);
 
     // Delete entire DCM_LOG_PATH directory
-    if (dir_exists(ctx->paths.dcm_log_path)) {
+    if (dir_exists(ctx->dcm_log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Removing DCM_LOG_PATH: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+                __FUNCTION__, __LINE__, ctx->dcm_log_path);
         
-        if (!remove_directory(ctx->paths.dcm_log_path)) {
+        if (!remove_directory(ctx->dcm_log_path)) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                     "[%s:%d] Failed to remove DCM_LOG_PATH\n", 
                     __FUNCTION__, __LINE__);

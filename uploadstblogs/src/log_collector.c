@@ -180,13 +180,13 @@ int collect_logs(const RuntimeContext* ctx, const SessionState* session, const c
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting log files from LOG_PATH to: %s\n", 
             __FUNCTION__, __LINE__, dest_dir);
 
-    if (strlen(ctx->paths.log_path) == 0) {
+    if (strlen(ctx->log_path) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH is not set\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
     // Collect *.txt* and *.log* files from LOG_PATH
-    int count = collect_files_from_dir(ctx->paths.log_path, dest_dir, should_collect_file);
+    int count = collect_files_from_dir(ctx->log_path, dest_dir, should_collect_file);
     
     if (count <= 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] No log files collected\n", __FUNCTION__, __LINE__);
@@ -232,7 +232,7 @@ int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
         return -1;
     }
 
-    if (!ctx->settings.include_pcap) {
+    if (!ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PCAP collection not enabled\n", __FUNCTION__, __LINE__);
         return 0;
     }
@@ -241,12 +241,12 @@ int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
     // Script: lastPcapCapture=`ls -lst $LOG_PATH/*.pcap | head -n 1`
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting most recent PCAP file from: %s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.log_path);
+            __FUNCTION__, __LINE__, ctx->log_path);
 
-    DIR* dir = opendir(ctx->paths.log_path);
+    DIR* dir = opendir(ctx->log_path);
     if (!dir) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to open LOG_PATH: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.log_path);
+                __FUNCTION__, __LINE__, ctx->log_path);
         return 0;
     }
 
@@ -266,7 +266,7 @@ int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
         }
 
         char full_path[2048];
-        int ret = snprintf(full_path, sizeof(full_path), "%s/%s", ctx->paths.log_path, entry->d_name);
+        int ret = snprintf(full_path, sizeof(full_path), "%s/%s", ctx->log_path, entry->d_name);
         
         if (ret < 0 || ret >= (int)sizeof(full_path)) {
             continue;
@@ -308,27 +308,27 @@ int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
         return -1;
     }
 
-    if (!ctx->settings.include_dri) {
+    if (!ctx->include_dri) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DRI log collection not enabled\n", __FUNCTION__, __LINE__);
         return 0;
     }
 
-    if (strlen(ctx->paths.dri_log_path) == 0) {
+    if (strlen(ctx->dri_log_path) == 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log path not configured\n", __FUNCTION__, __LINE__);
         return 0;
     }
 
-    if (!dir_exists(ctx->paths.dri_log_path)) {
+    if (!dir_exists(ctx->dri_log_path)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+                __FUNCTION__, __LINE__, ctx->dri_log_path);
         return 0;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting DRI logs from: %s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+            __FUNCTION__, __LINE__, ctx->dri_log_path);
 
     // Collect all files from DRI log directory (no filter)
-    int count = collect_files_from_dir(ctx->paths.dri_log_path, dest_dir, NULL);
+    int count = collect_files_from_dir(ctx->dri_log_path, dest_dir, NULL);
 
     if (count > 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d DRI log files\n", 

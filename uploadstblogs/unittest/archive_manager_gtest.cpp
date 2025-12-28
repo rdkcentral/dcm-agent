@@ -259,14 +259,14 @@ protected:
         memset(&session, 0, sizeof(SessionState));
         
         // Set up default context values
-        strcpy(ctx.paths.log_path, "/opt/logs");
-        strcpy(ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
-        strcpy(ctx.paths.temp_dir, "/tmp");
-        strcpy(ctx.paths.archive_path, "/tmp");
-        strcpy(ctx.paths.telemetry_path, "/opt/.telemetry");
-        strcpy(ctx.paths.dcm_log_path, "/tmp/DCM");
-        strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
-        strcpy(ctx.device.device_type, "TEST_DEVICE");
+        strcpy(ctx.log_path, "/opt/logs");
+        strcpy(ctx.prev_log_path, "/opt/logs/PreviousLogs");
+        strcpy(ctx.temp_dir, "/tmp");
+        strcpy(ctx.archive_path, "/tmp");
+        strcpy(ctx.telemetry_path, "/opt/.telemetry");
+        strcpy(ctx.dcm_log_path, "/tmp/DCM");
+        strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
+        strcpy(ctx.device_type, "TEST_DEVICE");
         
         // Set up session
         strcpy(session.archive_file, "/tmp/logs_archive.tar.gz");
@@ -301,7 +301,7 @@ protected:
 // Test archive name generation with MAC colon removal
 TEST_F(ArchiveManagerTest, ArchiveNameGeneration_RemovesColons) {
     // MAC address with colons should have them removed in archive name
-    strcpy(ctx.device.mac_address, "A8:4A:63:1E:37:A5");
+    strcpy(ctx.mac_address, "A8:4A:63:1E:37:A5");
     
     // Mock directory and file existence checks
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
@@ -317,7 +317,7 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_RemovesColons) {
 
 TEST_F(ArchiveManagerTest, ArchiveNameGeneration_EmptyMAC) {
     // Empty MAC should be handled gracefully
-    strcpy(ctx.device.mac_address, "");
+    strcpy(ctx.mac_address, "");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
@@ -369,8 +369,8 @@ TEST_F(ArchiveManagerTest, CreateArchive_Success) {
     
     // Ensure all required paths are set
     strcpy(session.archive_file, "/tmp/test_archive.tar.gz");
-    strcpy(ctx.paths.temp_dir, "/tmp");
-    strcpy(ctx.paths.archive_path, "/tmp");
+    strcpy(ctx.temp_dir, "/tmp");
+    strcpy(ctx.archive_path, "/tmp");
     
     // The real implementation may still fail due to system dependencies
     // So let's just verify it doesn't crash and handles parameters correctly
@@ -404,8 +404,8 @@ TEST_F(ArchiveManagerTest, CreateDriArchive_Success) {
         .WillRepeatedly(Return(true));
     
     // Ensure required paths are set
-    strcpy(ctx.paths.dri_log_path, "/opt/logs/dri");
-    strcpy(ctx.paths.temp_dir, "/tmp");
+    strcpy(ctx.dri_log_path, "/opt/logs/dri");
+    strcpy(ctx.temp_dir, "/tmp");
     
     // The real implementation may still fail due to system dependencies
     // So accept both success and failure as valid outcomes
@@ -427,7 +427,7 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_VariousFormats) {
         g_readdir_call_count = 0;
         g_opendir_call_count = 0;
         
-        strcpy(ctx.device.mac_address, test_macs[i]);
+        strcpy(ctx.mac_address, test_macs[i]);
         
         EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
             .WillRepeatedly(Return(true));
@@ -444,7 +444,7 @@ TEST_F(ArchiveManagerTest, ArchiveNameGeneration_VariousFormats) {
 // Test different archive types with create_archive
 TEST_F(ArchiveManagerTest, ArchiveTypes_StandardLogs) {
     session.strategy = STRAT_DCM;
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
@@ -454,8 +454,8 @@ TEST_F(ArchiveManagerTest, ArchiveTypes_StandardLogs) {
 }
 
 TEST_F(ArchiveManagerTest, ArchiveTypes_DriLogs) {
-    strcpy(ctx.paths.dri_log_path, "/opt/logs/dri");
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.dri_log_path, "/opt/logs/dri");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
@@ -468,7 +468,7 @@ TEST_F(ArchiveManagerTest, ArchiveTypes_DriLogs) {
 
 // Test error conditions
 TEST_F(ArchiveManagerTest, ErrorConditions_DirectoryNotExists) {
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(false));
@@ -492,7 +492,7 @@ TEST_F(ArchiveManagerTest, ErrorConditions_ArchiveCreationFails) {
 TEST_F(ArchiveManagerTest, TimestampHandling_ArchiveNaming) {
     time_t test_time = 1642780800; // Fixed timestamp
     mock_time_value = test_time;
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
@@ -507,7 +507,7 @@ TEST_F(ArchiveManagerTest, TimestampHandling_ArchiveNaming) {
 
 // Test compression and archive format
 TEST_F(ArchiveManagerTest, CompressionFormat_TarGzOutput) {
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
         .WillRepeatedly(Return(true));
@@ -524,7 +524,7 @@ TEST_F(ArchiveManagerTest, CompressionFormat_TarGzOutput) {
 
 // Test file filtering and collection
 TEST_F(ArchiveManagerTest, FileFiltering_LogCollection) {
-    strcpy(ctx.device.mac_address, "AA:BB:CC:DD:EE:FF");
+    strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
     
     // Test that archive creation handles various scenarios
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))

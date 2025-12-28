@@ -49,12 +49,12 @@ protected:
         memset(&ctx, 0, sizeof(RuntimeContext));
         
         // Set up default paths in context
-        strcpy(ctx.paths.log_path, "/opt/logs");
-        strcpy(ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
-        strcpy(ctx.paths.temp_dir, "/tmp");
-        strcpy(ctx.paths.archive_path, "/tmp");
-        strcpy(ctx.paths.telemetry_path, "/opt/.telemetry");
-        strcpy(ctx.paths.dcm_log_path, "/tmp/DCM");
+        strcpy(ctx.log_path, "/opt/logs");
+        strcpy(ctx.prev_log_path, "/opt/logs/PreviousLogs");
+        strcpy(ctx.temp_dir, "/tmp");
+        strcpy(ctx.archive_path, "/tmp");
+        strcpy(ctx.telemetry_path, "/opt/.telemetry");
+        strcpy(ctx.dcm_log_path, "/tmp/DCM");
     }
 
     void TearDown() override {
@@ -146,10 +146,10 @@ TEST_F(ValidationTest, ValidateSystem_Success) {
 // Test edge cases and error conditions
 TEST_F(ValidationTest, ValidateSystem_DirectoryValidationFails) {
     // Set all paths to non-existent directories
-    strcpy(ctx.paths.log_path, "/nonexistent/path1");
-    strcpy(ctx.paths.prev_log_path, "/nonexistent/path2");
-    strcpy(ctx.paths.temp_dir, "/nonexistent/path3");
-    strcpy(ctx.paths.dcm_log_path, "/nonexistent/path4");
+    strcpy(ctx.log_path, "/nonexistent/path1");
+    strcpy(ctx.prev_log_path, "/nonexistent/path2");
+    strcpy(ctx.temp_dir, "/nonexistent/path3");
+    strcpy(ctx.dcm_log_path, "/nonexistent/path4");
     
     EXPECT_FALSE(validate_system(&ctx));
 }
@@ -159,12 +159,12 @@ TEST_F(ValidationTest, ValidateDirectories_AllRequiredPaths) {
     // Test that all required paths are checked
     // Use /tmp for temp_dir since it actually exists and is writable
     // (validate_directories calls access() to check writeability)
-    strcpy(ctx.paths.log_path, "/tmp/test_log");
-    strcpy(ctx.paths.prev_log_path, "/tmp/test_prev");
-    strcpy(ctx.paths.temp_dir, "/tmp");  // Must be real and writable
-    strcpy(ctx.paths.archive_path, "/tmp/test_archive");
-    strcpy(ctx.paths.telemetry_path, "/tmp/test_telemetry");
-    strcpy(ctx.paths.dcm_log_path, "/tmp/test_dcm");
+    strcpy(ctx.log_path, "/tmp/test_log");
+    strcpy(ctx.prev_log_path, "/tmp/test_prev");
+    strcpy(ctx.temp_dir, "/tmp");  // Must be real and writable
+    strcpy(ctx.archive_path, "/tmp/test_archive");
+    strcpy(ctx.telemetry_path, "/tmp/test_telemetry");
+    strcpy(ctx.dcm_log_path, "/tmp/test_dcm");
     
     // Mock all directories to exist
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
@@ -184,12 +184,12 @@ TEST_F(ValidationTest, ValidateDirectories_EmptyPaths) {
 // Integration tests
 TEST_F(ValidationTest, FullValidation_MinimalEnvironment) {
     // Set up minimal valid environment
-    strcpy(ctx.paths.log_path, "/tmp");
-    strcpy(ctx.paths.prev_log_path, "/tmp");
-    strcpy(ctx.paths.temp_dir, "/tmp");
-    strcpy(ctx.paths.archive_path, "/tmp");
-    strcpy(ctx.paths.telemetry_path, "/tmp");
-    strcpy(ctx.paths.dcm_log_path, "/tmp");
+    strcpy(ctx.log_path, "/tmp");
+    strcpy(ctx.prev_log_path, "/tmp");
+    strcpy(ctx.temp_dir, "/tmp");
+    strcpy(ctx.archive_path, "/tmp");
+    strcpy(ctx.telemetry_path, "/tmp");
+    strcpy(ctx.dcm_log_path, "/tmp");
     
     // Mock all directories to exist
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))

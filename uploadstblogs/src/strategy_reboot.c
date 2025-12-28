@@ -85,14 +85,14 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     // Script uploadLogOnReboot lines 805-816:
     // ret=`ls $PREV_LOG_PATH/*.txt`
     // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
-    if (!dir_exists(ctx->paths.prev_log_path)) {
+    if (!dir_exists(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+                __FUNCTION__, __LINE__, ctx->prev_log_path);
         return -1;
     }
 
-    if (!has_log_files(ctx->paths.prev_log_path)) {
+    if (!has_log_files(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] No .txt or .log files in PREV_LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
         emit_no_logs_reboot(ctx);
@@ -130,14 +130,14 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
     
-    int removed = remove_old_directories(ctx->paths.log_path, "*-*-*-*-*M-", 3);
+    int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
     if (removed > 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Removed %d old timestamp directories\n", 
                 __FUNCTION__, __LINE__, removed);
     }
     
-    removed = remove_old_directories(ctx->paths.log_path, "*-*-*-*-*M-logbackup", 3);
+    removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
     if (removed > 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Removed %d old logbackup directories\n", 
@@ -152,7 +152,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 
     char perm_log_path[MAX_PATH_LENGTH];
     int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
-                          ctx->paths.log_path, timestamp);
+                          ctx->log_path, timestamp);
     
     if (written >= (int)sizeof(perm_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -167,7 +167,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     // Log to lastlog_path
     char lastlog_path_file[MAX_PATH_LENGTH];
     written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
-                      ctx->paths.telemetry_path);
+                      ctx->telemetry_path);
     
     if (written >= (int)sizeof(lastlog_path_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -186,7 +186,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 
     // Delete old tar file if exists
     char old_tar[MAX_PATH_LENGTH];
-    written = snprintf(old_tar, sizeof(old_tar), "%s/logs.tar.gz", ctx->paths.prev_log_path);
+    written = snprintf(old_tar, sizeof(old_tar), "%s/logs.tar.gz", ctx->prev_log_path);
     
     if (written >= (int)sizeof(old_tar)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -206,7 +206,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Adding timestamps to files in PREV_LOG_PATH\n", 
             __FUNCTION__, __LINE__);
     
-    int ret = add_timestamp_to_files(ctx->paths.prev_log_path);
+    int ret = add_timestamp_to_files(ctx->prev_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to add timestamps to some files\n", 
@@ -234,10 +234,10 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] REBOOT/NON_DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
 
     // Collect PCAP files directly to PREV_LOG_PATH if mediaclient
-    if (ctx->settings.include_pcap) {
+    if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Collecting PCAP file to PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
-        int count = collect_pcap_logs(ctx, ctx->paths.prev_log_path);
+        int count = collect_pcap_logs(ctx, ctx->prev_log_path);
         if (count > 0) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
@@ -245,7 +245,7 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
     }
     
     // Create archive from PREV_LOG_PATH (files already have timestamps)
-    int ret = create_archive(ctx, session, ctx->paths.prev_log_path);
+    int ret = create_archive(ctx, session, ctx->prev_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
@@ -282,14 +282,14 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
     
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
-    if (ctx->flags.dcm_flag == 0) {
+    if (ctx->dcm_flag == 0) {
         should_upload = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
                 __FUNCTION__, __LINE__);
     }
     // DCM mode (DCM_FLAG=1): Check upload_on_reboot flag
-    else if (ctx->flags.upload_on_reboot) {
+    else if (ctx->upload_on_reboot) {
         should_upload = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] DCM mode: Upload enabled from settings (upload_on_reboot=true)\n", 
@@ -343,7 +343,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
     int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
-                          ctx->paths.prev_log_path, session->archive_file);
+                          ctx->prev_log_path, session->archive_file);
     
     if (written >= (int)sizeof(archive_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -363,7 +363,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             __FUNCTION__, __LINE__, ret);
 
     // Upload DRI logs if directory exists (using separate session to avoid state corruption)
-    if (ctx->settings.include_dri && dir_exists(ctx->paths.dri_log_path)) {
+    if (ctx->include_dri && dir_exists(ctx->dri_log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
                 __FUNCTION__, __LINE__);
@@ -371,14 +371,14 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
         char dri_filename[MAX_FILENAME_LENGTH];
         if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
-                                   ctx->device.mac_address, "DRI_Logs")) {
+                                   ctx->mac_address, "DRI_Logs")) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                     "[%s:%d] Failed to generate DRI archive filename\n", 
                     __FUNCTION__, __LINE__);
         } else {
             char dri_archive[MAX_PATH_LENGTH];
             int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
-                                  ctx->paths.prev_log_path, dri_filename);
+                                  ctx->prev_log_path, dri_filename);
         
         if (written >= (int)sizeof(dri_archive)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -404,7 +404,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
                             __FUNCTION__, __LINE__);
-                    remove_directory(ctx->paths.dri_log_path);
+                    remove_directory(ctx->dri_log_path);
                 } else {
                     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
@@ -418,10 +418,10 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     }
 
     // Clear old packet captures
-    if (ctx->settings.include_pcap) {
+    if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Clearing old packet captures\n", __FUNCTION__, __LINE__);
-        clear_old_packet_captures(ctx->paths.log_path);
+        clear_old_packet_captures(ctx->log_path);
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
@@ -452,7 +452,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     // Delete tar file
     char tar_path[MAX_PATH_LENGTH];
     int written = snprintf(tar_path, sizeof(tar_path), "%s/%s", 
-                          ctx->paths.prev_log_path, session->archive_file);
+                          ctx->prev_log_path, session->archive_file);
     
     if (written >= (int)sizeof(tar_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -471,7 +471,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Removing timestamps from filenames\n", __FUNCTION__, __LINE__);
     
-    int ret = remove_timestamp_from_files(ctx->paths.prev_log_path);
+    int ret = remove_timestamp_from_files(ctx->prev_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to remove timestamps from some files\n", 
@@ -498,7 +498,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Moving files to permanent backup\n", __FUNCTION__, __LINE__);
     
-    ret = move_directory_contents(ctx->paths.prev_log_path, perm_log_path);
+    ret = move_directory_contents(ctx->prev_log_path, perm_log_path);
     if (ret != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to move some files to permanent backup\n", 
@@ -509,14 +509,14 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
     
-    clean_directory(ctx->paths.prev_log_path);
+    clean_directory(ctx->prev_log_path);
 
     // Recreate PREV_LOG_BACKUP_PATH for next boot cycle
     // Script lines 900-902: rm -rf + mkdir -p PREV_LOG_BACKUP_PATH
     // PREV_LOG_BACKUP_PATH = $LOG_PATH/PreviousLogs_backup/
     char prev_log_backup_path[MAX_PATH_LENGTH];
     written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
-                      ctx->paths.log_path);
+                      ctx->log_path);
     
     if (written >= (int)sizeof(prev_log_backup_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -538,9 +538,9 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     // If DCM mode with upload_on_reboot=false, add permanent path to DCM batch list
     // Script line 1019: echo $PERM_LOG_PATH >> $DCM_UPLOAD_LIST
-    if (ctx->flags.dcm_flag == 1 && ctx->flags.upload_on_reboot == 0) {
+    if (ctx->dcm_flag == 1 && ctx->upload_on_reboot == 0) {
         char dcm_upload_list[MAX_PATH_LENGTH];
-        int written = snprintf(dcm_upload_list, sizeof(dcm_upload_list), "%s/dcm_upload", ctx->paths.log_path);
+        int written = snprintf(dcm_upload_list, sizeof(dcm_upload_list), "%s/dcm_upload", ctx->log_path);
         
         if (written >= (int)sizeof(dcm_upload_list)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 

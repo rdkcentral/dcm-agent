@@ -99,22 +99,18 @@ typedef enum {
    ========================== */
 
 /**
- * @struct UploadFlags
- * @brief Upload control flags and triggers
+ * @struct RuntimeContext
+ * @brief Complete runtime context containing all configuration
  */
 typedef struct {
+    /* Upload control flags and triggers */
     int rrd_flag;                   /**< RRD mode flag */
     int dcm_flag;                   /**< DCM mode flag */
     int flag;                       /**< General upload flag */
     int upload_on_reboot;           /**< Upload on reboot flag */
     int trigger_type;               /**< Type of upload trigger */
-} UploadFlags;
 
-/**
- * @struct UploadSettings
- * @brief Boolean settings for upload behavior
- */
-typedef struct {
+    /* Boolean settings for upload behavior */
     bool privacy_do_not_share;      /**< Privacy mode enabled */
     bool ocsp_enabled;              /**< OCSP validation enabled */
     bool encryption_enable;         /**< Encryption enabled */
@@ -125,13 +121,7 @@ typedef struct {
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
 
-} UploadSettings;
-
-/**
- * @struct PathConfig
- * @brief File system paths and directories
- */
-typedef struct {
+    /* File system paths and directories */
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
     char prev_log_path[MAX_PATH_LENGTH];      /**< Previous logs directory */
     char archive_path[MAX_PATH_LENGTH];       /**< Archive output directory */
@@ -142,64 +132,30 @@ typedef struct {
     char dcm_log_file[MAX_PATH_LENGTH];       /**< DCM log file path */
     char dcm_log_path[MAX_PATH_LENGTH];       /**< DCM log directory */
     char iarm_event_binary[MAX_PATH_LENGTH];  /**< IARM event sender location */
-} PathConfig;
 
-/**
- * @struct EndpointConfig
- * @brief Upload endpoint URLs and links
- */
-typedef struct {
+    /* Upload endpoint URLs and links */
     char endpoint_url[MAX_URL_LENGTH];        /**< Upload endpoint URL */
     char upload_http_link[MAX_URL_LENGTH];    /**< HTTP upload link */
     char presign_url[MAX_URL_LENGTH];         /**< Pre-signed URL */
     char proxy_bucket[MAX_URL_LENGTH];        /**< Proxy bucket for fallback uploads */
-} EndpointConfig;
 
-/**
- * @struct DeviceInfo
- * @brief Device identification information
- */
-typedef struct {
+    /* Device identification information */
     char mac_address[MAX_MAC_LENGTH];         /**< Device MAC address */
     char device_type[32];                     /**< Device type (mediaclient, etc.) */
-    char build_type[32];                      /**< Build type */                 /**< Device name */
-} DeviceInfo;
+    char build_type[32];                      /**< Build type */
 
-/**
- * @struct CertificateConfig
- * @brief TLS/mTLS certificate paths
- */
-typedef struct {
+    /* TLS/mTLS certificate paths */
     char cert_path[MAX_CERT_PATH_LENGTH];     /**< Client certificate path */
     char key_path[MAX_CERT_PATH_LENGTH];      /**< Private key path */
     char ca_cert_path[MAX_CERT_PATH_LENGTH];  /**< CA certificate path */
-} CertificateConfig;
 
-/**
- * @struct RetryConfig
- * @brief Retry and timeout configuration
- */
-typedef struct {
+    /* Retry and timeout configuration */
     int direct_max_attempts;        /**< Max attempts for direct path */
     int codebig_max_attempts;       /**< Max attempts for CodeBig path */
     int direct_retry_delay;         /**< Retry delay for direct (seconds) */
     int codebig_retry_delay;        /**< Retry delay for CodeBig (seconds) */
     int curl_timeout;               /**< Curl operation timeout */
     int curl_tls_timeout;           /**< TLS handshake timeout */
-} RetryConfig;
-
-/**
- * @struct RuntimeContext
- * @brief Complete runtime context containing all configuration
- */
-typedef struct {
-    UploadFlags flags;              /**< Upload control flags */
-    UploadSettings settings;        /**< Upload behavior settings */
-    PathConfig paths;               /**< File system paths */
-    EndpointConfig endpoints;       /**< Upload endpoints */
-    DeviceInfo device;              /**< Device information */
-    CertificateConfig certificates; /**< Certificate paths */
-    RetryConfig retry;              /**< Retry configuration */
 } RuntimeContext;
 
 /* ==========================
