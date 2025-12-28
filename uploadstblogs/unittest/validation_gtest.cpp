@@ -175,7 +175,12 @@ TEST_F(ValidationTest, ValidateDirectories_AllRequiredPaths) {
 
 TEST_F(ValidationTest, ValidateDirectories_EmptyPaths) {
     // Test with empty paths - validation should succeed as empty paths are skipped
-    memset(&ctx.paths, 0, sizeof(ctx.paths));
+    memset(ctx.log_path, 0, sizeof(ctx.log_path));
+    memset(ctx.prev_log_path, 0, sizeof(ctx.prev_log_path));
+    memset(ctx.temp_dir, 0, sizeof(ctx.temp_dir));
+    memset(ctx.archive_path, 0, sizeof(ctx.archive_path));
+    memset(ctx.telemetry_path, 0, sizeof(ctx.telemetry_path));
+    memset(ctx.dcm_log_path, 0, sizeof(ctx.dcm_log_path));
     
     // Mock doesn't matter since empty paths are not checked
     EXPECT_TRUE(validate_directories(&ctx));

@@ -165,9 +165,9 @@ int rmdir(const char *pathname) {
 #endif
 }
 
-// Include the actual cleanup manager implementation
-#include "cleanup_manager.h"
-#include "../src/cleanup_manager.c"
+// Include the actual cleanup handler implementation
+#include "cleanup_handler.h"
+#include "../src/cleanup_handler.c"
 
 using namespace testing;
 

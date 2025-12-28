@@ -70,7 +70,7 @@ for test in \
   ./../uploadstblogs/unittest/strategy_selector_gtest \
   ./../uploadstblogs/unittest/path_handler_gtest \
   ./../uploadstblogs/unittest/upload_engine_gtest \
-  ./../uploadstblogs/unittest/cleanup_manager_gtest \
+  ./../uploadstblogs/unittest/cleanup_handler_gtest \
   ./../uploadstblogs/unittest/verification_gtest \
   ./../uploadstblogs/unittest/rbus_interface_gtest \
   ./../uploadstblogs/unittest/uploadstblogs_gtest \
