@@ -33,6 +33,7 @@
 #endif
 
 #include "uploadstblogs_types.h"
+#include "./mocks/mock_file_operations.h"
 
 // Mock external dependencies
 extern "C" {
@@ -174,6 +175,9 @@ using namespace testing;
 class CleanupManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        // Initialize mock objects
+        g_mockFileOperations = new MockFileOperations();
+        
         // Reset mock state
         mock_regex_result = 0;
         regex_compile_fail = false;
@@ -187,7 +191,10 @@ protected:
         strcpy(test_log_path, "/opt/logs");
     }
     
-    void TearDown() override {}
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
     
     char test_log_path[512];
 };

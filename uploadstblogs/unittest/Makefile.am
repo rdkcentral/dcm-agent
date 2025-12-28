@@ -94,7 +94,7 @@ upload_engine_gtest_LDADD = $(COMMON_LDADD)
 upload_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 upload_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-cleanup_handler_gtest_SOURCES = cleanup_handler_gtest.cpp
+cleanup_handler_gtest_SOURCES = cleanup_handler_gtest.cpp ./mocks/mock_file_operations.cpp
 cleanup_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 cleanup_handler_gtest_LDADD = $(COMMON_LDADD)
 cleanup_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
