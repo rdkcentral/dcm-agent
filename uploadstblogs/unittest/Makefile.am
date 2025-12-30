@@ -24,7 +24,7 @@ bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_s
                path_handler_gtest archive_manager_gtest upload_engine_gtest \
                cleanup_handler_gtest verification_gtest \
                rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
-               log_collector_gtest retry_logic_gtest strategy_dcm_gtest \
+               retry_logic_gtest strategy_dcm_gtest \
                strategy_handler_gtest strategy_ondemand_gtest
 
 # Common include directories
@@ -123,12 +123,6 @@ event_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 event_manager_gtest_LDADD = $(COMMON_LDADD)
 event_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 event_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
-log_collector_gtest_SOURCES = log_collector_gtest.cpp
-log_collector_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-log_collector_gtest_LDADD = $(COMMON_LDADD)
-log_collector_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-log_collector_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 retry_logic_gtest_SOURCES = retry_logic_gtest.cpp
 retry_logic_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)

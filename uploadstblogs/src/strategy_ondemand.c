@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <time.h>
 #include "strategy_handler.h"
-#include "log_collector.h"
+#include "archive_manager.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
 #include "file_operations.h"

@@ -536,6 +536,140 @@ TEST_F(ArchiveManagerTest, FileFiltering_LogCollection) {
     EXPECT_TRUE(result == 0 || result == -1);
 }
 
+/* ==========================
+   Log Collection Tests
+   ========================== */
+
+// Test should_collect_file function
+TEST_F(ArchiveManagerTest, ShouldCollectFile_ValidLogFile) {
+    EXPECT_TRUE(should_collect_file("test.log"));
+    EXPECT_TRUE(should_collect_file("application.log.1"));
+    EXPECT_TRUE(should_collect_file("system.txt"));
+    EXPECT_TRUE(should_collect_file("debug.txt.0"));
+}
+
+TEST_F(ArchiveManagerTest, ShouldCollectFile_InvalidFiles) {
+    EXPECT_FALSE(should_collect_file(nullptr));
+    EXPECT_FALSE(should_collect_file(""));
+    EXPECT_FALSE(should_collect_file("."));
+    EXPECT_FALSE(should_collect_file(".."));
+    EXPECT_FALSE(should_collect_file("test.dat"));
+    EXPECT_FALSE(should_collect_file("config.conf"));
+}
+
+TEST_F(ArchiveManagerTest, ShouldCollectFile_EdgeCases) {
+    EXPECT_TRUE(should_collect_file("file.log.gz"));  // Contains .log
+    EXPECT_TRUE(should_collect_file("readme.txt.bak")); // Contains .txt
+    EXPECT_FALSE(should_collect_file("log"));  // No extension
+    EXPECT_FALSE(should_collect_file("txt"));  // No extension
+}
+
+// Test collect_logs function
+TEST_F(ArchiveManagerTest, CollectLogs_NullParameters) {
+    EXPECT_EQ(collect_logs(nullptr, &session, "/tmp/dest"), -1);
+    EXPECT_EQ(collect_logs(&ctx, nullptr, "/tmp/dest"), -1);
+    EXPECT_EQ(collect_logs(&ctx, &session, nullptr), -1);
+}
+
+TEST_F(ArchiveManagerTest, CollectLogs_EmptyLogPath) {
+    memset(ctx.log_path, 0, sizeof(ctx.log_path));
+    EXPECT_EQ(collect_logs(&ctx, &session, "/tmp/dest"), -1);
+}
+
+TEST_F(ArchiveManagerTest, CollectLogs_Success) {
+    strcpy(ctx.log_path, "/opt/logs");
+    
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillRepeatedly(Return(true));
+    
+    int result = collect_logs(&ctx, &session, "/tmp/dest");
+    EXPECT_GE(result, 0);
+}
+
+// Test collect_previous_logs function
+TEST_F(ArchiveManagerTest, CollectPreviousLogs_NullParameters) {
+    EXPECT_EQ(collect_previous_logs(nullptr, "/tmp/dest"), -1);
+    EXPECT_EQ(collect_previous_logs("/opt/PreviousLogs", nullptr), -1);
+}
+
+TEST_F(ArchiveManagerTest, CollectPreviousLogs_DirectoryNotExists) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(false));
+    
+    EXPECT_EQ(collect_previous_logs("/opt/PreviousLogs", "/tmp/dest"), 0);
+}
+
+TEST_F(ArchiveManagerTest, CollectPreviousLogs_Success) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillRepeatedly(Return(true));
+    
+    int result = collect_previous_logs("/opt/PreviousLogs", "/tmp/dest");
+    EXPECT_GE(result, 0);
+}
+
+// Test collect_pcap_logs function
+TEST_F(ArchiveManagerTest, CollectPcapLogs_NullParameters) {
+    EXPECT_EQ(collect_pcap_logs(nullptr, "/tmp/dest"), -1);
+    EXPECT_EQ(collect_pcap_logs(&ctx, nullptr), -1);
+}
+
+TEST_F(ArchiveManagerTest, CollectPcapLogs_NotEnabled) {
+    ctx.include_pcap = false;
+    EXPECT_EQ(collect_pcap_logs(&ctx, "/tmp/dest"), 0);
+}
+
+TEST_F(ArchiveManagerTest, CollectPcapLogs_Enabled) {
+    ctx.include_pcap = true;
+    strcpy(ctx.log_path, "/opt/logs");
+    
+    int result = collect_pcap_logs(&ctx, "/tmp/dest");
+    EXPECT_GE(result, 0);
+}
+
+// Test collect_dri_logs function
+TEST_F(ArchiveManagerTest, CollectDriLogs_NullParameters) {
+    EXPECT_EQ(collect_dri_logs(nullptr, "/tmp/dest"), -1);
+    EXPECT_EQ(collect_dri_logs(&ctx, nullptr), -1);
+}
+
+TEST_F(ArchiveManagerTest, CollectDriLogs_NotEnabled) {
+    ctx.include_dri = false;
+    EXPECT_EQ(collect_dri_logs(&ctx, "/tmp/dest"), 0);
+}
+
+TEST_F(ArchiveManagerTest, CollectDriLogs_EmptyPath) {
+    ctx.include_dri = true;
+    memset(ctx.dri_log_path, 0, sizeof(ctx.dri_log_path));
+    EXPECT_EQ(collect_dri_logs(&ctx, "/tmp/dest"), 0);
+}
+
+TEST_F(ArchiveManagerTest, CollectDriLogs_DirectoryNotExists) {
+    ctx.include_dri = true;
+    strcpy(ctx.dri_log_path, "/opt/dri_logs");
+    
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(false));
+    
+    EXPECT_EQ(collect_dri_logs(&ctx, "/tmp/dest"), 0);
+}
+
+TEST_F(ArchiveManagerTest, CollectDriLogs_Success) {
+    ctx.include_dri = true;
+    strcpy(ctx.dri_log_path, "/opt/dri_logs");
+    
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillRepeatedly(Return(true));
+    
+    int result = collect_dri_logs(&ctx, "/tmp/dest");
+    EXPECT_GE(result, 0);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     int result = RUN_ALL_TESTS();
@@ -548,5 +682,7 @@ int main(int argc, char** argv) {
     
     return result;
 }
+
+
 
 

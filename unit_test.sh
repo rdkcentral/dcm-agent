@@ -75,7 +75,6 @@ for test in \
   ./../uploadstblogs/unittest/rbus_interface_gtest \
   ./../uploadstblogs/unittest/uploadstblogs_gtest \
   ./../uploadstblogs/unittest/event_manager_gtest \
-  ./../uploadstblogs/unittest/log_collector_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
   ./../uploadstblogs/unittest/strategy_dcm_gtest \
   ./../uploadstblogs/unittest/strategy_handler_gtest \
