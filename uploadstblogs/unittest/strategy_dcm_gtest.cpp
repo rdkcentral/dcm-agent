@@ -163,7 +163,7 @@ bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* fi
 
 // Include the actual implementation for testing
 #ifdef GTEST_ENABLE
-#include "../src/strategy_dcm.c"
+#include "../src/strategies.c"
 #endif
 
 // Test fixture class

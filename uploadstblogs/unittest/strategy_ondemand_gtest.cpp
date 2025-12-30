@@ -60,7 +60,7 @@ extern const StrategyHandler ondemand_strategy_handler;
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
 // Include the source file to access static functions
-#include "../src/strategy_ondemand.c"
+#include "../src/strategies.c"
 }
 
 using ::testing::_;

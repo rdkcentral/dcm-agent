@@ -24,8 +24,8 @@ bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_s
                path_handler_gtest archive_manager_gtest upload_engine_gtest \
                cleanup_handler_gtest verification_gtest \
                rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
-               retry_logic_gtest strategy_dcm_gtest \
-               strategy_handler_gtest strategy_ondemand_gtest
+               retry_logic_gtest strategies_gtest \
+               strategy_handler_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -std=c++11 -I. -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks \
@@ -82,7 +82,7 @@ path_handler_gtest_LDADD = $(COMMON_LDADD)
 path_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 path_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp
+archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp ../src/file_operations.c
 archive_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 archive_manager_gtest_LDADD = $(COMMON_LDADD)
 archive_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
@@ -130,11 +130,11 @@ retry_logic_gtest_LDADD = $(COMMON_LDADD)
 retry_logic_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 retry_logic_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-strategy_dcm_gtest_SOURCES = strategy_dcm_gtest.cpp
-strategy_dcm_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-strategy_dcm_gtest_LDADD = $(COMMON_LDADD)
-strategy_dcm_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-strategy_dcm_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_SOURCES = strategy_dcm_gtest.cpp strategy_ondemand_gtest.cpp
+strategies_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategies_gtest_LDADD = $(COMMON_LDADD)
+strategies_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 strategy_handler_gtest_SOURCES = strategy_handler_gtest.cpp
 strategy_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)

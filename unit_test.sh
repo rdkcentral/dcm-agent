@@ -76,9 +76,8 @@ for test in \
   ./../uploadstblogs/unittest/uploadstblogs_gtest \
   ./../uploadstblogs/unittest/event_manager_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
-  ./../uploadstblogs/unittest/strategy_dcm_gtest \
-  ./../uploadstblogs/unittest/strategy_handler_gtest \
-  ./../uploadstblogs/unittest/strategy_ondemand_gtest
+  ./../uploadstblogs/unittest/strategies_gtest \
+  ./../uploadstblogs/unittest/strategy_handler_gtest
   
 do
     $test
