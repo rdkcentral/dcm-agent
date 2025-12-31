@@ -580,7 +580,7 @@ TEST_F(ArchiveManagerTest, CollectLogs_Success) {
     strcpy(ctx.log_path, "/opt/logs");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
-        .WillOnce(Return(true));
+        .WillRepeatedly(Return(true));
     
     int result = collect_logs(&ctx, &session, "/tmp/dest");
     EXPECT_GE(result, 0);
@@ -601,7 +601,7 @@ TEST_F(ArchiveManagerTest, CollectPreviousLogs_DirectoryNotExists) {
 
 TEST_F(ArchiveManagerTest, CollectPreviousLogs_Success) {
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
-        .WillOnce(Return(true));
+        .WillRepeatedly(Return(true));
     
     int result = collect_previous_logs("/opt/PreviousLogs", "/tmp/dest");
     EXPECT_GE(result, 0);
@@ -658,7 +658,7 @@ TEST_F(ArchiveManagerTest, CollectDriLogs_Success) {
     strcpy(ctx.dri_log_path, "/opt/dri_logs");
     
     EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
-        .WillOnce(Return(true));
+        .WillRepeatedly(Return(true));
     
     int result = collect_dri_logs(&ctx, "/tmp/dest");
     EXPECT_GE(result, 0);
