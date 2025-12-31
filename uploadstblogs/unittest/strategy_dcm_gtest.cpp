@@ -59,7 +59,7 @@ int clean_directory(const char* dirpath);
 int rbus_get_bool_param(const char* param_name, bool* value);
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp);
 int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
-void t2_count_notify(const char* marker, int count);
+void t2_count_notify(char* marker);
 
 // Mock sleep function to avoid delays in tests
 unsigned int sleep(unsigned int seconds);
@@ -184,9 +184,9 @@ bool has_log_files(const char* dirpath) {
     return true; // Default: assume logs exist
 }
 
-int get_system_uptime(double* uptime) {
+bool get_system_uptime(double* uptime) {
     if (uptime) *uptime = 3600.0; // Default: 1 hour uptime
-    return 0;
+    return true;
 }
 
 int remove_old_directories(const char* base_dir, const char* prefix, int keep_count) {
@@ -229,9 +229,9 @@ int clean_directory(const char* dirpath) {
     return 0; // Success
 }
 
-int rbus_get_bool_param(const char* param_name, bool* value) {
+bool rbus_get_bool_param(const char* param_name, bool* value) {
     if (value) *value = false;
-    return 0; // Success
+    return true;
 }
 
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp) {
@@ -246,7 +246,7 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path) {
     return 0; // Success
 }
 
-void t2_count_notify(const char* marker, int count) {
+void t2_count_notify(char* marker) {
     // No-op for tests
 }
 
