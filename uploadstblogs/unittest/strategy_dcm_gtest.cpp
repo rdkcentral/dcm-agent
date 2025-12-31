@@ -43,6 +43,24 @@ int clear_old_packet_captures(const char* log_path);
 bool remove_directory(const char* dirpath);
 bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename);
 
+// Additional external functions needed by strategies.c
+bool has_log_files(const char* dirpath);
+int get_system_uptime(double* uptime);
+int remove_old_directories(const char* base_dir, const char* prefix, int keep_count);
+bool file_exists(const char* filepath);
+bool remove_file(const char* filepath);
+void emit_no_logs_reboot(const RuntimeContext* ctx);
+void emit_no_logs_ondemand(void);
+bool create_directory(const char* dirpath);
+int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir);
+int remove_timestamp_from_files(const char* dirpath);
+int move_directory_contents(const char* source_dir, const char* dest_dir);
+int clean_directory(const char* dirpath);
+int rbus_get_bool_param(const char* param_name, bool* value);
+bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp);
+int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
+void t2_count_notify(const char* marker, int count);
+
 // Mock sleep function to avoid delays in tests
 unsigned int sleep(unsigned int seconds);
 
@@ -160,6 +178,78 @@ bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* fi
     
     return true;
 }
+
+// Additional mock implementations for strategies.c
+bool has_log_files(const char* dirpath) {
+    return true; // Default: assume logs exist
+}
+
+int get_system_uptime(double* uptime) {
+    if (uptime) *uptime = 3600.0; // Default: 1 hour uptime
+    return 0;
+}
+
+int remove_old_directories(const char* base_dir, const char* prefix, int keep_count) {
+    return 0; // Success
+}
+
+bool file_exists(const char* filepath) {
+    return false; // Default: file doesn't exist
+}
+
+bool remove_file(const char* filepath) {
+    return true; // Success
+}
+
+void emit_no_logs_reboot(const RuntimeContext* ctx) {
+    // No-op for tests
+}
+
+void emit_no_logs_ondemand(void) {
+    // No-op for tests
+}
+
+bool create_directory(const char* dirpath) {
+    return true; // Success
+}
+
+int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir) {
+    return 0; // Success
+}
+
+int remove_timestamp_from_files(const char* dirpath) {
+    return 0; // Success
+}
+
+int move_directory_contents(const char* source_dir, const char* dest_dir) {
+    return 0; // Success
+}
+
+int clean_directory(const char* dirpath) {
+    return 0; // Success
+}
+
+int rbus_get_bool_param(const char* param_name, bool* value) {
+    if (value) *value = false;
+    return 0; // Success
+}
+
+bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp) {
+    if (buffer && buffer_size > 0) {
+        snprintf(buffer, buffer_size, "test_archive_%s.tar.gz", type ? type : "default");
+        return true;
+    }
+    return false;
+}
+
+int create_dri_archive(RuntimeContext* ctx, const char* archive_path) {
+    return 0; // Success
+}
+
+void t2_count_notify(const char* marker, int count) {
+    // No-op for tests
+}
+
 
 // Include the actual implementation for testing
 #ifdef GTEST_ENABLE
