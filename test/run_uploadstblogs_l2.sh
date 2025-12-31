@@ -85,7 +85,7 @@ echo ""
 echo "2. Running Normal Upload Tests..."
 mkdir -p /opt/logs/PreviousLogs
 pytest -v --json-report --json-report-summary \
-        --json-report-file $RESULT_DIR/upload_normal.json ./functional-tests/tests/test_upload.py
+        --json-report-file $RESULT_DIR/upload_normal.json ./functional-tests/tests/test_uploadstblogs_normal_upload.py
 
 
 echo ""
