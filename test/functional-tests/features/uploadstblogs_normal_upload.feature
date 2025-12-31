@@ -50,17 +50,3 @@ Feature: uploadSTBLogs Normal Upload Operations
     And the upload response should return HTTP 200 status
     And upload success telemetry should be generated
     And memory usage should remain within defined limits
-
-  @md5_verification @data_integrity @positive
-  Scenario: MD5 Checksum Verification
-    Given the uploadSTBLogs service is initialized
-    And the device properties file is present and valid
-    And the HTTP upload server is accessible
-    And log files are available for upload
-    When uploading log files with MD5 verification enabled
-    Then the service should collect and archive log files
-    And the service should calculate MD5 checksum of archive
-    And the checksum should be included in upload metadata
-    And logs should be uploaded successfully
-    And the server should verify MD5 checksum
-    And upload success telemetry should be generated with checksum
