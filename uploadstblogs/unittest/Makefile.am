@@ -82,7 +82,7 @@ path_handler_gtest_LDADD = $(COMMON_LDADD)
 path_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 path_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp ../src/file_operations.c
+archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp
 archive_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 archive_manager_gtest_LDADD = $(COMMON_LDADD)
 archive_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
