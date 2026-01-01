@@ -62,7 +62,7 @@ void release_lock(void);
  * @return 0 on success, 1 on failure
  * 
  * @note This function handles its own locking and resource cleanup.
- *       It is thread-safe and can be called from any component.
+ *       It can be called from any component.
  * 
  * Example usage:
  * @code
