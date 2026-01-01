@@ -352,8 +352,8 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Context in setup: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, (void*)ctx,
-            ctx ? ctx->mac_address : "(NULL CTX)",
-            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
+            ctx ? ctx->device.mac_address : "(NULL CTX)",
+            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
 
     // Check if LOG_PATH has .txt or .log files
     // Script uploadLogOnDemand lines 741-752:
@@ -474,8 +474,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
-            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
+            ctx && ctx->device.mac_address ? ctx->device.mac_address : "(NULL/INVALID)",
+            (ctx && strlen(ctx->device.device_type) > 0) ? ctx->device.device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
@@ -917,7 +917,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
         char dri_filename[MAX_FILENAME_LENGTH];
         if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
-                                   ctx->mac_address, "DRI_Logs")) {
+                                   ctx->device.mac_address, "DRI_Logs")) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                     "[%s:%d] Failed to generate DRI archive filename\n", 
                     __FUNCTION__, __LINE__);

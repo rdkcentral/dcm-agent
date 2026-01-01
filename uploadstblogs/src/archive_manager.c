@@ -700,12 +700,12 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
             __FUNCTION__, __LINE__, 
-            ctx->mac_address ? ctx->mac_address : "(NULL)", 
+            ctx->device.mac_address ? ctx->device.mac_address : "(NULL)", 
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
     if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
-                               ctx->mac_address, prefix)) {
+                               ctx->device.mac_address, prefix)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
