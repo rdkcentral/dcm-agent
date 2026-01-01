@@ -130,7 +130,7 @@ retry_logic_gtest_LDADD = $(COMMON_LDADD)
 retry_logic_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 retry_logic_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-strategies_gtest_SOURCES = strategy_dcm_gtest.cpp
+strategies_gtest_SOURCES = strategies_gtest.cpp
 strategies_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 strategies_gtest_LDADD = $(COMMON_LDADD)
 strategies_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
