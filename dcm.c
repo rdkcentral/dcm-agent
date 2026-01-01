@@ -112,7 +112,6 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     dcmUtilsSysCmdExec(pExecBuff);
 }
 
-
 /** @brief Signal handler, un-intializes the module before exiting
  *
  *  @param[in]  sig  signal type
