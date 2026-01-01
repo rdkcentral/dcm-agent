@@ -73,7 +73,7 @@ static bool is_device_broadband(const RuntimeContext* ctx)
     if (!ctx) {
         return false;
     }
-    return (strcmp(ctx->device.device_type, "broadband") == 0);
+    return (strcmp(ctx->device_type, "broadband") == 0);
 }
 
 void emit_privacy_abort(void)

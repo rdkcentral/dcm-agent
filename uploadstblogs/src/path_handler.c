@@ -62,9 +62,9 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     char *archive_filepath = session->archive_file;
     
     // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
-    char *endpoint_url = (strlen(ctx->endpoints.endpoint_url) > 0) ? 
-                          ctx->endpoints.endpoint_url : 
-                          ctx->endpoints.upload_http_link;
+    char *endpoint_url = (strlen(ctx->endpoint_url) > 0) ? 
+                          ctx->endpoint_url : 
+                          ctx->upload_http_link;
     
     if (!endpoint_url || strlen(endpoint_url) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
@@ -76,7 +76,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
+    if (ctx->encryption_enable) {
         if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
             md5_ptr = md5_base64;
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -143,7 +143,7 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
+    if (ctx->encryption_enable) {
         if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
             md5_ptr = md5_base64;
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -230,15 +230,15 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr)
 {
     // Check if proxy fallback is applicable (mediaclient devices only)
-    if (strlen(ctx->device.device_type) == 0 || 
-        strcmp(ctx->device.device_type, "mediaclient") != 0 ||
-        strlen(ctx->endpoints.proxy_bucket) == 0) {
+    if (strlen(ctx->device_type) == 0 || 
+        strcmp(ctx->device_type, "mediaclient") != 0 ||
+        strlen(ctx->proxy_bucket) == 0) {
         return UPLOADSTB_FAILED;
     }
     
     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
             "[%s:%d] Trying logupload through Proxy server: %s\n",
-            __FUNCTION__, __LINE__, ctx->endpoints.proxy_bucket);
+            __FUNCTION__, __LINE__, ctx->proxy_bucket);
     
     // Read S3 URL from /tmp/httpresult.txt (saved during presign step)
     char s3_url[1024] = {0};
@@ -293,7 +293,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     }
     
     // Check if the combined URL will fit in the buffer
-    size_t proxy_bucket_len = strlen(ctx->endpoints.proxy_bucket);
+    size_t proxy_bucket_len = strlen(ctx->proxy_bucket);
     size_t path_part_len = strlen(path_part);
     size_t total_len = 8 + proxy_bucket_len + path_part_len + 1; // "https://" + bucket + path + null
     
@@ -306,7 +306,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     
     // Use safer string construction to avoid truncation warnings
     int ret = snprintf(proxy_url, sizeof(proxy_url), "https://%.*s%.*s", 
-                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->endpoints.proxy_bucket,
+                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->proxy_bucket,
                        (int)(sizeof(proxy_url) - 9 - proxy_bucket_len - 1), path_part);
     
     if (ret < 0 || ret >= sizeof(proxy_url)) {
@@ -324,7 +324,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     // Upload to proxy using enhanced function
     UploadStatusDetail proxy_status;
     int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, 
-                                            md5_ptr, ctx->settings.ocsp_enabled, &proxy_status);
+                                            md5_ptr, ctx->ocsp_enabled, &proxy_status);
     
     // Update session state with real status codes
     session->curl_code = proxy_status.curl_code;
@@ -373,7 +373,7 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
                                           const char* md5_ptr, MtlsAuth_t* auth)
 {
     // Set OCSP if enabled (uploadutils will read this via __uploadutil_get_ocsp)
-    __uploadutil_set_ocsp(ctx->settings.ocsp_enabled);
+    __uploadutil_set_ocsp(ctx->ocsp_enabled);
     
     // Call uploadutils wrapper that handles:
     // - curl initialization

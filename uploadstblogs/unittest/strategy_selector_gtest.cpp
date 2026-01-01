@@ -50,24 +50,24 @@ protected:
         memset(&session, 0, sizeof(SessionState));
         
         // Set up default context values
-        strcpy(ctx.paths.log_path, "/opt/logs");
-        strcpy(ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
-        strcpy(ctx.paths.temp_dir, "/tmp");
-        strcpy(ctx.paths.archive_path, "/tmp");
-        strcpy(ctx.paths.telemetry_path, "/opt/.telemetry");
-        strcpy(ctx.paths.dcm_log_path, "/tmp/DCM");
-        strcpy(ctx.endpoints.endpoint_url, "https://primary.example.com/upload");
-        strcpy(ctx.endpoints.upload_http_link, "https://fallback.example.com/upload");
+        strcpy(ctx.log_path, "/opt/logs");
+        strcpy(ctx.prev_log_path, "/opt/logs/PreviousLogs");
+        strcpy(ctx.temp_dir, "/tmp");
+        strcpy(ctx.archive_path, "/tmp");
+        strcpy(ctx.telemetry_path, "/opt/.telemetry");
+        strcpy(ctx.dcm_log_path, "/tmp/DCM");
+        strcpy(ctx.endpoint_url, "https://primary.example.com/upload");
+        strcpy(ctx.upload_http_link, "https://fallback.example.com/upload");
         
         // Set device type to mediaclient for privacy mode tests to work
-        strcpy(ctx.device.device_type, "mediaclient");
+        strcpy(ctx.device_type, "mediaclient");
         
         // Set default flag values
-        ctx.flags.rrd_flag = 0;
-        ctx.flags.dcm_flag = 1;
-        ctx.flags.upload_on_reboot = 0;
-        ctx.flags.flag = 0;
-        ctx.flags.trigger_type = TRIGGER_SCHEDULED;
+        ctx.rrd_flag = 0;
+        ctx.dcm_flag = 1;
+        ctx.upload_on_reboot = 0;
+        ctx.flag = 0;
+        ctx.trigger_type = TRIGGER_SCHEDULED;
     }
 
     void TearDown() override {
@@ -86,7 +86,7 @@ TEST_F(StrategySelectorTest, EarlyChecks_NullContext) {
 }
 
 TEST_F(StrategySelectorTest, EarlyChecks_RrdFlag) {
-    ctx.flags.rrd_flag = 1;
+    ctx.rrd_flag = 1;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_RRD, result);
@@ -95,7 +95,7 @@ TEST_F(StrategySelectorTest, EarlyChecks_RrdFlag) {
 TEST_F(StrategySelectorTest, EarlyChecks_PrivacyMode) {
     // Mock privacy mode check - this test requires the actual privacy check function
     // For now, test that privacy mode false allows other logic to proceed
-    ctx.settings.privacy_do_not_share = true;
+    ctx.privacy_do_not_share = true;
     
     Strategy result = early_checks(&ctx);
     // Result depends on privacy implementation, just verify it doesn't crash
@@ -103,23 +103,23 @@ TEST_F(StrategySelectorTest, EarlyChecks_PrivacyMode) {
 }
 
 TEST_F(StrategySelectorTest, EarlyChecks_OnDemandTrigger) {
-    ctx.flags.flag = 1;
-    ctx.flags.trigger_type = TRIGGER_ONDEMAND;
+    ctx.flag = 1;
+    ctx.trigger_type = TRIGGER_ONDEMAND;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_ONDEMAND, result);
 }
 
 TEST_F(StrategySelectorTest, EarlyChecks_NonDcmFlag) {
-    ctx.flags.dcm_flag = 0;
+    ctx.dcm_flag = 0;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_NON_DCM, result);
 }
 
 TEST_F(StrategySelectorTest, EarlyChecks_RebootStrategy) {
-    ctx.flags.upload_on_reboot = 1;
-    ctx.flags.flag = 1;
+    ctx.upload_on_reboot = 1;
+    ctx.flag = 1;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_REBOOT, result);
@@ -138,21 +138,21 @@ TEST_F(StrategySelectorTest, IsPrivacyMode_NullContext) {
 }
 
 TEST_F(StrategySelectorTest, IsPrivacyMode_Enabled) {
-    ctx.settings.privacy_do_not_share = true;
+    ctx.privacy_do_not_share = true;
     
     bool result = is_privacy_mode(&ctx);
     EXPECT_TRUE(result);
 }
 
 TEST_F(StrategySelectorTest, IsPrivacyMode_Disabled) {
-    ctx.settings.privacy_do_not_share = false;
+    ctx.privacy_do_not_share = false;
     
     bool result = is_privacy_mode(&ctx);
     EXPECT_FALSE(result);
 }
 
 TEST_F(StrategySelectorTest, IsPrivacyMode_False) {
-    ctx.settings.privacy_do_not_share = false;
+    ctx.privacy_do_not_share = false;
     
     bool result = is_privacy_mode(&ctx);
     EXPECT_FALSE(result);
@@ -187,10 +187,10 @@ TEST_F(StrategySelectorTest, DecidePaths_ValidInputs) {
 // Test strategy decision tree combinations
 TEST_F(StrategySelectorTest, StrategyDecisionTree_RrdFlagOverridesEverything) {
     // Test priority: RRD flag should override everything
-    ctx.flags.rrd_flag = 1;
-    ctx.flags.flag = 1;
-    ctx.flags.trigger_type = TRIGGER_ONDEMAND;
-    ctx.flags.dcm_flag = 0;
+    ctx.rrd_flag = 1;
+    ctx.flag = 1;
+    ctx.trigger_type = TRIGGER_ONDEMAND;
+    ctx.dcm_flag = 0;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_RRD, result);
@@ -198,8 +198,8 @@ TEST_F(StrategySelectorTest, StrategyDecisionTree_RrdFlagOverridesEverything) {
 
 TEST_F(StrategySelectorTest, StrategyDecisionTree_NonDcmTakesPriority) {
     // When dcm_flag=0, should return NON_DCM regardless of trigger_type
-    ctx.flags.trigger_type = TRIGGER_ONDEMAND;
-    ctx.flags.dcm_flag = 0;
+    ctx.trigger_type = TRIGGER_ONDEMAND;
+    ctx.dcm_flag = 0;
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_NON_DCM, result); // DCM_FLAG=0 always goes to NON_DCM
@@ -207,8 +207,8 @@ TEST_F(StrategySelectorTest, StrategyDecisionTree_NonDcmTakesPriority) {
 
 TEST_F(StrategySelectorTest, StrategyDecisionTree_RebootRequiresBothFlags) {
     // Test that REBOOT strategy requires both upload_on_reboot=1 AND flag=1
-    ctx.flags.upload_on_reboot = 1;
-    ctx.flags.flag = 0; // Missing this flag
+    ctx.upload_on_reboot = 1;
+    ctx.flag = 0; // Missing this flag
     
     Strategy result = early_checks(&ctx);
     EXPECT_EQ(STRAT_DCM, result); // Should fall through to DCM
