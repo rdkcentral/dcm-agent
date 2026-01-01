@@ -37,6 +37,7 @@
 #include "dcm_rbus.h"
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
+#include "uploadstblogs.h"
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -77,13 +78,30 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
             pPrctl = "HTTP";
         }
         if(pURL == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using %s\n", DCM_DEF_LOG_URL);
+            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
             pURL = DCM_DEF_LOG_URL;
         }
 
-        DCMInfo("\nStart log upload Script\n");
-        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 0 1 0 %s %s &",
-                                               pRDKPath, DCM_LOG_TFTP, pPrctl, pURL);
+        DCMInfo("\nStart log upload via library API\n");
+
+        // Call uploadstblogs library API instead of shell script
+        UploadSTBLogsParams params = {
+            .flag = 0,
+            .dcm_flag = 1,
+            .upload_on_reboot = false,
+            .upload_protocol = pPrctl,
+            .upload_http_link = pURL,
+            .trigger_type = TRIGGER_SCHEDULED,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload failed with error code: %d\n", result);
+        } else {
+            DCMInfo("Log upload completed successfully\n");
+        }
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
@@ -93,6 +111,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
 
     dcmUtilsSysCmdExec(pExecBuff);
 }
+
 
 /** @brief Signal handler, un-intializes the module before exiting
  *
