@@ -1,3 +1,4 @@
+
 /*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
@@ -52,7 +53,68 @@ bool acquire_lock(const char* lock_path);
 void release_lock(void);
 
 /**
+ * @brief Public API for executing STB log upload from external components
+ * 
+ * This is the recommended API for external components to call.
+ * It takes structured parameters instead of argc/argv.
+ *
+ * @param params Pointer to UploadSTBLogsParams structure with upload parameters
+ * @return 0 on success, 1 on failure
+ * 
+ * @note This function handles its own locking and resource cleanup.
+ *       It is thread-safe and can be called from any component.
+ * 
+ * Example usage:
+ * @code
+ *   UploadSTBLogsParams params = {
+ *       .flag = 1,
+ *       .dcm_flag = 0,
+ *       .upload_on_reboot = false,
+ *       .upload_protocol = "HTTPS",
+ *       .upload_http_link = "https://example.com/upload",
+ *       .trigger_type = TRIGGER_ONDEMAND,
+ *       .rrd_flag = false,
+ *       .rrd_file = NULL
+ *   };
+ *   int result = uploadstblogs_run(&params);
+ * @endcode
+ */
+int uploadstblogs_run(const UploadSTBLogsParams* params);
+
+/**
+ * @brief Internal API for executing STB log upload with argc/argv (used by main)
+ * 
+ * This function is used internally by main() and kept for compatibility.
+ * External components should use uploadstblogs_run() instead.
+ * 
+ * This function encapsulates the complete log upload workflow and can be
+ * called directly from other components without requiring the main() entry point.
+ * It handles initialization, validation, strategy execution, and cleanup.
+ *
+ * @param argc Argument count (same as main)
+ * @param argv Argument vector (same as main):
+ *             argv[1]: LOG_PATH (e.g., "/opt/logs")
+ *             argv[2]: DCM_LOG_PATH (e.g., "/tmp/DCM")
+ *             argv[3]: DCM_FLAG (integer)
+ *             argv[4]: UploadOnReboot ("true"/"false")
+ *             argv[5]: UploadProtocol ("HTTPS"/"HTTP")
+ *             argv[6]: UploadHttpLink (URL)
+ *             argv[7]: TriggerType ("cron"/"ondemand"/"manual"/"reboot")
+ *             argv[8]: RRD_FLAG ("true"/"false")
+ *             argv[9]: RRD_UPLOADLOG_FILE (path to RRD archive)
+ * 
+ * @return 0 on success, 1 on failure
+ * 
+ * @note This function handles its own locking and resource cleanup.
+ *       It is safe to call from external components.
+ */
+int uploadstblogs_execute(int argc, char** argv);
+
+/**
  * @brief Main application entry point
+ * 
+ * This is a thin wrapper around uploadstblogs_execute() that provides
+ * the standard main() interface for the standalone binary.
  */
 int main(int argc, char** argv);
 
