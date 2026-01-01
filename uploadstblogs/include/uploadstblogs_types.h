@@ -1,3 +1,4 @@
+
 /*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
@@ -74,6 +75,7 @@ typedef struct {
     const char* rrd_file;           /**< RRD upload log file path (optional) */
 } UploadSTBLogsParams;
 
+
 /**
  * @enum Strategy
  * @brief Upload strategies based on trigger conditions
@@ -97,6 +99,19 @@ typedef enum {
     PATH_CODEBIG,          /**< CodeBig upload using OAuth */
     PATH_NONE              /**< No path available */
 } UploadPath;
+
+/**
+ * @enum TriggerType
+ * @brief Upload trigger types
+ */
+typedef enum {
+    TRIGGER_SCHEDULED = 0,
+    TRIGGER_MANUAL = 1,
+    TRIGGER_REBOOT = 2,
+    TRIGGER_CRASH = 3,
+    TRIGGER_DEBUG = 4,
+    TRIGGER_ONDEMAND = 5
+} TriggerType;
 
 /**
  * @enum UploadResult
@@ -139,7 +154,6 @@ typedef struct {
     bool include_dri;               /**< Include DRI logs */
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
-
 } UploadSettings;
 
 /**
@@ -177,7 +191,7 @@ typedef struct {
 typedef struct {
     char mac_address[MAX_MAC_LENGTH];         /**< Device MAC address */
     char device_type[32];                     /**< Device type (mediaclient, etc.) */
-    char build_type[32];                      /**< Build type */                 /**< Device name */
+    char build_type[32];                      /**< Build type */
 } DeviceInfo;
 
 /**
@@ -205,16 +219,65 @@ typedef struct {
 
 /**
  * @struct RuntimeContext
- * @brief Complete runtime context containing all configuration
+ * @brief Complete runtime context with all configuration fields flattened
+ * 
+ * Design: Completely flat structure - all fields are direct members.
+ * Access pattern: ctx->field_name (e.g., ctx->rrd_flag, ctx->log_path)
  */
 typedef struct {
-    UploadFlags flags;              /**< Upload control flags */
-    UploadSettings settings;        /**< Upload behavior settings */
-    PathConfig paths;               /**< File system paths */
-    EndpointConfig endpoints;       /**< Upload endpoints */
-    DeviceInfo device;              /**< Device information */
-    CertificateConfig certificates; /**< Certificate paths */
-    RetryConfig retry;              /**< Retry configuration */
+    // Upload control flags
+    int rrd_flag;                   /**< RRD mode flag */
+    int dcm_flag;                   /**< DCM mode flag */
+    int flag;                       /**< General upload flag */
+    int upload_on_reboot;           /**< Upload on reboot flag */
+    int trigger_type;               /**< Type of upload trigger */
+    
+    // Upload behavior settings
+    bool privacy_do_not_share;      /**< Privacy mode enabled */
+    bool ocsp_enabled;              /**< OCSP validation enabled */
+    bool encryption_enable;         /**< Encryption enabled */
+    bool direct_blocked;            /**< Direct path blocked */
+    bool codebig_blocked;           /**< CodeBig path blocked */
+    bool include_pcap;              /**< Include PCAP files */
+    bool include_dri;               /**< Include DRI logs */
+    bool tls_enabled;               /**< TLS 1.2 support enabled */
+    bool maintenance_enabled;       /**< Maintenance mode enabled */
+    
+    // File system paths
+    char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
+    char prev_log_path[MAX_PATH_LENGTH];      /**< Previous logs directory */
+    char archive_path[MAX_PATH_LENGTH];       /**< Archive output directory */
+    char rrd_file[MAX_PATH_LENGTH];           /**< RRD log file path */
+    char dri_log_path[MAX_PATH_LENGTH];       /**< DRI logs directory */
+    char temp_dir[MAX_PATH_LENGTH];           /**< Temporary directory */
+    char telemetry_path[MAX_PATH_LENGTH];     /**< Telemetry directory */
+    char dcm_log_file[MAX_PATH_LENGTH];       /**< DCM log file path */
+    char dcm_log_path[MAX_PATH_LENGTH];       /**< DCM log directory */
+    char iarm_event_binary[MAX_PATH_LENGTH];  /**< IARM event sender location */
+    
+    // Upload endpoints
+    char endpoint_url[MAX_URL_LENGTH];        /**< Upload endpoint URL */
+    char upload_http_link[MAX_URL_LENGTH];    /**< HTTP upload link */
+    char presign_url[MAX_URL_LENGTH];         /**< Pre-signed URL */
+    char proxy_bucket[MAX_URL_LENGTH];        /**< Proxy bucket for fallback uploads */
+    
+    // Device information
+    char mac_address[MAX_MAC_LENGTH];         /**< Device MAC address */
+    char device_type[32];                     /**< Device type (mediaclient, etc.) */
+    char build_type[32];                      /**< Build type */
+    
+    // Certificate paths
+    char cert_path[MAX_CERT_PATH_LENGTH];     /**< Client certificate path */
+    char key_path[MAX_CERT_PATH_LENGTH];      /**< Private key path */
+    char ca_cert_path[MAX_CERT_PATH_LENGTH];  /**< CA certificate path */
+    
+    // Retry configuration
+    int direct_max_attempts;        /**< Max attempts for direct path */
+    int codebig_max_attempts;       /**< Max attempts for CodeBig path */
+    int direct_retry_delay;         /**< Retry delay for direct (seconds) */
+    int codebig_retry_delay;        /**< Retry delay for CodeBig (seconds) */
+    int curl_timeout;               /**< Curl operation timeout */
+    int curl_tls_timeout;           /**< TLS handshake timeout */
 } RuntimeContext;
 
 /* ==========================
@@ -237,23 +300,6 @@ typedef struct {
     bool success;                   /**< Overall success status */
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
 } SessionState;
-
-/* ==========================
-   Metrics & Telemetry Structures
-   ========================== */
-
-/**
- * @struct UploadMetrics
- * @brief Metrics and telemetry data for upload operation
- */
-typedef struct {
-    int total_attempts;             /**< Total upload attempts */
-    int fallback_count;             /**< Number of fallback switches */
-    long upload_duration_ms;        /**< Total upload duration */
-    long archive_size_bytes;        /**< Archive file size */
-    int files_collected;            /**< Number of files in archive */
-    char last_error[256];           /**< Last error message */
-} UploadMetrics;
 
 /* ==========================
    Telemetry Helper Functions
