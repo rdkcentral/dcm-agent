@@ -60,6 +60,7 @@ bool rbus_get_bool_param(const char* param_name, bool* value);
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp);
 int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
 void t2_count_notify(char* marker);
+bool read_dcm_upload_flag(void);
 
 // Mock sleep function to avoid delays in tests
 unsigned int sleep(unsigned int seconds);
@@ -105,10 +106,6 @@ static char g_last_upload_archive_path[MAX_PATH_LENGTH];
 static char g_last_clear_log_path[MAX_PATH_LENGTH];
 static char g_last_remove_directory[MAX_PATH_LENGTH];
 
-bool dir_exists(const char* dirpath) {
-    return g_mock_dir_exists;
-}
-
 int add_timestamp_to_files(const char* dirpath) {
     g_add_timestamp_call_count++;
     strncpy(g_last_timestamp_dir, dirpath, sizeof(g_last_timestamp_dir) - 1);
@@ -121,43 +118,10 @@ int collect_pcap_logs(RuntimeContext* ctx, const char* target_dir) {
     return g_mock_collect_pcap_result;
 }
 
-int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
-    g_create_archive_call_count++;
-    strncpy(g_last_archive_source_dir, source_dir, sizeof(g_last_archive_source_dir) - 1);
-    return g_mock_create_archive_result;
-}
-
-int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path) {
-    g_upload_archive_call_count++;
-    strncpy(g_last_upload_archive_path, archive_path, sizeof(g_last_upload_archive_path) - 1);
-    
-    // Simulate execute_upload_cycle behavior: set session->success based on result
-    if (session && g_mock_upload_archive_result == 0) {
-        session->success = true;
-    } else if (session) {
-        session->success = false;
-    }
-    
-    return g_mock_upload_archive_result;
-}
-
 int clear_old_packet_captures(const char* log_path) {
     g_clear_packet_captures_call_count++;
     strncpy(g_last_clear_log_path, log_path, sizeof(g_last_clear_log_path) - 1);
     return g_mock_clear_packet_captures_result;
-}
-
-bool remove_directory(const char* dirpath) {
-    g_remove_directory_call_count++;
-    strncpy(g_last_remove_directory, dirpath, sizeof(g_last_remove_directory) - 1);
-    return g_mock_remove_directory_result;
-}
-
-unsigned int sleep(unsigned int seconds) {
-    g_sleep_call_count++;
-    g_last_sleep_seconds = seconds;
-    // Return immediately instead of sleeping in tests
-    return 0;
 }
 
 bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename) {
@@ -190,10 +154,6 @@ bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* fi
 }
 
 // Additional mock implementations for strategies.c
-bool has_log_files(const char* dirpath) {
-    return true; // Default: assume logs exist
-}
-
 bool get_system_uptime(double* uptime) {
     if (uptime) *uptime = 3600.0; // Default: 1 hour uptime
     return true;
@@ -203,28 +163,8 @@ int remove_old_directories(const char* base_dir, const char* prefix, int keep_co
     return 0; // Success
 }
 
-bool file_exists(const char* filepath) {
-    return false; // Default: file doesn't exist
-}
-
-bool remove_file(const char* filepath) {
-    return true; // Success
-}
-
 void emit_no_logs_reboot(const RuntimeContext* ctx) {
     // No-op for tests
-}
-
-void emit_no_logs_ondemand(void) {
-    // No-op for tests
-}
-
-bool create_directory(const char* dirpath) {
-    return true; // Success
-}
-
-int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir) {
-    return 0; // Success
 }
 
 int remove_timestamp_from_files(const char* dirpath) {
@@ -260,16 +200,8 @@ void t2_count_notify(char* marker) {
     // No-op for tests
 }
 
-FILE* fopen(const char* filename, const char* mode) {
-    return nullptr; // Simplified for tests
-}
-
-int fclose(FILE* stream) {
-    return 0; // Success
-}
-
-int fprintf(FILE* stream, const char* format, ...) {
-    return 0; // Simplified for tests
+bool read_dcm_upload_flag(void) {
+    return true; // Default: DCM upload enabled
 }
 
 // Include the actual implementation for testing
@@ -334,12 +266,21 @@ TEST_F(StrategyDcmTest, SetupPhase_Success) {
     int result = dcm_strategy_handler.setup_phase(&ctx, &session);
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_add_timestamp_call_count, 1);
-    EXPECT_EQ(g_collect_pcap_call_count, 1);
+    // Note: collect_pcap_logs is called in archive phase, not setup
 }
 
 TEST_F(StrategyDcmTest, ArchivePhase_Success) {
     int result = dcm_strategy_handler.archive_phase(&ctx, &session);
     EXPECT_EQ(result, 0);
+    EXPECT_EQ(g_create_archive_call_count, 1);
+}
+
+TEST_F(StrategyDcmTest, ArchivePhase_WithPcap) {
+    ctx.include_pcap = true;
+    
+    int result = dcm_strategy_handler.archive_phase(&ctx, &session);
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(g_collect_pcap_call_count, 1); // Should collect PCAP in archive phase
     EXPECT_EQ(g_create_archive_call_count, 1);
 }
 
@@ -390,6 +331,125 @@ public:
 };
 
 static MockFileOperations* g_mock_file_ops = nullptr;
+
+// Mock implementations that delegate to the mock object
+extern "C" {
+    bool dir_exists(const char* dirpath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->dir_exists(dirpath);
+        }
+        return g_mock_dir_exists;
+    }
+    
+    bool has_log_files(const char* dirpath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->has_log_files(dirpath);
+        }
+        return true; // Default: assume logs exist
+    }
+    
+    bool create_directory(const char* dirpath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->create_directory(dirpath);
+        }
+        return true; // Success
+    }
+    
+    bool remove_directory(const char* dirpath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->remove_directory(dirpath);
+        }
+        g_remove_directory_call_count++;
+        strncpy(g_last_remove_directory, dirpath, sizeof(g_last_remove_directory) - 1);
+        return g_mock_remove_directory_result;
+    }
+    
+    bool file_exists(const char* filepath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->file_exists(filepath);
+        }
+        return false; // Default: file doesn't exist
+    }
+    
+    bool remove_file(const char* filepath) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->remove_file(filepath);
+        }
+        return true; // Success
+    }
+    
+    int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->collect_logs(ctx, session, dest_dir);
+        }
+        return 0; // Success
+    }
+    
+    int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->create_archive(ctx, session, source_dir);
+        }
+        g_create_archive_call_count++;
+        strncpy(g_last_archive_source_dir, source_dir, sizeof(g_last_archive_source_dir) - 1);
+        return g_mock_create_archive_result;
+    }
+    
+    int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->upload_archive(ctx, session, archive_path);
+        }
+        g_upload_archive_call_count++;
+        strncpy(g_last_upload_archive_path, archive_path, sizeof(g_last_upload_archive_path) - 1);
+        
+        // Simulate execute_upload_cycle behavior: set session->success based on result
+        if (session && g_mock_upload_archive_result == 0) {
+            session->success = true;
+        } else if (session) {
+            session->success = false;
+        }
+        
+        return g_mock_upload_archive_result;
+    }
+    
+    void emit_no_logs_ondemand(void) {
+        if (g_mock_file_ops) {
+            g_mock_file_ops->emit_no_logs_ondemand();
+            return;
+        }
+        // No-op for tests
+    }
+    
+    unsigned int sleep(unsigned int seconds) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->sleep(seconds);
+        }
+        g_sleep_call_count++;
+        g_last_sleep_seconds = seconds;
+        // Return immediately instead of sleeping in tests
+        return 0;
+    }
+    
+    FILE* fopen(const char* filename, const char* mode) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->fopen(filename, mode);
+        }
+        return nullptr; // Simplified for tests
+    }
+    
+    int fclose(FILE* stream) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->fclose(stream);
+        }
+        return 0; // Success
+    }
+    
+    int fprintf(FILE* stream, const char* format, ...) {
+        if (g_mock_file_ops) {
+            return g_mock_file_ops->fprintf(stream, format, "");
+        }
+        return 0; // Simplified for tests
+    }
+}
 
 class StrategyOndemandTest : public ::testing::Test {
 protected:
