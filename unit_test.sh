@@ -32,6 +32,7 @@ export top_srcdir=`pwd`
 
 cd unittest/
 cp mocks/mockrbus.h /usr/local/include
+cp ../uploadstblogs/include/uploadstblogs.h /usr/local/include
 automake --add-missing
 autoreconf --install
 
@@ -41,7 +42,6 @@ make clean
 make
 
 cd ../uploadstblogs/unittest
-cp ../uploadstblogs/include/uploadstblogs.h /usr/local/include
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
