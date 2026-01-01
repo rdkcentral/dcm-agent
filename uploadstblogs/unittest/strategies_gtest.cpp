@@ -496,13 +496,33 @@ TEST_F(StrategyOndemandTest, SetupPhase_Success_WithLogFiles) {
     EXPECT_CALL(mock_file_ops, has_log_files(StrEq("/opt/logs")))
         .WillOnce(Return(true));
     
-    // 3. Create temp directory (expect call after removing if exists)
+    // 3. Check if temp directory exists (assume it doesn't)
+    EXPECT_CALL(mock_file_ops, dir_exists(StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(false));
+    
+    // 4. Create temp directory
     EXPECT_CALL(mock_file_ops, create_directory(StrEq(ONDEMAND_TEMP_DIR)))
         .WillOnce(Return(true));
     
-    // 4. Collect logs
+    // 5. Collect logs
     EXPECT_CALL(mock_file_ops, collect_logs(&ctx, &session, StrEq(ONDEMAND_TEMP_DIR)))
         .WillOnce(Return(5));  // Return number of files collected
+    
+    // 6. Open lastlog_path file for writing
+    EXPECT_CALL(mock_file_ops, fopen(_, StrEq("a")))
+        .WillOnce(Return(reinterpret_cast<FILE*>(0x123)));  // Non-null pointer
+    
+    // 7. Write to the file
+    EXPECT_CALL(mock_file_ops, fprintf(_, _, _))
+        .WillOnce(Return(10));  // Number of characters written
+    
+    // 8. Close the file
+    EXPECT_CALL(mock_file_ops, fclose(_))
+        .WillOnce(Return(0));
+    
+    // 8. Check if old tar file exists
+    EXPECT_CALL(mock_file_ops, file_exists(_))
+        .WillOnce(Return(false));
     
     int result = ondemand_strategy_handler.setup_phase(&ctx, &session);
     EXPECT_EQ(0, result);
