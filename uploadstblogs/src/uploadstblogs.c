@@ -237,23 +237,23 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
     }
 
     /* Set parameters from API call */
-    ctx.flags.flag = params->flag;
-    ctx.flags.dcm_flag = params->dcm_flag;
-    ctx.flags.upload_on_reboot = params->upload_on_reboot ? 1 : 0;
-    ctx.flags.trigger_type = params->trigger_type;
-    ctx.flags.rrd_flag = params->rrd_flag ? 1 : 0;
+    ctx.flag = params->flag;
+    ctx.dcm_flag = params->dcm_flag;
+    ctx.upload_on_reboot = params->upload_on_reboot ? 1 : 0;
+    ctx.trigger_type = params->trigger_type;
+    ctx.rrd_flag = params->rrd_flag ? 1 : 0;
 
     if (params->upload_protocol && strcmp(params->upload_protocol, "HTTPS") == 0) {
-        ctx.settings.tls_enabled = true;
+        ctx.tls_enabled = true;
     }
 
     if (params->upload_http_link) {
-        strncpy(ctx.endpoints.upload_http_link, params->upload_http_link,
-                sizeof(ctx.endpoints.upload_http_link) - 1);
+        strncpy(ctx.upload_http_link, params->upload_http_link,
+                sizeof(ctx.upload_http_link) - 1);
     }
 
     if (params->rrd_file) {
-        strncpy(ctx.paths.rrd_file, params->rrd_file, sizeof(ctx.paths.rrd_file) - 1);
+        strncpy(ctx.rrd_file, params->rrd_file, sizeof(ctx.rrd_file) - 1);
     }
 
     /* Validate system prerequisites */
@@ -269,7 +269,7 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
 
     /* Handle early abort strategies */
     if (strategy == STRAT_PRIVACY_ABORT) {
-        enforce_privacy(ctx.paths.log_path);
+        enforce_privacy(ctx.log_path);
         emit_privacy_abort();
         release_lock();
         return 0;
@@ -280,13 +280,13 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
 
     /* Prepare archive based on strategy */
     if (strategy == STRAT_RRD) {
-        if (!file_exists(ctx.paths.rrd_file)) {
-            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.paths.rrd_file);
+        if (!file_exists(ctx.rrd_file)) {
+            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.rrd_file);
             release_lock();
             return 1;
         }
 
-        strncpy(session.archive_file, ctx.paths.rrd_file, sizeof(session.archive_file) - 1);
+        strncpy(session.archive_file, ctx.rrd_file, sizeof(session.archive_file) - 1);
         session.archive_file[sizeof(session.archive_file) - 1] = '\0';
 
         decide_paths(&ctx, &session);
@@ -352,8 +352,8 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Verify context after initialization */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after init: ctx addr=%p, MAC='%s', device_type='%s'\n",
-            (void*)&ctx, ctx.device.mac_address,
-            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
+            (void*)&ctx, ctx.mac_address,
+            strlen(ctx.device_type) > 0 ? ctx.device_type : "(empty)");
 
     /* Parse command-line arguments */
     if (!parse_args(argc, argv, &ctx)) {
@@ -365,8 +365,8 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
-            ctx.device.mac_address,
-            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
+            ctx.mac_address,
+            strlen(ctx.device_type) > 0 ? ctx.device_type : "(empty)");
 
     /* Validate system prerequisites */
     if (!validate_system(&ctx)) {
@@ -381,7 +381,7 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Handle early abort strategies */
     if (strategy == STRAT_PRIVACY_ABORT) {
-        enforce_privacy(ctx.paths.log_path);
+        enforce_privacy(ctx.log_path);
         emit_privacy_abort();
         release_lock();
         return 0;
@@ -395,14 +395,14 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Prepare archive based on strategy */
     if (strategy == STRAT_RRD) {
         // RRD: Upload pre-existing archive file directly (provided via command line)
-        if (!file_exists(ctx.paths.rrd_file)) {
-            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.paths.rrd_file);
+        if (!file_exists(ctx.rrd_file)) {
+            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.rrd_file);
             release_lock();
             return 1;
         }
         
         // Store RRD file path in session for upload
-        strncpy(session.archive_file, ctx.paths.rrd_file, sizeof(session.archive_file) - 1);
+        strncpy(session.archive_file, ctx.rrd_file, sizeof(session.archive_file) - 1);
         session.archive_file[sizeof(session.archive_file) - 1] = '\0';
         
         // Decide paths and upload
