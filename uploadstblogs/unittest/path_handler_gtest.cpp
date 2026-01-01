@@ -354,11 +354,11 @@ protected:
         }
 
         // Set up default test context
-        strcpy(test_ctx.endpoints.endpoint_url, "https://upload.example.com");
-        strcpy(test_ctx.endpoints.proxy_bucket, "proxy.bucket.com");
-        strcpy(test_ctx.device.device_type, "gateway");
-        test_ctx.settings.encryption_enable = false;
-        test_ctx.settings.ocsp_enabled = false;
+        strcpy(test_ctx.endpoint_url, "https://upload.example.com");
+        strcpy(test_ctx.proxy_bucket, "proxy.bucket.com");
+        strcpy(test_ctx.device_type, "gateway");
+        test_ctx.encryption_enable = false;
+        test_ctx.ocsp_enabled = false;
 
         // Set up default test session
         strcpy(test_session.archive_file, "/tmp/logs.tar.gz");
@@ -403,7 +403,7 @@ TEST_F(PathHandlerTest, ExecuteDirectPath_NullSession) {
 }
 
 TEST_F(PathHandlerTest, ExecuteDirectPath_WithEncryption) {
-    test_ctx.settings.encryption_enable = true;
+    test_ctx.encryption_enable = true;
 
     UploadResult result = execute_direct_path(&test_ctx, &test_session);
 
@@ -414,7 +414,7 @@ TEST_F(PathHandlerTest, ExecuteDirectPath_WithEncryption) {
 }
 
 TEST_F(PathHandlerTest, ExecuteDirectPath_EncryptionMD5Failure) {
-    test_ctx.settings.encryption_enable = true;
+    test_ctx.encryption_enable = true;
     mock_calculate_md5_result = false;
 
     UploadResult result = execute_direct_path(&test_ctx, &test_session);
@@ -458,7 +458,7 @@ TEST_F(PathHandlerTest, ExecuteDirectPath_UploadFailure) {
 }
 
 TEST_F(PathHandlerTest, ExecuteDirectPath_ProxyFallback_MediaClient) {
-    strcpy(test_ctx.device.device_type, "mediaclient");
+    strcpy(test_ctx.device_type, "mediaclient");
     strcpy(mock_file_content, "https://original.bucket.com/path/file.tar.gz?query=123\n");
 
     // Set up verify results: first call (metadata POST) succeeds, second call (S3 PUT) fails, third call (proxy) fails
@@ -475,8 +475,8 @@ TEST_F(PathHandlerTest, ExecuteDirectPath_ProxyFallback_MediaClient) {
 }
 
 TEST_F(PathHandlerTest, ExecuteDirectPath_ProxyFallback_NoProxyBucket) {
-    strcpy(test_ctx.device.device_type, "mediaclient");
-    strcpy(test_ctx.endpoints.proxy_bucket, ""); // No proxy bucket
+    strcpy(test_ctx.device_type, "mediaclient");
+    strcpy(test_ctx.proxy_bucket, ""); // No proxy bucket
 
     // Metadata POST succeeds, S3 PUT fails, but no proxy available
     mock_verify_results[0] = UPLOADSTB_SUCCESS;  // Metadata POST succeeds
@@ -516,7 +516,7 @@ TEST_F(PathHandlerTest, ExecuteCodeBigPath_NullSession) {
 }
 
 TEST_F(PathHandlerTest, ExecuteCodeBigPath_WithEncryption) {
-    test_ctx.settings.encryption_enable = true;
+    test_ctx.encryption_enable = true;
 
     UploadResult result = execute_codebig_path(&test_ctx, &test_session);
 
@@ -550,7 +550,7 @@ TEST_F(PathHandlerTest, ExecuteCodeBigPath_UploadFailure) {
 
 // Test proxy fallback functionality
 TEST_F(PathHandlerTest, ProxyFallback_FileNotFound) {
-    strcpy(test_ctx.device.device_type, "mediaclient");
+    strcpy(test_ctx.device_type, "mediaclient");
     mock_file_exists = false; // httpresult.txt doesn't exist
 
     // Metadata POST succeeds, but S3 PUT will fail due to missing file
@@ -564,7 +564,7 @@ TEST_F(PathHandlerTest, ProxyFallback_FileNotFound) {
 }
 
 TEST_F(PathHandlerTest, ProxyFallback_InvalidURL) {
-    strcpy(test_ctx.device.device_type, "mediaclient");
+    strcpy(test_ctx.device_type, "mediaclient");
     strcpy(mock_file_content, "invalid-url-format\n");
 
     // Metadata POST succeeds, but S3 PUT will fail due to invalid URL
@@ -577,7 +577,7 @@ TEST_F(PathHandlerTest, ProxyFallback_InvalidURL) {
 }
 
 TEST_F(PathHandlerTest, ProxyFallback_Success) {
-    strcpy(test_ctx.device.device_type, "mediaclient");
+    strcpy(test_ctx.device_type, "mediaclient");
     strcpy(mock_file_content, "https://original.bucket.com/path/file.tar.gz?query=123\n");
 
     // Set up verify results: metadata POST succeeds, S3 PUT fails, proxy succeeds
@@ -596,7 +596,7 @@ TEST_F(PathHandlerTest, ProxyFallback_Success) {
 
 // Test OCSP functionality
 TEST_F(PathHandlerTest, ExecuteDirectPath_WithOCSP) {
-    test_ctx.settings.ocsp_enabled = true;
+    test_ctx.ocsp_enabled = true;
 
     UploadResult result = execute_direct_path(&test_ctx, &test_session);
 
@@ -606,7 +606,7 @@ TEST_F(PathHandlerTest, ExecuteDirectPath_WithOCSP) {
 }
 
 TEST_F(PathHandlerTest, ExecuteCodeBigPath_WithOCSP) {
-    test_ctx.settings.ocsp_enabled = true;
+    test_ctx.ocsp_enabled = true;
 
     UploadResult result = execute_codebig_path(&test_ctx, &test_session);
 
