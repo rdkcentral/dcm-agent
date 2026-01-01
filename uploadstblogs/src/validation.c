@@ -73,62 +73,62 @@ bool validate_directories(const RuntimeContext* ctx)
     bool all_valid = true;
 
     // Check LOG_PATH - critical directory
-    if (strlen(ctx->paths.log_path) > 0) {
-        if (!dir_exists(ctx->paths.log_path)) {
+    if (strlen(ctx->log_path) > 0) {
+        if (!dir_exists(ctx->log_path)) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] LOG_PATH does not exist: %s (will be created if needed)\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.log_path);
+                    __FUNCTION__, __LINE__, ctx->log_path);
         } else {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] LOG_PATH exists: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.log_path);
+                    __FUNCTION__, __LINE__, ctx->log_path);
         }
     }
 
     // Check PREV_LOG_PATH - critical for upload (matches script behavior)
-    if (strlen(ctx->paths.prev_log_path) > 0) {
-        if (!dir_exists(ctx->paths.prev_log_path)) {
+    if (strlen(ctx->prev_log_path) > 0) {
+        if (!dir_exists(ctx->prev_log_path)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] The Previous Logs folder is missing: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+                    __FUNCTION__, __LINE__, ctx->prev_log_path);
             // Script sends MAINT_LOGUPLOAD_ERROR=5 when PREV_LOG_PATH is missing
             emit_folder_missing_error();
             all_valid = false;
         } else {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH exists: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.prev_log_path);
+                    __FUNCTION__, __LINE__, ctx->prev_log_path);
         }
     }
 
     // Check temp directory - critical
-    if (strlen(ctx->paths.temp_dir) > 0) {
-        if (!dir_exists(ctx->paths.temp_dir)) {
+    if (strlen(ctx->temp_dir) > 0) {
+        if (!dir_exists(ctx->temp_dir)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Temp directory does not exist: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.temp_dir);
+                    __FUNCTION__, __LINE__, ctx->temp_dir);
             all_valid = false;
         } else {
             // Check if writable
-            if (access(ctx->paths.temp_dir, W_OK) != 0) {
+            if (access(ctx->temp_dir, W_OK) != 0) {
                 RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Temp directory is not writable: %s\n", 
-                        __FUNCTION__, __LINE__, ctx->paths.temp_dir);
+                        __FUNCTION__, __LINE__, ctx->temp_dir);
                 all_valid = false;
             } else {
                 RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Temp directory is valid: %s\n", 
-                        __FUNCTION__, __LINE__, ctx->paths.temp_dir);
+                        __FUNCTION__, __LINE__, ctx->temp_dir);
             }
         }
     }
 
     // Check telemetry path - will be created if needed
-    if (strlen(ctx->paths.telemetry_path) > 0) {
-        if (!dir_exists(ctx->paths.telemetry_path)) {
+    if (strlen(ctx->telemetry_path) > 0) {
+        if (!dir_exists(ctx->telemetry_path)) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Telemetry path does not exist: %s (will be created)\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.telemetry_path);
+                    __FUNCTION__, __LINE__, ctx->telemetry_path);
         }
     }
 
     // Check DRI log path if DRI logs are included
-    if (ctx->settings.include_dri && strlen(ctx->paths.dri_log_path) > 0) {
-        if (!dir_exists(ctx->paths.dri_log_path)) {
+    if (ctx->include_dri && strlen(ctx->dri_log_path) > 0) {
+        if (!dir_exists(ctx->dri_log_path)) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log path does not exist: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.dri_log_path);
+                    __FUNCTION__, __LINE__, ctx->dri_log_path);
         }
     }
 

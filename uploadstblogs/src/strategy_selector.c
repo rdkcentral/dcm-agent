@@ -41,12 +41,12 @@ Strategy early_checks(const RuntimeContext* ctx)
 
     // Debug: Print all flag values
     fprintf(stderr, "DEBUG: early_checks() - rrd_flag=%d, dcm_flag=%d, trigger_type=%d\n", 
-            ctx->flags.rrd_flag, ctx->flags.dcm_flag, ctx->flags.trigger_type);
+            ctx->rrd_flag, ctx->dcm_flag, ctx->trigger_type);
 
     // Decision tree as per HLD:
     
     // 1. RRD_FLAG == 1 → STRAT_RRD
-    if (ctx->flags.rrd_flag == 1) {
+    if (ctx->rrd_flag == 1) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Strategy: RRD (rrd_flag=1)\n", __FUNCTION__, __LINE__);
         return STRAT_RRD;
@@ -89,26 +89,26 @@ Strategy early_checks(const RuntimeContext* ctx)
     // fi
 
     // 3. DCM_FLAG == 0 → STRAT_NON_DCM (uploadLogOnReboot true)
-    if (ctx->flags.dcm_flag == 0) {
+    if (ctx->dcm_flag == 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Strategy: NON_DCM (dcm_flag=0)\n", __FUNCTION__, __LINE__);
         return STRAT_NON_DCM;
     }
 
     // 4. DCM_FLAG == 1 && FLAG == 1 → Check UploadOnReboot and TriggerType
-    if (ctx->flags.dcm_flag == 1 && ctx->flags.flag == 1) {
+    if (ctx->dcm_flag == 1 && ctx->flag == 1) {
         // Both UploadOnReboot=1 and UploadOnReboot=0 can trigger ondemand or reboot
         // The difference is the parameter passed (true/false) to the function
         // which affects upload behavior inside the strategy
-        if (ctx->flags.trigger_type == TRIGGER_ONDEMAND) {
+        if (ctx->trigger_type == TRIGGER_ONDEMAND) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Strategy: ONDEMAND (dcm_flag=1, flag=1, upload_on_reboot=%d, trigger_type=5)\n", 
-                    __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot);
+                    __FUNCTION__, __LINE__, ctx->upload_on_reboot);
             return STRAT_ONDEMAND;
         } else {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Strategy: REBOOT (dcm_flag=1, flag=1, upload_on_reboot=%d, trigger_type=%d)\n", 
-                    __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot, ctx->flags.trigger_type);
+                    __FUNCTION__, __LINE__, ctx->upload_on_reboot, ctx->trigger_type);
             return STRAT_REBOOT;
         }
     }
@@ -117,7 +117,7 @@ Strategy early_checks(const RuntimeContext* ctx)
     // Script behavior differs based on UploadOnReboot but both call uploadDCMLogs
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Strategy: DCM (dcm_flag=1, flag=0, upload_on_reboot=%d)\n", 
-            __FUNCTION__, __LINE__, ctx->flags.upload_on_reboot);
+            __FUNCTION__, __LINE__, ctx->upload_on_reboot);
     return STRAT_DCM;
 }
 
@@ -128,16 +128,16 @@ bool is_privacy_mode(const RuntimeContext* ctx)
     }
 
     // Privacy mode check is ONLY for mediaclient devices (matches script line 985)
-    if (strlen(ctx->device.device_type) == 0 || 
-        strcasecmp(ctx->device.device_type, "mediaclient") != 0) {
+    if (strlen(ctx->device_type) == 0 || 
+        strcasecmp(ctx->device_type, "mediaclient") != 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Privacy mode check skipped - not a mediaclient device (device_type=%s)\n", 
                 __FUNCTION__, __LINE__, 
-                strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "empty");
+                strlen(ctx->device_type) > 0 ? ctx->device_type : "empty");
         return false;
     }
 
-    bool privacy_enabled = ctx->settings.privacy_do_not_share;
+    bool privacy_enabled = ctx->privacy_do_not_share;
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Privacy mode for mediaclient: %s\n", 
@@ -152,7 +152,7 @@ bool has_no_logs(const RuntimeContext* ctx)
         return true; // Treat invalid context as no logs
     }
 
-    const char* prev_log_dir = ctx->paths.prev_log_path;
+    const char* prev_log_dir = ctx->prev_log_path;
     
     if (strlen(prev_log_dir) == 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
@@ -185,8 +185,8 @@ void decide_paths(const RuntimeContext* ctx, SessionState* session)
     }
 
     // Path selection logic based on block status and CodeBig access
-    bool direct_blocked = ctx->settings.direct_blocked;
-    bool codebig_blocked = ctx->settings.codebig_blocked;
+    bool direct_blocked = ctx->direct_blocked;
+    bool codebig_blocked = ctx->codebig_blocked;
     
     // Check CodeBig access if not already blocked
     bool codebig_access_available = true;

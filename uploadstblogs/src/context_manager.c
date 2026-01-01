@@ -188,7 +188,7 @@ bool init_context(RuntimeContext* ctx)
     }
 
     // Get device MAC address
-    if (!get_mac_address(ctx->device.mac_address, sizeof(ctx->device.mac_address))) {
+    if (!get_mac_address(ctx->mac_address, sizeof(ctx->mac_address))) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get MAC address\n", __FUNCTION__, __LINE__);
         return false;
     }
@@ -197,8 +197,8 @@ bool init_context(RuntimeContext* ctx)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Context initialization successful\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Device MAC: '%s', Type: '%s'\n",
             __FUNCTION__, __LINE__, 
-            ctx->device.mac_address,
-            strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "(empty)");
+            ctx->mac_address,
+            strlen(ctx->device_type) > 0 ? ctx->device_type : "(empty)");
     
     return true;
 }
@@ -217,93 +217,93 @@ bool load_environment(RuntimeContext* ctx)
     // Load LOG_PATH from /etc/include.properties
     // Used throughout script: PREV_LOG_PATH, DCM_LOG_FILE, RRD_LOG_FILE, TLS_LOG_FILE
     if (getIncludePropertyData("LOG_PATH", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->paths.log_path, buffer, sizeof(ctx->paths.log_path) - 1);
-        ctx->paths.log_path[sizeof(ctx->paths.log_path) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
+        strncpy(ctx->log_path, buffer, sizeof(ctx->log_path) - 1);
+        ctx->log_path[sizeof(ctx->log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->log_path);
     } else {
         // Use default if not found
-        strncpy(ctx->paths.log_path, "/opt/logs", sizeof(ctx->paths.log_path) - 1);
-        ctx->paths.log_path[sizeof(ctx->paths.log_path) - 1] = '\0';
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.log_path);
+        strncpy(ctx->log_path, "/opt/logs", sizeof(ctx->log_path) - 1);
+        ctx->log_path[sizeof(ctx->log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->log_path);
     }
 
 
 
     // Construct PREV_LOG_PATH = "$LOG_PATH/PreviousLogs"
     // Ensure sufficient space for the suffix
-    size_t log_path_len = strlen(ctx->paths.log_path);
-    if (log_path_len + 14 <= sizeof(ctx->paths.prev_log_path)) {
-        memset(ctx->paths.prev_log_path, 0, sizeof(ctx->paths.prev_log_path));
-        strcpy(ctx->paths.prev_log_path, ctx->paths.log_path);
-        strcat(ctx->paths.prev_log_path, "/PreviousLogs");
+    size_t log_path_len = strlen(ctx->log_path);
+    if (log_path_len + 14 <= sizeof(ctx->prev_log_path)) {
+        memset(ctx->prev_log_path, 0, sizeof(ctx->prev_log_path));
+        strcpy(ctx->prev_log_path, ctx->log_path);
+        strcat(ctx->prev_log_path, "/PreviousLogs");
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing PREV_LOG_PATH\n", 
                 __FUNCTION__, __LINE__);
-        strncpy(ctx->paths.prev_log_path, "/opt/logs/PreviousLogs", sizeof(ctx->paths.prev_log_path) - 1);
-        ctx->paths.prev_log_path[sizeof(ctx->paths.prev_log_path) - 1] = '\0';
+        strncpy(ctx->prev_log_path, "/opt/logs/PreviousLogs", sizeof(ctx->prev_log_path) - 1);
+        ctx->prev_log_path[sizeof(ctx->prev_log_path) - 1] = '\0';
     }
 
     // Set DRI_LOG_PATH (hardcoded in script)
-    strncpy(ctx->paths.dri_log_path, "/opt/logs/drilogs", 
-            sizeof(ctx->paths.dri_log_path) - 1);
-    ctx->paths.dri_log_path[sizeof(ctx->paths.dri_log_path) - 1] = '\0';
+    strncpy(ctx->dri_log_path, "/opt/logs/drilogs", 
+            sizeof(ctx->dri_log_path) - 1);
+    ctx->dri_log_path[sizeof(ctx->dri_log_path) - 1] = '\0';
 
     // Set RRD_LOG_FILE = "$LOG_PATH/remote-debugger.log"
     // Ensure sufficient space for the suffix
-    if (log_path_len + 21 <= sizeof(ctx->paths.rrd_file)) {
-        memset(ctx->paths.rrd_file, 0, sizeof(ctx->paths.rrd_file));
-        strcpy(ctx->paths.rrd_file, ctx->paths.log_path);
-        strcat(ctx->paths.rrd_file, "/remote-debugger.log");
+    if (log_path_len + 21 <= sizeof(ctx->rrd_file)) {
+        memset(ctx->rrd_file, 0, sizeof(ctx->rrd_file));
+        strcpy(ctx->rrd_file, ctx->log_path);
+        strcat(ctx->rrd_file, "/remote-debugger.log");
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing RRD_LOG_FILE\n", 
                 __FUNCTION__, __LINE__);
-        strncpy(ctx->paths.rrd_file, "/opt/logs/remote-debugger.log", sizeof(ctx->paths.rrd_file) - 1);
-        ctx->paths.rrd_file[sizeof(ctx->paths.rrd_file) - 1] = '\0';
+        strncpy(ctx->rrd_file, "/opt/logs/remote-debugger.log", sizeof(ctx->rrd_file) - 1);
+        ctx->rrd_file[sizeof(ctx->rrd_file) - 1] = '\0';
     }
 
     // Load DIRECT_BLOCK_TIME from /etc/include.properties (default: 86400 = 24 hours)
     memset(buffer, 0, sizeof(buffer));
     if (getIncludePropertyData("DIRECT_BLOCK_TIME", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        ctx->retry.direct_retry_delay = atoi(buffer);
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DIRECT_BLOCK_TIME=%d\n", __FUNCTION__, __LINE__, ctx->retry.direct_retry_delay);
+        ctx->direct_retry_delay = atoi(buffer);
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DIRECT_BLOCK_TIME=%d\n", __FUNCTION__, __LINE__, ctx->direct_retry_delay);
     } else {
-        ctx->retry.direct_retry_delay = 86400;  // Default 24 hours
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DIRECT_BLOCK_TIME not found, using default: %d\n", __FUNCTION__, __LINE__, ctx->retry.direct_retry_delay);
+        ctx->direct_retry_delay = 86400;  // Default 24 hours
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DIRECT_BLOCK_TIME not found, using default: %d\n", __FUNCTION__, __LINE__, ctx->direct_retry_delay);
     }
 
     // Load CB_BLOCK_TIME from /etc/include.properties (default: 1800 = 30 minutes)
     memset(buffer, 0, sizeof(buffer));
     if (getIncludePropertyData("CB_BLOCK_TIME", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        ctx->retry.codebig_retry_delay = atoi(buffer);
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] CB_BLOCK_TIME=%d\n", __FUNCTION__, __LINE__, ctx->retry.codebig_retry_delay);
+        ctx->codebig_retry_delay = atoi(buffer);
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] CB_BLOCK_TIME=%d\n", __FUNCTION__, __LINE__, ctx->codebig_retry_delay);
     } else {
-        ctx->retry.codebig_retry_delay = 1800;  // Default 30 minutes
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] CB_BLOCK_TIME not found, using default: %d\n", __FUNCTION__, __LINE__, ctx->retry.codebig_retry_delay);
+        ctx->codebig_retry_delay = 1800;  // Default 30 minutes
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] CB_BLOCK_TIME not found, using default: %d\n", __FUNCTION__, __LINE__, ctx->codebig_retry_delay);
     }
 
     // Load PROXY_BUCKET from /etc/device.properties (for mediaclient proxy fallback)
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("PROXY_BUCKET", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->endpoints.proxy_bucket, buffer, sizeof(ctx->endpoints.proxy_bucket) - 1);
-        ctx->endpoints.proxy_bucket[sizeof(ctx->endpoints.proxy_bucket) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PROXY_BUCKET=%s\n", __FUNCTION__, __LINE__, ctx->endpoints.proxy_bucket);
+        strncpy(ctx->proxy_bucket, buffer, sizeof(ctx->proxy_bucket) - 1);
+        ctx->proxy_bucket[sizeof(ctx->proxy_bucket) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PROXY_BUCKET=%s\n", __FUNCTION__, __LINE__, ctx->proxy_bucket);
     } else {
-        ctx->endpoints.proxy_bucket[0] = '\0';
+        ctx->proxy_bucket[0] = '\0';
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PROXY_BUCKET not found, proxy fallback disabled\n", __FUNCTION__, __LINE__);
     }
 
     // Set hardcoded retry attempts and timeouts from script
-    ctx->retry.direct_max_attempts = 3;      // NUM_UPLOAD_ATTEMPTS=3
-    ctx->retry.codebig_max_attempts = 1;     // CB_NUM_UPLOAD_ATTEMPTS=1
-    ctx->retry.curl_timeout = 10;            // CURL_TIMEOUT=10
-    ctx->retry.curl_tls_timeout = 30;        // CURL_TLS_TIMEOUT=30
+    ctx->direct_max_attempts = 3;      // NUM_UPLOAD_ATTEMPTS=3
+    ctx->codebig_max_attempts = 1;     // CB_NUM_UPLOAD_ATTEMPTS=1
+    ctx->curl_timeout = 10;            // CURL_TIMEOUT=10
+    ctx->curl_tls_timeout = 30;        // CURL_TLS_TIMEOUT=30
 
     // Load DEVICE_TYPE from /etc/device.properties
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("DEVICE_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->device.device_type, buffer, sizeof(ctx->device.device_type) - 1);
-        ctx->device.device_type[sizeof(ctx->device.device_type) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.device_type);
+        strncpy(ctx->device_type, buffer, sizeof(ctx->device_type) - 1);
+        ctx->device_type[sizeof(ctx->device_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device_type);
     } else {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
     }
@@ -311,48 +311,48 @@ bool load_environment(RuntimeContext* ctx)
     // Load BUILD_TYPE from /etc/device.properties
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("BUILD_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->device.build_type, buffer, sizeof(ctx->device.build_type) - 1);
-        ctx->device.build_type[sizeof(ctx->device.build_type) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.build_type);
+        strncpy(ctx->build_type, buffer, sizeof(ctx->build_type) - 1);
+        ctx->build_type[sizeof(ctx->build_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->build_type);
     } else {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
     }
 
     // Set TELEMETRY_PATH (hardcoded in script)
-    strncpy(ctx->paths.telemetry_path, "/opt/.telemetry", sizeof(ctx->paths.telemetry_path) - 1);
-    ctx->paths.telemetry_path[sizeof(ctx->paths.telemetry_path) - 1] = '\0';
+    strncpy(ctx->telemetry_path, "/opt/.telemetry", sizeof(ctx->telemetry_path) - 1);
+    ctx->telemetry_path[sizeof(ctx->telemetry_path) - 1] = '\0';
 
     // Set DCM_LOG_FILE path
-    if (log_path_len + 16 <= sizeof(ctx->paths.dcm_log_file)) {
-        memset(ctx->paths.dcm_log_file, 0, sizeof(ctx->paths.dcm_log_file));
-        strcpy(ctx->paths.dcm_log_file, ctx->paths.log_path);
-        strcat(ctx->paths.dcm_log_file, "/dcmscript.log");
+    if (log_path_len + 16 <= sizeof(ctx->dcm_log_file)) {
+        memset(ctx->dcm_log_file, 0, sizeof(ctx->dcm_log_file));
+        strcpy(ctx->dcm_log_file, ctx->log_path);
+        strcat(ctx->dcm_log_file, "/dcmscript.log");
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing DCM_LOG_FILE\n", 
                 __FUNCTION__, __LINE__);
-        strncpy(ctx->paths.dcm_log_file, "/opt/logs/dcmscript.log", sizeof(ctx->paths.dcm_log_file) - 1);
-        ctx->paths.dcm_log_file[sizeof(ctx->paths.dcm_log_file) - 1] = '\0';
+        strncpy(ctx->dcm_log_file, "/opt/logs/dcmscript.log", sizeof(ctx->dcm_log_file) - 1);
+        ctx->dcm_log_file[sizeof(ctx->dcm_log_file) - 1] = '\0';
     }
 
     // Load DCM_LOG_PATH from /etc/device.properties (default: /tmp/DCM/)
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("DCM_LOG_PATH", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->paths.dcm_log_path, buffer, sizeof(ctx->paths.dcm_log_path) - 1);
-        ctx->paths.dcm_log_path[sizeof(ctx->paths.dcm_log_path) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+        strncpy(ctx->dcm_log_path, buffer, sizeof(ctx->dcm_log_path) - 1);
+        ctx->dcm_log_path[sizeof(ctx->dcm_log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH=%s\n", __FUNCTION__, __LINE__, ctx->dcm_log_path);
     } else {
-        strncpy(ctx->paths.dcm_log_path, "/tmp/DCM/", sizeof(ctx->paths.dcm_log_path) - 1);
-        ctx->paths.dcm_log_path[sizeof(ctx->paths.dcm_log_path) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+        strncpy(ctx->dcm_log_path, "/tmp/DCM/", sizeof(ctx->dcm_log_path) - 1);
+        ctx->dcm_log_path[sizeof(ctx->dcm_log_path) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DCM_LOG_PATH not found, using default: %s\n", __FUNCTION__, __LINE__, ctx->dcm_log_path);
     }
 
     // Create DCM log directory if it doesn't exist (matches script behavior)
-    if (!dir_exists(ctx->paths.dcm_log_path)) {
+    if (!dir_exists(ctx->dcm_log_path)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DCM log folder does not exist. Creating now: %s\n", 
-                __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
-        if (!create_directory(ctx->paths.dcm_log_path)) {
+                __FUNCTION__, __LINE__, ctx->dcm_log_path);
+        if (!create_directory(ctx->dcm_log_path)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create DCM log directory: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->paths.dcm_log_path);
+                    __FUNCTION__, __LINE__, ctx->dcm_log_path);
             // Continue anyway - not a fatal error
         }
     }
@@ -362,39 +362,39 @@ bool load_environment(RuntimeContext* ctx)
     bool os_release_exists = (stat("/etc/os-release", &st_osrelease) == 0);
     
     if (os_release_exists) {
-        ctx->settings.tls_enabled = true;
+        ctx->tls_enabled = true;
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] TLS 1.2 support enabled\n", __FUNCTION__, __LINE__);
     } else {
-        ctx->settings.tls_enabled = false;
+        ctx->tls_enabled = false;
     }
 
     // Set IARM event binary location based on os-release
     if (os_release_exists) {
-        strncpy(ctx->paths.iarm_event_binary, "/usr/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
+        strncpy(ctx->iarm_event_binary, "/usr/bin", sizeof(ctx->iarm_event_binary) - 1);
     } else {
-        strncpy(ctx->paths.iarm_event_binary, "/usr/local/bin", sizeof(ctx->paths.iarm_event_binary) - 1);
+        strncpy(ctx->iarm_event_binary, "/usr/local/bin", sizeof(ctx->iarm_event_binary) - 1);
     }
-    ctx->paths.iarm_event_binary[sizeof(ctx->paths.iarm_event_binary) - 1] = '\0';
+    ctx->iarm_event_binary[sizeof(ctx->iarm_event_binary) - 1] = '\0';
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] IARM_EVENT_BINARY_LOCATION=%s\n", 
-            __FUNCTION__, __LINE__, ctx->paths.iarm_event_binary);
+            __FUNCTION__, __LINE__, ctx->iarm_event_binary);
 
     // Check for maintenance mode enable
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("ENABLE_MAINTENANCE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
         if (strcasecmp(buffer, "true") == 0) {
-            ctx->settings.maintenance_enabled = true;
+            ctx->maintenance_enabled = true;
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Maintenance mode enabled\n", __FUNCTION__, __LINE__);
         }
     }
 
     // Enable PCAP collection for mediaclient devices
-    if (strcasecmp(ctx->device.device_type, "mediaclient") == 0) {
-        ctx->settings.include_pcap = true;
+    if (strcasecmp(ctx->device_type, "mediaclient") == 0) {
+        ctx->include_pcap = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] PCAP collection enabled for mediaclient\n", __FUNCTION__, __LINE__);
     }
 
     // Enable DRI log collection (always enabled in script)
-    ctx->settings.include_dri = true;
+    ctx->include_dri = true;
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
 
     
@@ -404,7 +404,7 @@ bool load_environment(RuntimeContext* ctx)
     struct stat st_ocsp;
     if (stat("/tmp/.EnableOCSPStapling", &st_ocsp) == 0 || 
         stat("/tmp/.EnableOCSPCA", &st_ocsp) == 0) {
-        ctx->settings.ocsp_enabled = true;
+        ctx->ocsp_enabled = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] OCSP validation enabled\n", __FUNCTION__, __LINE__);
     }
 
@@ -412,12 +412,12 @@ bool load_environment(RuntimeContext* ctx)
     // DIRECT_BLOCK_FILENAME="/tmp/.lastdirectfail_upl"
     // CB_BLOCK_FILENAME="/tmp/.lastcodebigfail_upl"
     // These functions check file existence, age, and auto-remove expired blocks
-    ctx->settings.direct_blocked = is_direct_blocked(ctx->retry.direct_retry_delay);
-    ctx->settings.codebig_blocked = is_codebig_blocked(ctx->retry.codebig_retry_delay);
+    ctx->direct_blocked = is_direct_blocked(ctx->direct_retry_delay);
+    ctx->codebig_blocked = is_codebig_blocked(ctx->codebig_retry_delay);
 
     // Set temp directory for archive operations
-    strncpy(ctx->paths.temp_dir, "/tmp", sizeof(ctx->paths.temp_dir) - 1);
-    strncpy(ctx->paths.archive_path, "/tmp", sizeof(ctx->paths.archive_path) - 1);
+    strncpy(ctx->temp_dir, "/tmp", sizeof(ctx->temp_dir) - 1);
+    strncpy(ctx->archive_path, "/tmp", sizeof(ctx->archive_path) - 1);
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Environment properties loaded successfully\n", __FUNCTION__, __LINE__);
     return true;
@@ -441,8 +441,8 @@ bool load_tr181_params(RuntimeContext* ctx)
     // Load LogUploadEndpoint URL
     // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL
     if (!rbus_get_string_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL",
-                               ctx->endpoints.endpoint_url, 
-                               sizeof(ctx->endpoints.endpoint_url))) {
+                               ctx->endpoint_url, 
+                               sizeof(ctx->endpoint_url))) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n", 
                 __FUNCTION__, __LINE__);
     }
@@ -450,10 +450,10 @@ bool load_tr181_params(RuntimeContext* ctx)
     // Load EncryptCloudUpload Enable flag (boolean parameter)
     // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable
     if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable",
-                             &ctx->settings.encryption_enable)) {
+                             &ctx->encryption_enable)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get EncryptCloudUpload.Enable, using default: false\n", 
                 __FUNCTION__, __LINE__);
-        ctx->settings.encryption_enable = false;
+        ctx->encryption_enable = false;
     }
 
     // Load Privacy Mode (Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode)
@@ -462,13 +462,13 @@ bool load_tr181_params(RuntimeContext* ctx)
     if (rbus_get_string_param("Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode",
                              privacy_mode, sizeof(privacy_mode))) {
         // PrivacyMode values: "DO_NOT_SHARE" or "SHARE"
-        ctx->settings.privacy_do_not_share = (strcasecmp(privacy_mode, "DO_NOT_SHARE") == 0);
+        ctx->privacy_do_not_share = (strcasecmp(privacy_mode, "DO_NOT_SHARE") == 0);
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Privacy Mode: %s (do_not_share=%d)\n", 
-                __FUNCTION__, __LINE__, privacy_mode, ctx->settings.privacy_do_not_share);
+                __FUNCTION__, __LINE__, privacy_mode, ctx->privacy_do_not_share);
     } else {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get PrivacyMode, using default: false\n", 
                 __FUNCTION__, __LINE__);
-        ctx->settings.privacy_do_not_share = false;
+        ctx->privacy_do_not_share = false;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] TR-181 parameters loaded via RBUS\n", __FUNCTION__, __LINE__);
