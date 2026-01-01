@@ -466,7 +466,7 @@ protected:
         // Initialize test context
         memset(&ctx, 0, sizeof(ctx));
         strcpy(ctx.log_path, "/opt/logs");
-        strcpy(ctx.previous_log_path, "/opt/PreviousLogs");
+        strcpy(ctx.prev_log_path, "/opt/PreviousLogs");
         ctx.upload_on_reboot = 1;
         
         // Initialize test session
