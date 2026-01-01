@@ -32,7 +32,7 @@ export top_srcdir=`pwd`
 
 cd unittest/
 cp mocks/mockrbus.h /usr/local/include
-cp ../uploadstblogs/include/uploadstblogs.h /usr/local/include
+cp ../uploadstblogs/include/*.h /usr/local/include
 automake --add-missing
 autoreconf --install
 
