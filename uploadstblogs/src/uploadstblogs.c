@@ -95,32 +95,32 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     
     if (argc >= 3 && argv[2]) {
         // Parse FLAG
-        ctx->flags.flag = atoi(argv[2]);
-        fprintf(stderr, "DEBUG: FLAG (argv[2]) = '%s' -> %d\n", argv[2], ctx->flags.flag);
+        ctx->flag = atoi(argv[2]);
+        fprintf(stderr, "DEBUG: FLAG (argv[2]) = '%s' -> %d\n", argv[2], ctx->flag);
     }
     
     if (argc >= 4 && argv[3]) {
         // Parse DCM_FLAG
-        ctx->flags.dcm_flag = atoi(argv[3]);
-        fprintf(stderr, "DEBUG: DCM_FLAG (argv[3]) = '%s' -> %d\n", argv[3], ctx->flags.dcm_flag);
+        ctx->dcm_flag = atoi(argv[3]);
+        fprintf(stderr, "DEBUG: DCM_FLAG (argv[3]) = '%s' -> %d\n", argv[3], ctx->dcm_flag);
     }
     
     if (argc >= 5 && argv[4]) {
         // Parse UploadOnReboot
-        ctx->flags.upload_on_reboot = (strcmp(argv[4], "true") == 0) ? 1 : 0;
-        fprintf(stderr, "DEBUG: UploadOnReboot (argv[4]) = '%s' -> %d\n", argv[4], ctx->flags.upload_on_reboot);
+        ctx->upload_on_reboot = (strcmp(argv[4], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: UploadOnReboot (argv[4]) = '%s' -> %d\n", argv[4], ctx->upload_on_reboot);
     }
     
     if (argc >= 6 && argv[5]) {
         // Parse UploadProtocol - stored in settings
         if (strcmp(argv[5], "HTTPS") == 0) {
-            ctx->settings.tls_enabled = true;
+            ctx->tls_enabled = true;
         }
     }
     
     if (argc >= 7 && argv[6]) {
         // Parse UploadHttpLink
-        strncpy(ctx->endpoints.upload_http_link, argv[6], sizeof(ctx->endpoints.upload_http_link) - 1);
+        strncpy(ctx->upload_http_link, argv[6], sizeof(ctx->upload_http_link) - 1);
         fprintf(stderr, "DEBUG: upload_http_link (argv[6]) = '%s'\n", argv[6]);
     }
     
@@ -128,26 +128,26 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         // Parse TriggerType
         fprintf(stderr, "DEBUG: TriggerType (argv[7]) = '%s'\n", argv[7]);
         if (strcmp(argv[7], "cron") == 0) {
-            ctx->flags.trigger_type = TRIGGER_SCHEDULED;
+            ctx->trigger_type = TRIGGER_SCHEDULED;
         } else if (strcmp(argv[7], "ondemand") == 0) {
-            ctx->flags.trigger_type = TRIGGER_ONDEMAND;
+            ctx->trigger_type = TRIGGER_ONDEMAND;
         } else if (strcmp(argv[7], "manual") == 0) {
-            ctx->flags.trigger_type = TRIGGER_MANUAL;
+            ctx->trigger_type = TRIGGER_MANUAL;
         } else if (strcmp(argv[7], "reboot") == 0) {
-            ctx->flags.trigger_type = TRIGGER_REBOOT;
+            ctx->trigger_type = TRIGGER_REBOOT;
         }
-        fprintf(stderr, "DEBUG: trigger_type = %d\n", ctx->flags.trigger_type);
+        fprintf(stderr, "DEBUG: trigger_type = %d\n", ctx->trigger_type);
     }
     
     if (argc >= 9 && argv[8]) {
         // Parse RRD_FLAG
-        ctx->flags.rrd_flag = (strcmp(argv[8], "true") == 0) ? 1 : 0;
-        fprintf(stderr, "DEBUG: RRD_FLAG (argv[8]) = '%s' -> %d\n", argv[8], ctx->flags.rrd_flag);
+        ctx->rrd_flag = (strcmp(argv[8], "true") == 0) ? 1 : 0;
+        fprintf(stderr, "DEBUG: RRD_FLAG (argv[8]) = '%s' -> %d\n", argv[8], ctx->rrd_flag);
     }
     
     if (argc >= 10 && argv[9]) {
         // Parse RRD_UPLOADLOG_FILE
-        strncpy(ctx->paths.rrd_file, argv[9], sizeof(ctx->paths.rrd_file) - 1);
+        strncpy(ctx->rrd_file, argv[9], sizeof(ctx->rrd_file) - 1);
     }
     
     return true;
@@ -352,8 +352,8 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Verify context after initialization */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after init: ctx addr=%p, MAC='%s', device_type='%s'\n",
-            (void*)&ctx, ctx.device.mac_address,
-            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
+            (void*)&ctx, ctx.mac_address,
+            strlen(ctx.device_type) > 0 ? ctx.device_type : "(empty)");
 
     /* Parse command-line arguments */
     if (!parse_args(argc, argv, &ctx)) {
@@ -365,8 +365,8 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
-            ctx.device.mac_address,
-            strlen(ctx.device.device_type) > 0 ? ctx.device.device_type : "(empty)");
+            ctx.mac_address,
+            strlen(ctx.device_type) > 0 ? ctx.device_type : "(empty)");
 
     /* Validate system prerequisites */
     if (!validate_system(&ctx)) {
@@ -381,7 +381,7 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Handle early abort strategies */
     if (strategy == STRAT_PRIVACY_ABORT) {
-        enforce_privacy(ctx.paths.log_path);
+        enforce_privacy(ctx.log_path);
         emit_privacy_abort();
         release_lock();
         return 0;
@@ -395,14 +395,14 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Prepare archive based on strategy */
     if (strategy == STRAT_RRD) {
         // RRD: Upload pre-existing archive file directly (provided via command line)
-        if (!file_exists(ctx.paths.rrd_file)) {
-            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.paths.rrd_file);
+        if (!file_exists(ctx.rrd_file)) {
+            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.rrd_file);
             release_lock();
             return 1;
         }
         
         // Store RRD file path in session for upload
-        strncpy(session.archive_file, ctx.paths.rrd_file, sizeof(session.archive_file) - 1);
+        strncpy(session.archive_file, ctx.rrd_file, sizeof(session.archive_file) - 1);
         session.archive_file[sizeof(session.archive_file) - 1] = '\0';
         
         // Decide paths and upload
