@@ -19,11 +19,10 @@
 
 /**
  * @file uploadstblogs.c
- * @brief Main implementation for uploadSTBLogs library and binary
+ * @brief Main entry point for uploadSTBLogs application
  *
- * This file contains the core implementation including uploadstblogs_execute() API.
- * When compiled with -DUPLOADSTBLOGS_BUILD_BINARY, it also includes main() for the binary.
- * When compiled as a library, main() is excluded via conditional compilation.
+ * This is the main entry point that orchestrates the entire log upload flow
+ * according to the HLD design.
  */
 
 #include <stdio.h>
@@ -204,128 +203,7 @@ bool is_maintenance_enabled(void)
     return false;
 }
 
-int uploadstblogs_run(const UploadSTBLogsParams* params)
-{
-    RuntimeContext ctx = {0};
-    SessionState session = {0};
-    int ret = 1;
-
-    if (!params) {
-        fprintf(stderr, "Invalid parameters\n");
-        return 1;
-    }
-
-    /* Acquire lock to ensure single instance */
-    if (!acquire_lock("/tmp/.log-upload.lock")) {
-        fprintf(stderr, "Failed to acquire lock - another instance running\n");
-        if (is_maintenance_enabled()) {
-            send_iarm_event_maintenance(16);
-        }
-        return 1;
-    }
-
-    /* Initialize telemetry system */
-#ifdef T2_EVENT_ENABLED
-    t2_init("uploadstblogs");
-#endif
-
-    /* Initialize runtime context */
-    if (!init_context(&ctx)) {
-        fprintf(stderr, "Failed to initialize context\n");
-        release_lock();
-        return 1;
-    }
-
-    /* Set parameters from API call */
-    ctx.flags.flag = params->flag;
-    ctx.flags.dcm_flag = params->dcm_flag;
-    ctx.flags.upload_on_reboot = params->upload_on_reboot ? 1 : 0;
-    ctx.flags.trigger_type = params->trigger_type;
-    ctx.flags.rrd_flag = params->rrd_flag ? 1 : 0;
-
-    if (params->upload_protocol && strcmp(params->upload_protocol, "HTTPS") == 0) {
-        ctx.settings.tls_enabled = true;
-    }
-
-    if (params->upload_http_link) {
-        strncpy(ctx.endpoints.upload_http_link, params->upload_http_link,
-                sizeof(ctx.endpoints.upload_http_link) - 1);
-    }
-
-    if (params->rrd_file) {
-        strncpy(ctx.paths.rrd_file, params->rrd_file, sizeof(ctx.paths.rrd_file) - 1);
-    }
-
-    /* Validate system prerequisites */
-    if (!validate_system(&ctx)) {
-        fprintf(stderr, "System validation failed\n");
-        release_lock();
-        return 1;
-    }
-
-    /* Perform early return checks and determine strategy */
-    Strategy strategy = early_checks(&ctx);
-    session.strategy = strategy;
-
-    /* Handle early abort strategies */
-    if (strategy == STRAT_PRIVACY_ABORT) {
-        enforce_privacy(ctx.paths.log_path);
-        emit_privacy_abort();
-        release_lock();
-        return 0;
-    }
-
-    /* Emit upload start event */
-    emit_upload_start();
-
-    /* Prepare archive based on strategy */
-    if (strategy == STRAT_RRD) {
-        if (!file_exists(ctx.paths.rrd_file)) {
-            fprintf(stderr, "RRD archive file does not exist: %s\n", ctx.paths.rrd_file);
-            release_lock();
-            return 1;
-        }
-
-        strncpy(session.archive_file, ctx.paths.rrd_file, sizeof(session.archive_file) - 1);
-        session.archive_file[sizeof(session.archive_file) - 1] = '\0';
-
-        decide_paths(&ctx, &session);
-        if (!execute_upload_cycle(&ctx, &session)) {
-            fprintf(stderr, "RRD upload failed\n");
-            ret = 1;
-        } else {
-            ret = 0;
-        }
-    } else {
-        if (execute_strategy_workflow(&ctx, &session) != 0) {
-            fprintf(stderr, "Strategy workflow failed\n");
-            cleanup_iarm_connection();
-#ifdef T2_EVENT_ENABLED
-            t2_uninit();
-#endif
-            release_lock();
-            return 1;
-        }
-        ret = session.success ? 0 : 1;
-    }
-
-    /* Finalize: cleanup, update markers, emit events */
-    finalize(&ctx, &session);
-
-    /* Uninitialize telemetry system */
-#ifdef T2_EVENT_ENABLED
-    t2_uninit();
-#endif
-
-    /* Cleanup IARM connection */
-    cleanup_iarm_connection();
-
-    /* Release lock and exit */
-    release_lock();
-    return ret;
-}
-
-int uploadstblogs_execute(int argc, char** argv)
+int main(int argc, char** argv)
 {
     RuntimeContext ctx = {0};
     SessionState session = {0};
@@ -442,16 +320,3 @@ int uploadstblogs_execute(int argc, char** argv)
     release_lock();
     return ret;
 }
-
-#ifdef UPLOADSTBLOGS_BUILD_BINARY
-/**
- * @brief Main entry point for standalone binary
- * 
- * This is only compiled when building the binary, not the library.
- * External components should call uploadstblogs_execute() directly.
- */
-int main(int argc, char** argv)
-{
-    return uploadstblogs_execute(argc, argv);
-}
-#endif /* UPLOADSTBLOGS_BUILD_BINARY */
