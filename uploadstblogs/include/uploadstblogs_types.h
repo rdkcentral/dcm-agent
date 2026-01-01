@@ -101,19 +101,6 @@ typedef enum {
 } UploadPath;
 
 /**
- * @enum TriggerType
- * @brief Upload trigger types
- */
-typedef enum {
-    TRIGGER_SCHEDULED = 0,
-    TRIGGER_MANUAL = 1,
-    TRIGGER_REBOOT = 2,
-    TRIGGER_CRASH = 3,
-    TRIGGER_DEBUG = 4,
-    TRIGGER_ONDEMAND = 5
-} TriggerType;
-
-/**
  * @enum UploadResult
  * @brief Upload operation result codes
  */
@@ -319,3 +306,4 @@ void t2_count_notify(char *marker);
 void t2_val_notify(char *marker, char *val);
 
 #endif /* UPLOADSTBLOGS_TYPES_H */
+
