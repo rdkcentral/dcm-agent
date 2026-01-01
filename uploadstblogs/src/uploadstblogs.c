@@ -299,6 +299,10 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
     } else {
         if (execute_strategy_workflow(&ctx, &session) != 0) {
             fprintf(stderr, "Strategy workflow failed\n");
+            cleanup_iarm_connection();
+#ifdef T2_EVENT_ENABLED
+            t2_uninit();
+#endif
             release_lock();
             return 1;
         }
