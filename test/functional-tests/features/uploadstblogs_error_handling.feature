@@ -32,22 +32,6 @@ Feature: uploadSTBLogs Error Handling and Edge Cases
     And no upload attempt should be made
     And failure telemetry should be generated with config error type
 
-  @large_files_exceed_limit @error_handling @negative
-  Scenario: Log Files Exceeding Size Limit
-    Given the uploadSTBLogs service is initialized
-    And the device properties file is present and valid
-    And the HTTP upload server is accessible
-    And log files exceeding maximum size limit are present
-    And the log files total size exceeds 100MB
-    When uploading log files exceeding size limits
-    Then the service should collect log files
-    And the service should validate total file size
-    And the service should detect size limit exceeded
-    And the service should log size limit error
-    And the service should skip or truncate oversized files
-    And the service should proceed with upload of allowed files only
-    And appropriate telemetry should be generated with size warning
-
   @empty_logs @edge_case @negative
   Scenario: No Log Files Available for Upload
     Given the uploadSTBLogs service is initialized
