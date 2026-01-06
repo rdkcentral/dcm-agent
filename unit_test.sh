@@ -32,6 +32,7 @@ export top_srcdir=`pwd`
 
 cd unittest/
 cp mocks/mockrbus.h /usr/local/include
+cp ../uploadstblogs/include/*.h /usr/local/include
 automake --add-missing
 autoreconf --install
 
@@ -44,6 +45,7 @@ cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
+cp uploadstblogs.h
 
 automake --add-missing
 autoreconf --install
@@ -70,16 +72,14 @@ for test in \
   ./../uploadstblogs/unittest/strategy_selector_gtest \
   ./../uploadstblogs/unittest/path_handler_gtest \
   ./../uploadstblogs/unittest/upload_engine_gtest \
-  ./../uploadstblogs/unittest/cleanup_manager_gtest \
+  ./../uploadstblogs/unittest/cleanup_handler_gtest \
   ./../uploadstblogs/unittest/verification_gtest \
   ./../uploadstblogs/unittest/rbus_interface_gtest \
   ./../uploadstblogs/unittest/uploadstblogs_gtest \
   ./../uploadstblogs/unittest/event_manager_gtest \
-  ./../uploadstblogs/unittest/log_collector_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
-  ./../uploadstblogs/unittest/strategy_dcm_gtest \
-  ./../uploadstblogs/unittest/strategy_handler_gtest \
-  ./../uploadstblogs/unittest/strategy_ondemand_gtest
+  ./../uploadstblogs/unittest/strategies_gtest \
+  ./../uploadstblogs/unittest/strategy_handler_gtest
   
 do
     $test
