@@ -95,13 +95,14 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
             .rrd_flag = false,
             .rrd_file = NULL
         };
-
+#ifndef GTEST_ENABLE
         int result = uploadstblogs_run(&params);
         if (result != 0) {
             DCMError("Log upload failed with error code: %d\n", result);
         } else {
             DCMInfo("Log upload completed successfully\n");
         }
+#endif
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
