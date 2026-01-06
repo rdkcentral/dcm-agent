@@ -82,20 +82,21 @@ bool validate_directories(const RuntimeContext* ctx)
                     __FUNCTION__, __LINE__, ctx->log_path);
         }
     }
-
+    if (ctx->flags.rrd_flag == 0) {
     // Check PREV_LOG_PATH - critical for upload (matches script behavior)
-    if (strlen(ctx->prev_log_path) > 0) {
-        if (!dir_exists(ctx->prev_log_path)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] The Previous Logs folder is missing: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->prev_log_path);
+        if (strlen(ctx->prev_log_path) > 0) {
+            if (!dir_exists(ctx->prev_log_path)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] The Previous Logs folder is missing: %s\n", 
+                        __FUNCTION__, __LINE__, ctx->prev_log_path);
             // Script sends MAINT_LOGUPLOAD_ERROR=5 when PREV_LOG_PATH is missing
-            emit_folder_missing_error();
-        } else {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH exists: %s\n", 
-                    __FUNCTION__, __LINE__, ctx->prev_log_path);
+                emit_folder_missing_error();
+                all_valid = false;
+             } else {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH exists: %s\n", 
+                        __FUNCTION__, __LINE__, ctx->prev_log_path);
+            }
         }
     }
-
     // Check temp directory - critical
     if (strlen(ctx->temp_dir) > 0) {
         if (!dir_exists(ctx->temp_dir)) {
@@ -188,4 +189,5 @@ bool validate_codebig_access(void)
         return false;
     }
 }
+
 
