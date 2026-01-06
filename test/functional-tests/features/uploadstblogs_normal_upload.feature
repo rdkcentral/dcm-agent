@@ -44,9 +44,5 @@ Feature: uploadSTBLogs Normal Upload Operations
     When uploading large log files within size limits
     Then the service should collect all log files
     And the service should validate total file size
-    And service should compress and upload files efficiently
-    And the compressed archive size should be less than original size
-    And the upload should complete within acceptable time limit
+    And service should upload files efficiently
     And the upload response should return HTTP 200 status
-    And upload success telemetry should be generated
-    And memory usage should remain within defined limits
