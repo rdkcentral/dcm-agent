@@ -36,6 +36,7 @@
 #include "dcm_utils.h"
 #include "dcm_rbus.h"
 #include "dcm_parseconf.h"
+#include "uploadstblogs.h"
 
 static INT32 g_bMMEnable = 0;
 
@@ -454,8 +455,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     INT32  uploadCheck   = 0;
     INT8  *pUploadURL    = NULL;
     INT8  *pUploadprtl   = NULL;
-    INT8  *pRDKPath      = NULL;
-    INT8  *pExBuff       = NULL;
     INT8  *pTimezone     = NULL;
 
     DCMSettingsHandle *pdcmSetHandle = (DCMSettingsHandle *)pHandle;
@@ -467,8 +466,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
 
     pUploadURL  = pdcmSetHandle->cUploadURL;
     pUploadprtl = pdcmSetHandle->cUploadPrtl;
-    pRDKPath    = pdcmSetHandle->cRdkPath;
-    pExBuff     = pdcmSetHandle->ctBuff;
     pTimezone   = pdcmSetHandle->cTimeZone;
 
     ret = dcmSettingJsonInit(pdcmSetHandle, pConffile, &pJsonHandle);
@@ -527,14 +524,42 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_DIFD_CRON: %s\n", pDifdCron);
 
     if(uploadCheck == 1 && pdcmSetHandle->bRebootFlag == 0) {
-        snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 1 %s %s &",
-                                                 pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
-        dcmUtilsSysCmdExec(pExBuff);
+        DCMInfo("Triggering log upload with reboot flag via library API\n");
+        UploadSTBLogsParams params = {
+            .flag = 1,
+            .dcm_flag = 1,
+            .upload_on_reboot = true,
+            .upload_protocol = pUploadprtl,
+            .upload_http_link = pUploadURL,
+            .trigger_type = TRIGGER_REBOOT,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+#ifndef GTEST_ENABLE
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload (reboot=true) failed: %d\n", result);
+        }
+#endif
     }
     else if (uploadCheck == 0 && pdcmSetHandle->bRebootFlag == 0) {
-        snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
-                                                 pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
-        dcmUtilsSysCmdExec(pExBuff);
+        DCMInfo("Triggering log upload without reboot flag via library API\n");
+        UploadSTBLogsParams params = {
+            .flag = 1,
+            .dcm_flag = 1,
+            .upload_on_reboot = false,
+            .upload_protocol = pUploadprtl,
+            .upload_http_link = pUploadURL,
+            .trigger_type = TRIGGER_SCHEDULED,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+#ifndef GTEST_ENABLE
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload (reboot=false) failed: %d\n", result);
+        }
+#endif
     }
     else {
         DCMWarn ("Nothing to do here for uploadCheck value = %d\n", uploadCheck);
@@ -542,10 +567,23 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
 
     if(strlen(pLogCron) == 0) {
         DCMWarn ("Uploading logs as DCM response is either null or not present\n");
-
-        snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
-                                                 pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
-        dcmUtilsSysCmdExec(pExBuff);
+        
+        UploadSTBLogsParams params = {
+            .flag = 1,
+            .dcm_flag = 1,
+            .upload_on_reboot = false,
+            .upload_protocol = pUploadprtl,
+            .upload_http_link = pUploadURL,
+            .trigger_type = TRIGGER_SCHEDULED,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+#ifndef GTEST_ENABLE
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload (empty cron) failed: %d\n", result);
+        }
+#endif
     }
     else {
         DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
@@ -738,3 +776,7 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
     return &dcmSettingJsonGetVal;
 }
 #endif
+
+
+
+

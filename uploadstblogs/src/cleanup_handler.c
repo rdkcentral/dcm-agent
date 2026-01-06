@@ -20,9 +20,15 @@
 /**
  * @file cleanup_handler.c
  * @brief Cleanup operations implementation
+ * 
+ * Combines cleanup_handler and cleanup_manager functionality:
+ * - Upload finalization and archive cleanup
+ * - Log backup and archive housekeeping
+ * - Privacy enforcement and temporary file cleanup
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <errno.h>
@@ -30,11 +36,233 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <regex.h>
 #include "cleanup_handler.h"
 #include "context_manager.h"
 #include "event_manager.h"
 #include "file_operations.h"
 #include "rdk_debug.h"
+
+/* ==========================
+   Internal Helper Functions
+   ========================== */
+
+/**
+ * @brief Recursively remove directory and contents
+ */
+static int remove_directory_recursive(const char *path)
+{
+    DIR *dir = opendir(path);
+    if (!dir) {
+        return remove(path);
+    }
+    
+    struct dirent *entry;
+    char filepath[512];
+    int result = 0;
+    
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+        
+        snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+        
+        // Try as directory first, then as file (avoids TOCTOU race)
+        result = remove_directory_recursive(filepath);
+        if (result != 0) {
+            // If directory removal failed, try as regular file
+            result = unlink(filepath);
+        }
+        
+        if (result != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove: %s\n", 
+                    __FUNCTION__, __LINE__, filepath);
+        }
+    }
+    
+    closedir(dir);
+    return rmdir(path);
+}
+
+bool is_timestamped_backup(const char *filename)
+{
+    if (!filename) {
+        return false;
+    }
+    
+    // Pattern 1: *-*-*-*-*M- (matches: 11-30-25-03-45PM-)
+    // Pattern 2: *-*-*-*-*M-logbackup (matches: 11-30-25-03-45PM-logbackup)
+    regex_t regex;
+    int ret;
+    
+    // Regex pattern for: digits-digits-digits-digits-digits[AP]M- or [AP]M-logbackup
+    const char *pattern = "[0-9]+-[0-9]+-[0-9]+-[0-9]+-[0-9]+[AP]M(-logbackup)?$";
+    
+    ret = regcomp(&regex, pattern, REG_EXTENDED | REG_NOSUB);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to compile regex\n", __FUNCTION__, __LINE__);
+        return false;
+    }
+    
+    ret = regexec(&regex, filename, 0, NULL, 0);
+    regfree(&regex);
+    
+    return (ret == 0);
+}
+
+/* ==========================
+   Housekeeping Functions
+   ========================== */
+
+int cleanup_old_log_backups(const char *log_path, int max_age_days)
+{
+    if (!log_path) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    
+    DIR *dir = opendir(log_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, log_path);
+        return -1;
+    }
+    
+    time_t now = time(NULL);
+    time_t cutoff = now - (max_age_days * 24 * 60 * 60);
+    int removed_count = 0;
+    
+    struct dirent *entry;
+    char fullpath[512];
+    
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip . and ..
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+        
+        // Check if matches timestamped backup pattern
+        if (!is_timestamped_backup(entry->d_name)) {
+            continue;
+        }
+        
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
+        
+        // Open with O_RDONLY|O_NOFOLLOW to prevent TOCTOU and symlink attacks
+        int fd = open(fullpath, O_RDONLY | O_NOFOLLOW);
+        if (fd < 0) {
+            if (errno == ELOOP) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                        "[%s:%d] Skipping symbolic link: %s\n",
+                        __FUNCTION__, __LINE__, fullpath);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to open: %s\n", 
+                        __FUNCTION__, __LINE__, fullpath);
+            }
+            continue;
+        }
+        
+        struct stat st;
+        // Use fstat on the open file descriptor to avoid TOCTOU race
+        if (fstat(fd, &st) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to stat: %s\n", 
+                    __FUNCTION__, __LINE__, fullpath);
+            close(fd);
+            continue;
+        }
+        
+        close(fd);
+        
+        // Check if older than max_age_days (matches script: -mtime +3)
+        if (st.st_mtime < cutoff) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Removing old backup (age: %d days): %s\n",
+                    __FUNCTION__, __LINE__, 
+                    (int)((now - st.st_mtime) / (24 * 60 * 60)), fullpath);
+            
+            if (S_ISDIR(st.st_mode)) {
+                if (remove_directory_recursive(fullpath) == 0) {
+                    removed_count++;
+                }
+            } else {
+                if (unlink(fullpath) == 0) {
+                    removed_count++;
+                }
+            }
+        }
+    }
+    
+    closedir(dir);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Cleanup complete: removed %d old backups from %s\n",
+            __FUNCTION__, __LINE__, removed_count, log_path);
+    
+    return removed_count;
+}
+
+int cleanup_old_archives(const char *log_path)
+{
+    if (!log_path) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    
+    DIR *dir = opendir(log_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, log_path);
+        return -1;
+    }
+    
+    int removed_count = 0;
+    struct dirent *entry;
+    char fullpath[512];
+    
+    while ((entry = readdir(dir)) != NULL) {
+        // Check if file ends with .tgz
+        size_t len = strlen(entry->d_name);
+        if (len < 5 || strcmp(entry->d_name + len - 4, ".tgz") != 0) {
+            continue;
+        }
+        
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
+        
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Removing old archive: %s\n",
+                __FUNCTION__, __LINE__, fullpath);
+        
+        // Use unlink to remove file (more explicit than remove)
+        if (unlink(fullpath) == 0) {
+            removed_count++;
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove: %s\n", 
+                    __FUNCTION__, __LINE__, fullpath);
+        }
+    }
+    
+    closedir(dir);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Archive cleanup complete: removed %d .tgz files from %s\n",
+            __FUNCTION__, __LINE__, removed_count, log_path);
+    
+    return removed_count;
+}
+
+/* ==========================
+   Upload Finalization Functions
+   ========================== */
 
 void finalize(RuntimeContext* ctx, SessionState* session)
 {
@@ -66,7 +294,7 @@ void finalize(RuntimeContext* ctx, SessionState* session)
     }
 
     // Clean up temporary directories
-    if (!cleanup_temp_dirs(ctx)) {
+    if (!cleanup_temp_dirs(ctx, session)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to clean some temporary directories\n", 
                 __FUNCTION__, __LINE__);
@@ -218,7 +446,7 @@ bool remove_archive(const char* archive_path)
     }
 }
 
-bool cleanup_temp_dirs(const RuntimeContext* ctx)
+bool cleanup_temp_dirs(const RuntimeContext* ctx, const SessionState* session)
 {
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -231,18 +459,23 @@ bool cleanup_temp_dirs(const RuntimeContext* ctx)
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning up temporary directories\n", __FUNCTION__, __LINE__);
 
-    // Clean up temporary files used during upload
-    const char* httpresult_file = "/tmp/httpresult.txt";  // S3 presigned URL storage
+    // Clean up HTTP result files (both standard and RRD)
+    const char* files_to_remove[] = {
+        "/tmp/httpresults.txt",      // Standard upload result file
+        "/tmp/rrd_httpresults.txt"   // RRD upload result file
+    };
     
-    // Remove file directly (no TOCTOU race - unlink handles non-existent files)
-    if (unlink(httpresult_file) == 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, httpresult_file);
-    } else if (errno != ENOENT) {  // ENOENT = file doesn't exist (acceptable)
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to remove temp file %s: %s\n", 
-                __FUNCTION__, __LINE__, httpresult_file, strerror(errno));
-        success = false;
+    for (size_t i = 0; i < sizeof(files_to_remove) / sizeof(files_to_remove[0]); i++) {
+        // Remove file directly (no TOCTOU race - unlink handles non-existent files)
+        if (unlink(files_to_remove[i]) == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                    "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, files_to_remove[i]);
+        } else if (errno != ENOENT) {  // ENOENT = file doesn't exist (acceptable)
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove temp file %s: %s\n", 
+                    __FUNCTION__, __LINE__, files_to_remove[i], strerror(errno));
+            success = false;
+        }
     }
     
     return success;

@@ -122,21 +122,21 @@ bool should_retry(const RuntimeContext* ctx, const SessionState* session, Upload
     // Check attempt limits based on path
     switch (path) {
         case PATH_DIRECT:
-            if (session->direct_attempts >= ctx->retry.direct_max_attempts) {
+            if (session->direct_attempts >= ctx->direct_max_attempts) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Direct path max attempts reached (%d/%d)\n",
                         __FUNCTION__, __LINE__, 
-                        session->direct_attempts, ctx->retry.direct_max_attempts);
+                        session->direct_attempts, ctx->direct_max_attempts);
                 return false;
             }
             break;
             
         case PATH_CODEBIG:
-            if (session->codebig_attempts >= ctx->retry.codebig_max_attempts) {
+            if (session->codebig_attempts >= ctx->codebig_max_attempts) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] CodeBig path max attempts reached (%d/%d)\n",
                         __FUNCTION__, __LINE__,
-                        session->codebig_attempts, ctx->retry.codebig_max_attempts);
+                        session->codebig_attempts, ctx->codebig_max_attempts);
                 return false;
             }
             break;

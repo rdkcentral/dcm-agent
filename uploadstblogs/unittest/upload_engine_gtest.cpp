@@ -123,8 +123,8 @@ protected:
         session.success = false;
         
         // Set up context paths
-        strcpy(ctx.paths.archive_path, "/tmp");
-        strcpy(ctx.paths.log_path, "/opt/logs");
+        strcpy(ctx.archive_path, "/tmp");
+        strcpy(ctx.log_path, "/opt/logs");
     }
     
     void TearDown() override {

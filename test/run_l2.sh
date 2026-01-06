@@ -24,7 +24,7 @@ LOCAL_DIR="/usr/local"
 RBUS_INSTALL_DIR="/usr/local"
 
 mkdir -p "$RESULT_DIR"
-echo "LOG.RDK.DCM = ALL FATAL ERROR WARNING NOTICE INFO DEBUG" >> /etc/debug.ini
+echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
 
 if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
     echo "LOG_PATH=/opt/logs/" >> /etc/include.properties

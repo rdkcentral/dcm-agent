@@ -21,14 +21,23 @@
  * @file cleanup_handler.h
  * @brief Cleanup and finalization operations
  *
- * This module handles post-upload cleanup including archive removal,
- * block marker management, and state restoration.
+ * This module handles:
+ * - Post-upload cleanup (archive removal, block markers, state restoration)
+ * - Log housekeeping (old backups, archive cleanup)
+ * - Privacy enforcement (log truncation)
+ * 
+ * Combines functionality from cleanup_handler and cleanup_manager
  */
 
 #ifndef CLEANUP_HANDLER_H
 #define CLEANUP_HANDLER_H
 
+#include <stdbool.h>
 #include "uploadstblogs_types.h"
+
+/* ==========================
+   Upload Finalization
+   ========================== */
 
 /**
  * @brief Finalize upload operation
@@ -73,7 +82,7 @@ bool remove_archive(const char* archive_path);
  * @param ctx Runtime context
  * @return true on success, false on failure
  */
-bool cleanup_temp_dirs(const RuntimeContext* ctx);
+bool cleanup_temp_dirs(const RuntimeContext* ctx, const SessionState* session);
 
 /**
  * @brief Create block marker file
@@ -82,5 +91,43 @@ bool cleanup_temp_dirs(const RuntimeContext* ctx);
  * @return true on success, false on failure
  */
 bool create_block_marker(UploadPath path, int duration_seconds);
+
+/* ==========================
+   Log Housekeeping
+   ========================== */
+
+/**
+ * @brief Clean up old log backup folders
+ * 
+ * Removes timestamped log backup folders older than max_age_days.
+ * Matches script behavior: find /opt/logs -name "*-*-*-*-*M-*" -mtime +3
+ * 
+ * @param log_path Base log directory path
+ * @param max_age_days Maximum age in days (typically 3)
+ * @return Number of folders removed
+ */
+int cleanup_old_log_backups(const char *log_path, int max_age_days);
+
+/**
+ * @brief Remove old tar.gz archive files
+ * 
+ * Removes .tgz files from log directory.
+ * Matches script: find $LOG_PATH -name "*.tgz" -exec rm -rf {} \;
+ * 
+ * @param log_path Log directory path
+ * @return Number of files removed
+ */
+int cleanup_old_archives(const char *log_path);
+
+/**
+ * @brief Check if path matches timestamped backup pattern
+ * 
+ * Patterns: *-*-*-*-*M- or *-*-*-*-*M-logbackup
+ * Example: 11-30-25-03-45PM-logbackup
+ * 
+ * @param filename Filename or path to check
+ * @return true if matches pattern, false otherwise
+ */
+bool is_timestamped_backup(const char *filename);
 
 #endif /* CLEANUP_HANDLER_H */

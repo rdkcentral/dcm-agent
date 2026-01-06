@@ -133,6 +133,16 @@ int read_file(const char* filepath, char* buffer, size_t buffer_size);
 int add_timestamp_to_files(const char* dir_path);
 
 /**
+ * @brief Add timestamp prefix to files with UploadLogsNow-specific exclusions
+ * @param dir_path Directory containing files
+ * @return 0 on success, -1 on failure
+ *
+ * Like add_timestamp_to_files() but skips files that already have AM/PM 
+ * timestamps, reboot logs, and ABL reason logs (matches shell script logic)
+ */
+int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
+
+/**
  * @brief Remove timestamp prefix from all files in directory
  * @param dir_path Directory containing files
  * @return 0 on success, -1 on failure

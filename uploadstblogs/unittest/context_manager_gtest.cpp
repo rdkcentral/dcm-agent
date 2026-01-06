@@ -180,13 +180,13 @@ TEST_F(ContextManagerTest, LoadEnvironment_Success) {
     EXPECT_TRUE(load_environment(&ctx));
     
     // Verify loaded values
-    EXPECT_STREQ(ctx.paths.log_path, "/opt/test");
-    EXPECT_STREQ(ctx.paths.prev_log_path, "/opt/test/PreviousLogs");
-    EXPECT_EQ(ctx.retry.direct_retry_delay, 43200);
-    EXPECT_EQ(ctx.retry.codebig_retry_delay, 900);
-    EXPECT_STREQ(ctx.device.device_type, "mediaclient");
-    EXPECT_STREQ(ctx.device.build_type, "prod");
-    EXPECT_TRUE(ctx.settings.maintenance_enabled);
+    EXPECT_STREQ(ctx.log_path, "/opt/test");
+    EXPECT_STREQ(ctx.prev_log_path, "/opt/test/PreviousLogs");
+    EXPECT_EQ(ctx.direct_retry_delay, 43200);
+    EXPECT_EQ(ctx.codebig_retry_delay, 900);
+    EXPECT_STREQ(ctx.device_type, "mediaclient");
+    EXPECT_STREQ(ctx.build_type, "prod");
+    EXPECT_TRUE(ctx.maintenance_enabled);
 }
 
 TEST_F(ContextManagerTest, LoadEnvironment_DefaultValues) {
@@ -200,12 +200,12 @@ TEST_F(ContextManagerTest, LoadEnvironment_DefaultValues) {
     EXPECT_TRUE(load_environment(&ctx));
     
     // Verify default values
-    EXPECT_STREQ(ctx.paths.log_path, "/opt/logs");
-    EXPECT_STREQ(ctx.paths.prev_log_path, "/opt/logs/PreviousLogs");
-    EXPECT_EQ(ctx.retry.direct_retry_delay, 86400);
-    EXPECT_EQ(ctx.retry.codebig_retry_delay, 1800);
-    EXPECT_EQ(ctx.retry.direct_max_attempts, 3);
-    EXPECT_EQ(ctx.retry.codebig_max_attempts, 1);
+    EXPECT_STREQ(ctx.log_path, "/opt/logs");
+    EXPECT_STREQ(ctx.prev_log_path, "/opt/logs/PreviousLogs");
+    EXPECT_EQ(ctx.direct_retry_delay, 86400);
+    EXPECT_EQ(ctx.codebig_retry_delay, 1800);
+    EXPECT_EQ(ctx.direct_max_attempts, 3);
+    EXPECT_EQ(ctx.codebig_max_attempts, 1);
 }
 
 TEST_F(ContextManagerTest, LoadEnvironment_OCSPEnabled) {
@@ -219,7 +219,7 @@ TEST_F(ContextManagerTest, LoadEnvironment_OCSPEnabled) {
         .WillRepeatedly(Return(UTILS_FAIL));
 
     EXPECT_TRUE(load_environment(&ctx));
-    EXPECT_TRUE(ctx.settings.ocsp_enabled);
+    EXPECT_TRUE(ctx.ocsp_enabled);
 }
 
 // Test load_tr181_params function
@@ -255,9 +255,9 @@ TEST_F(ContextManagerTest, LoadTR181Params_Success) {
     EXPECT_TRUE(load_tr181_params(&ctx));
     
     // Verify loaded values
-    EXPECT_STREQ(ctx.endpoints.endpoint_url, "https://example.com/upload");
-    EXPECT_TRUE(ctx.settings.encryption_enable);
-    EXPECT_TRUE(ctx.settings.privacy_do_not_share);
+    EXPECT_STREQ(ctx.endpoint_url, "https://example.com/upload");
+    EXPECT_TRUE(ctx.encryption_enable);
+    EXPECT_TRUE(ctx.privacy_do_not_share);
 }
 
 // Test get_mac_address function

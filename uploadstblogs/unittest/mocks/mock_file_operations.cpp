@@ -54,6 +54,16 @@ bool create_directory(const char* dirpath) {
     return true;
 }
 
+bool copy_file(const char* src, const char* dest) {
+    if (g_mockFileOperations) {
+        return g_mockFileOperations->copy_file(src, dest);
+    }
+    // Default implementation - assume success
+    (void)src;
+    (void)dest;
+    return true;
+}
+
 void emit_system_validation_event(const char* component, bool success) {
     if (g_mockFileOperations) {
         g_mockFileOperations->emit_system_validation_event(component, success);

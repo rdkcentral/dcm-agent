@@ -30,6 +30,7 @@ extern "C" {
 bool file_exists(const char* filepath);
 bool dir_exists(const char* dirpath);
 bool create_directory(const char* dirpath);
+bool copy_file(const char* src, const char* dest);
 void emit_system_validation_event(const char* component, bool success);
 void emit_folder_missing_error(void);
 int v_secure_system(const char* command, ...);
@@ -45,6 +46,7 @@ public:
     MOCK_METHOD1(file_exists, bool(const char* filepath));
     MOCK_METHOD1(dir_exists, bool(const char* dirpath));
     MOCK_METHOD1(create_directory, bool(const char* dirpath));
+    MOCK_METHOD2(copy_file, bool(const char* src, const char* dest));
     MOCK_METHOD2(emit_system_validation_event, void(const char* component, bool success));
     MOCK_METHOD0(emit_folder_missing_error, void(void));
     MOCK_METHOD1(v_secure_system, int(const char* command));

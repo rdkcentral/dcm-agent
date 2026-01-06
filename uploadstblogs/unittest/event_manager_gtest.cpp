@@ -189,8 +189,8 @@ protected:
         memset(&test_session, 0, sizeof(SessionState));
 
         // Set up default test context
-        strcpy(test_ctx.device.device_type, mock_device_type);
-        strcpy(test_ctx.paths.log_path, "/opt/logs");
+        strcpy(test_ctx.device_type, mock_device_type);
+        strcpy(test_ctx.log_path, "/opt/logs");
 
         // Set up default test session
         test_session.strategy = STRAT_DCM;
@@ -218,7 +218,7 @@ TEST_F(EventManagerTest, EmitPrivacyAbort_Success) {
 
 // Test emit_no_logs_reboot function
 TEST_F(EventManagerTest, EmitNoLogsReboot_BroadbandDevice) {
-    strcpy(test_ctx.device.device_type, "broadband");
+    strcpy(test_ctx.device_type, "broadband");
     mock_maintenance_enabled = true;
 
     emit_no_logs_reboot(&test_ctx);
@@ -228,7 +228,7 @@ TEST_F(EventManagerTest, EmitNoLogsReboot_BroadbandDevice) {
 }
 
 TEST_F(EventManagerTest, EmitNoLogsReboot_NonBroadbandWithMaintenance) {
-    strcpy(test_ctx.device.device_type, "gateway");
+    strcpy(test_ctx.device_type, "gateway");
     mock_maintenance_enabled = true;
 
     emit_no_logs_reboot(&test_ctx);
@@ -240,7 +240,7 @@ TEST_F(EventManagerTest, EmitNoLogsReboot_NonBroadbandWithMaintenance) {
 }
 
 TEST_F(EventManagerTest, EmitNoLogsReboot_NonBroadbandWithoutMaintenance) {
-    strcpy(test_ctx.device.device_type, "gateway");
+    strcpy(test_ctx.device_type, "gateway");
     mock_maintenance_enabled = false;
 
     emit_no_logs_reboot(&test_ctx);
@@ -307,7 +307,7 @@ TEST_F(EventManagerTest, EmitUploadSuccess_CodeBigPath) {
 }
 
 TEST_F(EventManagerTest, EmitUploadSuccess_BroadbandDevice) {
-    strcpy(test_ctx.device.device_type, "broadband");
+    strcpy(test_ctx.device_type, "broadband");
     test_session.success = true;
     mock_maintenance_enabled = true;
 
@@ -341,7 +341,7 @@ TEST_F(EventManagerTest, EmitUploadFailure_NonBroadbandWithMaintenance) {
 }
 
 TEST_F(EventManagerTest, EmitUploadFailure_BroadbandDevice) {
-    strcpy(test_ctx.device.device_type, "broadband");
+    strcpy(test_ctx.device_type, "broadband");
     test_session.direct_attempts = 3;
     mock_maintenance_enabled = true;
 
@@ -510,7 +510,7 @@ TEST_F(EventManagerTest, EdgeCases_DeviceTypeVariations) {
 
     for (int i = 0; i < 4; i++) {
         mock_iarm_event_calls = 0;
-        strcpy(test_ctx.device.device_type, device_types[i]);
+        strcpy(test_ctx.device_type, device_types[i]);
 
         emit_upload_success(&test_ctx, &test_session);
 

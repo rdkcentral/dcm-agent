@@ -71,8 +71,8 @@ protected:
 
         // Initialize test context
         memset(&ctx, 0, sizeof(ctx));
-        ctx.retry.direct_max_attempts = 3;
-        ctx.retry.codebig_max_attempts = 2;
+        ctx.direct_max_attempts = 3;
+        ctx.codebig_max_attempts = 2;
 
         // Initialize test session
         memset(&session, 0, sizeof(session));
@@ -171,7 +171,7 @@ TEST_F(RetryLogicTest, RetryUpload_DirectPath_RetriesUntilMaxAttempts) {
     UploadResult result = retry_upload(&ctx, &session, PATH_DIRECT, mock_upload_fail);
 
     EXPECT_EQ(result, UPLOADSTB_FAILED);
-    EXPECT_EQ(upload_call_count, 3); // ctx.retry.direct_max_attempts
+    EXPECT_EQ(upload_call_count, 3); // ctx.direct_max_attempts
     EXPECT_EQ(session.direct_attempts, 3);
     EXPECT_EQ(session.codebig_attempts, 0);
 }
@@ -180,7 +180,7 @@ TEST_F(RetryLogicTest, RetryUpload_CodeBigPath_RetriesUntilMaxAttempts) {
     UploadResult result = retry_upload(&ctx, &session, PATH_CODEBIG, mock_upload_fail);
 
     EXPECT_EQ(result, UPLOADSTB_FAILED);
-    EXPECT_EQ(upload_call_count, 2); // ctx.retry.codebig_max_attempts
+    EXPECT_EQ(upload_call_count, 2); // ctx.codebig_max_attempts
     EXPECT_EQ(session.direct_attempts, 0);
     EXPECT_EQ(session.codebig_attempts, 2);
 }
@@ -262,7 +262,7 @@ TEST_F(RetryLogicTest, ShouldRetry_TerminalFailure_HTTP404_NoRetry) {
 
 TEST_F(RetryLogicTest, ShouldRetry_DirectPath_WithinAttemptLimit) {
     session.direct_attempts = 2;
-    ctx.retry.direct_max_attempts = 3;
+    ctx.direct_max_attempts = 3;
     session.http_code = 500; // Non-terminal failure
 
     bool result = should_retry(&ctx, &session, PATH_DIRECT, UPLOADSTB_FAILED);
@@ -271,7 +271,7 @@ TEST_F(RetryLogicTest, ShouldRetry_DirectPath_WithinAttemptLimit) {
 
 TEST_F(RetryLogicTest, ShouldRetry_DirectPath_ExceededAttemptLimit) {
     session.direct_attempts = 3;
-    ctx.retry.direct_max_attempts = 3;
+    ctx.direct_max_attempts = 3;
     session.http_code = 500; // Non-terminal failure
 
     bool result = should_retry(&ctx, &session, PATH_DIRECT, UPLOADSTB_FAILED);
@@ -280,7 +280,7 @@ TEST_F(RetryLogicTest, ShouldRetry_DirectPath_ExceededAttemptLimit) {
 
 TEST_F(RetryLogicTest, ShouldRetry_CodeBigPath_WithinAttemptLimit) {
     session.codebig_attempts = 1;
-    ctx.retry.codebig_max_attempts = 2;
+    ctx.codebig_max_attempts = 2;
     session.http_code = 500; // Non-terminal failure
 
     bool result = should_retry(&ctx, &session, PATH_CODEBIG, UPLOADSTB_FAILED);
@@ -289,7 +289,7 @@ TEST_F(RetryLogicTest, ShouldRetry_CodeBigPath_WithinAttemptLimit) {
 
 TEST_F(RetryLogicTest, ShouldRetry_CodeBigPath_ExceededAttemptLimit) {
     session.codebig_attempts = 2;
-    ctx.retry.codebig_max_attempts = 2;
+    ctx.codebig_max_attempts = 2;
     session.http_code = 500; // Non-terminal failure
 
     bool result = should_retry(&ctx, &session, PATH_CODEBIG, UPLOADSTB_FAILED);
@@ -298,7 +298,7 @@ TEST_F(RetryLogicTest, ShouldRetry_CodeBigPath_ExceededAttemptLimit) {
 
 TEST_F(RetryLogicTest, ShouldRetry_RetryResult_WithinLimit) {
     session.direct_attempts = 1;
-    ctx.retry.direct_max_attempts = 3;
+    ctx.direct_max_attempts = 3;
     session.http_code = 500; // Non-terminal failure
 
     bool result = should_retry(&ctx, &session, PATH_DIRECT, UPLOADSTB_RETRY);
@@ -406,8 +406,8 @@ TEST_F(RetryLogicTest, Integration_NetworkFailurePreventsRetry) {
 
 TEST_F(RetryLogicTest, Integration_MixedPathAttempts) {
     // Test that attempts are tracked separately for different paths
-    ctx.retry.direct_max_attempts = 2;
-    ctx.retry.codebig_max_attempts = 3;
+    ctx.direct_max_attempts = 2;
+    ctx.codebig_max_attempts = 3;
 
     // Try direct path first
     UploadResult result1 = retry_upload(&ctx, &session, PATH_DIRECT, mock_upload_fail);

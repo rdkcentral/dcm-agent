@@ -21,14 +21,69 @@
  * @file archive_manager.h
  * @brief Log archive creation and management
  *
- * This module handles log collection, archive creation, and timestamp
- * management based on the selected upload strategy.
+ * This module handles:
+ * - Log file collection and filtering
+ * - Archive creation (tar.gz format)
+ * - Timestamp management based on upload strategy
+ * 
+ * Combines functionality from archive_manager and log_collector
  */
 
 #ifndef ARCHIVE_MANAGER_H
 #define ARCHIVE_MANAGER_H
 
 #include "uploadstblogs_types.h"
+
+/* ==========================
+   Log Collection
+   ========================== */
+
+/**
+ * @brief Collect log files for archiving
+ * @param ctx Runtime context
+ * @param session Session state
+ * @param dest_dir Destination directory for collected logs
+ * @return Number of files collected, or -1 on error
+ *
+ * Collects .log and .txt files, optionally PCAP and DRI logs
+ * based on strategy and configuration.
+ */
+int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir);
+
+/**
+ * @brief Collect previous logs
+ * @param src_dir Source directory (PreviousLogs)
+ * @param dest_dir Destination directory
+ * @return Number of files copied, or -1 on error
+ */
+int collect_previous_logs(const char* src_dir, const char* dest_dir);
+
+/**
+ * @brief Collect PCAP files if enabled
+ * @param ctx Runtime context
+ * @param dest_dir Destination directory
+ * @return Number of files collected, or -1 on error
+ */
+int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir);
+
+/**
+ * @brief Collect DRI logs if enabled
+ * @param ctx Runtime context
+ * @param dest_dir Destination directory
+ * @return Number of files collected, or -1 on error
+ */
+int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir);
+
+/**
+ * @brief Check if file should be included based on extension
+ * @param filename File name to check
+ * @return true if file should be collected, false otherwise
+ */
+bool should_collect_file(const char* filename);
+
+/* ==========================
+   Archive Management
+   ========================== */
 
 /**
  * @brief Create tar.gz archive from directory
