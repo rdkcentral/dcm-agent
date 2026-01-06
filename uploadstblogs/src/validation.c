@@ -82,7 +82,7 @@ bool validate_directories(const RuntimeContext* ctx)
                     __FUNCTION__, __LINE__, ctx->log_path);
         }
     }
-    if (ctx->flags.rrd_flag == 0) {
+    if (ctx->rrd_flag == 0) {
     // Check PREV_LOG_PATH - critical for upload (matches script behavior)
         if (strlen(ctx->prev_log_path) > 0) {
             if (!dir_exists(ctx->prev_log_path)) {
@@ -189,5 +189,6 @@ bool validate_codebig_access(void)
         return false;
     }
 }
+
 
 
