@@ -90,7 +90,6 @@ bool validate_directories(const RuntimeContext* ctx)
                     __FUNCTION__, __LINE__, ctx->prev_log_path);
             // Script sends MAINT_LOGUPLOAD_ERROR=5 when PREV_LOG_PATH is missing
             emit_folder_missing_error();
-            all_valid = false;
         } else {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PREV_LOG_PATH exists: %s\n", 
                     __FUNCTION__, __LINE__, ctx->prev_log_path);
@@ -189,3 +188,4 @@ bool validate_codebig_access(void)
         return false;
     }
 }
+
