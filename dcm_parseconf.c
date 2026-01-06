@@ -535,10 +535,12 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
             .rrd_flag = false,
             .rrd_file = NULL
         };
+#ifndef GTEST_ENABLE
         int result = uploadstblogs_run(&params);
         if (result != 0) {
             DCMError("Log upload (reboot=true) failed: %d\n", result);
         }
+#endif
     }
     else if (uploadCheck == 0 && pdcmSetHandle->bRebootFlag == 0) {
         DCMInfo("Triggering log upload without reboot flag via library API\n");
@@ -552,10 +554,12 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
             .rrd_flag = false,
             .rrd_file = NULL
         };
+#ifndef GTEST_ENABLE
         int result = uploadstblogs_run(&params);
         if (result != 0) {
             DCMError("Log upload (reboot=false) failed: %d\n", result);
         }
+#endif
     }
     else {
         DCMWarn ("Nothing to do here for uploadCheck value = %d\n", uploadCheck);
@@ -574,10 +578,12 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
             .rrd_flag = false,
             .rrd_file = NULL
         };
+#ifndef GTEST_ENABLE
         int result = uploadstblogs_run(&params);
         if (result != 0) {
             DCMError("Log upload (empty cron) failed: %d\n", result);
         }
+#endif
     }
     else {
         DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
@@ -770,6 +776,7 @@ INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
     return &dcmSettingJsonGetVal;
 }
 #endif
+
 
 
 
