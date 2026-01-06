@@ -100,7 +100,7 @@ void emit_no_logs_reboot(const RuntimeContext* ctx)
     
     // Send maintenance complete event only if device is not broadband and maintenance enabled
     // Matches script uploadLogOnReboot line 810: if [ "$DEVICE_TYPE" != "broadband" ] && [ "x$ENABLE_MAINTENANCE" == "xtrue" ]
-    if (!is_device_broadband(ctx) && is_maintenance_enabled()) {
+    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
         send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
     }
 }
@@ -421,3 +421,4 @@ void emit_folder_missing_error(void)
     // Send maintenance error event (matches script behavior)
     send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
 }
+
