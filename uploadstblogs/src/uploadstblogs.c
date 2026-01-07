@@ -206,7 +206,7 @@ bool is_maintenance_enabled(void)
 
 int uploadstblogs_run(const UploadSTBLogsParams* params)
 {
-    RuntimeContext ctx = {0};
+    static RuntimeContext ctx;
     SessionState session = {0};
     int ret = 1;
 
@@ -214,6 +214,9 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
         fprintf(stderr, "Invalid parameters\n");
         return 1;
     }
+
+    /* Clear context to ensure clean state */
+    memset(&ctx, 0, sizeof(ctx));
 
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
@@ -323,9 +326,12 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
 
 int uploadstblogs_execute(int argc, char** argv)
 {
-    RuntimeContext ctx = {0};
+    static RuntimeContext ctx;
     SessionState session = {0};
     int ret = 1;
+
+    /* Clear context to ensure clean state */
+    memset(&ctx, 0, sizeof(ctx));
 
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
