@@ -525,16 +525,21 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     }
 
     DCMInfo("DCM_DIFD_CRON: %s\n", pDifdCron);
+    bool uploadTriggered = false;
 
     if(uploadCheck == 1 && pdcmSetHandle->bRebootFlag == 0) {
+        DCMInfo("Upload trigger for uploadcheck=1 \n");
         snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 1 %s %s &",
                                                  pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
         dcmUtilsSysCmdExec(pExBuff);
+        uploadTriggered = true;
     }
     else if (uploadCheck == 0 && pdcmSetHandle->bRebootFlag == 0) {
+        DCMInfo("Upload trigger for uploadcheck=0 \n");
         snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
                                                  pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
         dcmUtilsSysCmdExec(pExBuff);
+        uploadTriggered = true;
     }
     else {
         DCMWarn ("Nothing to do here for uploadCheck value = %d\n", uploadCheck);
@@ -543,9 +548,11 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     if(strlen(pLogCron) == 0) {
         DCMWarn ("Uploading logs as DCM response is either null or not present\n");
 
-        snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
+        if(!uploadTriggered) {
+            snprintf(pExBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 1 1 0 %s %s &",
                                                  pRDKPath, DCM_LOG_TFTP, pUploadprtl, pUploadURL);
-        dcmUtilsSysCmdExec(pExBuff);
+            dcmUtilsSysCmdExec(pExBuff);
+        }
     }
     else {
         DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
