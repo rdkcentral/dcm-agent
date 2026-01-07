@@ -45,7 +45,6 @@ cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
-cp uploadstblogs.h
 
 automake --add-missing
 autoreconf --install
