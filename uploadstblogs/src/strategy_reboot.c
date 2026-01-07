@@ -110,9 +110,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             
             // Script checks ENABLE_MAINTENANCE but both paths result in 330s sleep
             // For simplicity, just sleep (background job with wait has same effect)
-#ifndef L2_TEST_ENABLED
             sleep(330);
-#endif
             
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                     "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
@@ -253,9 +251,8 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-#ifndef L2_TEST_ENABLED
+
     sleep(60);
-#endif
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
@@ -391,9 +388,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-#ifndef L2_TEST_ENABLED
                 sleep(60);
-#endif
             
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
