@@ -188,7 +188,7 @@ bool init_context(RuntimeContext* ctx)
     }
 
     // Get device MAC address
-    if (!get_mac_address(ctx->mac_address, sizeof(ctx->mac_address))) {
+    if (!get_mac_address(ctx->device.mac_address, sizeof(ctx->device.mac_address))) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get MAC address\n", __FUNCTION__, __LINE__);
         return false;
     }
@@ -197,8 +197,8 @@ bool init_context(RuntimeContext* ctx)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Context initialization successful\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Device MAC: '%s', Type: '%s'\n",
             __FUNCTION__, __LINE__, 
-            ctx->mac_address,
-            strlen(ctx->device_type) > 0 ? ctx->device_type : "(empty)");
+            ctx->device.mac_address,
+            strlen(ctx->device.device_type) > 0 ? ctx->device.device_type : "(empty)");
     
     return true;
 }
@@ -301,9 +301,9 @@ bool load_environment(RuntimeContext* ctx)
     // Load DEVICE_TYPE from /etc/device.properties
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("DEVICE_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->device_type, buffer, sizeof(ctx->device_type) - 1);
-        ctx->device_type[sizeof(ctx->device_type) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device_type);
+        strncpy(ctx->device.device_type, buffer, sizeof(ctx->device.device_type) - 1);
+        ctx->device.device_type[sizeof(ctx->device.device_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.device_type);
     } else {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DEVICE_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
     }
@@ -311,9 +311,9 @@ bool load_environment(RuntimeContext* ctx)
     // Load BUILD_TYPE from /etc/device.properties
     memset(buffer, 0, sizeof(buffer));
     if (getDevicePropertyData("BUILD_TYPE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        strncpy(ctx->build_type, buffer, sizeof(ctx->build_type) - 1);
-        ctx->build_type[sizeof(ctx->build_type) - 1] = '\0';
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->build_type);
+        strncpy(ctx->device.build_type, buffer, sizeof(ctx->device.build_type) - 1);
+        ctx->device.build_type[sizeof(ctx->device.build_type) - 1] = '\0';
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE=%s\n", __FUNCTION__, __LINE__, ctx->device.build_type);
     } else {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] BUILD_TYPE not found in device.properties\n", __FUNCTION__, __LINE__);
     }
@@ -388,8 +388,8 @@ bool load_environment(RuntimeContext* ctx)
     }
 
     // Enable PCAP collection for mediaclient devices
-    if (strcasecmp(ctx->device_type, "mediaclient") == 0) {
-        ctx->include_pcap = true;
+    if (strcasecmp(ctx->device.device_type, "mediaclient") == 0) {
+        ctx->settings.include_pcap = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] PCAP collection enabled for mediaclient\n", __FUNCTION__, __LINE__);
     }
 
