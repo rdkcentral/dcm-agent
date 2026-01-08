@@ -82,7 +82,7 @@ bool remove_archive(const char* archive_path);
  * @param ctx Runtime context
  * @return true on success, false on failure
  */
-bool cleanup_temp_dirs(const RuntimeContext* ctx);
+bool cleanup_temp_dirs(const RuntimeContext* ctx, const SessionState* session);
 
 /**
  * @brief Create block marker file

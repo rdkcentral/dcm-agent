@@ -294,7 +294,7 @@ void finalize(RuntimeContext* ctx, SessionState* session)
     }
 
     // Clean up temporary directories
-    if (!cleanup_temp_dirs(ctx)) {
+    if (!cleanup_temp_dirs(ctx, session)) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to clean some temporary directories\n", 
                 __FUNCTION__, __LINE__);
@@ -446,7 +446,7 @@ bool remove_archive(const char* archive_path)
     }
 }
 
-bool cleanup_temp_dirs(const RuntimeContext* ctx)
+bool cleanup_temp_dirs(const RuntimeContext* ctx, const SessionState* session)
 {
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
@@ -459,18 +459,23 @@ bool cleanup_temp_dirs(const RuntimeContext* ctx)
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning up temporary directories\n", __FUNCTION__, __LINE__);
 
-    // Clean up temporary files used during upload
-    const char* httpresult_file = "/tmp/httpresult.txt";  // S3 presigned URL storage
+    // Clean up HTTP result files (both standard and RRD)
+    const char* files_to_remove[] = {
+        "/tmp/httpresults.txt",      // Standard upload result file
+        "/tmp/rrd_httpresults.txt"   // RRD upload result file
+    };
     
-    // Remove file directly (no TOCTOU race - unlink handles non-existent files)
-    if (unlink(httpresult_file) == 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, httpresult_file);
-    } else if (errno != ENOENT) {  // ENOENT = file doesn't exist (acceptable)
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to remove temp file %s: %s\n", 
-                __FUNCTION__, __LINE__, httpresult_file, strerror(errno));
-        success = false;
+    for (size_t i = 0; i < sizeof(files_to_remove) / sizeof(files_to_remove[0]); i++) {
+        // Remove file directly (no TOCTOU race - unlink handles non-existent files)
+        if (unlink(files_to_remove[i]) == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                    "[%s:%d] Removed temp file: %s\n", __FUNCTION__, __LINE__, files_to_remove[i]);
+        } else if (errno != ENOENT) {  // ENOENT = file doesn't exist (acceptable)
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove temp file %s: %s\n", 
+                    __FUNCTION__, __LINE__, files_to_remove[i], strerror(errno));
+            success = false;
+        }
     }
     
     return success;

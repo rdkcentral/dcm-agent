@@ -85,7 +85,7 @@ typedef struct {
 // Mock upload library functions
 void __uploadutil_set_ocsp(bool enabled);
 void __uploadutil_get_status(long *http_code, int *curl_code);
-int performMetadataPostWithCertRotationEx(const char *upload_url, const char *filepath,
+int performMetadataPostWithCertRotationEx(const char *upload_url, const char *outfile,
                                           const char *extra_fields, MtlsAuth_t *sec_out,
                                           long *http_code_out);
 int performS3PutWithCert(const char *s3_url, const char *src_file, MtlsAuth_t *sec);
@@ -195,7 +195,7 @@ void __uploadutil_get_status(long *http_code, int *curl_code) {
     if (curl_code) *curl_code = mock_curl_code_status;
 }
 
-int performMetadataPostWithCertRotationEx(const char *upload_url, const char *filepath,
+int performMetadataPostWithCertRotationEx(const char *upload_url, const char *outfile,
                                           const char *extra_fields, MtlsAuth_t *sec_out,
                                           long *http_code_out) {
     mock_upload_mtls_calls++;

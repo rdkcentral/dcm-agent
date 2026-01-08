@@ -138,7 +138,7 @@ void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_SUCCESS);
     
     // Send maintenance event only if device is not broadband and maintenance enabled
-    if (!is_device_broadband(ctx) && is_maintenance_enabled()) {
+    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
         send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
     }
 }
