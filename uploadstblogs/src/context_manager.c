@@ -418,6 +418,8 @@ bool load_environment(RuntimeContext* ctx)
     // Set temp directory for archive operations
     strncpy(ctx->temp_dir, "/tmp", sizeof(ctx->temp_dir) - 1);
     strncpy(ctx->archive_path, "/tmp", sizeof(ctx->archive_path) - 1);
+    strncpy(ctx->httpresult_file, "/tmp/httpresult.txt", sizeof(ctx->httpresult_file) - 1);
+    strncpy(ctx->rrd_httpresult_file, "/tmp/rrd_httpresult.txt", sizeof(ctx->rrd_httpresult_file) - 1);
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Environment properties loaded successfully\n", __FUNCTION__, __LINE__);
     return true;

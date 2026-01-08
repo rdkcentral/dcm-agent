@@ -161,14 +161,16 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     }
     
     // Stage 1: Metadata POST
-    // performCodeBigMetadataPost signature: (curl, filepath, extra_fields, server_type, http_code_out)
+    // performCodeBigMetadataPost signature: (curl, filepath, extra_fields, server_type, http_code_out, output_file)
     long http_code = 0;
+    const char* output_file = ctx->rrd_flag ? ctx->rrd_httpresult_file : ctx->httpresult_file;
     int metadata_result = performCodeBigMetadataPost(
         NULL,                             // curl (NULL = library will init/cleanup)
         archive_filepath,                 // filepath
         md5_ptr,                          // extra_fields (MD5 hash, can be NULL)
         HTTP_SSR_CODEBIG,                 // server_type parameter
-        &http_code                        // http_code_out
+        &http_code,                       // http_code_out
+        output_file                       // output_file
     );
 
     if (metadata_result != 0) {
@@ -182,10 +184,11 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
 
     // Read S3 presigned URL from /tmp/httpresult.txt
     char s3_url[1024] = {0};
-    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+    const char* result_file = ctx->rrd_flag ? ctx->rrd_httpresult_file : ctx->httpresult_file;
+    if (extractS3PresignedUrl(result_file, s3_url, sizeof(s3_url)) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Failed to extract S3 URL from %s\n",
+                __FUNCTION__, __LINE__, result_file);
         return UPLOADSTB_FAILED;
     }
 
@@ -244,11 +247,12 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     char s3_url[1024] = {0};
     char proxy_url[1024] = {0};
     
-    FILE* result_file = fopen("/tmp/httpresult.txt", "r");
+    const char* result_file_path = ctx->rrd_flag ? ctx->rrd_httpresult_file : ctx->httpresult_file;
+    FILE* result_file = fopen(result_file_path, "r");
     if (!result_file || !fgets(s3_url, sizeof(s3_url), result_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Could not read S3 URL from /tmp/httpresult.txt for proxy fallback\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Could not read S3 URL from %s for proxy fallback\n",
+                __FUNCTION__, __LINE__, result_file_path);
         if (result_file) fclose(result_file);
         return UPLOADSTB_FAILED;
     }
@@ -381,12 +385,14 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     // - certificate rotation loop
     // - cleanup
     long http_code = 0;
+    const char* output_file = ctx->rrd_flag ? ctx->rrd_httpresult_file : ctx->httpresult_file;
     int result = performMetadataPostWithCertRotationEx(
         endpoint_url,                   // upload URL
         archive_filepath,               // file path
         md5_ptr,                        // extra_fields (MD5 hash, can be NULL)
         auth,                           // output: successful certificate for Stage 2
-        &http_code                      // output: HTTP response code
+        &http_code,                     // output: HTTP response code
+        output_file                     // file to write HTTP response to
     );
     
     // Get curl error code from internal state
@@ -457,10 +463,11 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
 {
     // Extract S3 presigned URL from /tmp/httpresult.txt
     char s3_url[1024] = {0};
-    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+    const char* result_file_path = ctx->rrd_flag ? ctx->rrd_httpresult_file : ctx->httpresult_file;
+    if (extractS3PresignedUrl(result_file_path, s3_url, sizeof(s3_url)) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Failed to extract S3 URL from %s\n",
+                __FUNCTION__, __LINE__, result_file_path);
         return UPLOADSTB_FAILED;
     }
     

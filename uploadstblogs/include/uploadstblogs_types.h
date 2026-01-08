@@ -241,6 +241,8 @@ typedef struct {
     char dcm_log_file[MAX_PATH_LENGTH];       /**< DCM log file path */
     char dcm_log_path[MAX_PATH_LENGTH];       /**< DCM log directory */
     char iarm_event_binary[MAX_PATH_LENGTH];  /**< IARM event sender location */
+    char httpresult_file[MAX_PATH_LENGTH];    /**< HTTP response result file */
+    char rrd_httpresult_file[MAX_PATH_LENGTH]; /**< RRD-specific HTTP response result file */
     
     // Upload endpoints
     char endpoint_url[MAX_URL_LENGTH];        /**< Upload endpoint URL */
