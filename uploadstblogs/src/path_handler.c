@@ -37,6 +37,9 @@
 #include "upload_status.h"
 #endif
 
+/* Output file paths */
+#define HTTP_RESULTS_FILE(scenario) ((scenario) == STRAT_RRD ? "/tmp/rrd_httpresults.txt" : "/tmp/httpresults.txt")
+
 /* Forward declarations */
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr);
 static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* session, const char* endpoint_url, const char* archive_filepath, const char* md5_ptr, MtlsAuth_t* auth);
@@ -62,9 +65,9 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     char *archive_filepath = session->archive_file;
     
     // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
-    char *endpoint_url = (strlen(ctx->endpoints.endpoint_url) > 0) ? 
-                          ctx->endpoints.endpoint_url : 
-                          ctx->endpoints.upload_http_link;
+    char *endpoint_url = (strlen(ctx->endpoint_url) > 0) ? 
+                          ctx->endpoint_url : 
+                          ctx->upload_http_link;
     
     if (!endpoint_url || strlen(endpoint_url) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
@@ -76,7 +79,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
+    if (ctx->encryption_enable) {
         if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
             md5_ptr = md5_base64;
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -143,7 +146,7 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
-    if (ctx->settings.encryption_enable) {
+    if (ctx->encryption_enable) {
         if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
             md5_ptr = md5_base64;
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -180,12 +183,13 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
         return UPLOADSTB_FAILED;
     }
 
-    // Read S3 presigned URL from /tmp/httpresult.txt
+    // Read S3 presigned URL from appropriate output file
     char s3_url[1024] = {0};
-    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+    const char* results_file = HTTP_RESULTS_FILE(session->strategy);
+    if (extractS3PresignedUrl(results_file, s3_url, sizeof(s3_url)) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Failed to extract S3 URL from %s\n",
+                __FUNCTION__, __LINE__, results_file);
         return UPLOADSTB_FAILED;
     }
 
@@ -230,25 +234,26 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
 static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* session, const char* archive_filepath, const char* md5_ptr)
 {
     // Check if proxy fallback is applicable (mediaclient devices only)
-    if (strlen(ctx->device.device_type) == 0 || 
-        strcmp(ctx->device.device_type, "mediaclient") != 0 ||
-        strlen(ctx->endpoints.proxy_bucket) == 0) {
+    if (strlen(ctx->device_type) == 0 || 
+        strcmp(ctx->device_type, "mediaclient") != 0 ||
+        strlen(ctx->proxy_bucket) == 0) {
         return UPLOADSTB_FAILED;
     }
     
     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
             "[%s:%d] Trying logupload through Proxy server: %s\n",
-            __FUNCTION__, __LINE__, ctx->endpoints.proxy_bucket);
+            __FUNCTION__, __LINE__, ctx->proxy_bucket);
     
-    // Read S3 URL from /tmp/httpresult.txt (saved during presign step)
+    // Read S3 URL from appropriate results file (saved during presign step)
     char s3_url[1024] = {0};
     char proxy_url[1024] = {0};
     
-    FILE* result_file = fopen("/tmp/httpresult.txt", "r");
+    const char* results_file = HTTP_RESULTS_FILE(session->strategy);
+    FILE* result_file = fopen(results_file, "r");
     if (!result_file || !fgets(s3_url, sizeof(s3_url), result_file)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Could not read S3 URL from /tmp/httpresult.txt for proxy fallback\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Could not read S3 URL from %s for proxy fallback\n",
+                __FUNCTION__, __LINE__, results_file);
         if (result_file) fclose(result_file);
         return UPLOADSTB_FAILED;
     }
@@ -293,7 +298,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     }
     
     // Check if the combined URL will fit in the buffer
-    size_t proxy_bucket_len = strlen(ctx->endpoints.proxy_bucket);
+    size_t proxy_bucket_len = strlen(ctx->proxy_bucket);
     size_t path_part_len = strlen(path_part);
     size_t total_len = 8 + proxy_bucket_len + path_part_len + 1; // "https://" + bucket + path + null
     
@@ -306,7 +311,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     
     // Use safer string construction to avoid truncation warnings
     int ret = snprintf(proxy_url, sizeof(proxy_url), "https://%.*s%.*s", 
-                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->endpoints.proxy_bucket,
+                       (int)(sizeof(proxy_url) - 9 - path_part_len - 1), ctx->proxy_bucket,
                        (int)(sizeof(proxy_url) - 9 - proxy_bucket_len - 1), path_part);
     
     if (ret < 0 || ret >= sizeof(proxy_url)) {
@@ -324,7 +329,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
     // Upload to proxy using enhanced function
     UploadStatusDetail proxy_status;
     int proxy_result = performS3PutUploadEx(proxy_url, archive_filepath, NULL, 
-                                            md5_ptr, ctx->settings.ocsp_enabled, &proxy_status);
+                                            md5_ptr, ctx->ocsp_enabled, &proxy_status);
     
     // Update session state with real status codes
     session->curl_code = proxy_status.curl_code;
@@ -366,14 +371,35 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
  * @return UploadResult code
  * 
  * Matches script sendTLSSSRRequest (line 344-370): POST filename to get presigned URL
- * Result saved to /tmp/httpresult.txt
+ * Result saved to appropriate HTTP results file based on strategy
  */
 static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* session, 
                                           const char* endpoint_url, const char* archive_filepath, 
                                           const char* md5_ptr, MtlsAuth_t* auth)
 {
     // Set OCSP if enabled (uploadutils will read this via __uploadutil_get_ocsp)
-    __uploadutil_set_ocsp(ctx->settings.ocsp_enabled);
+    __uploadutil_set_ocsp(ctx->ocsp_enabled);
+    
+    // Determine output file based on upload scenario
+    const char* outfile = HTTP_RESULTS_FILE(session->strategy);
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Using output file for strategy %d: %s\n",
+            __FUNCTION__, __LINE__, session->strategy, outfile);
+    
+    // Prepare POST fields: filename first, then additional fields (following common utilities pattern)
+    char post_fields[512] = {0};
+    
+    // Construct POST fields with full archive_filepath
+    if (md5_ptr && strlen(md5_ptr) > 0) {
+        snprintf(post_fields, sizeof(post_fields), "filename=%s&md5=%s", archive_filepath, md5_ptr);
+    } else {
+        snprintf(post_fields, sizeof(post_fields), "filename=%s", archive_filepath);
+    }
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] POST fields: %s\n",
+            __FUNCTION__, __LINE__, post_fields);
     
     // Call uploadutils wrapper that handles:
     // - curl initialization
@@ -383,8 +409,8 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
     long http_code = 0;
     int result = performMetadataPostWithCertRotationEx(
         endpoint_url,                   // upload URL
-        archive_filepath,               // file path
-        md5_ptr,                        // extra_fields (MD5 hash, can be NULL)
+        outfile,                        // outfile for HTTP results (RRD or standard)
+        post_fields,                    // extra_fields (filename + MD5)
         auth,                           // output: successful certificate for Stage 2
         &http_code                      // output: HTTP response code
     );
@@ -455,12 +481,13 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
                                                   const char* archive_filepath, const char* md5_ptr,
                                                   MtlsAuth_t* auth)
 {
-    // Extract S3 presigned URL from /tmp/httpresult.txt
+    // Extract S3 presigned URL from appropriate output file
     char s3_url[1024] = {0};
-    if (extractS3PresignedUrl("/tmp/httpresult.txt", s3_url, sizeof(s3_url)) != 0) {
+    const char* results_file = HTTP_RESULTS_FILE(session->strategy);
+    if (extractS3PresignedUrl(results_file, s3_url, sizeof(s3_url)) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to extract S3 URL from httpresult.txt\n",
-                __FUNCTION__, __LINE__);
+                "[%s:%d] Failed to extract S3 URL from %s\n",
+                __FUNCTION__, __LINE__, results_file);
         return UPLOADSTB_FAILED;
     }
     

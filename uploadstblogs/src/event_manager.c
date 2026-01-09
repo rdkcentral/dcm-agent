@@ -73,7 +73,7 @@ static bool is_device_broadband(const RuntimeContext* ctx)
     if (!ctx) {
         return false;
     }
-    return (strcmp(ctx->device.device_type, "broadband") == 0);
+    return (strcmp(ctx->device_type, "broadband") == 0);
 }
 
 void emit_privacy_abort(void)
@@ -100,7 +100,7 @@ void emit_no_logs_reboot(const RuntimeContext* ctx)
     
     // Send maintenance complete event only if device is not broadband and maintenance enabled
     // Matches script uploadLogOnReboot line 810: if [ "$DEVICE_TYPE" != "broadband" ] && [ "x$ENABLE_MAINTENANCE" == "xtrue" ]
-    if (!is_device_broadband(ctx) && is_maintenance_enabled()) {
+    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
         send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
     }
 }
@@ -138,7 +138,7 @@ void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_SUCCESS);
     
     // Send maintenance event only if device is not broadband and maintenance enabled
-    if (!is_device_broadband(ctx) && is_maintenance_enabled()) {
+    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
         send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
     }
 }
@@ -421,3 +421,4 @@ void emit_folder_missing_error(void)
     // Send maintenance error event (matches script behavior)
     send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
 }
+
