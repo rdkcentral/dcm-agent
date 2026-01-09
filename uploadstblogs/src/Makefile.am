@@ -1,17 +1,45 @@
-bin_PROGRAMS = logupload
+##########################################################################
+# If not stated otherwise in this file or this component's LICENSE
+# file the following copyright and licenses apply:
+#
+# Copyright 2022 RDK Management
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+##########################################################################
 
-logupload_SOURCES = uploadstblogs.c context_manager.c validation.c strategy_selector.c strategy_handler.c strategy_ondemand.c strategy_reboot.c strategy_dcm.c upload_engine.c path_handler.c retry_logic.c archive_manager.c log_collector.c file_operations.c event_manager.c cleanup_handler.c cleanup_manager.c verification.c rbus_interface.c md5_utils.c
+AUTOMAKE_OPTIONS = foreign
+SUBDIRS = uploadstblogs/src
 
-logupload_CFLAGS = -Wall -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED \
-                     -I${top_srcdir} \
-                     -I${top_srcdir}/uploadstblogs \
-                     -I${top_srcdir}/uploadstblogs/include \
-                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
-                     -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
-                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
-                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
-                     -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
+dcmd_CFLAGS += -fPIC -pthread
 
-logupload_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
-logupload_LDFLAGS += $(curl_LIBS)
-logupload_LDFLAGS += -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus -lt2utils -ltelemetry_msgsender -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
+bin_PROGRAMS = dcmd
+
+dcmd_SOURCES = dcm.c \
+               dcm_utils.c \
+               dcm_rbus.c \
+               dcm_parseconf.c \
+               dcm_schedjob.c \
+               dcm_cronparse.c \
+               $(NULL)
+
+dcmd_LDFLAGS += -shared -fPIC $(GLIB_LIBS)
+dcmd_LDADD = ${top_builddir}/uploadstblogs/src/libuploadstblogs.la
+
+dcmd_CFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
+               -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+               -I${top_srcdir}/include \
+               -I${top_srcdir}/uploadstblogs/include \
+               -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus \
+               -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
+               -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
+               -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
