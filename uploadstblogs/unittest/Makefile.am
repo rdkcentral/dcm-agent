@@ -22,10 +22,10 @@ AUTOMAKE_OPTIONS = subdir-objects
 # Define the test executables
 bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_selector_gtest \
                path_handler_gtest archive_manager_gtest upload_engine_gtest \
-               cleanup_manager_gtest verification_gtest \
+               cleanup_handler_gtest verification_gtest \
                rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
-               log_collector_gtest retry_logic_gtest strategy_dcm_gtest \
-               strategy_handler_gtest strategy_ondemand_gtest
+               retry_logic_gtest strategies_gtest \
+               strategy_handler_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -std=c++11 -I. -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks \
@@ -94,11 +94,11 @@ upload_engine_gtest_LDADD = $(COMMON_LDADD)
 upload_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 upload_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-cleanup_manager_gtest_SOURCES = cleanup_manager_gtest.cpp
-cleanup_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-cleanup_manager_gtest_LDADD = $(COMMON_LDADD)
-cleanup_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-cleanup_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+cleanup_handler_gtest_SOURCES = cleanup_handler_gtest.cpp ./mocks/mock_file_operations.cpp
+cleanup_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+cleanup_handler_gtest_LDADD = $(COMMON_LDADD)
+cleanup_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+cleanup_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 verification_gtest_SOURCES = verification_gtest.cpp
 verification_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
@@ -124,36 +124,23 @@ event_manager_gtest_LDADD = $(COMMON_LDADD)
 event_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 event_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-log_collector_gtest_SOURCES = log_collector_gtest.cpp
-log_collector_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-log_collector_gtest_LDADD = $(COMMON_LDADD)
-log_collector_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-log_collector_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
 retry_logic_gtest_SOURCES = retry_logic_gtest.cpp
 retry_logic_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 retry_logic_gtest_LDADD = $(COMMON_LDADD)
 retry_logic_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 retry_logic_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-strategy_dcm_gtest_SOURCES = strategy_dcm_gtest.cpp
-strategy_dcm_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-strategy_dcm_gtest_LDADD = $(COMMON_LDADD)
-strategy_dcm_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-strategy_dcm_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_SOURCES = strategies_gtest.cpp
+strategies_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategies_gtest_LDADD = $(COMMON_LDADD)
+strategies_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 strategy_handler_gtest_SOURCES = strategy_handler_gtest.cpp
 strategy_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 strategy_handler_gtest_LDADD = $(COMMON_LDADD)
 strategy_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 strategy_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
-strategy_ondemand_gtest_SOURCES = strategy_ondemand_gtest.cpp 
-strategy_ondemand_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-strategy_ondemand_gtest_LDADD = $(COMMON_LDADD)
-strategy_ondemand_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-
-strategy_ondemand_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 
 
