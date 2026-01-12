@@ -74,7 +74,7 @@ echo "====================================="
 echo ""
 echo "1. Running Error Handling Tests..."
 pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/error_handling.json ./functional-tests/tests/test_uploadstblogs_error_handling.py
+    --json-report-file $RESULT_DIR/error_handling.json test/functional-tests/tests/test_uploadstblogs_error_handling.py
 
 echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
 
