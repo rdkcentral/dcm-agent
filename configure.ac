@@ -118,5 +118,20 @@ AC_ARG_ENABLE([mountutils],
 AM_CONDITIONAL([IS_LIBRDKCONFIG_ENABLED], [test x$IS_LIBRDKCONFIG_ENABLED = xtrue])
 AC_SUBST(LIBRDKCONFIG_FLAG)
 
+# Check for breakpad
+BREAKPAD_CFLAGS=" "
+BREAKPAD_LFLAGS=" "
+AC_ARG_ENABLE([breakpad],
+		AS_HELP_STRING([--enable-breakpad],[enable breakpad support (default is no)]),
+		[
+			case "${enableval}" in
+        	 yes) BREAKPAD_CFLAGS="-DINCLUDE_BREAKPAD"
+                    BREAKPAD_LFLAGS="-lbreakpadwrapper";;
+        	 no) AC_MSG_ERROR([breakpad is disabled]) ;;
+        	 *) AC_MSG_ERROR([bad value ${enableval} for --enable-breakpad]) ;;
+        	 esac
+        	 ],
+    	    [echo "breakpad is disabled"])
+
 AC_CONFIG_FILES([Makefile uploadstblogs/src/Makefile])
 AC_OUTPUT
