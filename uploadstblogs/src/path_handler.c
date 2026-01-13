@@ -492,8 +492,8 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] S3 upload query success. Got S3 URL: %s\n",
-            __FUNCTION__, __LINE__, s3_url);
+            "[%s:%d] S3 upload query success. Got S3 URL ",
+            __FUNCTION__, __LINE__);
     
     // Perform S3 PUT upload with the certificate from Stage 1
     int s3_result = performS3PutWithCert(s3_url, archive_filepath, auth);
@@ -553,5 +553,6 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     session->success = false;
     return s3_verified;  // Return original S3 result for retry decision
 }
+
 
 
