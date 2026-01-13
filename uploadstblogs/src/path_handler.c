@@ -492,7 +492,7 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] S3 upload query success. Got S3 URL ",
+            "[%s:%d] S3 upload query success. Got S3 URL successfully\n",
             __FUNCTION__, __LINE__);
     
     // Perform S3 PUT upload with the certificate from Stage 1
