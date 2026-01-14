@@ -286,8 +286,8 @@ sequenceDiagram
         Cloud-->>HTTP: HTTP Response
         alt HTTP 200
             Cloud-->>HTTP: Return S3 Upload URL
-            break Success - Got S3 URL
-        else HTTP != 200
+            Note over HTTP: Success - Got S3 URL
+        else HTTP not 200
             HTTP->>HTTP: Increment retry count
             HTTP->>HTTP: Sleep 1 second
         end
@@ -299,7 +299,7 @@ sequenceDiagram
         alt HTTP 200
             HTTP-->>ULN: Upload Success
             ULN->>SM: Update Status: Complete
-        else HTTP != 200
+        else HTTP not 200
             HTTP-->>ULN: Upload Failed
             ULN->>SM: Update Status: Failed
         end
