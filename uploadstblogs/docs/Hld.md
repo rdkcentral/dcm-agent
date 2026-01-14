@@ -1121,39 +1121,6 @@ typedef struct {
 } StrategyPlugin;
 ```
 
-### 15.3 Long-term Architecture Evolution
-```mermaid
-graph TB
-    subgraph "Phase 1: Current State"
-        A[uploadstblogs] 
-        B[UploadLogsNow - Separate]
-    end
-    
-    subgraph "Phase 2: Integration" 
-        C[uploadstblogs with SNMP Strategy]
-        D[Unified Configuration]
-    end
-    
-    subgraph "Phase 3: Enhancement"
-        E[Advanced Strategy Framework]
-        F[Pluggable Upload Protocols] 
-        G[Unified Telemetry]
-    end
-    
-    A --> C
-    B --> C
-    C --> E
-    D --> F
-    E --> G
-```
-
-### 15.4 Roadmap Alignment with RDK Evolution
-- **RDK 6.0+**: Complete strategy unification
-- **Container Support**: Leverage uploadstblogs container architecture
-- **Cloud Native**: Extend to cloud-native logging and telemetry
-- **Performance Optimization**: Apply ML-based upload strategy selection
-
----
 
 **Document Version**: 2.0  
 **Date**: January 13, 2026  
