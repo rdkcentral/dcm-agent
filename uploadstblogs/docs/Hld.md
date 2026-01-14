@@ -74,7 +74,7 @@ UploadLogsNow.sh is a lightweight log upload utility that provides immediate log
 ```mermaid
 graph TB
     subgraph "UploadLogsNow C Application"
-        A[main() - uploadlogsnow_execute()] --> B[Context Manager]
+        A[main - uploadlogsnow_execute] --> B[Context Manager]
         A --> C[Validation Module]
         A --> D[SNMP Upload Strategy]
         A --> E[Archive Manager - Reused]
@@ -115,6 +115,7 @@ graph TB
     F --> S
     E --> T
 ```
+
 ### 3.2 Module Architecture Strategy
 
 The UploadLogsNow migration will follow the **composition over inheritance** approach established in uploadstblogs:
