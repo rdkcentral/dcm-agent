@@ -115,7 +115,6 @@ graph TB
     F --> S
     E --> T
 ```
-
 ### 3.2 Module Architecture Strategy
 
 The UploadLogsNow migration will follow the **composition over inheritance** approach established in uploadstblogs:
