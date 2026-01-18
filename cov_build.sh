@@ -43,6 +43,11 @@ cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 
 cd ${ROOT}
+rm -rf rdk_logger
+git clone https://github.com/rdkcentral/rdk_logger.git
+cp rdk_logger/include/* /usr/local/include
+
+cd ${ROOT}
 rm -rf telemetry
 git clone https://github.com/rdkcentral/telemetry.git
 cd telemetry
@@ -53,7 +58,7 @@ cd ${ROOT}
 git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
 cd common_utilities
 autoreconf -i
-./configure --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
+./configure --enable-rdkcertselector --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
 cp uploadutils/*.h /usr/local/include
 make
 make install

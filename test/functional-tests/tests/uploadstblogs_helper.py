@@ -257,4 +257,3 @@ def trigger_upload_via_rbus(trigger_type="ondemand"):
     cmd = f"rbuscli set Device.DCM.TriggerUpload string {trigger_type}"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     return result.returncode == 0
-
