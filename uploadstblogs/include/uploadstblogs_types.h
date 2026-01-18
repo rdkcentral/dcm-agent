@@ -229,6 +229,7 @@ typedef struct {
     bool include_dri;               /**< Include DRI logs */
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
+    bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
     
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
