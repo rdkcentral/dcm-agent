@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include "file_operations.h"
@@ -500,6 +501,137 @@ int remove_timestamp_from_files(const char* dir_path)
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Timestamp removed from %d files, %d errors\n", 
+            __FUNCTION__, __LINE__, success_count, error_count);
+
+    return (error_count > 0) ? -1 : 0;
+}
+
+/**
+ * @brief Add timestamp prefix to files with UploadLogsNow-specific exclusions
+ * @param dir_path Directory containing files to rename
+ * @return 0 on success, -1 on failure
+ * 
+ * This function implements the same logic as the shell script's modifyFileWithTimestamp()
+ * function, including exclusions for files that already have timestamps or special log types.
+ */
+int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
+{
+    if (!dir_path || !dir_exists(dir_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid or non-existent directory: %s\n", 
+                __FUNCTION__, __LINE__, dir_path ? dir_path : "NULL");
+        return -1;
+    }
+
+    // Get current timestamp in script format: MM-DD-YY-HH-MMAM/PM-
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", tm_info);
+    
+    // Store timestamp prefix globally for removal later (matches script behavior)
+    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+
+    DIR* dir = opendir(dir_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to open directory: %s\n", 
+                __FUNCTION__, __LINE__, dir_path);
+        return -1;
+    }
+
+    int success_count = 0;
+    int error_count = 0;
+    struct dirent* entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip directories and special entries
+        if (entry->d_name[0] == '.' || 
+            strcmp(entry->d_name, "..") == 0 ||
+            strncmp(entry->d_name, timestamp, strlen(timestamp)) == 0) {
+            continue;
+        }
+
+        // Check conditions that should skip timestamp modification (matches shell script logic)
+        int should_skip = 0;
+        const char* filename = entry->d_name;
+        
+        // Check for existing AM timestamp pattern: .*-[0-9][0-9]AM-.*
+        if (strlen(filename) > 6) {
+            for (size_t i = 0; i < strlen(filename) - 6; i++) {
+                if (filename[i] == '-' && 
+                    isdigit(filename[i+1]) && isdigit(filename[i+2]) && 
+                    filename[i+3] == 'A' && filename[i+4] == 'M' && filename[i+5] == '-') {
+                    should_skip = 1;
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                            "[%s:%d] Processing file...%s\n", 
+                            __FUNCTION__, __LINE__, filename);
+                    break;
+                }
+            }
+        }
+        
+        // Check for existing PM timestamp pattern: .*-[0-9][0-9]PM-.*
+        if (!should_skip && strlen(filename) > 6) {
+            for (size_t i = 0; i < strlen(filename) - 6; i++) {
+                if (filename[i] == '-' && 
+                    isdigit(filename[i+1]) && isdigit(filename[i+2]) && 
+                    filename[i+3] == 'P' && filename[i+4] == 'M' && filename[i+5] == '-') {
+                    should_skip = 1;
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                            "[%s:%d] Processing file...%s\n", 
+                            __FUNCTION__, __LINE__, filename);
+                    break;
+                }
+            }
+        }
+        
+        // Check for reboot log pattern: reboot.log
+        if (!should_skip && strcmp(filename, "reboot.log") == 0) {
+            should_skip = 1;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Processing file...%s\n", 
+                    __FUNCTION__, __LINE__, filename);
+        }
+        
+        // Check for abl reason log pattern: ABLReason.txt
+        if (!should_skip && strcmp(filename, "ABLReason.txt") == 0) {
+            should_skip = 1;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Processing file...%s\n", 
+                    __FUNCTION__, __LINE__, filename);
+        }
+        
+        if (should_skip) {
+            continue;
+        }
+
+        char old_path[MAX_PATH_LENGTH];
+        char new_path[MAX_PATH_LENGTH];
+        
+        snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
+        snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
+
+        // Skip if not a regular file
+        struct stat st;
+        if (stat(old_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+            continue;
+        }
+
+        if (rename(old_path, new_path) == 0) {
+            success_count++;
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to rename %s: %s\n", 
+                    __FUNCTION__, __LINE__, old_path, strerror(errno));
+            error_count++;
+        }
+    }
+
+    closedir(dir);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Timestamp added to %d files, %d errors\n", 
             __FUNCTION__, __LINE__, success_count, error_count);
 
     return (error_count > 0) ? -1 : 0;
