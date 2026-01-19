@@ -126,6 +126,17 @@ static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
         char src_file[MAX_PATH_LENGTH];
         char dest_file[MAX_PATH_LENGTH];
         
+        // Check if paths would fit to prevent truncation
+        size_t src_len = strlen(src_path) + 1 + strlen(entry->d_name) + 1;
+        size_t dest_len = strlen(dest_path) + 1 + strlen(entry->d_name) + 1;
+        
+        if (src_len > sizeof(src_file) || dest_len > sizeof(dest_file)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+            continue;
+        }
+        
         snprintf(src_file, sizeof(src_file), "%s/%s", src_path, entry->d_name);
         snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_path, entry->d_name);
         
