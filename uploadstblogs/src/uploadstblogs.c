@@ -100,11 +100,6 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         fprintf(stderr, "DEBUG: UploadLogsNow mode enabled\n");
         return true;
     }
-        ctx->uploadlogsnow_mode = 1;            // Enable UploadLogsNow mode
-        
-        fprintf(stderr, "DEBUG: UploadLogsNow mode enabled\n");
-        return true;
-    }
     
     // DO NOT memset - context is already initialized with device info
     // Only parse command line arguments and set those specific fields
@@ -510,3 +505,4 @@ int main(int argc, char** argv)
     return uploadstblogs_execute(argc, argv);
 }
 #endif /* UPLOADSTBLOGS_BUILD_BINARY */
+
