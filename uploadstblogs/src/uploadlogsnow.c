@@ -123,8 +123,8 @@ static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
         }
         
         // Construct full paths
-        char src_file[512];
-        char dest_file[512];
+        char src_file[MAX_PATH_LENGTH];
+        char dest_file[MAX_PATH_LENGTH];
         
         snprintf(src_file, sizeof(src_file), "%s/%s", src_path, entry->d_name);
         snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_path, entry->d_name);
@@ -151,92 +151,11 @@ static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
 }
 
 /**
- * @brief Add timestamps to files in the specified directory
- */
-static int add_timestamps_to_files(const char* log_path)
-{
-    DIR* dir = opendir(log_path);
-    if (!dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open log directory: %s\n", 
-                __FUNCTION__, __LINE__, log_path);
-        return -1;
-    }
-    
-    // Generate timestamp prefix
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    char timestamp[64] = {0};
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", tm_info);
-    
-    // Change to target directory for file operations
-    char original_cwd[512];
-    if (getcwd(original_cwd, sizeof(original_cwd)) == NULL) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to get current directory\n", __FUNCTION__, __LINE__);
-        original_cwd[0] = '\0';
-    }
-    
-    if (chdir(log_path) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to change to directory: %s\n", 
-                __FUNCTION__, __LINE__, log_path);
-        closedir(dir);
-        return -1;
-    }
-    
-    struct dirent* entry;
-    int renamed_count = 0;
-    
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        
-        // Skip files that already have timestamp pattern
-        if (strstr(entry->d_name, "-AM-") || strstr(entry->d_name, "-PM-")) {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                    "[%s:%d] File already has timestamp: %s\n", 
-                    __FUNCTION__, __LINE__, entry->d_name);
-            continue;
-        }
-        
-        // Create new filename with timestamp
-        char new_name[512];
-        snprintf(new_name, sizeof(new_name), "%s%s", timestamp, entry->d_name);
-        
-        if (rename(entry->d_name, new_name) == 0) {
-            renamed_count++;
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                    "[%s:%d] Renamed: %s -> %s\n", 
-                    __FUNCTION__, __LINE__, entry->d_name, new_name);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                    "[%s:%d] Failed to rename: %s (errno=%d)\n", 
-                    __FUNCTION__, __LINE__, entry->d_name, errno);
-        }
-    }
-    
-    closedir(dir);
-    
-    // Restore original working directory
-    if (strlen(original_cwd) > 0) {
-        chdir(original_cwd);
-    }
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Added timestamps to %d files\n", 
-            __FUNCTION__, __LINE__, renamed_count);
-    
-    return 0;
-}
-
-/**
  * @brief Execute UploadLogsNow workflow
  */
 int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
 {
-    char dcm_log_path[512] = {0};
+    char dcm_log_path[MAX_PATH_LENGTH] = {0};
     int ret = -1;
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
@@ -274,8 +193,11 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
         goto cleanup;
     }
     
-    // Add timestamps to files
-    if (add_timestamps_to_files(dcm_log_path) != 0) {
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Uploading Logs through SNMP/TR69 Upload\n", __FUNCTION__, __LINE__);
+    
+    // Add timestamps to files (using UploadLogsNow-specific exclusions)
+    if (add_timestamp_to_files_uploadlogsnow(dcm_log_path) != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to add timestamps to some files\n", __FUNCTION__, __LINE__);
         // Continue - not critical for upload
@@ -319,12 +241,12 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
     decide_paths(ctx, &session);
     if (!execute_upload_cycle(ctx, &session)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] UploadLogsNow upload failed\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Failed Uploading Logs through - SNMP/TR69\n", __FUNCTION__, __LINE__);
         write_upload_status("Failed");
         ret = -1;
     } else {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] UploadLogsNow upload completed successfully\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Uploaded Logs through - SNMP/TR69\n", __FUNCTION__, __LINE__);
         write_upload_status("Complete");
         ret = 0;
     }
