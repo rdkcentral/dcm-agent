@@ -137,8 +137,17 @@ static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
             continue;
         }
         
-        snprintf(src_file, sizeof(src_file), "%s/%s", src_path, entry->d_name);
-        snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_path, entry->d_name);
+        int src_ret = snprintf(src_file, sizeof(src_file), "%s/%s", src_path, entry->d_name);
+        int dest_ret = snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_path, entry->d_name);
+        
+        // Additional safety check for snprintf truncation
+        if (src_ret < 0 || src_ret >= (int)sizeof(src_file) || 
+            dest_ret < 0 || dest_ret >= (int)sizeof(dest_file)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Path formatting failed, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+            continue;
+        }
         
         // Use file operations utility for copy
         if (copy_file(src_file, dest_file)) {
