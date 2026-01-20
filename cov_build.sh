@@ -50,7 +50,7 @@ cp include/*.h /usr/local/include
 sh  build_inside_container.sh
 
 cd ${ROOT}
-git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
+git clone https://github.com/rdkcentral/common_utilities.git -b feature/undefined_ref_error
 cd common_utilities
 autoreconf -i
 ./configure --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
