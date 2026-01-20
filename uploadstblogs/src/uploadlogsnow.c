@@ -246,7 +246,16 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
     
     // Check if archive was created successfully (following RRD pattern)
     char full_archive_path[MAX_PATH_LENGTH];
-    snprintf(full_archive_path, sizeof(full_archive_path), "%s/%s", dcm_log_path, session.archive_file);
+    int path_ret = snprintf(full_archive_path, sizeof(full_archive_path), "%s/%s", dcm_log_path, session.archive_file);
+    
+    // Check for snprintf truncation
+    if (path_ret < 0 || path_ret >= (int)sizeof(full_archive_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive path too long: %s/%s\n", 
+                __FUNCTION__, __LINE__, dcm_log_path, session.archive_file);
+        write_upload_status("Failed");
+        goto cleanup;
+    }
     
     if (!file_exists(full_archive_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
