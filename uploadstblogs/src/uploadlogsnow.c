@@ -245,17 +245,24 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
     }
     
     // Check if archive was created successfully (following RRD pattern)
-    if (!file_exists(session.archive_file)) {
+    char full_archive_path[MAX_PATH_LENGTH];
+    snprintf(full_archive_path, sizeof(full_archive_path), "%s/%s", dcm_log_path, session.archive_file);
+    
+    if (!file_exists(full_archive_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Archive file does not exist: %s\n", 
-                __FUNCTION__, __LINE__, session.archive_file);
+                __FUNCTION__, __LINE__, full_archive_path);
         write_upload_status("Failed");
         goto cleanup;
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Archive created successfully: %s\n", 
-            __FUNCTION__, __LINE__, session.archive_file);
+            __FUNCTION__, __LINE__, full_archive_path);
+    
+    // Update session to contain full path for upload functions
+    strncpy(session.archive_file, full_archive_path, sizeof(session.archive_file) - 1);
+    session.archive_file[sizeof(session.archive_file) - 1] = '\0';
     
     // Follow RRD upload pattern: decide_paths() then execute_upload_cycle()
     decide_paths(ctx, &session);
