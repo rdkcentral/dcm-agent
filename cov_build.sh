@@ -53,7 +53,7 @@ cd ${ROOT}
 git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
 cd common_utilities
 autoreconf -i
-./configure --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
+./configure --enable-rdkcertselector --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
 cp uploadutils/*.h /usr/local/include
 make
 make install
