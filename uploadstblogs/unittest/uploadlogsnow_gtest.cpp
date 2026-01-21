@@ -25,6 +25,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <errno.h>
+#include <stdarg.h>
 
 // Mock RDK_LOG before including other headers
 #ifdef GTEST_ENABLE
@@ -53,9 +54,7 @@ char* ctime(const time_t* timep);
 int snprintf(char* str, size_t size, const char* format, ...);
 
 // Mock functions from file_operations.h that uploadlogsnow depends on
-int copy_file(const char* src, const char* dest);
-int create_directory(const char* path);
-int file_exists(const char* path);
+// Note: copy_file, create_directory, file_exists are in mock_file_operations.h
 int remove_directory(const char* path);
 int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
 
@@ -153,17 +152,17 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     return result;
 }
 
-// Mock file operations
-int copy_file(const char* src, const char* dest) {
-    return g_copy_file_should_fail ? 0 : 1;
+// Mock file operations implementations to override the ones in mock_file_operations.h
+bool copy_file(const char* src, const char* dest) {
+    return g_copy_file_should_fail ? false : true;
 }
 
-int create_directory(const char* path) {
-    return g_create_directory_should_fail ? 0 : 1;
+bool create_directory(const char* path) {
+    return g_create_directory_should_fail ? false : true;
 }
 
-int file_exists(const char* path) {
-    return g_file_exists_return_value ? 1 : 0;
+bool file_exists(const char* path) {
+    return g_file_exists_return_value ? true : false;
 }
 
 int remove_directory(const char* path) {
@@ -183,8 +182,9 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 }
 
 void decide_paths(RuntimeContext* ctx, SessionState* session) {
-    // Mock implementation - just set some paths
-    strcpy(session->upload_url, "http://test.example.com/upload");
+    // Mock implementation - just set session state
+    session->strategy = STRAT_ONDEMAND;
+    session->primary = PATH_DIRECT;
 }
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
@@ -192,6 +192,8 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
 }
 
 } // extern "C"
+
+namespace {
 
 class UploadLogsNowTest : public ::testing::Test {
 protected:
