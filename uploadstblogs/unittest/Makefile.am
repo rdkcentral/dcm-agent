@@ -1,496 +1,149 @@
-/**
- * Copyright 2026 RDK Management
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+##########################################################################
+# If not stated otherwise in this file or this component's LICENSE
+# file the following copyright and licenses apply:
+#
+# Copyright 2025 RDK Management
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+##########################################################################
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <cstring>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <memory>
-#include <stdio.h>
-#include <time.h>
-#include <dirent.h>
-#include <errno.h>
+AUTOMAKE_OPTIONS = subdir-objects
 
-// Mock RDK_LOG before including other headers
-#ifdef GTEST_ENABLE
-#define RDK_LOG(level, module, ...) do {} while(0)
-#endif
+# Define the test executables
+bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_selector_gtest \
+               path_handler_gtest archive_manager_gtest upload_engine_gtest \
+               cleanup_handler_gtest verification_gtest \
+               rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
+               retry_logic_gtest strategies_gtest \
+               strategy_handler_gtest uploadlogsnow_gtest
 
-#include "uploadstblogs_types.h"
-#include "uploadlogsnow.h"
-#include "./mocks/mock_file_operations.h"
+# Common include directories
+COMMON_CPPFLAGS = -std=c++11 -I. -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks \
+                  -I../src -I$(top_srcdir)/include -I$(top_srcdir)/../common_utilities/utils \
+                  -I$(top_srcdir)/../common_utilities/parsejson -I$(top_srcdir)/../common_utilities/dwnlutils \
+                  -I$(top_srcdir)/../common_utilities/uploadutil \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal \
+                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE -DGTEST_BASIC -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED
 
-// Mock system functions that uploadlogsnow depends on
-extern "C" {
+AM_CPPFLAGS = -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_srcdir)/mocks -I$(top_srcdir) -I/usr/include 
+AM_CXXFLAGS = -std=c++11
 
-// Mock file system functions
-FILE* fopen(const char* filename, const char* mode);
-int fclose(FILE* stream);
-int fprintf(FILE* stream, const char* format, ...);
-size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream);
-size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream);
-int stat(const char* path, struct stat* buf);
-DIR* opendir(const char* name);
-struct dirent* readdir(DIR* dirp);
-int closedir(DIR* dirp);
-time_t time(time_t* tloc);
-char* ctime(const time_t* timep);
-int snprintf(char* str, size_t size, const char* format, ...);
+# Common libraries
+COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -lz -lrbus \
+               -lfwutils -lrdkloggers
 
-// Mock functions from file_operations.h that uploadlogsnow depends on
-int copy_file(const char* src, const char* dest);
-int create_directory(const char* path);
-int file_exists(const char* path);
-int remove_directory(const char* path);
-int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
+# Common compiler flags
+COMMON_CXXFLAGS = -frtti -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result -Wno-error -Wno-format-truncation
 
-// Mock functions from archive_manager.h
-int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir);
+# Define source files for each test
 
-// Mock functions from upload_engine.h  
-void decide_paths(RuntimeContext* ctx, SessionState* session);
-bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session);
+context_manager_gtest_SOURCES = context_manager_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp ./mocks/mock_file_operations.cpp
+context_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+context_manager_gtest_LDADD = $(COMMON_LDADD)
+context_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+context_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-// Global mock state variables
-static FILE* mock_file_ptr = (FILE*)0x12345678;
-static struct stat mock_stat_buf;
-static DIR* mock_dir_ptr = (DIR*)0x87654321;
-static struct dirent mock_dirent_entries[10];
-static int mock_dirent_index = 0;
-static int mock_dirent_count = 0;
-static time_t mock_time_value = 1642780800; // 2022-01-21 12:00:00
-static char mock_ctime_buffer[32] = "Fri Jan 21 12:00:00 2022\n";
-static bool g_fopen_should_fail = false;
-static bool g_opendir_should_fail = false;
-static bool g_copy_file_should_fail = false;
-static bool g_create_directory_should_fail = false;
-static bool g_file_exists_return_value = true;
-static bool g_remove_directory_should_fail = false;
-static bool g_add_timestamp_should_fail = false;
-static bool g_create_archive_should_fail = false;
-static bool g_execute_upload_cycle_return_value = true;
-static char g_status_file_content[512] = {0};
-static int g_fprintf_call_count = 0;
-static int g_readdir_call_count = 0;
+md5_utils_gtest_SOURCES = md5_utils_gtest.cpp
+md5_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+md5_utils_gtest_LDADD = $(COMMON_LDADD)
+md5_utils_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+md5_utils_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-// Mock implementations
-FILE* fopen(const char* filename, const char* mode) {
-    if (g_fopen_should_fail) return nullptr;
-    if (filename && strstr(filename, "loguploadstatus.txt")) {
-        g_fprintf_call_count = 0; // Reset fprintf counter
-        return mock_file_ptr;
-    }
-    return mock_file_ptr;
-}
+validation_gtest_SOURCES = validation_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_file_operations.cpp
+validation_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+validation_gtest_LDADD = $(COMMON_LDADD)
+validation_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+validation_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int fclose(FILE* stream) {
-    return (stream == mock_file_ptr) ? 0 : -1;
-}
+strategy_selector_gtest_SOURCES = strategy_selector_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_file_operations.cpp
+strategy_selector_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategy_selector_gtest_LDADD = $(COMMON_LDADD)
+strategy_selector_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategy_selector_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int fprintf(FILE* stream, const char* format, ...) {
-    if (stream != mock_file_ptr) return -1;
-    
-    va_list args;
-    va_start(args, format);
-    int result = vsnprintf(g_status_file_content, sizeof(g_status_file_content), format, args);
-    va_end(args);
-    
-    g_fprintf_call_count++;
-    return result;
-}
+path_handler_gtest_SOURCES = path_handler_gtest.cpp ./mocks/mock_curl.cpp
+path_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+path_handler_gtest_LDADD = $(COMMON_LDADD)
+path_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+path_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-DIR* opendir(const char* name) {
-    if (g_opendir_should_fail) return nullptr;
-    mock_dirent_index = 0;
-    g_readdir_call_count = 0;
-    return mock_dir_ptr;
-}
+archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp
+archive_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+archive_manager_gtest_LDADD = $(COMMON_LDADD)
+archive_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+archive_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-struct dirent* readdir(DIR* dirp) {
-    if (dirp != mock_dir_ptr) return nullptr;
-    
-    g_readdir_call_count++;
-    if (mock_dirent_index >= mock_dirent_count) {
-        return nullptr; // End of directory
-    }
-    
-    return &mock_dirent_entries[mock_dirent_index++];
-}
+upload_engine_gtest_SOURCES = upload_engine_gtest.cpp ./mocks/mock_curl.cpp
+upload_engine_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+upload_engine_gtest_LDADD = $(COMMON_LDADD)
+upload_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+upload_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int closedir(DIR* dirp) {
-    return (dirp == mock_dir_ptr) ? 0 : -1;
-}
+cleanup_handler_gtest_SOURCES = cleanup_handler_gtest.cpp ./mocks/mock_file_operations.cpp
+cleanup_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+cleanup_handler_gtest_LDADD = $(COMMON_LDADD)
+cleanup_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+cleanup_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-time_t time(time_t* tloc) {
-    if (tloc) *tloc = mock_time_value;
-    return mock_time_value;
-}
+verification_gtest_SOURCES = verification_gtest.cpp
+verification_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+verification_gtest_LDADD = $(COMMON_LDADD)
+verification_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+verification_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-char* ctime(const time_t* timep) {
-    return mock_ctime_buffer;
-}
+rbus_interface_gtest_SOURCES = rbus_interface_gtest.cpp ./mocks/mock_rbus.cpp
+rbus_interface_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+rbus_interface_gtest_LDADD = $(COMMON_LDADD)
+rbus_interface_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+rbus_interface_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int snprintf(char* str, size_t size, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    int result = vsnprintf(str, size, format, args);
-    va_end(args);
-    return result;
-}
+uploadstblogs_gtest_SOURCES = uploadstblogs_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp ./mocks/mock_curl.cpp
+uploadstblogs_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+uploadstblogs_gtest_LDADD = $(COMMON_LDADD)
+uploadstblogs_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+uploadstblogs_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-// Mock file operations
-int copy_file(const char* src, const char* dest) {
-    return g_copy_file_should_fail ? 0 : 1;
-}
+event_manager_gtest_SOURCES = event_manager_gtest.cpp
+event_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+event_manager_gtest_LDADD = $(COMMON_LDADD)
+event_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+event_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int create_directory(const char* path) {
-    return g_create_directory_should_fail ? 0 : 1;
-}
+retry_logic_gtest_SOURCES = retry_logic_gtest.cpp
+retry_logic_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+retry_logic_gtest_LDADD = $(COMMON_LDADD)
+retry_logic_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+retry_logic_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int file_exists(const char* path) {
-    return g_file_exists_return_value ? 1 : 0;
-}
+strategies_gtest_SOURCES = strategies_gtest.cpp
+strategies_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategies_gtest_LDADD = $(COMMON_LDADD)
+strategies_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int remove_directory(const char* path) {
-    return g_remove_directory_should_fail ? 0 : 1;
-}
+strategy_handler_gtest_SOURCES = strategy_handler_gtest.cpp
+strategy_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategy_handler_gtest_LDADD = $(COMMON_LDADD)
+strategy_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategy_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-int add_timestamp_to_files_uploadlogsnow(const char* dir_path) {
-    return g_add_timestamp_should_fail ? -1 : 0;
-}
-
-int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
-    if (g_create_archive_should_fail) return -1;
-    
-    // Simulate setting archive filename
-    strcpy(session->archive_file, "test_archive.tar.gz");
-    return 0;
-}
-
-void decide_paths(RuntimeContext* ctx, SessionState* session) {
-    // Mock implementation - just set some paths
-    strcpy(session->upload_url, "http://test.example.com/upload");
-}
-
-bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
-    return g_execute_upload_cycle_return_value;
-}
-
-} // extern "C"
-
-class UploadLogsNowTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // Reset all mock state
-        g_fopen_should_fail = false;
-        g_opendir_should_fail = false;
-        g_copy_file_should_fail = false;
-        g_create_directory_should_fail = false;
-        g_file_exists_return_value = true;
-        g_remove_directory_should_fail = false;
-        g_add_timestamp_should_fail = false;
-        g_create_archive_should_fail = false;
-        g_execute_upload_cycle_return_value = true;
-        memset(g_status_file_content, 0, sizeof(g_status_file_content));
-        g_fprintf_call_count = 0;
-        g_readdir_call_count = 0;
-        mock_dirent_index = 0;
-        mock_dirent_count = 0;
-        
-        // Initialize test context
-        memset(&ctx, 0, sizeof(ctx));
-        strcpy(ctx.log_path, "/opt/logs");
-        strcpy(ctx.dcm_log_path, "");  // Will use default
-        ctx.uploadlogsnow_mode = true;
-    }
-
-    void TearDown() override {
-        // Clean up after each test
-    }
-    
-    void setupMockDirectoryEntries(const char* entries[], int count) {
-        mock_dirent_count = count < 10 ? count : 10;
-        for (int i = 0; i < mock_dirent_count; i++) {
-            strcpy(mock_dirent_entries[i].d_name, entries[i]);
-        }
-    }
-
-    RuntimeContext ctx;
-};
-
-// Test cases for execute_uploadlogsnow_workflow
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_Success) {
-    // Setup mock directory with valid files
-    const char* files[] = {"app.log", "system.log", "debug.log"};
-    setupMockDirectoryEntries(files, 3);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    EXPECT_GT(g_fprintf_call_count, 0); // Status should be written
-    EXPECT_STREQ("/tmp/DCM", ctx.dcm_log_path); // Should use default path
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_WithCustomDcmLogPath) {
-    strcpy(ctx.dcm_log_path, "/custom/dcm/path");
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    EXPECT_STREQ("/custom/dcm/path", ctx.dcm_log_path);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
-    g_create_directory_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result);
-    EXPECT_STRNE(g_status_file_content, ""); // Status should contain "Failed"
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_OpenDirFails) {
-    g_opendir_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_StatusFileWriteFailure) {
-    g_fopen_should_fail = true;
-    
-    // Should still proceed with workflow even if status write fails
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Workflow should still succeed despite status file failure
-    EXPECT_EQ(0, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_CopyFilesFails) {
-    const char* files[] = {"app.log", "system.log"};
-    setupMockDirectoryEntries(files, 2);
-    g_copy_file_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should fail but continue workflow
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_ExcludeFiles) {
-    // Setup directory with files that should be excluded
-    const char* files[] = {"dcm", "PreviousLogs_backup", "PreviousLogs", "valid.log"};
-    setupMockDirectoryEntries(files, 4);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should succeed, but excluded files should not be copied
-    EXPECT_EQ(0, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_EmptyDirectory) {
-    // No files in directory
-    setupMockDirectoryEntries(nullptr, 0);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result); // Should still succeed with empty directory
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_DotDirectoriesIgnored) {
-    const char* files[] = {".", "..", "valid.log"};
-    setupMockDirectoryEntries(files, 3);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    // Only one file should be processed (valid.log)
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampAdditionFails) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    g_add_timestamp_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should continue even if timestamp addition fails
-    EXPECT_EQ(0, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateArchiveFails) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    g_create_archive_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchiveFileNotFound) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    g_file_exists_return_value = false; // Archive file doesn't exist after creation
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_UploadFails) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    g_execute_upload_cycle_return_value = false;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_CleanupFails) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    g_remove_directory_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should succeed even if cleanup fails
-    EXPECT_EQ(0, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_LongPathNames) {
-    // Test with very long filenames that might cause buffer overflow
-    const char* files[] = {
-        "very_very_very_very_very_very_very_very_long_filename_that_might_cause_buffer_overflow_issues.log",
-        "another_extremely_long_filename_with_many_characters_to_test_path_length_validation.txt"
-    };
-    setupMockDirectoryEntries(files, 2);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result); // Should handle long paths gracefully
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_StatusFileContent) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    // Verify status file was written with appropriate content
-    EXPECT_GT(strlen(g_status_file_content), 0);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_NullContext) {
-    // Test with null context pointer
-    int result = execute_uploadlogsnow_workflow(nullptr);
-    
-    // Should handle null pointer gracefully
-    EXPECT_EQ(-1, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_EmptyLogPath) {
-    memset(ctx.log_path, 0, sizeof(ctx.log_path)); // Empty log path
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(-1, result); // Should fail with empty log path
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_MultipleFileTypes) {
-    // Test with various file types
-    const char* files[] = {
-        "system.log", "app.txt", "debug.out", "trace.dat",
-        "core.dump", "messages", "secure.log"
-    };
-    setupMockDirectoryEntries(files, 7);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_SessionStatePopulation) {
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    // Verify that session state is properly initialized for ONDEMAND strategy
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchivePathConstruction) {
-    // Test with specific DCM log path that might cause path construction issues
-    strcpy(ctx.dcm_log_path, "/very/long/path/that/might/cause/issues/in/archive/path/construction");
-    
-    const char* files[] = {"app.log"};
-    setupMockDirectoryEntries(files, 1);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should handle long paths appropriately
-    EXPECT_EQ(0, result);
-}
-
-// Integration-style tests that test the full workflow
-TEST_F(UploadLogsNowTest, IntegrationTest_CompleteSuccessfulWorkflow) {
-    // Setup a realistic scenario
-    strcpy(ctx.log_path, "/opt/logs");
-    strcpy(ctx.dcm_log_path, ""); // Use default
-    ctx.uploadlogsnow_mode = true;
-    
-    const char* files[] = {"messages", "syslog", "application.log", "wifi.log"};
-    setupMockDirectoryEntries(files, 4);
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    EXPECT_EQ(0, result);
-    EXPECT_STREQ("/tmp/DCM", ctx.dcm_log_path);
-    EXPECT_GT(g_fprintf_call_count, 0); // Status updates written
-}
-
-TEST_F(UploadLogsNowTest, IntegrationTest_PartialFailureRecovery) {
-    // Test scenario where some operations fail but workflow continues
-    const char* files[] = {"good.log", "bad.log", "ugly.log"};
-    setupMockDirectoryEntries(files, 3);
-    
-    // Let timestamp addition fail but continue
-    g_add_timestamp_should_fail = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Should still succeed despite timestamp failure
-    EXPECT_EQ(0, result);
-}
-
-} // namespace
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+uploadlogsnow_gtest_SOURCES = uploadlogsnow_gtest.cpp ./mocks/mock_file_operations.cpp
+uploadlogsnow_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+uploadlogsnow_gtest_LDADD = $(COMMON_LDADD)
+uploadlogsnow_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+uploadlogsnow_gtest_CFLAGS = $(COMMON_CXXFLAGS)
