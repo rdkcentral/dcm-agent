@@ -938,3 +938,35 @@ return_res:
     return ret;
 }
 
+#ifdef GTEST_ENABLE
+// Defining Function pointers to access static functions
+INT32 (*getdcmCronParseToUpper(void)) (INT8*) 
+{
+	return &dcmCronParseToUpper;
+}
+UINT32 (*getdcmCronParseParseUint(void)) (const INT8*, INT32*) 
+{
+	return &dcmCronParseParseUint;
+}
+UINT32 (*getdcmCronParseNextSetBit(void)) (UINT8*, UINT32, UINT32, INT32*)
+{
+    return &dcmCronParseNextSetBit;
+}
+
+INT32 (*getdcmCronParseResetMin(void)) (struct tm*, INT32)
+{
+    return &dcmCronParseResetMin;
+}
+INT32 (*getdcmCronParseResetAllMin(void))(struct tm*, INT32*)
+{
+    return &dcmCronParseResetAllMin;
+}
+INT32 (*getdcmCronParseSetField(void))(struct tm*, INT32, INT32)
+{
+	return &dcmCronParseSetField;
+}
+INT32 (*getdcmCronParseAddToField(void))(struct tm*, INT32, INT32)
+{
+    return &dcmCronParseAddToField;
+}
+#endif

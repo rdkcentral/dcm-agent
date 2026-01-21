@@ -59,5 +59,79 @@ AC_SUBST([dcmd_CFLAGS])
 
 # Checks for typedefs, structures, and compiler characteristics.
 
-AC_CONFIG_FILES([Makefile])
+AC_ARG_ENABLE([iarmevent],
+        AS_HELP_STRING([--enable-iarmevent],[enables IARM event]),
+        [
+          case "${enableval}" in
+           yes) IS_IARMEVENT_ENABLED=true
+                IARM_EVENT_FLAG=" -DIARM_ENABLED ";;
+           no)  IS_IARMEVENT_ENABLED=false ;;
+          *) AC_MSG_ERROR([bad value ${enableval} for --enable-iarmevent]) ;;
+           esac
+           ],
+        [echo "iarm is disabled"])
+AM_CONDITIONAL([IS_IARMEVENT_ENABLED], [test x$IS_IARMEVENT_ENABLED = xtrue])
+AC_SUBST(IARM_EVENT_FLAG)
+
+AC_ARG_ENABLE([t2api],
+	      AS_HELP_STRING([--enable-t2api],[enables telemetry]),
+	      [
+	        case "${enableval}" in
+                 yes) IS_TELEMETRY2_ENABLED=true
+                      T2_EVENT_FLAG=" -DT2_EVENT_ENABLED ";;
+                 no)  IS_TELEMETRY2_ENABLED=false ;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-t2enable]) ;;
+	       esac
+	       ],
+	   [echo "telemetry is disabled"])
+AM_CONDITIONAL([IS_TELEMETRY2_ENABLED], [test x$IS_TELEMETRY2_ENABLED = xtrue])
+AC_SUBST(T2_EVENT_FLAG)
+
+IS_LIBRDKCERTSEL_ENABLED=""
+IS_LIBRDKCERTSEL_ENABLED=""
+
+AC_ARG_ENABLE([rdkcertselector],
+        AS_HELP_STRING([--enable-rdkcertselector],[enables rdkcertselector replacement (default is no)]),
+        [
+          case "${enableval}" in
+           yes) IS_LIBRDKCERTSEL_ENABLED=true
+                LIBRDKCERTSEL_FLAG=" -DLIBRDKCERTSELECTOR ";;
+           no)  IS_LIBRDKCERTSEL_ENABLED=false ;;
+          *) AC_MSG_ERROR([bad value ${enableval} for --enable-rdkcertselector]) ;;
+           esac
+           ],
+        [echo "rdkcertselector is disabled"])
+AM_CONDITIONAL([IS_LIBRDKCERTSEL_ENABLED], [test x$IS_LIBRDKCERTSEL_ENABLED = xtrue])
+AC_SUBST(LIBRDKCERTSEL_FLAG)
+
+AC_ARG_ENABLE([mountutils],
+        AS_HELP_STRING([--enable-mountutils],[enables mountutils replacement (default is no)]),
+        [
+          case "${enableval}" in
+           yes) IS_LIBRDKCONFIG_ENABLED=true
+                LIBRDKCONFIG_FLAG=" -DLIBRDKCONFIG_BUILD ";;
+           no)  IS_LIBRDKCONFIG_ENABLED=false ;;
+          *) AC_MSG_ERROR([bad value ${enableval} for --enable-mountutils]) ;;
+           esac
+           ],
+        [echo "mountutils is disabled"])
+AM_CONDITIONAL([IS_LIBRDKCONFIG_ENABLED], [test x$IS_LIBRDKCONFIG_ENABLED = xtrue])
+AC_SUBST(LIBRDKCONFIG_FLAG)
+
+# Check for breakpad
+BREAKPAD_CFLAGS=" "
+BREAKPAD_LFLAGS=" "
+AC_ARG_ENABLE([breakpad],
+		AS_HELP_STRING([--enable-breakpad],[enable breakpad support (default is no)]),
+		[
+			case "${enableval}" in
+        	 yes) BREAKPAD_CFLAGS="-DINCLUDE_BREAKPAD"
+                    BREAKPAD_LFLAGS="-lbreakpadwrapper";;
+        	 no) AC_MSG_ERROR([breakpad is disabled]) ;;
+        	 *) AC_MSG_ERROR([bad value ${enableval} for --enable-breakpad]) ;;
+        	 esac
+        	 ],
+    	    [echo "breakpad is disabled"])
+
+AC_CONFIG_FILES([Makefile uploadstblogs/src/Makefile])
 AC_OUTPUT

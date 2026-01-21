@@ -28,10 +28,6 @@ mkdir -p $INSTALL_DIR
 cd $ROOT
 #Build rbus
 
-git clone https://github.com/rdkcentral/rbus
-cmake -Hrbus -Bbuild/rbus -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug
-make -C build/rbus && make -C build/rbus install
-
 cd $WORKDIR
 
 export INSTALL_DIR='/usr/local'
@@ -40,5 +36,28 @@ export top_builddir=`pwd`
 
 autoreconf --install
 
-./configure --prefix=${INSTALL_DIR}
+cd ${ROOT}
+rm -rf iarmmgrs
+git clone https://github.com/rdkcentral/iarmmgrs.git
+cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
+cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
+
+cd ${ROOT}
+rm -rf telemetry
+git clone https://github.com/rdkcentral/telemetry.git
+cd telemetry
+cp include/*.h /usr/local/include
+sh  build_inside_container.sh
+
+cd ${ROOT}
+git clone https://github.com/rdkcentral/common_utilities.git -b feature/upload_L2
+cd common_utilities
+autoreconf -i
+./configure --enable-rdkcertselector --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
+cp uploadutils/*.h /usr/local/include
+make
+make install
+
+cd $WORKDIR
+./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -DL2_TEST_ENABLED -I$ROOT/iarmmgrs/maintenance/include"
 make && make install

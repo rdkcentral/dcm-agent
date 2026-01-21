@@ -37,6 +37,7 @@
 #include "dcm_rbus.h"
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
+#include "uploadstblogs.h"
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -77,13 +78,31 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
             pPrctl = "HTTP";
         }
         if(pURL == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using %s\n", DCM_DEF_LOG_URL);
+            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
             pURL = DCM_DEF_LOG_URL;
         }
 
-        DCMInfo("\nStart log upload Script\n");
-        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "nice -n 19 /bin/busybox sh %s/uploadSTBLogs.sh %s 0 1 0 %s %s &",
-                                               pRDKPath, DCM_LOG_TFTP, pPrctl, pURL);
+        DCMInfo("\nStart log upload via library API\n");
+
+        // Call uploadstblogs library API instead of shell script
+        UploadSTBLogsParams params = {
+            .flag = 0,
+            .dcm_flag = 1,
+            .upload_on_reboot = false,
+            .upload_protocol = pPrctl,
+            .upload_http_link = pURL,
+            .trigger_type = TRIGGER_SCHEDULED,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+#ifndef GTEST_ENABLE
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload failed with error code: %d\n", result);
+        } else {
+            DCMInfo("Log upload completed successfully\n");
+        }
+#endif
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
@@ -239,6 +258,7 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
  *  @return  status.
  *  @retval  status.
  */
+#ifndef GTEST_ENABLE
 int main(int argc, char* argv[])
 {
     pid_t process_id       = 0;
@@ -386,3 +406,15 @@ exit2:
     }
     return ret;
 }
+#endif
+
+#ifdef GTEST_ENABLE
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) 
+{
+    dcmRunJobs(profileName, pHandle);
+}
+void get_sig_handler(INT32 sig)
+{
+     sig_handler(sig);
+}
+#endif

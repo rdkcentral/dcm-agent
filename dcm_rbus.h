@@ -21,6 +21,10 @@
 
 #ifndef _DCM_RBUS_H_
 #define _DCM_RBUS_H_
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define DCM_RBUS_RECE_NAME        "T2TODCM"
 #define DCM_RBUS_SEND_NAME        "DCMTOT2"
@@ -52,4 +56,9 @@ INT8   dcmRbusGetEventSubStatus(VOID *pDCMRbusHandle);
 INT8*  dcmRbusGetConfPath(VOID *pDCMRbusHandle);
 INT32  dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *value);
 
+#ifdef __cplusplus
+}
+#endif
 #endif //_DCM_RBUS_H_
+
+
