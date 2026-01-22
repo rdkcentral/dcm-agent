@@ -403,19 +403,7 @@ int uploadstblogs_execute(int argc, char** argv)
         return ret;
     }
     
-    /* Handle UploadLogsNow mode - use custom implementation */
-    if (ctx.uploadlogsnow_mode) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] UploadLogsNow mode detected, executing custom workflow\n", 
-                __FUNCTION__, __LINE__);
-        
-        ret = execute_uploadlogsnow_workflow(&ctx);
-        
-        /* Release lock and exit */
-        release_lock();
-        return ret;
-    }
-    
+
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
