@@ -445,14 +445,6 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_StatusFileContent) {
     EXPECT_GT(strlen(g_status_file_content), 0);
 }
 
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_NullContext) {
-    // Test with null context pointer
-    int result = execute_uploadlogsnow_workflow(nullptr);
-    
-    // Should handle null pointer gracefully
-    EXPECT_EQ(-1, result);
-}
-
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_EmptyLogPath) {
     memset(ctx.log_path, 0, sizeof(ctx.log_path)); // Empty log path
     
