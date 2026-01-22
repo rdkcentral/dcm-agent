@@ -378,15 +378,19 @@ int add_timestamp_to_files(const char* dir_path)
         char old_path[MAX_PATH_LENGTH];
         char new_path[MAX_PATH_LENGTH];
         
-        snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
-        snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
-
-        // Skip if not a regular file
-        struct stat st;
-        if (stat(old_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        int old_ret = snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
+        int new_ret = snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
+        
+        // Check for snprintf truncation
+        if (old_ret < 0 || old_ret >= (int)sizeof(old_path) ||
+            new_ret < 0 || new_ret >= (int)sizeof(new_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
             continue;
         }
 
+        // Rename directly without pre-check to avoid TOCTOU issue
         if (rename(old_path, new_path) == 0) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                     "[%s:%d] Renamed: %s -> %s\n", 
@@ -480,8 +484,17 @@ int remove_timestamp_from_files(const char* dir_path)
             char old_path[MAX_PATH_LENGTH];
             char new_path[MAX_PATH_LENGTH];
             
-            snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
-            snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name + cut_pos);
+            int old_ret = snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
+            int new_ret = snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name + cut_pos);
+            
+            // Check for snprintf truncation
+            if (old_ret < 0 || old_ret >= (int)sizeof(old_path) ||
+                new_ret < 0 || new_ret >= (int)sizeof(new_path)) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                        "[%s:%d] Path too long, skipping: %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name);
+                continue;
+            }
 
             if (rename(old_path, new_path) == 0) {
                 RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -555,28 +568,15 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
         // Check conditions that should skip timestamp modification (matches shell script logic)
         int should_skip = 0;
         const char* filename = entry->d_name;
+        size_t filename_len = strlen(filename);
         
-        // Check for existing AM timestamp pattern: .*-[0-9][0-9]AM-.*
-        if (strlen(filename) > 6) {
-            for (size_t i = 0; i < strlen(filename) - 6; i++) {
+        // Check for existing AM/PM timestamp pattern: .*-[0-9][0-9][AP]M-.* (combined check)
+        if (filename_len > 6) {
+            for (size_t i = 0; i < filename_len - 6; i++) {
                 if (filename[i] == '-' && 
                     isdigit(filename[i+1]) && isdigit(filename[i+2]) && 
-                    filename[i+3] == 'A' && filename[i+4] == 'M' && filename[i+5] == '-') {
-                    should_skip = 1;
-                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                            "[%s:%d] Processing file...%s\n", 
-                            __FUNCTION__, __LINE__, filename);
-                    break;
-                }
-            }
-        }
-        
-        // Check for existing PM timestamp pattern: .*-[0-9][0-9]PM-.*
-        if (!should_skip && strlen(filename) > 6) {
-            for (size_t i = 0; i < strlen(filename) - 6; i++) {
-                if (filename[i] == '-' && 
-                    isdigit(filename[i+1]) && isdigit(filename[i+2]) && 
-                    filename[i+3] == 'P' && filename[i+4] == 'M' && filename[i+5] == '-') {
+                    (filename[i+3] == 'A' || filename[i+3] == 'P') && 
+                    filename[i+4] == 'M' && filename[i+5] == '-') {
                     should_skip = 1;
                     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                             "[%s:%d] Processing file...%s\n", 
@@ -609,15 +609,19 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
         char old_path[MAX_PATH_LENGTH];
         char new_path[MAX_PATH_LENGTH];
         
-        snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
-        snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
-
-        // Skip if not a regular file
-        struct stat st;
-        if (stat(old_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        int old_ret = snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
+        int new_ret = snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
+        
+        // Check for snprintf truncation
+        if (old_ret < 0 || old_ret >= (int)sizeof(old_path) ||
+            new_ret < 0 || new_ret >= (int)sizeof(new_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
             continue;
         }
 
+        // Rename directly without pre-check to avoid TOCTOU issue
         if (rename(old_path, new_path) == 0) {
             success_count++;
         } else {
@@ -683,8 +687,17 @@ int move_directory_contents(const char* src_dir, const char* dest_dir)
         char src_path[MAX_PATH_LENGTH];
         char dest_path[MAX_PATH_LENGTH];
         
-        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
-        snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+        int src_ret = snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        int dest_ret = snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+        
+        // Check for snprintf truncation
+        if (src_ret < 0 || src_ret >= (int)sizeof(src_path) ||
+            dest_ret < 0 || dest_ret >= (int)sizeof(dest_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Path too long, skipping: %s\n", 
+                    __FUNCTION__, __LINE__, entry->d_name);
+            continue;
+        }
 
         if (rename(src_path, dest_path) == 0) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -767,7 +780,15 @@ int clear_old_packet_captures(const char* log_path)
         size_t len = strlen(entry->d_name);
         if (len > 5 && strcmp(entry->d_name + len - 5, ".pcap") == 0) {
             char file_path[MAX_PATH_LENGTH];
-            snprintf(file_path, sizeof(file_path), "%s/%s", log_path, entry->d_name);
+            int path_ret = snprintf(file_path, sizeof(file_path), "%s/%s", log_path, entry->d_name);
+            
+            // Check for snprintf truncation
+            if (path_ret < 0 || path_ret >= (int)sizeof(file_path)) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                        "[%s:%d] Path too long, skipping: %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name);
+                continue;
+            }
 
             if (remove_file(file_path)) {
                 RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -836,7 +857,15 @@ int remove_old_directories(const char* base_path, const char* pattern, int days_
         // Check if name matches pattern (simple substring match)
         if (strstr(entry->d_name, pattern) != NULL) {
             char dir_path[MAX_PATH_LENGTH];
-            snprintf(dir_path, sizeof(dir_path), "%s/%s", base_path, entry->d_name);
+            int path_ret = snprintf(dir_path, sizeof(dir_path), "%s/%s", base_path, entry->d_name);
+            
+            // Check for snprintf truncation
+            if (path_ret < 0 || path_ret >= (int)sizeof(dir_path)) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                        "[%s:%d] Path too long, skipping: %s\n", 
+                        __FUNCTION__, __LINE__, entry->d_name);
+                continue;
+            }
 
             struct stat st;
             if (stat(dir_path, &st) == 0 && S_ISDIR(st.st_mode)) {
