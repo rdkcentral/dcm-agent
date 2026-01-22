@@ -34,7 +34,19 @@
 
 #include "uploadstblogs_types.h"
 #include "uploadlogsnow.h"
-#include "./mocks/mock_file_operations.h"
+
+// Define compatibility for Windows/Linux builds
+#ifndef _WIN32
+#include <dirent.h>
+#else
+// Windows compatibility
+typedef struct {
+    int dummy;
+} DIR;
+struct dirent {
+    char d_name[256];
+};
+#endif
 
 // Mock system functions that uploadlogsnow depends on
 extern "C" {
@@ -54,8 +66,7 @@ char* ctime(const time_t* timep);
 int snprintf(char* str, size_t size, const char* format, ...);
 
 // Mock functions from file_operations.h that uploadlogsnow depends on
-// Note: copy_file, create_directory, file_exists are in mock_file_operations.h
-int remove_directory(const char* path);
+bool remove_directory(const char* path);
 int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
 
 // Mock functions from archive_manager.h
@@ -152,7 +163,7 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     return result;
 }
 
-// Mock file operations implementations to override the ones in mock_file_operations.h
+// Mock file operations implementations
 bool copy_file(const char* src, const char* dest) {
     return g_copy_file_should_fail ? false : true;
 }
@@ -165,8 +176,8 @@ bool file_exists(const char* path) {
     return g_file_exists_return_value ? true : false;
 }
 
-int remove_directory(const char* path) {
-    return g_remove_directory_should_fail ? 0 : 1;
+bool remove_directory(const char* path) {
+    return g_remove_directory_should_fail ? false : true;
 }
 
 int add_timestamp_to_files_uploadlogsnow(const char* dir_path) {
