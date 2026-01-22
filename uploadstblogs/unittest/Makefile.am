@@ -142,8 +142,9 @@ strategy_handler_gtest_LDADD = $(COMMON_LDADD)
 strategy_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 strategy_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-uploadlogsnow_gtest_SOURCES = uploadlogsnow_gtest.cpp ./mocks/mock_file_operations.cpp
+uploadlogsnow_gtest_SOURCES = uploadlogsnow_gtest.cpp ../src/uploadlogsnow.c
 uploadlogsnow_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 uploadlogsnow_gtest_LDADD = $(COMMON_LDADD)
 uploadlogsnow_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 uploadlogsnow_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
