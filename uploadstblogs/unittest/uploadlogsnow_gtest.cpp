@@ -68,6 +68,12 @@ int snprintf(char* str, size_t size, const char* format, ...);
 // Mock functions from file_operations.h that uploadlogsnow depends on
 bool remove_directory(const char* path);
 int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
+bool copy_file(const char* src, const char* dest);
+bool create_directory(const char* path);
+bool file_exists(const char* path);
+
+// Internal uploadlogsnow function that we need to mock/test
+int copy_files_to_dcm_path(const char* src_path, const char* dest_path);
 
 // Mock functions from archive_manager.h
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir);
@@ -97,6 +103,7 @@ static bool g_execute_upload_cycle_return_value = true;
 static char g_status_file_content[512] = {0};
 static int g_fprintf_call_count = 0;
 static int g_readdir_call_count = 0;
+static int g_copy_files_return_count = 3; // Default return count for copy_files_to_dcm_path
 
 // Mock implementations
 FILE* fopen(const char* filename, const char* mode) {
@@ -139,7 +146,11 @@ struct dirent* readdir(DIR* dirp) {
         return nullptr; // End of directory
     }
     
-    return &mock_dirent_entries[mock_dirent_index++];
+    // Make sure we return a valid entry
+    struct dirent* entry = &mock_dirent_entries[mock_dirent_index++];
+    // Ensure d_name is null terminated
+    entry->d_name[sizeof(entry->d_name) - 1] = '\0';
+    return entry;
 }
 
 int closedir(DIR* dirp) {
@@ -187,8 +198,11 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path) {
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
     if (g_create_archive_should_fail) return -1;
     
-    // Simulate setting archive filename
-    strcpy(session->archive_file, "test_archive.tar.gz");
+    // Simulate setting archive filename - ensure it's safe
+    if (session) {
+        strncpy(session->archive_file, "test_archive.tar.gz", sizeof(session->archive_file) - 1);
+        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+    }
     return 0;
 }
 
@@ -219,13 +233,14 @@ protected:
         g_add_timestamp_should_fail = false;
         g_create_archive_should_fail = false;
         g_execute_upload_cycle_return_value = true;
+        g_copy_files_return_count = 3;
         memset(g_status_file_content, 0, sizeof(g_status_file_content));
         g_fprintf_call_count = 0;
         g_readdir_call_count = 0;
         mock_dirent_index = 0;
         mock_dirent_count = 0;
         
-        // Initialize test context
+        // Initialize test context - memset first to ensure clean state
         memset(&ctx, 0, sizeof(ctx));
         strcpy(ctx.log_path, "/opt/logs");
         strcpy(ctx.dcm_log_path, "");  // Will use default
@@ -238,8 +253,10 @@ protected:
     
     void setupMockDirectoryEntries(const char* entries[], int count) {
         mock_dirent_count = count < 10 ? count : 10;
+        mock_dirent_index = 0;  // Reset index
         for (int i = 0; i < mock_dirent_count; i++) {
-            strcpy(mock_dirent_entries[i].d_name, entries[i]);
+            strncpy(mock_dirent_entries[i].d_name, entries[i], sizeof(mock_dirent_entries[i].d_name) - 1);
+            mock_dirent_entries[i].d_name[sizeof(mock_dirent_entries[i].d_name) - 1] = '\0';
         }
     }
 
@@ -248,10 +265,20 @@ protected:
 
 // Test cases for execute_uploadlogsnow_workflow
 
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_NullContext) {
+    // Test null context parameter
+    int result = execute_uploadlogsnow_workflow(nullptr);
+    EXPECT_EQ(-1, result);
+}
+
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_Success) {
     // Setup mock directory with valid files
     const char* files[] = {"app.log", "system.log", "debug.log"};
     setupMockDirectoryEntries(files, 3);
+    
+    // Ensure context is properly initialized
+    ASSERT_NE(&ctx, nullptr);
+    ASSERT_STREQ(ctx.log_path, "/opt/logs");
     
     int result = execute_uploadlogsnow_workflow(&ctx);
     
