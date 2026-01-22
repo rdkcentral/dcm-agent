@@ -175,6 +175,12 @@ static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
  */
 int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
 {
+    if (!ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
     char dcm_log_path[MAX_PATH_LENGTH] = {0};
     int ret = -1;
     
@@ -187,8 +193,10 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
     // Use DCM_LOG_PATH from context or default
     if (strlen(ctx->dcm_log_path) > 0) {
         strncpy(dcm_log_path, ctx->dcm_log_path, sizeof(dcm_log_path) - 1);
+        dcm_log_path[sizeof(dcm_log_path) - 1] = '\0';
     } else {
         strncpy(dcm_log_path, DCM_TEMP_DIR, sizeof(dcm_log_path) - 1);
+        dcm_log_path[sizeof(dcm_log_path) - 1] = '\0';
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
@@ -235,6 +243,7 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
     
     // Update the DCM_LOG_PATH in context to point to our prepared directory
     strncpy(ctx->dcm_log_path, dcm_log_path, sizeof(ctx->dcm_log_path) - 1);
+    ctx->dcm_log_path[sizeof(ctx->dcm_log_path) - 1] = '\0';
     
     // Use existing create_archive function
     if (create_archive(ctx, &session, dcm_log_path) != 0) {
