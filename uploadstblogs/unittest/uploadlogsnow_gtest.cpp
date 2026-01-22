@@ -119,6 +119,16 @@ int fclose(FILE* stream) {
     return (stream == mock_file_ptr) ? 0 : -1;
 }
 
+size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
+    if (!ptr || !stream || stream != mock_file_ptr) return 0;
+    return nmemb; // Pretend we read all requested items
+}
+
+size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream) {
+    if (!ptr || !stream || stream != mock_file_ptr) return 0;
+    return nmemb; // Pretend we wrote all requested items
+}
+
 int fprintf(FILE* stream, const char* format, ...) {
     if (stream != mock_file_ptr) return -1;
     
@@ -166,6 +176,14 @@ char* ctime(const time_t* timep) {
     return mock_ctime_buffer;
 }
 
+int stat(const char* path, struct stat* buf) {
+    if (!path || !buf) return -1;
+    memset(buf, 0, sizeof(struct stat));
+    buf->st_mode = S_IFREG | 0644; // Regular file with read/write permissions
+    buf->st_size = 1024; // Pretend file is 1KB
+    return 0;
+}
+
 int snprintf(char* str, size_t size, const char* format, ...) {
     va_list args;
     va_start(args, format);
@@ -208,12 +226,21 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 
 void decide_paths(RuntimeContext* ctx, SessionState* session) {
     // Mock implementation - just set session state
-    session->strategy = STRAT_ONDEMAND;
-    session->primary = PATH_DIRECT;
+    if (session) {
+        session->strategy = STRAT_ONDEMAND;
+        session->primary = PATH_DIRECT;
+    }
 }
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
+    if (!ctx || !session) return false;
     return g_execute_upload_cycle_return_value;
+}
+
+// Mock implementation for copy_files_to_dcm_path
+int copy_files_to_dcm_path(const char* src_path, const char* dest_path) {
+    if (g_copy_file_should_fail) return -1;
+    return g_copy_files_return_count; // Return number of files copied
 }
 
 } // extern "C"
