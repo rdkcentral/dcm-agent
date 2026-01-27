@@ -99,6 +99,10 @@ static int should_exclude_file(const char* filename)
 
 /**
  * @brief Copy all files from source to destination, excluding specified items
+ * @param src_path Source directory path
+ * @param dest_path Destination directory path  
+ * @return Number of files successfully copied (>= 0), or -1 on directory open failure
+ * @note Returns 0 for empty directories (this is a valid success case, not an error)
  */
 static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
 {
@@ -227,6 +231,16 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to copy files to DCM path\n", __FUNCTION__, __LINE__);
         write_upload_status("Failed");
+        goto cleanup;
+    }
+    
+    // Check if any files were copied
+    if (copied_files == 0) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] No files found to upload in directory: %s\n", 
+                __FUNCTION__, __LINE__, ctx->log_path);
+        write_upload_status("No files to upload");
+        ret = 0;  // Success, but no files to process
         goto cleanup;
     }
     
