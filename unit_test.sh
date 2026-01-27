@@ -45,6 +45,8 @@ cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
+git clone https://github.com/rdkcentral/rdk_logger.git
+cp rdk_logger/rdk_logger.h /usr/local/include
 
 automake --add-missing
 autoreconf --install
