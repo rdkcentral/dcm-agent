@@ -37,10 +37,10 @@
 #include "uploadlogsnow.h"
 #include "uploadstblogs_types.h"
 #include "strategy_handler.h"
-#include "../include/archive_manager.h"
-#include "../include/file_operations.h"
-#include "../include/strategy_selector.h"
-#include "../include/upload_engine.h"
+#include "archive_manager.h"
+#include "file_operations.h"
+#include "strategy_selector.h"
+#include "upload_engine.h"
 #include "rdk_debug.h"
 
 /**
