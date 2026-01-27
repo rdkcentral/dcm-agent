@@ -6,7 +6,7 @@ libuploadstblogs_la_SOURCES = context_manager.c validation.c strategy_selector.c
                                file_operations.c event_manager.c cleanup_handler.c strategies.c\
                                verification.c rbus_interface.c md5_utils.c uploadstblogs.c
 
-libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR -DUPLOADSTBLOGS_BUILD_BINARY\
+libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED -DUPLOADSTBLOGS_BUILD_BINARY\
                               -I${top_srcdir} \
                               -I${top_srcdir}/uploadstblogs \
                               -I${top_srcdir}/uploadstblogs/include \
@@ -17,9 +17,9 @@ libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_
                               -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal
 
 libuploadstblogs_la_LDFLAGS = -version-info 0:0:0 -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
-libuploadstblogs_la_LIBADD = $(curl_LIBS) -lcurl -lrdkloggers -ldwnlutil -lRdkCertSelector -lrbus \
+libuploadstblogs_la_LIBADD = $(curl_LIBS) -lcurl -lrdkloggers -ldwnlutil -lrbus \
                               -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus \
-                              -lt2utils -ltelemetry_msgsender -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil -lrdkconfig
+                              -lt2utils -ltelemetry_msgsender -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
 
 # Binary
 bin_PROGRAMS = logupload
