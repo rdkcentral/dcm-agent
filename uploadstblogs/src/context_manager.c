@@ -160,8 +160,7 @@ bool is_codebig_blocked(int block_time)
 bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
-
-        /* Extended initialization with programmatic configuration */
+    /* Extended initialization with programmatic configuration */
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
@@ -524,3 +523,4 @@ void cleanup_context(void)
 
 
 }
+
