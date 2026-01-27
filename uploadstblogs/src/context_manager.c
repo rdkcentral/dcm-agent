@@ -527,6 +527,3 @@ void cleanup_context(void)
 
 
 }
-
-
-
