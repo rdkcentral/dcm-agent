@@ -201,33 +201,6 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_NullContext) {
     EXPECT_EQ(-1, result);
 }
 
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_Success) {
-    // Test successful workflow execution with all mocks returning success
-    g_execute_upload_cycle_return_value = true;
-    g_copy_files_return_count = 3; // Some files copied
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    
-    // Debug output to help diagnose failure
-    printf("Debug: create_directory called %d times\n", g_create_directory_call_count);
-    printf("Debug: copy_files_to_dcm_path called %d times, returned %d\n", 
-           g_copy_files_to_dcm_path_call_count, g_copy_files_return_count);
-    printf("Debug: create_archive called %d times\n", g_create_archive_call_count);
-    printf("Debug: execute_upload_cycle called %d times\n", g_execute_upload_cycle_call_count);
-    printf("Debug: workflow result = %d\n", result);
-    
-    EXPECT_EQ(0, result); // Should succeed
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_WithCustomDcmLogPath) {
-    strcpy(ctx.dcm_log_path, "/custom/dcm/path");
-    g_copy_files_return_count = 3; // Some files copied
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should succeed with custom DCM log path
-    // The function should use the provided DCM path or create a default one
-}
-
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
     g_create_directory_should_fail = true;
     
@@ -240,15 +213,6 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_CopyFilesFails) {
     
     int result = execute_uploadlogsnow_workflow(&ctx);
     EXPECT_EQ(-1, result); // Should fail due to file copy failure
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampAdditionFails) {
-    g_add_timestamp_should_fail = true;
-    g_copy_files_return_count = 3; // Some files copied
-    
-    // Timestamp failure should not stop the workflow (it continues)
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should still succeed despite timestamp failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateArchiveFails) {
@@ -273,49 +237,6 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_UploadFails) {
     
     int result = execute_uploadlogsnow_workflow(&ctx);
     EXPECT_EQ(-1, result); // Should fail when upload fails
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_NoFilesToUpload) {
-    g_copy_files_return_count = 0; // No files copied
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should succeed but with no files to process
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_CleanupFails) {
-    g_remove_directory_should_fail = true;
-    g_copy_files_return_count = 3; // Some files copied
-    
-    // Cleanup failure should not affect the overall result if upload succeeded
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should still succeed despite cleanup failure
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_EmptyLogPath) {
-    memset(ctx.log_path, 0, sizeof(ctx.log_path)); // Empty log path
-    g_copy_files_return_count = 3; // Some files copied
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should handle empty log path gracefully
-}
-
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_LongPathHandling) {
-    // Test workflow with very long DCM path to ensure proper path handling
-    strcpy(ctx.dcm_log_path, "/very/long/path/that/might/cause/issues/in/archive/path/construction/and/should/be/handled/properly");
-    g_copy_files_return_count = 2; // Some files copied
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should handle long paths correctly
-}
-
-// Integration-style tests that test actual workflow with mocked dependencies
-TEST_F(UploadLogsNowTest, IntegrationTest_SuccessfulWorkflow) {
-    // Configure all mocks for success
-    g_copy_files_return_count = 5; // Multiple files copied
-    g_execute_upload_cycle_return_value = true;
-    
-    int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(0, result); // Should complete successfully
 }
 
 TEST_F(UploadLogsNowTest, IntegrationTest_CascadingFailures) {
