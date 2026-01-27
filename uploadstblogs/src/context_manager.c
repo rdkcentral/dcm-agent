@@ -38,7 +38,9 @@
 #endif
 #include "rdk_debug.h"
 #ifndef L2_TEST_ENABLED
+#ifndef GTEST_ENABLE
 #include "rdk_logger.h"
+#endif
 #endif
 #include "rbus_interface.h"
 
@@ -524,3 +526,4 @@ void cleanup_context(void)
 
 
 }
+
