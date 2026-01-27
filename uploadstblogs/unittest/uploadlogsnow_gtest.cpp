@@ -119,6 +119,7 @@ bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
 }
 
 int copy_files_to_dcm_path(const char* src_path, const char* dest_path) {
+    if (!src_path || !dest_path) return -1;
     if (g_copy_file_should_fail) return -1;
     return g_copy_files_return_count;
 }
@@ -200,11 +201,17 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CopyFilesFails) {
+    // Reset and explicitly set the failure flag
     g_copy_file_should_fail = true;
     
     // Test that our mocks return expected failure values
     EXPECT_FALSE(copy_file("/src", "/dest"));
-    EXPECT_EQ(-1, copy_files_to_dcm_path("/src", "/dest"));
+    
+    // Debug: Check the flag value before calling the function
+    ASSERT_TRUE(g_copy_file_should_fail);
+    
+    int result = copy_files_to_dcm_path("/src", "/dest");
+    EXPECT_EQ(-1, result);
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampAdditionFails) {
