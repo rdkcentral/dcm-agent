@@ -4,8 +4,7 @@ lib_LTLIBRARIES = libuploadstblogs.la
 libuploadstblogs_la_SOURCES = context_manager.c validation.c strategy_selector.c strategy_handler.c \
                                upload_engine.c path_handler.c retry_logic.c archive_manager.c\
                                file_operations.c event_manager.c cleanup_handler.c strategies.c\
-                               verification.c rbus_interface.c md5_utils.c uploadstblogs.c \
-                               uploadlogsnow.c
+                               verification.c rbus_interface.c md5_utils.c uploadstblogs.c
 
 libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENABLED -DIS_LIBRDKCONFIG_ENABLED -DIS_LIBRDKCERTSEL_ENABLED -DLIBRDKCONFIG_BUILD -DLIBRDKCERTSELECTOR -DUPLOADSTBLOGS_BUILD_BINARY\
                               -I${top_srcdir} \
