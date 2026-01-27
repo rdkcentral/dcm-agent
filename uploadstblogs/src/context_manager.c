@@ -173,7 +173,7 @@ bool init_context(RuntimeContext* ctx)
     };
     
     if (rdk_logger_ext_init(&config) == RDK_SUCCESS) {
-         printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
+        printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
     }
 #endif
     
