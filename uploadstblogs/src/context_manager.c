@@ -37,7 +37,9 @@
 #include "common_device_api.h"
 #endif
 #include "rdk_debug.h"
+#if defined(USE_EXTENDED_LOGGER_INIT)
 #include "rdk_logger.h"
+#endif
 #include "rbus_interface.h"
 
 #define DEBUG_INI_NAME "/etc/debug.ini"
@@ -522,6 +524,7 @@ void cleanup_context(void)
 
 
 }
+
 
 
 
