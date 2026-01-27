@@ -45,7 +45,7 @@ cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 cd ${ROOT}
 rm -rf rdk_logger
 git clone https://github.com/rdkcentral/rdk_logger.git
-cp rdk_logger/include /usr/local/include
+cp rdk_logger/include/* /usr/local/include
 
 cd ${ROOT}
 rm -rf telemetry
