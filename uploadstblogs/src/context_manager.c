@@ -37,7 +37,7 @@
 #include "common_device_api.h"
 #endif
 #include "rdk_debug.h"
-#if defined(USE_EXTENDED_LOGGER_INIT)
+#ifndef L2_TEST_ENABLED
 #include "rdk_logger.h"
 #endif
 #include "rbus_interface.h"
@@ -163,7 +163,7 @@ bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
     /* Extended initialization with programmatic configuration */
-#if defined(USE_EXTENDED_LOGGER_INIT)
+#ifndef L2_TEST_ENABLED
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
@@ -524,6 +524,7 @@ void cleanup_context(void)
 
 
 }
+
 
 
 
