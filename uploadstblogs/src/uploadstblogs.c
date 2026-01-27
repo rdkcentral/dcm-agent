@@ -97,7 +97,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
         ctx->tls_enabled = false;               // Default to HTTP
         ctx->uploadlogsnow_mode = true;         // Enable UploadLogsNow mode
         
-        fprintf(stderr, "DEBUG: UploadLogsNow mode enabled\n");
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.UPLOADSTBLOGS", "UploadLogsNow mode enabled\n");
         return true;
     }
     
