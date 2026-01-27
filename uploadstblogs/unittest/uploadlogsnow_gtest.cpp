@@ -36,6 +36,19 @@
 #include "uploadstblogs_types.h"
 #include "uploadlogsnow.h"
 
+// Define compatibility for Windows/Linux builds
+#ifndef _WIN32
+#include <dirent.h>
+#else
+// Windows compatibility
+typedef struct {
+    int dummy;
+} DIR;
+struct dirent {
+    char d_name[256];
+};
+#endif
+
 // Mock only application-specific functions, not standard library functions
 extern "C" {
 
@@ -50,6 +63,10 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
 void decide_paths(RuntimeContext* ctx, SessionState* session);
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session);
 
+// Additional mock functions for application-specific dependencies
+void t2_count_notify(const char* marker);
+int getDevicePropertyData(const char* property, char* buffer, int size);
+
 // Global test state variables
 static bool g_copy_file_should_fail = false;
 static bool g_create_directory_should_fail = false;
@@ -60,12 +77,19 @@ static bool g_create_archive_should_fail = false;
 static bool g_execute_upload_cycle_return_value = true;
 static int g_copy_files_return_count = 3;
 
+// Debug tracking
+static int g_create_directory_call_count = 0;
+static int g_copy_files_to_dcm_path_call_count = 0;
+static int g_create_archive_call_count = 0;
+static int g_execute_upload_cycle_call_count = 0;
+
 // Mock implementations for uploadlogsnow module dependencies
 bool copy_file(const char* src, const char* dest) {
     return g_copy_file_should_fail ? false : true;
 }
 
 bool create_directory(const char* path) {
+    g_create_directory_call_count++;
     return g_create_directory_should_fail ? false : true;
 }
 
@@ -82,6 +106,7 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path) {
 }
 
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
+    g_create_archive_call_count++;
     if (g_create_archive_should_fail) return -1;
     
     // Simulate setting archive filename - ensure it's safe
@@ -101,14 +126,26 @@ void decide_paths(RuntimeContext* ctx, SessionState* session) {
 }
 
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session) {
+    g_execute_upload_cycle_call_count++;
     if (!ctx || !session) return false;
     return g_execute_upload_cycle_return_value;
 }
 
 int copy_files_to_dcm_path(const char* src_path, const char* dest_path) {
+    g_copy_files_to_dcm_path_call_count++;
     if (!src_path || !dest_path) return -1;
     if (g_copy_file_should_fail) return -1;
     return g_copy_files_return_count;
+}
+
+// Additional mock functions
+void t2_count_notify(const char* marker) {
+    // Mock telemetry - do nothing
+}
+
+int getDevicePropertyData(const char* property, char* buffer, int size) {
+    // Mock device property - return failure by default
+    return -1;
 }
 
 } // extern "C"
@@ -127,6 +164,12 @@ protected:
         g_create_archive_should_fail = false;
         g_execute_upload_cycle_return_value = true;
         g_copy_files_return_count = 3;
+        
+        // Reset debug counters
+        g_create_directory_call_count = 0;
+        g_copy_files_to_dcm_path_call_count = 0;
+        g_create_archive_call_count = 0;
+        g_execute_upload_cycle_call_count = 0;
         
         // Create a temporary test directory
         test_log_dir = std::string("/tmp/uploadlogsnow_test_") + std::to_string(getpid());
@@ -164,6 +207,15 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_Success) {
     g_copy_files_return_count = 3; // Some files copied
     
     int result = execute_uploadlogsnow_workflow(&ctx);
+    
+    // Debug output to help diagnose failure
+    printf("Debug: create_directory called %d times\n", g_create_directory_call_count);
+    printf("Debug: copy_files_to_dcm_path called %d times, returned %d\n", 
+           g_copy_files_to_dcm_path_call_count, g_copy_files_return_count);
+    printf("Debug: create_archive called %d times\n", g_create_archive_call_count);
+    printf("Debug: execute_upload_cycle called %d times\n", g_execute_upload_cycle_call_count);
+    printf("Debug: workflow result = %d\n", result);
+    
     EXPECT_EQ(0, result); // Should succeed
 }
 
