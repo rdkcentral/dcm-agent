@@ -161,6 +161,7 @@ bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
     /* Extended initialization with programmatic configuration */
+#if defined(USE_EXTENDED_LOGGER_INIT)
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
@@ -172,15 +173,15 @@ bool init_context(RuntimeContext* ctx)
     if (rdk_logger_ext_init(&config) == RDK_SUCCESS) {
          printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
     }
-    else {
-        if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
-            g_rdk_logger_enabled = 1;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] RDK Logger initialized\n", __FUNCTION__, __LINE__);
-        } else {
-            fprintf(stderr, "WARNING: RDK Logger initialization failed, using fallback logging\n");
-        }
+#endif
+    
+    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
+        g_rdk_logger_enabled = 1;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] RDK Logger initialized\n", __FUNCTION__, __LINE__);
+    } else {
+        fprintf(stderr, "WARNING: RDK Logger initialization failed, using fallback logging\n");
     }
-
+    
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Context pointer is NULL\n", __FUNCTION__, __LINE__);
         return false;
@@ -521,5 +522,6 @@ void cleanup_context(void)
 
 
 }
+
 
 
