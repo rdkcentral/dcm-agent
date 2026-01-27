@@ -37,6 +37,7 @@
 #include "common_device_api.h"
 #endif
 #include "rdk_debug.h"
+#include "rdk_logger.h"
 #include "rbus_interface.h"
 
 #define DEBUG_INI_NAME "/etc/debug.ini"
@@ -160,11 +161,27 @@ bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
 
-    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
-        g_rdk_logger_enabled = 1;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] RDK Logger initialized\n", __FUNCTION__, __LINE__);
-    } else {
-        fprintf(stderr, "WARNING: RDK Logger initialization failed, using fallback logging\n");
+        /* Extended initialization with programmatic configuration */
+    rdk_logger_ext_config_t config = {
+        .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
+        .loglevel = RDK_LOG_INFO,                 /* Default log level */
+        .output = RDKLOG_OUTPUT_CONSOLE,          /* Output to console (stdout/stderr) */
+        .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
+        .pFilePolicy = NULL                       /* Not using file output, so NULL */
+    };
+    
+    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
+        printf("UPLOADSTB: ERROR - Extended logger init failed\n");
+        return 1; // Return non-zero on failure
+    }
+    printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
+    else {
+        if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
+            g_rdk_logger_enabled = 1;
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] RDK Logger initialized\n", __FUNCTION__, __LINE__);
+        } else {
+            fprintf(stderr, "WARNING: RDK Logger initialization failed, using fallback logging\n");
+        }
     }
 
     if (!ctx) {
@@ -504,5 +521,6 @@ bool get_mac_address(char* mac_buf, size_t buf_size)
 void cleanup_context(void)
 {
     rbus_cleanup();
+
 
 }
