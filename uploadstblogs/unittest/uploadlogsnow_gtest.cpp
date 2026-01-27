@@ -46,7 +46,6 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path);
 bool copy_file(const char* src, const char* dest);
 bool create_directory(const char* path);
 bool file_exists(const char* path);
-int copy_files_to_dcm_path(const char* src_path, const char* dest_path);
 int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir);
 void decide_paths(RuntimeContext* ctx, SessionState* session);
 bool execute_upload_cycle(RuntimeContext* ctx, SessionState* session);
