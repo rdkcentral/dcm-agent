@@ -544,6 +544,7 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
     
     // Store timestamp prefix globally for removal later (matches script behavior)
     strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    g_timestamp_prefix[sizeof(g_timestamp_prefix) - 1] = '\0';
 
     DIR* dir = opendir(dir_path);
     if (!dir) {
