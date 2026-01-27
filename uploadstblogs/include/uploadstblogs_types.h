@@ -42,6 +42,8 @@
 #define MAX_FILENAME_LENGTH  256
 #define MAX_CERT_PATH_LENGTH 256
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
+#define STATUS_FILE "/opt/loguploadstatus.txt"
+#define DCM_TEMP_DIR "/tmp/DCM"
 
 /* ==========================
    Enumerations

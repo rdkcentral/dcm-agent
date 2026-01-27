@@ -37,6 +37,7 @@
 #include <dirent.h>
 
 #include "uploadstblogs.h"
+#include "uploadstblogs_types.h"
 #include "context_manager.h"
 #include "validation.h"
 #include "strategy_selector.h"
@@ -53,9 +54,6 @@
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
 #endif
-
-#define STATUS_FILE "/opt/loguploadstatus.txt"
-#define DCM_TEMP_DIR "/tmp/DCM"
 
 /* Forward declarations */
 static int lock_fd = -1;

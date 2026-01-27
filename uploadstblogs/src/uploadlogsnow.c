@@ -43,10 +43,6 @@
 #include "../include/upload_engine.h"
 #include "rdk_debug.h"
 
-#define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
-#define STATUS_FILE "/opt/loguploadstatus.txt"
-#define DCM_TEMP_DIR "/tmp/DCM"
-
 /**
  * @brief Write status message to log upload status file
  */
