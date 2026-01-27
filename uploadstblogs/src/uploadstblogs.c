@@ -403,7 +403,6 @@ int uploadstblogs_execute(int argc, char** argv)
         return ret;
     }
     
-
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
@@ -493,4 +492,5 @@ int main(int argc, char** argv)
     return uploadstblogs_execute(argc, argv);
 }
 #endif /* UPLOADSTBLOGS_BUILD_BINARY */
+
 
