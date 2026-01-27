@@ -169,11 +169,9 @@ bool init_context(RuntimeContext* ctx)
         .pFilePolicy = NULL                       /* Not using file output, so NULL */
     };
     
-    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
-        printf("UPLOADSTB: ERROR - Extended logger init failed\n");
-        return 1; // Return non-zero on failure
+    if (rdk_logger_ext_init(&config) == RDK_SUCCESS) {
+         printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
     }
-    printf("UPLOADSTB: Using RDK Logger (Extended Init)\n");
     else {
         if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
             g_rdk_logger_enabled = 1;
@@ -523,4 +521,5 @@ void cleanup_context(void)
 
 
 }
+
 
