@@ -172,134 +172,140 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_NullContext) {
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_Success) {
-    // Test successful workflow execution with mocked functions
-    // Note: We avoid calling the real function to prevent segfaults
-    // Instead, test that the context is properly initialized
+    // Test successful workflow execution with all mocks returning success
+    g_execute_upload_cycle_return_value = true;
+    g_copy_files_return_count = 3; // Some files copied
     
-    EXPECT_STREQ(ctx.log_path, test_log_dir.c_str());
-    EXPECT_STREQ(ctx.dcm_log_path, "");
-    EXPECT_TRUE(ctx.uploadlogsnow_mode);
-    
-    // Test that our mock functions return expected values
-    EXPECT_TRUE(create_directory("/test/path"));
-    EXPECT_TRUE(file_exists("/any/path"));
-    EXPECT_EQ(3, copy_files_to_dcm_path("/src", "/dest"));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should succeed
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_WithCustomDcmLogPath) {
     strcpy(ctx.dcm_log_path, "/custom/dcm/path");
+    g_copy_files_return_count = 3; // Some files copied
     
-    // Verify path is preserved
-    EXPECT_STREQ("/custom/dcm/path", ctx.dcm_log_path);
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should succeed with custom DCM log path
+    // The function should use the provided DCM path or create a default one
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
     g_create_directory_should_fail = true;
     
-    // Test that our mock returns false when configured to fail
-    EXPECT_FALSE(create_directory("/any/path"));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result); // Should fail due to directory creation failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CopyFilesFails) {
-    // Reset and explicitly set the failure flag
     g_copy_file_should_fail = true;
     
-    // Test that our mocks return expected failure values
-    EXPECT_FALSE(copy_file("/src", "/dest"));
-    
-    // Debug: Check the flag value before calling the function
-    ASSERT_TRUE(g_copy_file_should_fail);
-    
-    int result = copy_files_to_dcm_path("/src", "/dest");
-    EXPECT_EQ(-1, result);
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result); // Should fail due to file copy failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampAdditionFails) {
     g_add_timestamp_should_fail = true;
+    g_copy_files_return_count = 3; // Some files copied
     
-    // Test that our mock returns -1 when configured to fail
-    EXPECT_EQ(-1, add_timestamp_to_files_uploadlogsnow("/any/path"));
+    // Timestamp failure should not stop the workflow (it continues)
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should still succeed despite timestamp failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateArchiveFails) {
     g_create_archive_should_fail = true;
+    g_copy_files_return_count = 3; // Some files copied
     
-    SessionState session = {0};
-    // Test that our mock returns -1 when configured to fail
-    EXPECT_EQ(-1, create_archive(&ctx, &session, "/any/path"));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result); // Should fail due to archive creation failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchiveFileNotFound) {
     g_file_exists_return_value = false;
+    g_copy_files_return_count = 3; // Some files copied
     
-    // Test that our mock returns false when configured
-    EXPECT_FALSE(file_exists("/any/path"));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result); // Should fail when archive file doesn't exist after creation
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_UploadFails) {
     g_execute_upload_cycle_return_value = false;
+    g_copy_files_return_count = 3; // Some files copied
     
-    SessionState session = {0};
-    // Test that our mock returns false when configured
-    EXPECT_FALSE(execute_upload_cycle(&ctx, &session));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result); // Should fail when upload fails
+}
+
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_NoFilesToUpload) {
+    g_copy_files_return_count = 0; // No files copied
+    
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should succeed but with no files to process
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CleanupFails) {
     g_remove_directory_should_fail = true;
+    g_copy_files_return_count = 3; // Some files copied
     
-    // Test that our mock returns false when configured to fail
-    EXPECT_FALSE(remove_directory("/any/path"));
+    // Cleanup failure should not affect the overall result if upload succeeded
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should still succeed despite cleanup failure
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_EmptyLogPath) {
     memset(ctx.log_path, 0, sizeof(ctx.log_path)); // Empty log path
+    g_copy_files_return_count = 3; // Some files copied
     
-    // Test context state
-    EXPECT_STREQ("", ctx.log_path);
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should handle empty log path gracefully
 }
 
-TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchivePathConstruction) {
-    // Test with specific DCM log path
-    strcpy(ctx.dcm_log_path, "/very/long/path/that/might/cause/issues/in/archive/path/construction");
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_LongPathHandling) {
+    // Test workflow with very long DCM path to ensure proper path handling
+    strcpy(ctx.dcm_log_path, "/very/long/path/that/might/cause/issues/in/archive/path/construction/and/should/be/handled/properly");
+    g_copy_files_return_count = 2; // Some files copied
     
-    // Verify the path was set correctly
-    EXPECT_STREQ("/very/long/path/that/might/cause/issues/in/archive/path/construction", ctx.dcm_log_path);
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should handle long paths correctly
 }
 
-// Integration-style tests that test mock interactions
-TEST_F(UploadLogsNowTest, IntegrationTest_MockInteractions) {
-    // Test that all mocks work together properly
-    SessionState session = {0};
+// Integration-style tests that test actual workflow with mocked dependencies
+TEST_F(UploadLogsNowTest, IntegrationTest_SuccessfulWorkflow) {
+    // Configure all mocks for success
+    g_copy_files_return_count = 5; // Multiple files copied
+    g_execute_upload_cycle_return_value = true;
     
-    EXPECT_TRUE(create_directory("/test"));
-    EXPECT_TRUE(copy_file("/src", "/dest"));
-    EXPECT_TRUE(file_exists("/test"));
-    EXPECT_EQ(0, add_timestamp_to_files_uploadlogsnow("/test"));
-    EXPECT_EQ(0, create_archive(&ctx, &session, "/test"));
-    EXPECT_TRUE(execute_upload_cycle(&ctx, &session));
-    EXPECT_TRUE(remove_directory("/test"));
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result); // Should complete successfully
 }
 
-TEST_F(UploadLogsNowTest, IntegrationTest_AllMockFailures) {
-    // Configure all mocks to fail
+TEST_F(UploadLogsNowTest, IntegrationTest_CascadingFailures) {
+    // Test various failure scenarios one by one
+    
+    // First test: directory creation fails (early failure)
     g_create_directory_should_fail = true;
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result);
+    
+    // Reset and test copy failure
+    SetUp(); // Reset all mocks
     g_copy_file_should_fail = true;
-    g_file_exists_return_value = false;
-    g_add_timestamp_should_fail = true;
+    result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result);
+    
+    // Reset and test archive creation failure
+    SetUp(); // Reset all mocks
     g_create_archive_should_fail = true;
+    g_copy_files_return_count = 3; // Some files copied
+    result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result);
+    
+    // Reset and test upload failure
+    SetUp(); // Reset all mocks
     g_execute_upload_cycle_return_value = false;
-    g_remove_directory_should_fail = true;
-    
-    SessionState session = {0};
-    
-    // Test that all mocks return failure values
-    EXPECT_FALSE(create_directory("/test"));
-    EXPECT_FALSE(copy_file("/src", "/dest"));
-    EXPECT_FALSE(file_exists("/test"));
-    EXPECT_EQ(-1, add_timestamp_to_files_uploadlogsnow("/test"));
-    EXPECT_EQ(-1, create_archive(&ctx, &session, "/test"));
-    EXPECT_FALSE(execute_upload_cycle(&ctx, &session));
-    EXPECT_FALSE(remove_directory("/test"));
+    g_copy_files_return_count = 3; // Some files copied
+    result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(-1, result);
 }
 
 } // namespace
