@@ -224,8 +224,9 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampAdditionFails) {
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateArchiveFails) {
     g_create_archive_should_fail = true;
     
+    SessionState session = {0};
     // Test that our mock returns -1 when configured to fail
-    EXPECT_EQ(-1, create_archive(&ctx, nullptr, "/any/path"));
+    EXPECT_EQ(-1, create_archive(&ctx, &session, "/any/path"));
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchiveFileNotFound) {
@@ -238,8 +239,9 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchiveFileNotFound) {
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_UploadFails) {
     g_execute_upload_cycle_return_value = false;
     
+    SessionState session = {0};
     // Test that our mock returns false when configured
-    EXPECT_FALSE(execute_upload_cycle(&ctx, nullptr));
+    EXPECT_FALSE(execute_upload_cycle(&ctx, &session));
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CleanupFails) {
@@ -267,12 +269,14 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchivePathConstruction) {
 // Integration-style tests that test mock interactions
 TEST_F(UploadLogsNowTest, IntegrationTest_MockInteractions) {
     // Test that all mocks work together properly
+    SessionState session = {0};
+    
     EXPECT_TRUE(create_directory("/test"));
     EXPECT_TRUE(copy_file("/src", "/dest"));
     EXPECT_TRUE(file_exists("/test"));
     EXPECT_EQ(0, add_timestamp_to_files_uploadlogsnow("/test"));
-    EXPECT_EQ(0, create_archive(&ctx, nullptr, "/test"));
-    EXPECT_TRUE(execute_upload_cycle(&ctx, nullptr));
+    EXPECT_EQ(0, create_archive(&ctx, &session, "/test"));
+    EXPECT_TRUE(execute_upload_cycle(&ctx, &session));
     EXPECT_TRUE(remove_directory("/test"));
 }
 
@@ -286,13 +290,15 @@ TEST_F(UploadLogsNowTest, IntegrationTest_AllMockFailures) {
     g_execute_upload_cycle_return_value = false;
     g_remove_directory_should_fail = true;
     
+    SessionState session = {0};
+    
     // Test that all mocks return failure values
     EXPECT_FALSE(create_directory("/test"));
     EXPECT_FALSE(copy_file("/src", "/dest"));
     EXPECT_FALSE(file_exists("/test"));
     EXPECT_EQ(-1, add_timestamp_to_files_uploadlogsnow("/test"));
-    EXPECT_EQ(-1, create_archive(&ctx, nullptr, "/test"));
-    EXPECT_FALSE(execute_upload_cycle(&ctx, nullptr));
+    EXPECT_EQ(-1, create_archive(&ctx, &session, "/test"));
+    EXPECT_FALSE(execute_upload_cycle(&ctx, &session));
     EXPECT_FALSE(remove_directory("/test"));
 }
 
