@@ -36,19 +36,6 @@
 #include "uploadstblogs_types.h"
 #include "uploadlogsnow.h"
 
-// Define compatibility for Windows/Linux builds
-#ifndef _WIN32
-#include <dirent.h>
-#else
-// Windows compatibility
-typedef struct {
-    int dummy;
-} DIR;
-struct dirent {
-    char d_name[256];
-};
-#endif
-
 // Mock only application-specific functions, not standard library functions
 extern "C" {
 
