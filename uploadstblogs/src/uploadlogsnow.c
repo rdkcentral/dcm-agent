@@ -61,7 +61,16 @@ static int write_upload_status(const char* message)
     }
     
     time_t now = time(NULL);
-    fprintf(fp, "%s %s", message, ctime(&now));
+    char timebuf[26];
+    if (ctime_r(&now, timebuf) != NULL) {
+        size_t len = strlen(timebuf);
+        if (len > 0 && timebuf[len - 1] == '\n') {
+            timebuf[len - 1] = '\0';
+        }
+        fprintf(fp, "%s %s\n", message, timebuf);
+    } else {
+        fprintf(fp, "%s\n", message);
+    }
     fclose(fp);
     
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
