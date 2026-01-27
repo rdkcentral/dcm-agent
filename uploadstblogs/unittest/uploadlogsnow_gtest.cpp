@@ -331,7 +331,7 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
     int result = execute_uploadlogsnow_workflow(&ctx);
     
     EXPECT_EQ(-1, result);
-    EXPECT_STRNE(g_status_file_content, ""); // Status should contain "Failed"
+    EXPECT_THAT(g_status_file_content, ::testing::HasSubstr("Failed")); // Status should contain "Failed"
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_OpenDirFails) {
