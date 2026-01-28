@@ -148,7 +148,7 @@ def calculate_file_md5(filepath):
 
 def check_http_server_reachable(url="http://localhost:8080"):
     """Check if HTTP server is reachable"""
-    result = subprocess.run(f"curl -s -o /dev/null -w '%{{http_code}}' --max-time 5 {url}",
+    result = subprocess.run(f"curl -s -o /dev/null -w '%{{http_code}}' --max-time 5 {url}", 
                           shell=True, capture_output=True, text=True)
     return result.stdout.strip() != "000"
 
@@ -173,7 +173,7 @@ def set_device_property(key, value):
 
 def get_device_property(key):
     """Get a device property value"""
-    result = subprocess.run(f"grep '^{key}=' {DEVICE_PROPERTIES} | cut -d'=' -f2",
+    result = subprocess.run(f"grep '^{key}=' {DEVICE_PROPERTIES} | cut -d'=' -f2", 
                           shell=True, capture_output=True, text=True)
     return result.stdout.strip()
 
@@ -195,7 +195,7 @@ def restore_device_properties():
 def check_telemetry_marker(marker):
     """Check if telemetry marker was sent"""
     # This would check T2 logs or telemetry output
-    result = subprocess.run(f"grep '{marker}' /opt/logs/telemetry*.log 2>/dev/null",
+    result = subprocess.run(f"grep '{marker}' /opt/logs/telemetry*.log 2>/dev/null", 
                           shell=True, capture_output=True, text=True)
     return bool(result.stdout.strip())
 
@@ -203,20 +203,20 @@ def setup_mtls_certificates():
     """Setup mTLS certificates for testing"""
     cert_dir = "/tmp/certs"
     subprocess.run(f"mkdir -p {cert_dir}", shell=True)
-
+    
     # Generate self-signed test certificates
     subprocess.run(f"""
         openssl req -x509 -newkey rsa:2048 -keyout {cert_dir}/client.key \
         -out {cert_dir}/client.crt -days 365 -nodes \
         -subj "/C=US/ST=Test/L=Test/O=Test/CN=test" 2>/dev/null
     """, shell=True)
-
+    
     subprocess.run(f"""
         openssl req -x509 -newkey rsa:2048 -keyout {cert_dir}/ca.key \
         -out {cert_dir}/ca.crt -days 365 -nodes \
         -subj "/C=US/ST=Test/L=Test/O=TestCA/CN=testca" 2>/dev/null
     """, shell=True)
-
+    
     return cert_dir
 
 def cleanup_mtls_certificates():
@@ -232,7 +232,7 @@ def check_memory_usage(process_name="uploadSTBLogs"):
 
 def count_log_lines_containing(pattern, log_file=UPLOADSTB_LOG):
     """Count lines containing pattern in log file"""
-    result = subprocess.run(f"grep -c '{pattern}' {log_file} 2>/dev/null || echo 0",
+    result = subprocess.run(f"grep -c '{pattern}' {log_file} 2>/dev/null || echo 0", 
                           shell=True, capture_output=True, text=True)
     return int(result.stdout.strip())
 
