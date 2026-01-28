@@ -72,7 +72,12 @@ echo "====================================="
 # Run test suites
 
 echo ""
-echo "1. Running Error Handling Tests..."
+echo "1. Running UploadLogsNow Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test4.py
+
+echo ""
+echo "2. Running Error Handling Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/error_handling.json test/functional-tests/tests/test_uploadstblogs_error_handling.py
 
@@ -82,29 +87,29 @@ mkdir -p /opt/logs
 mkdir -p /opt/logs/PreviousLogs
 
 echo ""
-echo "2. Running Normal Upload Tests..."
+echo "3. Running Normal Upload Tests..."
 mkdir -p /opt/logs/PreviousLogs
 pytest -v --json-report --json-report-summary \
         --json-report-file $RESULT_DIR/upload_normal.json test/functional-tests/tests/test_uploadstblogs_normal_upload.py
 
 
 echo ""
-echo "3. Running Retry Logic Tests..."
+echo "4. Running Retry Logic Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/retry_logic.json test/functional-tests/tests/test_uploadstblogs_retry_logic.py
 
 echo ""
-echo "4. Running Security Tests..."
+echo "5. Running Security Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/security.json test/functional-tests/tests/test_uploadstblogs_security.py
 
 echo ""
-echo "5. Running Resource Management Tests..."
+echo "6. Running Resource Management Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/resource_management.json test/functional-tests/tests/test_uploadstblogs_resource_management.py
 
 echo ""
-echo "6. Running Upload Strategy Tests..."
+echo "7. Running Upload Strategy Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
 
