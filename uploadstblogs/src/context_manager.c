@@ -177,7 +177,6 @@ bool init_context(RuntimeContext* ctx)
     
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
         printf("UPLOADSTB : ERROR - Extended logger init failed\n");
-        return false; // Return false on failure
     }
 #endif
 #endif
@@ -527,3 +526,4 @@ void cleanup_context(void)
 
 
 }
+
