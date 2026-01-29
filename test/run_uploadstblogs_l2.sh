@@ -74,7 +74,7 @@ echo "====================================="
 echo ""
 echo "1. Running UploadLogsNow Tests..."
 pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test4.py
+    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test_uploadLogsNow.py
 
 echo ""
 echo "2. Running Error Handling Tests..."
