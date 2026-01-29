@@ -375,8 +375,8 @@ int add_timestamp_to_files(const char* dir_path)
             continue;
         }
 
-        char old_path[MAX_PATH_LENGTH];
-        char new_path[MAX_PATH_LENGTH];
+        char old_path[MAX_PATH_LENGTH] = "\0";
+        char new_path[MAX_PATH_LENGTH] = "\0";
         
         int old_ret = snprintf(old_path, sizeof(old_path), "%s/%s", dir_path, entry->d_name);
         int new_ret = snprintf(new_path, sizeof(new_path), "%s/%s%s", dir_path, timestamp, entry->d_name);
@@ -897,3 +897,4 @@ int remove_old_directories(const char* base_path, const char* pattern, int days_
 
     return 0;
 }
+
