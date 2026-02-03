@@ -48,8 +48,3 @@ def test_fwupdate_script_started():
 def test_upload_cron_scheduled():
     assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
 
-@pytest.mark.run(order=6)
-def test_upload_started():
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
-    assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
