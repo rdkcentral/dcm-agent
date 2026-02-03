@@ -189,7 +189,7 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx)
                 "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
         return -1;
     }
-
+    time_t start_time = time(NULL);
     char dcm_log_path[MAX_PATH_LENGTH] = {0};
     int ret = -1;
     
@@ -325,7 +325,12 @@ cleanup:
                 "[%s:%d] Cleaned up DCM_LOG_PATH: %s\n", 
                 __FUNCTION__, __LINE__, dcm_log_path);
     }
-    
+    // Calculate and log the duration
+    time_t end_time = time(NULL);
+    double elapsed = difftime(end_time, start_time);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] UploadLogsNow workflow duration: %.0f seconds\n",
+            __FUNCTION__, __LINE__, elapsed);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] UploadLogsNow workflow completed with result: %d\n", 
             __FUNCTION__, __LINE__, ret);
