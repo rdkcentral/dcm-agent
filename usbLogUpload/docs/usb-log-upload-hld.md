@@ -328,7 +328,7 @@ void usb_log_cleanup_resources(void);
 int usb_log_load_config(usb_log_config_t *config);
 int usb_log_get_property(const char *name, char *value, size_t value_size);
 
-// File operation interface  
+// File operation interface
 int usb_log_create_directory(const char *path, mode_t mode);
 int usb_log_move_files(const char *source, const char *destination);
 int usb_log_compress_directory(const char *source_dir, const char *archive_path);
