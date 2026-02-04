@@ -59,7 +59,7 @@ The system follows a layered modular architecture:
 
 ### 3.1 Core Modules
 
-#### 3.1.1 Main Control Module (`usb_log_main.c/.h`)
+#### 3.1.1 Main Control Module (`usb_log_upload_main.c/.h`)
 **Responsibilities:**
 - Application entry point and argument parsing
 - High-level workflow orchestration
@@ -103,6 +103,9 @@ The system follows a layered modular architecture:
 - `char *generate_archive_filename(void)`
 - `int compress_logs_to_usb(const char *temp_dir, const char *usb_log_path)`
 
+> **Note:** The `generate_archive_filename()` function is defined and owned by the Archive Manager
+> module. Other modules (e.g., the File Manager) may invoke this function in their workflows, as
+> reflected in sequence diagrams, but they do not implement or own it.
 #### 3.1.5 System Interface Module (`usb_log_system.c/.h`)
 **Responsibilities:**
 - System command execution
@@ -175,10 +178,10 @@ typedef struct {
 // Error codes enumeration
 typedef enum {
     USB_LOG_SUCCESS = 0,
-    USB_LOG_ERROR_INVALID_ARGS = 1,
+    USB_LOG_ERROR_INVALID_ARGS = 4,
     USB_LOG_ERROR_USB_NOT_MOUNTED = 2,
     USB_LOG_ERROR_WRITE_FAILED = 3,
-    USB_LOG_ERROR_UNSUPPORTED_DEVICE = 4,
+    USB_LOG_ERROR_UNSUPPORTED_DEVICE = 1,
     USB_LOG_ERROR_MEMORY_ALLOCATION = 5,
     USB_LOG_ERROR_CONFIG_LOAD = 6,
     USB_LOG_ERROR_SYSTEM_COMMAND = 7
@@ -198,6 +201,17 @@ typedef enum {
 #define TEMP_DIR_PREFIX "/opt/tmpusb/"
 ```
 
+**Temporary directory requirements**
+
+- `TEMP_DIR_PREFIX` defines the base directory used for staging temporary log files prior to archival.
+- The implementation MUST, before first use:
+  - Verify that the directory indicated by `TEMP_DIR_PREFIX` exists (e.g. using `stat(2)` or equivalent).
+  - Verify that the directory is writable by the usb-log-upload process.
+- If the directory does not exist, the implementation MUST attempt to create it (e.g. with `mkdir(2)`) using secure permissions (owner‑only access, such as mode `0700`, or a platform‑appropriate configurable mode).
+- If directory creation fails, or if the directory is not writable, the implementation MUST:
+  - Log an appropriate error message, and
+  - Abort the current operation and return an error (e.g. `USB_LOG_ERROR_WRITE_FAILED`) instead of proceeding with log movement or archive creation.
+- The deployment documentation MUST specify which user/service account runs the usb log upload binary and ensure that it has the necessary permissions on `TEMP_DIR_PREFIX`.
 ## 5. Data Flow
 
 ### 5.1 Main Processing Flow
@@ -270,7 +284,7 @@ INPUT: None (uses system resources)
 OUTPUT: Formatted filename string
 
 1. GET mac_address FROM system utility
-2. GET current_timestamp WITH format "mm-dd-yy-HH-MMAM/PM"
+2. GET current_timestamp WITH format "MM-DD-YY-hh-mmAM/PM" (e.g., "07-21-24-09-30PM")
 3. CONSTRUCT filename = mac_address + "_Logs_" + timestamp + ".tgz"
 4. RETURN filename
 ```
@@ -317,7 +331,7 @@ void usb_log_cleanup_resources(void);
 int usb_log_load_config(usb_log_config_t *config);
 int usb_log_get_property(const char *name, char *value, size_t value_size);
 
-// File operation interface  
+// File operation interface
 int usb_log_create_directory(const char *path, mode_t mode);
 int usb_log_move_files(const char *source, const char *destination);
 int usb_log_compress_directory(const char *source_dir, const char *archive_path);
