@@ -281,7 +281,7 @@ INPUT: None (uses system resources)
 OUTPUT: Formatted filename string
 
 1. GET mac_address FROM system utility
-2. GET current_timestamp WITH format "mm-dd-yy-HH-MMAM/PM"
+2. GET current_timestamp WITH format "MM-DD-YY-hh-mmAM/PM" (e.g., "07-21-24-09-30PM")
 3. CONSTRUCT filename = mac_address + "_Logs_" + timestamp + ".tgz"
 4. RETURN filename
 ```
