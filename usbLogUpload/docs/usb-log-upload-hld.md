@@ -103,6 +103,9 @@ The system follows a layered modular architecture:
 - `char *generate_archive_filename(void)`
 - `int compress_logs_to_usb(const char *temp_dir, const char *usb_log_path)`
 
+> **Note:** The `generate_archive_filename()` function is defined and owned by the Archive Manager
+> module. Other modules (e.g., the File Manager) may invoke this function in their workflows, as
+> reflected in sequence diagrams, but they do not implement or own it.
 #### 3.1.5 System Interface Module (`usb_log_system.c/.h`)
 **Responsibilities:**
 - System command execution
