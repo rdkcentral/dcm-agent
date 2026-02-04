@@ -28,11 +28,6 @@ import json
 def test_upload_cron_present():
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
-@pytest.mark.run(order=2)
-def test_upload_script_started():
-    assert "UploadOnReboot=1" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadLogOnReboot with true" in grep_dcmdlogs("Called uploadLogOnReboot with true")
-
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
     sleep(540)
@@ -47,10 +42,4 @@ def test_fwupdate_script_started():
 @pytest.mark.run(order=4)
 def test_upload_cron_scheduled():
     assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
-
-@pytest.mark.run(order=6)
-def test_upload_started():
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
-    assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
 

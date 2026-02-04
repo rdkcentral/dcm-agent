@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=false
+ENABLE_COV=true
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
@@ -45,6 +45,8 @@ cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
+git clone https://github.com/rdkcentral/rdk_logger.git
+cp rdk_logger/include/rdk_logger.h /usr/local/include
 
 automake --add-missing
 autoreconf --install
@@ -78,7 +80,8 @@ for test in \
   ./../uploadstblogs/unittest/event_manager_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
   ./../uploadstblogs/unittest/strategies_gtest \
-  ./../uploadstblogs/unittest/strategy_handler_gtest
+  ./../uploadstblogs/unittest/strategy_handler_gtest \
+  ./../uploadstblogs/unittest/uploadlogsnow_gtest
   
 do
     $test
@@ -101,7 +104,7 @@ if [ "$ENABLE_COV" = true ]; then
     echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
     echo "********************"
     echo "Generating coverage report"
-    lcov --capture --directory . --output-file coverage.info
+    lcov --capture --directory . --directory uploadstblogs/src --output-file coverage.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
