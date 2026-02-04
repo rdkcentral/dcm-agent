@@ -198,6 +198,17 @@ typedef enum {
 #define TEMP_DIR_PREFIX "/opt/tmpusb/"
 ```
 
+**Temporary directory requirements**
+
+- `TEMP_DIR_PREFIX` defines the base directory used for staging temporary log files prior to archival.
+- The implementation MUST, before first use:
+  - Verify that the directory indicated by `TEMP_DIR_PREFIX` exists (e.g. using `stat(2)` or equivalent).
+  - Verify that the directory is writable by the usb-log-upload process.
+- If the directory does not exist, the implementation MUST attempt to create it (e.g. with `mkdir(2)`) using secure permissions (owner‑only access, such as mode `0700`, or a platform‑appropriate configurable mode).
+- If directory creation fails, or if the directory is not writable, the implementation MUST:
+  - Log an appropriate error message, and
+  - Abort the current operation and return an error (e.g. `USB_LOG_ERROR_WRITE_FAILED`) instead of proceeding with log movement or archive creation.
+- The deployment documentation MUST specify which user/service account runs the usb log upload binary and ensure that it has the necessary permissions on `TEMP_DIR_PREFIX`.
 ## 5. Data Flow
 
 ### 5.1 Main Processing Flow
