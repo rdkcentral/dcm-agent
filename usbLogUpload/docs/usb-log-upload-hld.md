@@ -59,7 +59,7 @@ The system follows a layered modular architecture:
 
 ### 3.1 Core Modules
 
-#### 3.1.1 Main Control Module (`usb_log_main.c/.h`)
+#### 3.1.1 Main Control Module (`usb_log_upload_main.c/.h`)
 **Responsibilities:**
 - Application entry point and argument parsing
 - High-level workflow orchestration
