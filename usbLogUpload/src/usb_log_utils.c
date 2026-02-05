@@ -33,7 +33,6 @@
 #include <signal.h>
 #include <sys/types.h>
 #include "rdk_debug.h"
-#include "safec_lib.h"
 
 
 /* RDK utility constants */
