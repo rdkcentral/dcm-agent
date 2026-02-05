@@ -22,6 +22,7 @@
  * directory operations, and file movement operations.
  */
 
+#define _DEFAULT_SOURCE
 #include "usb_log_file_manager.h"
 #include "usb_log_utils.h"
 #include <stdio.h>
