@@ -82,7 +82,6 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
     /* Initialize minimal session state */
     SessionState session;
     memset(&session, 0, sizeof(session));
-    session.trigger = TRIGGER_MANUAL;  /* USB upload is manual trigger */
 
     /* Use uploadstblogs create_archive function - creates archive in source_dir */
     RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
