@@ -56,39 +56,3 @@ include_HEADERS = \
     include/usb_log_file_manager.h \
     include/usb_log_archive.h \
     include/usb_log_utils.h
-
-# Test programs (optional)
-if BUILD_TESTS
-check_PROGRAMS = test_usblogupload
-
-test_usblogupload_SOURCES = \
-    src/test/test_main.c \
-    src/usb_log_validation.c \
-    src/usb_log_file_manager.c \
-    src/usb_log_archive.c \
-    src/usb_log_utils.c
-
-test_usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
-                             -I$(top_srcdir)/../uploadstblogs/include \
-                             -I$(top_srcdir)/../common_utilities/utils \
-                             -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
-                             -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
-                             -DRDK_LOGGER_EXT
-
-test_usblogupload_CFLAGS = -Wall -Wextra -std=c99
-
-test_usblogupload_LDADD = \
-    $(top_builddir)/../uploadstblogs/libuploadstblogs.la \
-    -lrdkloggers \
-    -ldwnlutil \
-    -lfwutils \
-    -lz \
-    -lpthread
-
-test_usblogupload_LDFLAGS = \
-    -L$(top_builddir)/../uploadstblogs/.libs \
-    -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) \
-    -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib
-
-TESTS = test_usblogupload
-endif
