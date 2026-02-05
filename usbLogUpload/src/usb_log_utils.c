@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include "rdk_debug.h"
+#include "rdk_logger.h"
 
 
 /* RDK utility constants */
