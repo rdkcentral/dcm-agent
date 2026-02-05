@@ -48,13 +48,6 @@ extern "C" {
  */
 int usb_log_upload_execute(const char *usb_mount_point);
 
-/**
- * @brief Print usage information
- * 
- * @param program_name Name of the program
- */
-void print_usage(const char *program_name);
-
 #ifdef __cplusplus
 }
 #endif

@@ -192,16 +192,3 @@ int usb_log_upload_execute(const char *usb_mount_point)
     
     return USB_LOG_SUCCESS;
 }
-
-/**
- * @brief Print usage information
- * 
- * @param program_name Name of the program
- */
-void print_usage(const char *program_name)
-{
-    printf("USAGE: %s <USB mount point>\n", program_name);
-}
-    
-    return USB_LOG_SUCCESS;
-}

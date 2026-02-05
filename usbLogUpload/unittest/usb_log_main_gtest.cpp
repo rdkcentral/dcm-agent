@@ -45,14 +45,6 @@ protected:
 };
 
 /**
- * @brief Test print_usage function
- */
-TEST_F(UsbLogMainTest, PrintUsageTest) {
-    // TODO: Test print_usage function
-    EXPECT_NO_THROW(print_usage("test_program"));
-}
-
-/**
  * @brief Test usb_log_upload_execute with valid input
  */
 TEST_F(UsbLogMainTest, ExecuteWithValidInputTest) {
