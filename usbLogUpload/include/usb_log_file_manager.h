@@ -50,6 +50,23 @@ int create_usb_log_directory(const char *usb_path);
  */
 int create_temporary_directory(const char *file_name, char *temp_dir_path, size_t buffer_size);
 
+/**
+ * @brief Move log files from source directory to destination directory
+ * 
+ * @param source_path Source directory path containing log files
+ * @param dest_path Destination directory path where files will be moved
+ * @return int 0 on success, negative error code on failure
+ */
+int move_log_files(const char *source_path, const char *dest_path);
+
+/**
+ * @brief Clean up temporary directory and its contents
+ * 
+ * @param temp_path Path to temporary directory to clean up
+ * @return int 0 on success, negative error code on failure
+ */
+int cleanup_temporary_files(const char *temp_path);
+
 /* Note: The following functions are available from uploadstblogs/file_operations.h:
  * - move_directory_contents() for moving log files
  * - remove_directory() for cleanup
