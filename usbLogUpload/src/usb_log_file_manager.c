@@ -73,7 +73,7 @@ int create_usb_log_directory(const char *usb_log_path)
  * @brief Move log files from source to destination
  * 
  * Moves all files from LOG_PATH to temp directory.
- * Matches shell script: mv $LOG_PATH/* $USB_DIR/.
+ * Matches shell script: mv $LOG_PATH/ * $USB_DIR/.
  * 
  * @param source_path Source directory path (LOG_PATH)
  * @param dest_path Destination directory path (temp directory)
