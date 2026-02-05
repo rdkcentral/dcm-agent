@@ -51,7 +51,6 @@
 /* Static logging state */
 static int g_log_initialized = 0;
 static int g_rdk_logger_enabled = 0;
-static int g_config_loaded = 0;
 
 /**
  * @brief Initialize logging system
