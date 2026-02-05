@@ -30,7 +30,7 @@ usblogupload_SOURCES = \
 
 usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
                         -I${top_srcdir}/usbLogUpload/include \
-                        -I$(top_srcdir)/../uploadstblogs/include \
+                        -I$(top_srcdir)/uploadstblogs/include \
                         -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
                         -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
                         -DRDK_LOGGER_EXT
