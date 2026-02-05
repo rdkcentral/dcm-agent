@@ -28,8 +28,26 @@ usblogupload_SOURCES = \
     src/usb_log_archive.c \
     src/usb_log_utils.c
 
-usblogupload_CPPFLAGS = -I$(top_srcdir)/include
+usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
+                        -I$(top_srcdir)/../uploadstblogs/include \
+                        -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
+                        -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
+                        -DRDK_LOGGER_EXT
+
 usblogupload_CFLAGS = -Wall -Wextra -std=c99
+
+usblogupload_LDADD = \
+    $(top_builddir)/../uploadstblogs/libuploadstblogs.la \
+    -lrdkloggers \
+    -ldwnlutil \
+    -lfwutils \
+    -lz \
+    -lpthread
+
+usblogupload_LDFLAGS = \
+    -L$(top_builddir)/../uploadstblogs/.libs \
+    -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) \
+    -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib
 
 # Install headers
 include_HEADERS = \
@@ -38,12 +56,6 @@ include_HEADERS = \
     include/usb_log_file_manager.h \
     include/usb_log_archive.h \
     include/usb_log_utils.h
-
-# Documentation
-EXTRA_DIST = \
-    docs/usb-log-upload-requirements.md \
-    docs/usb-log-upload-hld.md \
-    docs/usb-log-upload-flowcharts.md
 
 # Test programs (optional)
 if BUILD_TESTS
@@ -56,8 +68,27 @@ test_usblogupload_SOURCES = \
     src/usb_log_archive.c \
     src/usb_log_utils.c
 
-test_usblogupload_CPPFLAGS = -I$(top_srcdir)/include
+test_usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
+                             -I$(top_srcdir)/../uploadstblogs/include \
+                             -I$(top_srcdir)/../common_utilities/utils \
+                             -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include \
+                             -I$(PKG_CONFIG_SYSROOT_DIR)/usr/include/upload_util \
+                             -DRDK_LOGGER_EXT
+
 test_usblogupload_CFLAGS = -Wall -Wextra -std=c99
+
+test_usblogupload_LDADD = \
+    $(top_builddir)/../uploadstblogs/libuploadstblogs.la \
+    -lrdkloggers \
+    -ldwnlutil \
+    -lfwutils \
+    -lz \
+    -lpthread
+
+test_usblogupload_LDFLAGS = \
+    -L$(top_builddir)/../uploadstblogs/.libs \
+    -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) \
+    -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib
 
 TESTS = test_usblogupload
 endif

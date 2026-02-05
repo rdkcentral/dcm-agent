@@ -29,11 +29,13 @@
 #include "uploadstblogs_types.h"
 #include <sys/stat.h>
 #include <string.h>
+#include <errno.h>
 
 /**
  * @brief Create compressed archive for USB log upload
  * 
- * Uses uploadstblogs archive API to create tar.gz archive
+ * Uses uploadstblogs archive API to create tar.gz archive, then moves it
+ * to the specified destination path.
  * 
  * @param source_dir Directory containing files to archive
  * @param archive_path Full path to output archive file
@@ -42,6 +44,10 @@
  */
 int create_usb_log_archive(const char *source_dir, const char *archive_path, const char *mac_address)
 {
+    char timestamp_buf[32];
+    char temp_archive_path[512];
+    char archive_filename[256];
+    
     if (!source_dir || !archive_path || !mac_address) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
@@ -56,6 +62,15 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
         return -2;
     }
 
+    /* Get timestamp for logging */
+    if (get_current_timestamp(timestamp_buf, sizeof(timestamp_buf)) != 0) {
+        strncpy(timestamp_buf, "00/00/00-00:00:00", sizeof(timestamp_buf) - 1);
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_USB_UPLOAD, 
+            "[%s:%d] %s ARCHIVE AND COMPRESS TO %s\n", 
+            __FUNCTION__, __LINE__, timestamp_buf, archive_path);
+
     /* Initialize minimal runtime context for archive creation */
     RuntimeContext ctx;
     memset(&ctx, 0, sizeof(ctx));
@@ -69,7 +84,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
     memset(&session, 0, sizeof(session));
     session.trigger = TRIGGER_MANUAL;  /* USB upload is manual trigger */
 
-    /* Use uploadstblogs create_archive function */
+    /* Use uploadstblogs create_archive function - creates archive in source_dir */
     RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
             "[%s:%d] Creating archive from %s with MAC %s\n", 
             __FUNCTION__, __LINE__, source_dir, mac_address);
@@ -77,50 +92,42 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
     int result = create_archive(&ctx, &session, source_dir);
     if (result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] Failed to create archive from %s (error: %d)\n", 
-                __FUNCTION__, __LINE__, source_dir, result);
-        return -3;
+                "[%s:%d] %s USB WRITING ERROR - Failed to create archive (error: %d)\n", 
+                __FUNCTION__, __LINE__, timestamp_buf, result);
+        return 3; /* Exit code 3 matches original script: "Writing Error" */
+    }
+
+    /* Archive was created in source_dir with auto-generated name
+     * session.archive_file contains the filename (stored by create_archive)
+     * We need to move it to the desired USB destination path
+     */
+    if (session.archive_file[0] != '\0') {
+        /* Archive filename was stored in session */
+        snprintf(temp_archive_path, sizeof(temp_archive_path), "%s/%s", 
+                 source_dir, session.archive_file);
+    } else {
+        /* Fallback: generate the expected filename */
+        if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
+                                   mac_address, "Logs")) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                    "[%s:%d] Failed to determine archive filename\n", __FUNCTION__, __LINE__);
+            return 3;
+        }
+        snprintf(temp_archive_path, sizeof(temp_archive_path), "%s/%s", 
+                 source_dir, archive_filename);
+    }
+
+    /* Move the archive from source_dir to the USB destination */
+    if (rename(temp_archive_path, archive_path) != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                "[%s:%d] %s USB WRITING ERROR - Failed to move archive to %s: %s\n", 
+                __FUNCTION__, __LINE__, timestamp_buf, archive_path, strerror(errno));
+        return 3; /* Exit code 3: Writing Error */
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_USB_UPLOAD, 
-            "[%s:%d] Successfully created archive from %s\n", 
-            __FUNCTION__, __LINE__, source_dir);
-
-    return 0;
-}
-
-/**
- * @brief Generate archive filename following naming convention
- * 
- * @param filename_buffer Buffer to store generated filename
- * @param buffer_size Size of filename_buffer
- * @return int 0 on success, negative error code on failure
- */
-int generate_archive_filename(char *filename_buffer, size_t buffer_size)
-{
-    if (!filename_buffer || buffer_size < 64) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] Invalid parameters or buffer too small\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    /* Get MAC address using uploadstblogs function */
-    char mac_address[32];
-    if (!get_mac_address(mac_address, sizeof(mac_address))) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] Failed to get MAC address\n", __FUNCTION__, __LINE__);
-        return -2;
-    }
-
-    /* Use uploadstblogs generate_archive_name function with "Logs" prefix */
-    if (!generate_archive_name(filename_buffer, buffer_size, mac_address, "Logs")) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] Failed to generate archive name\n", __FUNCTION__, __LINE__);
-        return -3;
-    }
-
-    RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
-            "[%s:%d] Generated archive filename: %s\n", __FUNCTION__, __LINE__, filename_buffer);
+            "[%s:%d] Successfully created archive: %s\n", 
+            __FUNCTION__, __LINE__, archive_path);
 
     return 0;
 }
