@@ -38,7 +38,7 @@ usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
 usblogupload_CFLAGS = -Wall -Wextra -std=c99
 
 usblogupload_LDADD = \
-    -luploadstblogs \
+    $(top_builddir)/uploadstblogs/src/libuploadstblogs.la \
     -lrdkloggers \
     -ldwnlutil \
     -lfwutils \
