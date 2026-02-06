@@ -38,7 +38,7 @@ usblogupload_CPPFLAGS = -I$(top_srcdir)/include \
 usblogupload_CFLAGS = -Wall -Wextra -std=c99
 
 usblogupload_LDADD = \
-    ${top_srcdir}/uploadstblogs/src/libuploadstblogs.la \
+    -luploadstblogs \
     -lrdkloggers \
     -ldwnlutil \
     -lfwutils \
@@ -46,8 +46,8 @@ usblogupload_LDADD = \
     -lpthread
 
 usblogupload_LDFLAGS = \
-    -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) \
-    -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib
+    -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib \
+    -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 
 # Install headers
 include_HEADERS = \
