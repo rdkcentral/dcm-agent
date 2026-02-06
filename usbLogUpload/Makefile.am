@@ -45,7 +45,7 @@ usblogupload_LDADD = \
     -lpthread
 
 usblogupload_LDFLAGS = \
-    -L${top_srcdir}/uploadstblogs/src/libuploadstblogs.la
+    -L${top_srcdir}/uploadstblogs/src/libuploadstblogs.la \
     -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir) \
     -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib
 
