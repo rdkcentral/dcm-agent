@@ -33,8 +33,11 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <errno.h>
+#include <time.h>
+#include <dirent.h>
 
 #include "uploadstblogs.h"
+#include "uploadstblogs_types.h"
 #include "context_manager.h"
 #include "validation.h"
 #include "strategy_selector.h"
@@ -46,11 +49,13 @@
 #include "event_manager.h"
 #include "system_utils.h"
 #include "rdk_debug.h"
+#include "uploadlogsnow.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
 #endif
 
+/* Forward declarations */
 static int lock_fd = -1;
 
 /* Telemetry helper functions */
@@ -77,6 +82,21 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
 {
     if (!ctx) {
         return false;
+    }
+    
+    // Check for special "uploadlogsnow" parameter first
+    if (argc >= 2 && strcmp(argv[1], "uploadlogsnow") == 0) {
+        // Set UploadLogsNow-specific parameters
+        ctx->flag = 1;                          // Upload enabled
+        ctx->dcm_flag = 1;                      // Use DCM mode
+        ctx->upload_on_reboot = 1;              // Upload on reboot enabled
+        ctx->trigger_type = TRIGGER_ONDEMAND;   // ONDEMAND trigger (5)
+        ctx->rrd_flag = 0;                      // Not RRD upload
+        ctx->tls_enabled = false;               // Default to HTTP
+        ctx->uploadlogsnow_mode = true;         // Enable UploadLogsNow mode
+        
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.UPLOADSTBLOGS", "UploadLogsNow mode enabled\n");
+        return true;
     }
     
     // DO NOT memset - context is already initialized with device info
@@ -366,6 +386,19 @@ int uploadstblogs_execute(int argc, char** argv)
         fprintf(stderr, "Failed to parse arguments\n");
         release_lock();
         return 1;
+    }
+    
+    /* Handle UploadLogsNow mode - use custom implementation */
+    if (ctx.uploadlogsnow_mode) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] UploadLogsNow mode detected, executing custom workflow\n", 
+                __FUNCTION__, __LINE__);
+        
+        ret = execute_uploadlogsnow_workflow(&ctx);
+        
+        /* Release lock and exit */
+        release_lock();
+        return ret;
     }
     
     /* Verify context after parse_args */

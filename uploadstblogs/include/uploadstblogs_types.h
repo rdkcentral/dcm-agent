@@ -42,6 +42,8 @@
 #define MAX_FILENAME_LENGTH  256
 #define MAX_CERT_PATH_LENGTH 256
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
+#define STATUS_FILE "/opt/loguploadstatus.txt"
+#define DCM_TEMP_DIR "/tmp/DCM"
 
 /* ==========================
    Enumerations
@@ -229,6 +231,7 @@ typedef struct {
     bool include_dri;               /**< Include DRI logs */
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
+    bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
     
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
