@@ -35,7 +35,7 @@
  */
 int validate_device_compatibility(void)
 {
-    char device_name[256];
+    char device_name[32];
     
     /* Get DEVICE_NAME from device.properties */
     memset(device_name, 0, sizeof(device_name));
