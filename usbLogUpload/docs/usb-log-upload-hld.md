@@ -211,7 +211,7 @@ typedef enum {
 - If directory creation fails, or if the directory is not writable, the implementation MUST:
   - Log an appropriate error message, and
   - Abort the current operation and return an error (e.g. `USB_LOG_ERROR_WRITE_FAILED`) instead of proceeding with log movement or archive creation.
-- The deployment documentation MUST specify which user/service account runs the usb log upload binary and ensure that it has the necessary permissions on `TEMP_DIR_PREFIX`.
+- Deployment-related documentation (either a dedicated deployment section within this HLD or a separately maintained deployment guide explicitly referenced by this HLD) MUST specify which user/service account runs the usb log upload binary and ensure that it has the necessary permissions on `TEMP_DIR_PREFIX`.
 ## 5. Data Flow
 
 ### 5.1 Main Processing Flow
