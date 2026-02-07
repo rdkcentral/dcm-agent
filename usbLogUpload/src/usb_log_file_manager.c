@@ -121,11 +121,10 @@ int move_log_files(const char *source_path, const char *dest_path)
         /* Build destination file path */
         snprintf(dst_file, sizeof(dst_file), "%s/%s", dest_path, entry->d_name);
         
-        /* Check if it's a regular file (skip directories) */
+        /* Check if it's a regular file and not a symlink (skip directories and symlinks) */
         struct stat st;
-        if (stat(src_file, &st) == 0 && S_ISREG(st.st_mode)) {
+        if (lstat(src_file, &st) == 0 && S_ISREG(st.st_mode) && !S_ISLNK(st.st_mode)) {
             file_count++;
-            
             /* Move file using rename() */
             if (rename(src_file, dst_file) == 0) {
                 moved_count++;

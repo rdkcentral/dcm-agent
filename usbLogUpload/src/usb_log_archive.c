@@ -72,12 +72,11 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
             __FUNCTION__, __LINE__, timestamp_buf, archive_path);
 
     /* Initialize minimal runtime context for archive creation */
-    RuntimeContext ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    
-    /* Set essential context fields */
-    strncpy(ctx.mac_address, mac_address, sizeof(ctx.mac_address) - 1);
-    ctx.mac_address[sizeof(ctx.mac_address) - 1] = '\0';
+        static RuntimeContext ctx;
+        memset(&ctx, 0, sizeof(RuntimeContext));
+        /* Set essential context fields */
+        strncpy(ctx.mac_address, mac_address, sizeof(ctx.mac_address) - 1);
+        ctx.mac_address[sizeof(ctx.mac_address) - 1] = '\0';
     
     /* Initialize minimal session state */
     SessionState session;
@@ -88,7 +87,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
             "[%s:%d] Creating archive from %s with MAC %s\n", 
             __FUNCTION__, __LINE__, source_dir, mac_address);
 
-    int result = create_archive(&ctx, &session, source_dir);
+        int result = create_archive(&ctx, &session, source_dir);
     if (result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s USB WRITING ERROR - Failed to create archive (error: %d)\n", 
@@ -128,5 +127,5 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
             "[%s:%d] Successfully created archive: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
 
-    return 0;
+        return 0;
 }
