@@ -31,7 +31,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
-#include "../uploadstblogs/include/file_operations.h"
+#include "file_operations.h"
 
 /**
  * @brief Create USB log directory on the USB device
@@ -121,20 +121,24 @@ int move_log_files(const char *source_path, const char *dest_path)
         /* Build destination file path */
         snprintf(dst_file, sizeof(dst_file), "%s/%s", dest_path, entry->d_name);
         
-        /* Check if it's a regular file and not a symlink (skip directories and symlinks) */
-        struct stat st;
-        if (lstat(src_file, &st) == 0 && S_ISREG(st.st_mode) && !S_ISLNK(st.st_mode)) {
-            file_count++;
-            /* Move file using rename() */
-            if (rename(src_file, dst_file) == 0) {
-                moved_count++;
-                RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
-                        "[%s:%d] Moved: %s\n", __FUNCTION__, __LINE__, entry->d_name);
+        /* Open the file and check with fstat to avoid TOCTOU */
+        int fd = open(src_file, O_RDONLY | O_NOFOLLOW);
+        if (fd >= 0) {
+            struct stat st;
+            if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode)) {
+                file_count++;
+                close(fd); /* Close before moving */
+                if (rename(src_file, dst_file) == 0) {
+                    moved_count++;
+                    RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
+                            "[%s:%d] Moved: %s\n", __FUNCTION__, __LINE__, entry->d_name);
+                } else {
+                    RDK_LOG(RDK_LOG_WARN, LOG_USB_UPLOAD, 
+                            "[%s:%d] Failed to move %s: %s\n", 
+                            __FUNCTION__, __LINE__, entry->d_name, strerror(errno));
+                }
             } else {
-                /* Log warning but continue with other files */
-                RDK_LOG(RDK_LOG_WARN, LOG_USB_UPLOAD, 
-                        "[%s:%d] Failed to move %s: %s\n", 
-                        __FUNCTION__, __LINE__, entry->d_name, strerror(errno));
+                close(fd);
             }
         }
     }
