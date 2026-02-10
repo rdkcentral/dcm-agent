@@ -80,32 +80,39 @@ static int g_readdir_call_count = 0; // Global counter for readdir calls
 static int g_opendir_call_count = 0; // Global counter for opendir calls
 static int g_fread_call_count = 0; // Global counter for fread calls per file
 
+// Helper function to detect if this is a test-related file we should mock
 // Mock implementations
 FILE* fopen(const char* filename, const char* mode) {
-    if (filename && strstr(filename, "fail")) return nullptr;
-    g_fread_call_count = 0; // Reset read counter for new file
+    // Don't mock system library files - return nullptr to prevent crashes
+    if (!filename || strstr(filename, "log4c") || strstr(filename, "rdk_debug") || 
+        strstr(filename, "/etc/") || strstr(filename, "/usr/")) {
+        return nullptr;
+    }
+    if (strstr(filename, "fail")) return nullptr;
+    g_fread_call_count = 0;
     return mock_file_ptr;
 }
 
 int fclose(FILE* stream) {
-    g_fread_call_count = 0; // Reset on close
-    return (stream == mock_file_ptr) ? 0 : -1;
+    if (stream == mock_file_ptr) {
+        g_fread_call_count = 0;
+        return 0;
+    }
+    return -1;
 }
 
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
     if (stream != mock_file_ptr || !ptr) return 0;
     
-    // Simulate EOF after first read to prevent infinite loops
     g_fread_call_count++;
     if (g_fread_call_count > 1) {
-        return 0; // EOF
+        return 0;
     }
     
-    // First read: return some data (simulating file content)
     size_t bytes = size * nmemb;
-    if (bytes > 1024) bytes = 1024; // Cap at 1KB
-    memset(ptr, 0x41, bytes); // Fill with 'A'
-    return bytes / size; // Return number of items read
+    if (bytes > 1024) bytes = 1024;
+    memset(ptr, 0x41, bytes);
+    return bytes / size;
 }
 
 size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -676,7 +683,3 @@ int main(int argc, char** argv) {
     
     return result;
 }
-
-
-
-
