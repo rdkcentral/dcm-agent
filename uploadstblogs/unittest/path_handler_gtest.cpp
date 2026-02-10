@@ -25,6 +25,9 @@
 #define RDK_LOG(level, module, ...) do {} while(0)
 #endif
 
+// Prevent rdk_debug.h from being included - try all possible header guard patterns
+#define __RDK_DEBUG_H__
+
 #include "uploadstblogs_types.h"
 
 // Include system headers for types before extern "C"
@@ -264,6 +267,11 @@ int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_u
 }
 
 FILE* fopen(const char *pathname, const char *mode) {
+    // Don't mock system library files - return nullptr to prevent crashes
+    if (!pathname || strstr(pathname, "log4c") || strstr(pathname, "rdk_debug") ||
+        strstr(pathname, "/etc/") || strstr(pathname, "/usr/")) {
+        return nullptr;
+    }
     mock_fopen_calls++;
     if (mock_file_exists) {
         return (FILE*)0x12345678; // Mock pointer
@@ -304,6 +312,9 @@ int fscanf(FILE *stream, const char *format, ...) {
     va_end(args);
     return 1; // Return 1 item read
 }
+
+#define _RDK_DEBUG_H
+//#define RDK_DEBUG_H_INCLUDED
 
 // Include the actual path handler implementation
 #include "path_handler.h"
@@ -649,4 +660,3 @@ int main(int argc, char** argv) {
     cout << "Starting Path Handler Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
-
