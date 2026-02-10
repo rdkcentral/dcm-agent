@@ -20,10 +20,15 @@
 #include <cstring>
 #include <iostream>
 
-// Mock RDK_LOG before including other headers
-#ifdef GTEST_ENABLE
+// Define a simple empty rdk_debug.h content to block the real header
+// This uses a pragma once equivalent by defining all possible header guards
+#define _RDK_DEBUG_H_ 1
+#define RDK_DEBUG_H_ 1
+#define __RDK_DEBUG_H__ 1
+#define RDK_DEBUG_H 1
+
+// Define RDK_LOG as no-op mock
 #define RDK_LOG(level, module, ...) do {} while(0)
-#endif
 
 #include "uploadstblogs_types.h"
 
@@ -264,6 +269,11 @@ int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_u
 }
 
 FILE* fopen(const char *pathname, const char *mode) {
+    // Don't mock system library files - return nullptr to prevent crashes
+    if (!pathname || strstr(pathname, "log4c") || strstr(pathname, "rdk_debug") || 
+        strstr(pathname, "/etc/") || strstr(pathname, "/usr/")) {
+        return nullptr;
+    }
     mock_fopen_calls++;
     if (mock_file_exists) {
         return (FILE*)0x12345678; // Mock pointer
@@ -304,6 +314,10 @@ int fscanf(FILE *stream, const char *format, ...) {
     va_end(args);
     return 1; // Return 1 item read
 }
+
+// Ensure RDK_LOG is still our no-op mock before including path_handler
+#undef RDK_LOG
+#define RDK_LOG(level, module, ...) do {} while(0)
 
 // Include the actual path handler implementation
 #include "path_handler.h"
