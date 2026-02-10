@@ -38,8 +38,6 @@
 #endif
 #include "rdk_debug.h"
 #include "rdk_logger.h"
-#endif
-#endif
 #include "rbus_interface.h"
 
 #define DEBUG_INI_NAME "/etc/debug.ini"
@@ -515,5 +513,6 @@ void cleanup_context(void)
 
 
 }
+
 
 
