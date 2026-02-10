@@ -37,7 +37,9 @@
 #include "common_device_api.h"
 #endif
 #include "rdk_debug.h"
+#ifndef GTEST_ENABLE
 #include "rdk_logger.h"
+#endif
 #include "rbus_interface.h"
 
 #define DEBUG_INI_NAME "/etc/debug.ini"
@@ -161,6 +163,7 @@ bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
     /* Extended initialization with programmatic configuration */
+ #ifndef GTEST_ENABLE  
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
@@ -172,7 +175,7 @@ bool init_context(RuntimeContext* ctx)
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
         printf("UPLOADSTB : ERROR - Extended logger init failed\n");
     }
-
+#endif
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Context pointer is NULL\n", __FUNCTION__, __LINE__);
         return false;
@@ -513,5 +516,6 @@ void cleanup_context(void)
 
 
 }
+
 
 
