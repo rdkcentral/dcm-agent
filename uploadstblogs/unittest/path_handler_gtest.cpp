@@ -20,15 +20,18 @@
 #include <cstring>
 #include <iostream>
 
-// Define a simple empty rdk_debug.h content to block the real header
-// This uses a pragma once equivalent by defining all possible header guards
-#define _RDK_DEBUG_H_ 1
-#define RDK_DEBUG_H_ 1
-#define __RDK_DEBUG_H__ 1
-#define RDK_DEBUG_H 1
-
-// Define RDK_LOG as no-op mock
+// Mock RDK_LOG before including other headers
+#ifdef GTEST_ENABLE
 #define RDK_LOG(level, module, ...) do {} while(0)
+#endif
+
+// Prevent rdk_debug.h from being included - try all possible header guard patterns
+#define _RDK_DEBUG_H_
+#define RDK_DEBUG_H_
+#define __RDK_DEBUG_H__
+#define RDK_DEBUG_H
+#define _RDK_DEBUG_H
+#define RDK_DEBUG_H_INCLUDED
 
 #include "uploadstblogs_types.h"
 
@@ -270,7 +273,7 @@ int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_u
 
 FILE* fopen(const char *pathname, const char *mode) {
     // Don't mock system library files - return nullptr to prevent crashes
-    if (!pathname || strstr(pathname, "log4c") || strstr(pathname, "rdk_debug") || 
+    if (!pathname || strstr(pathname, "log4c") || strstr(pathname, "rdk_debug") ||
         strstr(pathname, "/etc/") || strstr(pathname, "/usr/")) {
         return nullptr;
     }
@@ -315,9 +318,15 @@ int fscanf(FILE *stream, const char *format, ...) {
     return 1; // Return 1 item read
 }
 
-// Ensure RDK_LOG is still our no-op mock before including path_handler
+// Re-assert all header guards and RDK_LOG mock before including source
 #undef RDK_LOG
 #define RDK_LOG(level, module, ...) do {} while(0)
+#define _RDK_DEBUG_H_
+#define RDK_DEBUG_H_
+#define __RDK_DEBUG_H__
+#define RDK_DEBUG_H
+#define _RDK_DEBUG_H
+#define RDK_DEBUG_H_INCLUDED
 
 // Include the actual path handler implementation
 #include "path_handler.h"
@@ -663,4 +672,3 @@ int main(int argc, char** argv) {
     cout << "Starting Path Handler Unit Tests" << endl;
     return RUN_ALL_TESTS();
 }
-
