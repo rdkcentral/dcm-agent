@@ -26,12 +26,7 @@
 #endif
 
 // Prevent rdk_debug.h from being included - try all possible header guard patterns
-#define _RDK_DEBUG_H_
-#define RDK_DEBUG_H_
 #define __RDK_DEBUG_H__
-#define RDK_DEBUG_H
-#define _RDK_DEBUG_H
-#define RDK_DEBUG_H_INCLUDED
 
 #include "uploadstblogs_types.h"
 
@@ -318,15 +313,8 @@ int fscanf(FILE *stream, const char *format, ...) {
     return 1; // Return 1 item read
 }
 
-// Re-assert all header guards and RDK_LOG mock before including source
-#undef RDK_LOG
-#define RDK_LOG(level, module, ...) do {} while(0)
-#define _RDK_DEBUG_H_
-#define RDK_DEBUG_H_
-#define __RDK_DEBUG_H__
-#define RDK_DEBUG_H
 #define _RDK_DEBUG_H
-#define RDK_DEBUG_H_INCLUDED
+//#define RDK_DEBUG_H_INCLUDED
 
 // Include the actual path handler implementation
 #include "path_handler.h"
