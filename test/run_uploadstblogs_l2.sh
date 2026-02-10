@@ -28,7 +28,7 @@ TEST_DIR="functional-tests/tests"
 mkdir -p "$RESULT_DIR"
 
 # Setup debug logging
-#echo "LOG.RDK.UPLOADSTB = ALL FATAL ERROR WARNING NOTICE INFO DEBUG" >> /etc/debug.ini
+echo "LOG.RDK.DEFAULT = INFO" >> /etc/debug.ini
 
 # Ensure properties files exist
 if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
