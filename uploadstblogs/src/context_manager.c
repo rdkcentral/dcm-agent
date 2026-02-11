@@ -42,11 +42,6 @@
 
 #define DEBUG_INI_NAME "/etc/debug.ini"
 
-
-static int g_rdk_logger_enabled = 0;
-
-
-
 /**
  * @brief Check if direct upload path is blocked based on marker file age
  * @param block_time Maximum blocking time in seconds
@@ -512,6 +507,7 @@ void cleanup_context(void)
 
 
 }
+
 
 
 
