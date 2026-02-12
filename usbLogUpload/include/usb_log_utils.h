@@ -75,6 +75,18 @@ int perform_filesystem_sync(void);
  */
 int get_current_timestamp(char *timestamp_buffer, size_t buffer_size);
 
+/**
+ * @brief Copy file and delete source (handles cross-device moves)
+ * 
+ * Copies a file from source to destination and deletes the source.
+ * This function handles cross-device file moves where rename() would fail.
+ * 
+ * @param source_path Path to source file
+ * @param dest_path Path to destination file
+ * @return int 0 on success, -1 on failure
+ */
+int copy_file_and_delete(const char *source_path, const char *dest_path);
+
 #ifdef __cplusplus
 }
 #endif
