@@ -115,8 +115,10 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
                  source_dir, archive_filename);
     }
 
-    /* Move the archive from source_dir to the USB destination */
-    if (rename(temp_archive_path, archive_path) != 0) {
+    /* Move the archive from source_dir to the USB destination
+     * Use copy-and-delete instead of rename() to handle cross-device moves
+     */
+    if (copy_file_and_delete(temp_archive_path, archive_path) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s USB WRITING ERROR - Failed to move archive to %s: %s\n", 
                 __FUNCTION__, __LINE__, timestamp_buf, archive_path, strerror(errno));
