@@ -285,7 +285,7 @@ int copy_file_and_delete(const char *source_path, const char *dest_path)
 
     /* Delete source file after successful copy */
     if (unlink(source_path) != 0) {
-        RDK_LOG(RDK_LOG_WARNING, LOG_USB_UPLOAD, 
+        RDK_LOG(RDK_LOG_WARN, LOG_USB_UPLOAD, 
                 "[%s:%d] Warning: Failed to delete source file %s: %s\n", 
                 __FUNCTION__, __LINE__, source_path, strerror(errno));
         /* Don't fail here - copy was successful */
