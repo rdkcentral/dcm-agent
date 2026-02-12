@@ -245,19 +245,25 @@ int copy_file_and_delete(const char *source_path, const char *dest_path)
         return -1;
     }
 
+
     FILE *dest_file = fopen(dest_path, "wb");
+    int dest_created = 0;
     if (!dest_file) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] Failed to open destination file %s: %s\n", 
                 __FUNCTION__, __LINE__, dest_path, strerror(errno));
         fclose(source_file);
         return -1;
+    } else {
+        dest_created = 1;
     }
 
-    /* Copy file in 64KB chunks */
-    char buffer[65536];
+
+    /* Copy file in 8KB chunks to avoid large stack usage and dynamic allocation */
+    size_t buffer_size = 8192;
+    char buffer[8192];
     size_t bytes_read;
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), source_file)) > 0) {
+    while ((bytes_read = fread(buffer, 1, buffer_size, source_file)) > 0) {
         size_t bytes_written = fwrite(buffer, 1, bytes_read, dest_file);
         if (bytes_written != bytes_read) {
             RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
@@ -265,7 +271,13 @@ int copy_file_and_delete(const char *source_path, const char *dest_path)
                     __FUNCTION__, __LINE__, dest_path, strerror(errno));
             fclose(source_file);
             fclose(dest_file);
-            unlink(dest_path); /* Remove partially copied file */
+            if (dest_created) {
+                if (unlink(dest_path) != 0) {
+                    RDK_LOG(RDK_LOG_WARN, LOG_USB_UPLOAD,
+                        "[%s:%d] Warning: Failed to delete partial destination file %s: %s\n",
+                        __FUNCTION__, __LINE__, dest_path, strerror(errno));
+                }
+            }
             return -1;
         }
     }
@@ -276,7 +288,13 @@ int copy_file_and_delete(const char *source_path, const char *dest_path)
                 __FUNCTION__, __LINE__, source_path, strerror(errno));
         fclose(source_file);
         fclose(dest_file);
-        unlink(dest_path); /* Remove partially copied file */
+        if (dest_created) {
+            if (unlink(dest_path) != 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_USB_UPLOAD,
+                    "[%s:%d] Warning: Failed to delete partial destination file %s: %s\n",
+                    __FUNCTION__, __LINE__, dest_path, strerror(errno));
+            }
+        }
         return -1;
     }
 
