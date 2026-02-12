@@ -217,3 +217,83 @@ int get_current_timestamp(char *timestamp_buffer, size_t buffer_size)
 
     return 0;
 }
+
+/**
+ * @brief Copy file and delete source (handles cross-device moves)
+ * 
+ * Copies a file from source to destination and deletes the source.
+ * This function handles cross-device file moves where rename() would fail
+ * with "Invalid cross-device link" error.
+ * 
+ * @param source_path Path to source file
+ * @param dest_path Path to destination file
+ * @return int 0 on success, -1 on failure
+ */
+int copy_file_and_delete(const char *source_path, const char *dest_path)
+{
+    if (!source_path || !dest_path) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    FILE *source_file = fopen(source_path, "rb");
+    if (!source_file) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                "[%s:%d] Failed to open source file %s: %s\n", 
+                __FUNCTION__, __LINE__, source_path, strerror(errno));
+        return -1;
+    }
+
+    FILE *dest_file = fopen(dest_path, "wb");
+    if (!dest_file) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                "[%s:%d] Failed to open destination file %s: %s\n", 
+                __FUNCTION__, __LINE__, dest_path, strerror(errno));
+        fclose(source_file);
+        return -1;
+    }
+
+    /* Copy file in 64KB chunks */
+    char buffer[65536];
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), source_file)) > 0) {
+        size_t bytes_written = fwrite(buffer, 1, bytes_read, dest_file);
+        if (bytes_written != bytes_read) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                    "[%s:%d] Failed to write to destination file %s: %s\n", 
+                    __FUNCTION__, __LINE__, dest_path, strerror(errno));
+            fclose(source_file);
+            fclose(dest_file);
+            unlink(dest_path); /* Remove partially copied file */
+            return -1;
+        }
+    }
+
+    if (ferror(source_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
+                "[%s:%d] Error reading source file %s: %s\n", 
+                __FUNCTION__, __LINE__, source_path, strerror(errno));
+        fclose(source_file);
+        fclose(dest_file);
+        unlink(dest_path); /* Remove partially copied file */
+        return -1;
+    }
+
+    fclose(source_file);
+    fclose(dest_file);
+
+    /* Delete source file after successful copy */
+    if (unlink(source_path) != 0) {
+        RDK_LOG(RDK_LOG_WARNING, LOG_USB_UPLOAD, 
+                "[%s:%d] Warning: Failed to delete source file %s: %s\n", 
+                __FUNCTION__, __LINE__, source_path, strerror(errno));
+        /* Don't fail here - copy was successful */
+    }
+
+    RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
+            "[%s:%d] Successfully copied file from %s to %s\n", 
+            __FUNCTION__, __LINE__, source_path, dest_path);
+
+    return 0;
+}
