@@ -133,5 +133,5 @@ AC_ARG_ENABLE([breakpad],
         	 ],
     	    [echo "breakpad is disabled"])
 
-AC_CONFIG_FILES([Makefile uploadstblogs/src/Makefile])
+AC_CONFIG_FILES([Makefile uploadstblogs/src/Makefile usbLogUpload/Makefile])
 AC_OUTPUT
