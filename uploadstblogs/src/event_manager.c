@@ -134,11 +134,18 @@ void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
     // Send telemetry for successful upload (matches script t2CountNotify)
     t2_count_notify("SYST_INFO_lu_success");
     
+    // Skip IARM events for uploadLogNow case
+    if (ctx && ctx->uploadlogsnow_mode) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Skipping IARM events for uploadLogNow mode\n", __FUNCTION__, __LINE__);
+        return;
+    }
+    
     // Send success events (matches script behavior)
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_SUCCESS);
     
     // Send maintenance event only if device is not broadband and maintenance enabled
-    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
+    if (ctx && !is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
         send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
     }
 }
@@ -157,6 +164,13 @@ void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
     
     // Send telemetry for failed upload (matches script t2CountNotify)
     t2_count_notify("SYST_ERR_LogUpload_Failed");
+    
+    // Skip IARM events for uploadLogNow case
+    if (ctx && ctx->uploadlogsnow_mode) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Skipping IARM events for uploadLogNow mode\n", __FUNCTION__, __LINE__);
+        return;
+    }
     
     // Send failure events (matches script behavior)  
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);

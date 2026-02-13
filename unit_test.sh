@@ -45,6 +45,8 @@ cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
+git clone https://github.com/rdkcentral/rdk_logger.git
+cp rdk_logger/include/rdk_logger.h /usr/local/include
 
 automake --add-missing
 autoreconf --install
@@ -78,7 +80,8 @@ for test in \
   ./../uploadstblogs/unittest/event_manager_gtest \
   ./../uploadstblogs/unittest/retry_logic_gtest \
   ./../uploadstblogs/unittest/strategies_gtest \
-  ./../uploadstblogs/unittest/strategy_handler_gtest
+  ./../uploadstblogs/unittest/strategy_handler_gtest \
+  ./../uploadstblogs/unittest/uploadlogsnow_gtest
   
 do
     $test
