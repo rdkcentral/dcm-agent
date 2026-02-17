@@ -199,46 +199,53 @@ int cleanup_temporary_files(const char *temp_path)
 int create_temporary_directory(const char *file_name, char *temp_dir_path, size_t buffer_size)
 {
     char timestamp_buf[32] = {0};
-    
+        /* Input validation */
+    if (!file_name || !temp_dir_path || buffer_size == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD,
+                "[%s:%d] Invalid input: file_name, temp_dir_path, or buffer_size is invalid\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
+
     /* Build temporary directory path: /opt/tmpusb/<file_name> */
     if (snprintf(temp_dir_path, buffer_size, "/opt/tmpusb/%s", file_name) >= (int)buffer_size) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] Temporary directory path too long\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    
+
     /* Create directory with parents (like mkdir -p) */
     if (!create_directory(temp_dir_path)) {
         /* Get timestamp for logging */
         if (get_current_timestamp(timestamp_buf, sizeof(timestamp_buf)) != 0) {
             strcpy(timestamp_buf, "00/00/00-00:00:00");
         }
-        
+
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s ERROR! Failed to create %s\n", 
                 __FUNCTION__, __LINE__, timestamp_buf, temp_dir_path);
         return 3; /* Exit code 3 matches original script: "Writing error" */
     }
-    
+
     /* Perform sync to ensure directory is flushed to storage */
     sync();
-    
+
     /* Verify directory was actually created */
     if (access(temp_dir_path, F_OK) != 0) {
         /* Get timestamp for logging */
         if (get_current_timestamp(timestamp_buf, sizeof(timestamp_buf)) != 0) {
             strcpy(timestamp_buf, "00/00/00-00:00:00");
         }
-        
+
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s ERROR! Failed to create %s\n", 
                 __FUNCTION__, __LINE__, timestamp_buf, temp_dir_path);
         return 3; /* Exit code 3 matches original script: "Writing error" */
     }
-    
+
     RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
             "[%s:%d] Created temporary directory: %s\n", 
             __FUNCTION__, __LINE__, temp_dir_path);
-    
+
     return 0;
 }
