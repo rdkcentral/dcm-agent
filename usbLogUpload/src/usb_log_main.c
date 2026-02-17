@@ -75,14 +75,14 @@ int main(int argc, char *argv[])
  */
 int usb_log_upload_execute(const char *usb_mount_point)
 {
-    char usb_log_dir[512];
-    char mac_address[32];
-    char file_name[256];
-    char log_file[256];
-    char temp_dir[512];
-    char archive_path[1024];
-    char log_path[256];
-    char timestamp_buf[32];
+    char usb_log_dir[512] = {0};
+    char mac_address[32] = {0};
+    char file_name[256] = {0};
+    char log_file[256] = {0};
+    char temp_dir[512] = {0};
+    char archive_path[1024] = {0};
+    char log_path[256] = {0};
+    char timestamp_buf[32] = {0};
     int ret;
     
     /* Validate USB mount point */
