@@ -72,7 +72,7 @@ int validate_usb_mount_point(const char *mount_point)
     
     /* Check if USB mount point directory exists */
     if (access(mount_point, F_OK) != 0) {
-        char timestamp_buf[32];
+        char timestamp_buf[32] = {0};
         
         /* Get timestamp for logging */
         if (get_current_timestamp(timestamp_buf, sizeof(timestamp_buf)) != 0) {
