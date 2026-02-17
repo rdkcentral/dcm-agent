@@ -198,7 +198,7 @@ int cleanup_temporary_files(const char *temp_path)
  */
 int create_temporary_directory(const char *file_name, char *temp_dir_path, size_t buffer_size)
 {
-    char timestamp_buf[32];
+    char timestamp_buf[32] = {0};
     
     /* Build temporary directory path: /opt/tmpusb/<file_name> */
     if (snprintf(temp_dir_path, buffer_size, "/opt/tmpusb/%s", file_name) >= (int)buffer_size) {
