@@ -29,35 +29,6 @@
 #include <unistd.h>
 
 /**
- * @brief Validate device compatibility
- * 
- * @return int 0 if compatible, negative error code otherwise
- */
-int validate_device_compatibility(void)
-{
-    char device_name[32];
-    
-    /* Get DEVICE_NAME from device.properties */
-    memset(device_name, 0, sizeof(device_name));
-    if (getDevicePropertyData("DEVICE_NAME", device_name, sizeof(device_name)) != UTILS_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] ERROR! Cannot access DEVICE_NAME property\n", 
-                __FUNCTION__, __LINE__);
-        return 4;
-    }
-    
-    /* Check if device is PLATCO (only supported device) */
-    if (strcmp(device_name, "PLATCO") != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
-                "[%s:%d] ERROR! USB Log download not available on this device.\n", 
-                __FUNCTION__, __LINE__);
-        return 4; /* Exit code 4 matches original script */
-    }
-    
-    return 0;
-}
-
-/**
  * @brief Validate USB mount point
  * 
  * @param mount_point Path to USB mount point
