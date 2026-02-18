@@ -32,6 +32,16 @@ extern "C" {
 #endif
 
 /**
+ * @brief Validate device compatibility
+ * 
+ * Checks if the current device supports USB log upload functionality.
+ * Currently only PLATCO devices are supported.
+ * 
+ * @return int 0 if compatible, negative error code otherwise
+ */
+int validate_device_compatibility(void);
+
+/**
  * @brief Validate USB mount point
  * 
  * Verifies that the provided USB mount point exists and is accessible.
