@@ -279,7 +279,7 @@ void finalize(RuntimeContext* ctx, SessionState* session)
 
     // Update block markers based on upload results (script-aligned behavior)
     update_block_markers(ctx, session);
-    if (ctx->trigger_type != TRIGGER_MEMCAPTURE)
+    if (ctx->trigger_type != 6)
     {
     // Remove archive file if upload was successful
     if (session->success && strlen(session->archive_file) > 0) {
@@ -521,4 +521,5 @@ bool create_block_marker(UploadPath path, int duration_seconds)
         return false;
     }
 }
+
 
