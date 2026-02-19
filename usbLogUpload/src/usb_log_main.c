@@ -54,6 +54,12 @@ int main(int argc, char *argv[])
     if (ret != 0) {
         return ret; /* Returns exit code 4 for invalid usage */
     }
+
+    /* Validate device compatibility */
+    ret = validate_device_compatibility();
+    if (ret != 0) {
+        return ret; /* Returns exit code 4 for unsupported device */
+    }
         
     /* Execute USB log upload operation */
     ret = usb_log_upload_execute(argv[1]);
