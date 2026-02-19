@@ -59,6 +59,17 @@ int validate_system_prerequisites(void);
  */
 int validate_input_parameters(int argc, char *argv[]);
 
+/**
+ * @brief Validate device compatibility
+ * 
+ * Checks if the current device supports USB log upload functionality.
+ * Currently only PLATCO devices are supported.
+ * 
+ * @return int 0 if compatible, negative error code otherwise
+ */
+int validate_device_compatibility(void);
+
+
 #ifdef __cplusplus
 }
 #endif
