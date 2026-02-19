@@ -157,6 +157,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
             ctx->trigger_type = TRIGGER_REBOOT;
         } else if (strcmp(argv[7], "MEMCAPTURE") == 0) {
             ctx->trigger_type = TRIGGER_MEMCAPTURE;
+        }
         fprintf(stderr, "DEBUG: trigger_type = %d\n", ctx->trigger_type);
     }
     
@@ -491,4 +492,5 @@ int main(int argc, char** argv)
     return uploadstblogs_execute(argc, argv);
 }
 #endif /* UPLOADSTBLOGS_BUILD_BINARY */
+
 
