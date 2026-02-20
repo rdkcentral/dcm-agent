@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "path_handler.h"
 #include "verification.h"
 #include "md5_utils.h"
@@ -505,8 +506,27 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     FILE* curl_info = fopen("/tmp/logupload_curl_info", "r");
     if (curl_info) {
         long http_code = 0;
-        fscanf(curl_info, "%ld", &http_code);
-        session->http_code = (int)http_code;
+        int scan_result;
+        errno = 0;
+        scan_result = fscanf(curl_info, "%ld", &http_code);
+        if (scan_result == 1) {
+            session->http_code = (int)http_code;
+        } else {
+            if (ferror(curl_info)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to read HTTP code from curl info file due to I/O error errno=%d (%s)\n",
+                        __FUNCTION__, __LINE__, errno, strerror(errno));
+            } else if (feof(curl_info)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to read HTTP code from curl info file: unexpected EOF\n",
+                        __FUNCTION__, __LINE__);
+            } else {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to parse HTTP code from curl info file (scan_result=%d)\n",
+                        __FUNCTION__, __LINE__, scan_result);
+            }
+            session->http_code = -1;
+        }
         fclose(curl_info);
     }
     session->curl_code = s3_result;

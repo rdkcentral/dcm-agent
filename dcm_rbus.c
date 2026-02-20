@@ -89,11 +89,16 @@ static VOID rbusSetConf(rbusHandle_t handle,
 
     if(configPath) {
         const INT8 *filePath = rbusValue_GetString(configPath, NULL);
-        strcpy(pDCMRbusHandle->confPath, filePath);
-        DCMInfo("configPath: %s\n", filePath);
+        if(filePath != NULL) {
+            strncpy(pDCMRbusHandle->confPath, filePath, DCM_CONF_SIZE - 1);
+            pDCMRbusHandle->confPath[DCM_CONF_SIZE - 1] = '\0';
+            DCMInfo("configPath: %s\n", filePath);
+        } else {
+            DCMError("configPath value is NULL or invalid\n");
+        }
     }
 
-    DCMInfo("Recieved eventName: %s, Event type: %d, Event Name: %s\n", subscription->eventName, event->type, event->name);
+    DCMInfo("Received eventName: %s, Event type: %d, Event Name: %s\n", subscription->eventName, event->type, event->name);
 
 }
 
@@ -129,7 +134,7 @@ static VOID rbusProcConf(rbusHandle_t handle,
         return;
     }
 
-    DCMInfo("Recieved eventName: %s, Event type: %d, Event Name: %s\n", subscription->eventName, event->type, event->name);
+    DCMInfo("Received eventName: %s, Event type: %d, Event Name: %s\n", subscription->eventName, event->type, event->name);
 
     pDCMRbusHandle->schedJob = 1;
 }

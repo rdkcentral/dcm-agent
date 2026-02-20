@@ -218,6 +218,7 @@ void decide_paths(const RuntimeContext* ctx, SessionState* session)
     // Direct blocked: CodeBig primary, no fallback
     else if (direct_blocked && !codebig_blocked) {
         session->primary = PATH_CODEBIG;
+        // coverity[copy_paste_error : FALSE] Intentional fallback is PATH_NONE when direct is blocked and CodeBig is primary.
         session->fallback = PATH_NONE;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Paths: Primary=CODEBIG, Fallback=NONE (direct blocked)\n", 

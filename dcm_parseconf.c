@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <cjson/cJSON.h>
 
 #include "dcm_types.h"
@@ -67,6 +68,10 @@ static INT32 dcmSettingGetValueFromFile(INT8 *buf, INT8 *file_path,
                 buf[strcspn( buf, "\n" )] = 0;
                 buf[strcspn( buf, "," )]  = 0;
                 tempStr = strstr( buf, delim );
+                if(tempStr == NULL) {
+                    DCMError("Delimiter '%s' not found in buffer\n", delim);
+                    continue;
+                }
                 tempStr++;
 
                 if(tempStr[0] == '\"')
@@ -247,6 +252,7 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
     INT32 i        = 0;
     INT32 ret      = DCM_SUCCESS;
     FILE *fp_out_opt = NULL;
+    size_t bytes_read = 0;
 
     FILE *fp_in = fopen(pConffile, "r");
     if (fp_in == NULL) {
@@ -262,14 +268,20 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
     }
 
     fp_out_opt = fopen(pOptConf, "w");
-    if (fp_out == NULL) {
+    if (fp_out_opt == NULL) {
         ret = DCM_FAILURE;
         DCMError("Unable to open out file: %s\n", pOptConf);
         goto exit2;
     }
 
     fseek(fp_in, 0, SEEK_END);
+    errno = 0;
     file_len = ftell(fp_in);
+    if (file_len < 0) {
+        ret = DCM_FAILURE;
+        DCMError("Failed to get file size using ftell(): errno=%d (%s)\n", errno, strerror(errno));
+        goto exit3;
+    }
     fseek(fp_in, 0, SEEK_SET);
 
     buff = calloc(file_len+1, 1);
@@ -279,7 +291,15 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
         goto exit3;
     }
 
-    fread(buff, 1, file_len, fp_in);
+
+    errno = 0;
+    bytes_read = fread(buff, 1, file_len, fp_in);
+    if (bytes_read != (size_t)file_len) {
+        ret = DCM_FAILURE;
+        DCMError("Failed to read the entire file. Expected %d bytes, got %zu bytes (errno=%d, %s, ferror=%d, feof=%d)\n",
+                 file_len, bytes_read, errno, strerror(errno), ferror(fp_in), feof(fp_in));
+        goto exit4;
+    }
 
     pJson = cJSON_Parse(buff);
     if (pJson == NULL) {
@@ -356,32 +376,67 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
                                 fprintf(fp_out_opt, "\"%s\":\"%s\",", tprochitem->string, tprochitem->valuestring);
                             }
                         }
-                        fseek(fp_out, -1, SEEK_CUR);
-                        fseek(fp_out_opt, -1, SEEK_CUR);
+                        errno = 0;
+                        if (fseek(fp_out, -1, SEEK_CUR) != 0) {
+                            ret = DCM_FAILURE;
+                            DCMError("fseek failed on fp_out: errno=%d (%s)\n", errno, strerror(errno));
+                            goto exit4;
+                        }
+                        errno = 0;
+                        if (fseek(fp_out_opt, -1, SEEK_CUR) != 0) {
+                            ret = DCM_FAILURE;
+                            DCMError("fseek failed on fp_out_opt: errno=%d (%s)\n", errno, strerror(errno));
+                            goto exit4;
+                        }
                         fprintf(fp_out, "},");
                         fprintf(fp_out_opt, "},");
                     } //for (k)
 
-                    fseek(fp_out, -1, SEEK_CUR);
-                    fseek(fp_out_opt, -1, SEEK_CUR);
+                    errno = 0;
+                    if (fseek(fp_out, -1, SEEK_CUR) != 0) {
+                        ret = DCM_FAILURE;
+                        DCMError("fseek failed on fp_out: errno=%d (%s)\n", errno, strerror(errno));
+                        goto exit4;
+                    }
+                    errno = 0;
+                    if (fseek(fp_out_opt, -1, SEEK_CUR) != 0) {
+                        ret = DCM_FAILURE;
+                        DCMError("fseek failed on fp_out_opt: errno=%d (%s)\n", errno, strerror(errno));
+                        goto exit4;
+                    }
                     fprintf(fp_out, "],");
                     fprintf(fp_out_opt, "],");
 
                 } //else if(cJSON_IsArray(titem))
             } //for (j)
 
-            fseek(fp_out, -1, SEEK_CUR);
-            fseek(fp_out_opt, -1, SEEK_CUR);
+            errno = 0;
+            if (fseek(fp_out, -1, SEEK_CUR) != 0) {
+                ret = DCM_FAILURE;
+                DCMError("fseek failed on fp_out: errno=%d (%s)\n", errno, strerror(errno));
+                goto exit4;
+            }
+            errno = 0;
+            if (fseek(fp_out_opt, -1, SEEK_CUR) != 0) {
+                ret = DCM_FAILURE;
+                DCMError("fseek failed on fp_out_opt: errno=%d (%s)\n", errno, strerror(errno));
+                goto exit4;
+            }
             fprintf(fp_out, "}\n");
             fprintf(fp_out_opt, "}\n");
         } //else if (cJSON_IsObject(item))
     } //for (i)
 
-    cJSON_Delete(pJson);
 exit4:
+    if (pJson) {
+        cJSON_Delete(pJson);
+        pJson = NULL;
+    }
     free(buff);
 exit3:
-    fclose(fp_out_opt);
+    if (fp_out_opt) {
+        fclose(fp_out_opt);
+    }
 exit2:
     fclose(fp_out);
 exit1:
