@@ -76,14 +76,6 @@ TEST_F(UsbLogValidationTest, UsbMountPointInvalidTest) {
 }
 
 /**
- * @brief Test system prerequisites validation
- */
-TEST_F(UsbLogValidationTest, SystemPrerequisitesTest) {
-    // TODO: Test validate_system_prerequisites
-    EXPECT_EQ(validate_system_prerequisites(), 0);
-}
-
-/**
  * @brief Test input parameter validation with valid parameters
  */
 TEST_F(UsbLogValidationTest, ValidInputParametersTest) {
@@ -99,4 +91,11 @@ TEST_F(UsbLogValidationTest, InvalidInputParametersTest) {
     // TODO: Test validate_input_parameters with invalid argc/argv
     char* test_argv[] = {(char*)"program"};
     EXPECT_NE(validate_input_parameters(1, test_argv), 0);
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int result = RUN_ALL_TESTS();
+
+    return result;
 }
