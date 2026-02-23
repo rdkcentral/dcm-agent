@@ -40,7 +40,7 @@ COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings
 
 # USB Log File Manager GTest
 usb_log_file_manager_gtest_SOURCES = usb_log_file_manager_gtest.cpp \
-                                     ../src/usb_log_file_manager.c
+                                     ../src/usb_log_file_manager.c ../src/usb_log_utils.c ../../uploadstblogs/unittest/mocks/mock_file_operations.cpp
 
 usb_log_file_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 usb_log_file_manager_gtest_LDADD = $(COMMON_LDADD)
@@ -53,7 +53,8 @@ usb_log_main_gtest_SOURCES = usb_log_main_gtest.cpp \
                              ../src/usb_log_validation.c \
                              ../src/usb_log_file_manager.c \
                              ../src/usb_log_archive.c \
-                             ../src/usb_log_utils.c
+                             ../src/usb_log_utils.c \
+                             ../../uploadstblogs/unittest/mocks/mock_file_operations.cpp
 
 usb_log_main_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 usb_log_main_gtest_LDADD = $(COMMON_LDADD)
@@ -69,4 +70,3 @@ usb_log_validation_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 usb_log_validation_gtest_LDADD = $(COMMON_LDADD)
 usb_log_validation_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 usb_log_validation_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
