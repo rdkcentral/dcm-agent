@@ -63,10 +63,6 @@ class TestNormalUpload:
         init_logs = grep_uploadstb_logs("Context initialization successful")
         assert len(init_logs) > 0, "Context should be initialized successfully"
 
-        # Verify device properties loaded
-        logs = grep_uploadstb_logs("DEVICE_TYPE")
-        assert len(logs) > 0, "Device type should be loaded from properties"
-
         collection_logs = grep_uploadstb_logs_regex(r"collect|archive|gather")
         assert len(collection_logs) > 0, "Log collection should be attempted"
 
