@@ -310,7 +310,7 @@ int copy_file_and_delete(const char *source_path, const char *dest_path)
     }
 
     RDK_LOG(RDK_LOG_DEBUG, LOG_USB_UPLOAD, 
-            "[%s:%d] Successfully copied file from %s to %s\n", 
+            "[%s:%d] Successfully moved Arcive file from %s to %s\n", 
             __FUNCTION__, __LINE__, source_path, dest_path);
 
     return 0;
