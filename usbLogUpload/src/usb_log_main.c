@@ -84,6 +84,11 @@ int usb_log_upload_execute(const char *usb_mount_point)
     char log_path[256] = {0};
     char timestamp_buf[32] = {0};
     int ret;
+    struct timespec start_time, end_time;
+    double elapsed_sec = 0.0;
+
+    /* Record start time */
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
     
     /* Validate USB mount point */
     ret = validate_usb_mount_point(usb_mount_point);
@@ -180,15 +185,19 @@ int usb_log_upload_execute(const char *usb_mount_point)
     
     /* Sync USB drive to flush everything to external storage */
     perform_filesystem_sync();
-    
+
+    /* Record end time */
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    elapsed_sec = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+
     /* Get timestamp for completion log */
     if (get_current_timestamp(timestamp_buf, sizeof(timestamp_buf)) != 0) {
         strncpy(timestamp_buf, "00/00/00-00:00:00", sizeof(timestamp_buf) - 1);
     }
-    
+
     RDK_LOG(RDK_LOG_INFO, LOG_USB_UPLOAD, 
-            "[%s:%d] %s COMPLETED USB LOG UPLOAD\n", 
-            __FUNCTION__, __LINE__, timestamp_buf);
-    
+            "[%s:%d] %s COMPLETED USB LOG UPLOAD (Time taken: %.3f seconds)\n", 
+            __FUNCTION__, __LINE__, timestamp_buf, elapsed_sec);
+
     return USB_LOG_SUCCESS;
 }
