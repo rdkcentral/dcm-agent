@@ -59,7 +59,7 @@ autoreconf --install
 make clean
 make
 
-cd ../uploadstblogs/unittest
+cd ../‎usbLogUpload/unittest
 automake --add-missing
 autoreconf --install
 
@@ -69,7 +69,7 @@ make clean
 make
 
 fail=0
-cd {$top_srcdir}/unittest/
+cd {$top_srcdir}/dcm-agent/unittest/
 
 for test in \
   ./dcm_utils_gtest \
