@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
-bin_PROGRAMS = usb_log_file_manager_gtest usb_log_main_gtest usb_log_validation_gtest
+bin_PROGRAMS = usb_log_file_manager_gtest usb_log_main_gtest usb_log_validation_gtest usb_log_archive_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest \
@@ -71,3 +71,13 @@ usb_log_validation_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 usb_log_validation_gtest_LDADD = $(COMMON_LDADD)
 usb_log_validation_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 usb_log_validation_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+# USB Log Archive GTest
+usb_log_archive_gtest_SOURCES = usb_log_archive_gtest.cpp \
+                                 ../src/usb_log_archive.c \
+                                 ../../uploadstblogs/unittest/mocks/mock_file_operations.cpp
+
+usb_log_archive_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+usb_log_archive_gtest_LDADD = $(COMMON_LDADD)
+usb_log_archive_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+usb_log_archive_gtest_CFLAGS = $(COMMON_CXXFLAGS)
