@@ -45,7 +45,7 @@ make clean
 make
 
 cd ../uploadstblogs/unittest
-cd ..
+cd ../..
 automake --add-missing
 autoreconf --install
 
