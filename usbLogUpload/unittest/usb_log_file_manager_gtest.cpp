@@ -237,7 +237,7 @@ TEST_F(UsbLogFileManagerTest, CleanupTemporaryFilesNonExistentTest) {
 TEST_F(UsbLogFileManagerTest, CreateTemporaryDirectorySuccessTest) {
     char temp_dir_path[256];
     const char* file_name = "test_usb_logs";
-
+    mkdir("/opt/tmpusb/test_usb_logs", 0755);
     // Create should succeed
     int result = create_temporary_directory(file_name, temp_dir_path, sizeof(temp_dir_path));
     EXPECT_EQ(result, 0);
