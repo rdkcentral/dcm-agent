@@ -30,6 +30,7 @@ fi
 export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
 export LD_LIBRARY_PATH="/usr/local/lib:$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
+echo "RDK_PROFILE=TV" >> /etc/device.properties
 cd unittest/
 cp mocks/mockrbus.h /usr/local/include
 cp ../uploadstblogs/include/*.h /usr/local/include
