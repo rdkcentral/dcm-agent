@@ -31,6 +31,23 @@ extern "C" {
 #include "usb_log_utils.h"
 }
 
+extern "C" {
+// Mock get_mac_address: returns dummy MAC address string
+const char* get_mac_address(void) {
+    return "00:11:22:33:44:55";
+}
+
+// Mock generate_archive_name: returns dummy archive name
+const char* generate_archive_name(const char* prefix, const char* mac, const char* timestamp) {
+    return "dummy_archive_name.tar.gz";
+}
+
+// Mock create_archive: always returns success (0)
+int create_archive(const char* archive_path, const char* src_dir) {
+    return 0;
+}
+}
+
 /**
  * @brief Test fixture for USB log main module tests
  */
