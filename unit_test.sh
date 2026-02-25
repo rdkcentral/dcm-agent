@@ -1,6 +1,3 @@
-echo "RDK_PROFILE=TV" >> /etc/device.properties
-
-
 #!/bin/bash
 
 #
