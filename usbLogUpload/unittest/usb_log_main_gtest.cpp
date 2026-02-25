@@ -1,12 +1,5 @@
 #include <stddef.h>
 
-// Mock implementations for missing functions with correct signatures
-extern "C" {
-// Mock get_mac_address: returns dummy MAC address string
-const char* get_mac_address(void) {
-    return "00:11:22:33:44:55";
-}
-
 // Mock generate_archive_name: matches signature from archive_manager.h
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* prefix, const char* mac) {
     if (!buffer || buffer_size < 10) return false;
