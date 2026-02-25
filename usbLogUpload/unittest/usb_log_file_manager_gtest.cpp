@@ -31,13 +31,6 @@
 
 extern "C" {
 #include "usb_log_file_manager.h"
-// Mock implementation for remove_directory to resolve linker error in unit tests
-extern "C" {
-bool remove_directory(const char* dirpath) {
-    // Always succeed for test, or add logic as needed
-    return true;
-}
-}
 }
 
 /**
