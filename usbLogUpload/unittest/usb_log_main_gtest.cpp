@@ -1,21 +1,3 @@
-#include <stddef.h>
-
-// Mock generate_archive_name: matches signature from archive_manager.h
-bool generate_archive_name(char* buffer, size_t buffer_size, const char* prefix, const char* mac) {
-    if (!buffer || buffer_size < 10) return false;
-    snprintf(buffer, buffer_size, "dummy.tar.gz");
-    return true;
-}
-
-// Forward declare types for create_archive mock
-typedef struct RuntimeContext RuntimeContext;
-typedef struct SessionState SessionState;
-
-// Mock create_archive: matches signature from archive_manager.h
-int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir) {
-    return 0; // Always succeed
-}
-}
 /**
  * Copyright 2020 RDK Management
  *
@@ -47,24 +29,6 @@ extern "C" {
 #include "usb_log_file_manager.h"
 #include "usb_log_archive.h"
 #include "usb_log_utils.h"
-}
-
-// Mock implementations for missing functions to resolve linker errors in unit tests
-extern "C" {
-// Mock get_mac_address: returns dummy MAC address string
-const char* get_mac_address(void) {
-    return "00:11:22:33:44:55";
-}
-
-// Mock generate_archive_name: returns dummy archive name
-const char* generate_archive_name(const char* prefix, const char* mac, const char* timestamp) {
-    return "dummy_archive_name.tar.gz";
-}
-
-// Mock create_archive: always returns success (0)
-int create_archive(const char* archive_path, const char* src_dir) {
-    return 0;
-}
 }
 
 /**
