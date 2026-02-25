@@ -69,7 +69,7 @@ make clean
 make
 
 fail=0
-cd $top_srcdir/dcm-agent/unittest/
+cd $TOP_DIR/unittest/
 
 for test in \
   ./dcm_utils_gtest \
