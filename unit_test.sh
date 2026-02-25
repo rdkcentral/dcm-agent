@@ -58,8 +58,8 @@ autoreconf --install
 
 make clean
 make
-
-cd ../../‎usbLogUpload/unittest
+pwd
+cd ../../usbLogUpload/unittest
 automake --add-missing
 autoreconf --install
 
