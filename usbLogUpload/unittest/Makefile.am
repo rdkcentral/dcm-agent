@@ -30,6 +30,7 @@ COMMON_CPPFLAGS = -I/usr/include/gtest -I/usr/local/include -I/usr/local/include
 AM_CPPFLAGS = $(COMMON_CPPFLAGS)
 AM_CXXFLAGS = -std=c++14
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
 
 # Common libraries
 COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -lrdkloggers -lfwutils -L/usr/local/lib -luploadstblogs
