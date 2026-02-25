@@ -46,13 +46,7 @@ make
 
 cd ../uploadstblogs/unittest
 cd ../..
-automake --add-missing
-autoreconf --install
-
-./configure
-
-make clean
-make
+sh cov_build.sh
 cd -
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
