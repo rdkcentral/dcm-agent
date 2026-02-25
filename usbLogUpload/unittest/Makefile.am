@@ -57,7 +57,7 @@ usb_log_main_gtest_SOURCES = usb_log_main_gtest.cpp \
                              ../../uploadstblogs/unittest/mocks/mock_file_operations.cpp
 
 usb_log_main_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-usb_log_main_gtest_LDADD = $(COMMON_LDADD)
+usb_log_main_gtest_LDADD = $(COMMON_LDADD) -L/usr/local/lib -luploadstblogs
 usb_log_main_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 usb_log_main_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
