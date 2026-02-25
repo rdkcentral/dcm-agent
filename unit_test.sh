@@ -100,7 +100,9 @@ for test in \
   ./../uploadstblogs/unittest/uploadlogsnow_gtest \
   ./../usbLogUpload/unittest/usb_log_main_gtest \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
-  ./../usbLogUpload/unittest/usb_log_validation_gtest
+  ./../usbLogUpload/unittest/usb_log_validation_gtest \
+  ./../usbLogUpload/unittest/usb_log_utils_gtest \
+  ./../usbLogUpload/unittest/usb_log_archive_gtest
   
 do
     $test
