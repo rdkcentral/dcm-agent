@@ -71,6 +71,7 @@ autoreconf --install
 make clean
 make
 
+export LD_LIBRARY_PATH="$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
 fail=0
 cd $TOP_DIR/unittest/
 
