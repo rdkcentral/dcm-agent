@@ -72,6 +72,7 @@ make clean
 make
 
 export LD_LIBRARY_PATH="$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
+echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
 
