@@ -130,4 +130,3 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
 fi
-
