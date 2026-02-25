@@ -59,7 +59,7 @@ autoreconf --install
 make clean
 make
 
-cd $TOP_DIR/‎usbLogUpload/unittest
+cd ../../‎usbLogUpload/unittest
 automake --add-missing
 autoreconf --install
 
