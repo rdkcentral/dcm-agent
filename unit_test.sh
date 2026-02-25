@@ -44,6 +44,7 @@ autoreconf --install
 make clean
 make
 
+sh ./../cov_build.sh
 cd ../uploadstblogs/unittest
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
