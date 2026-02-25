@@ -33,6 +33,7 @@ extern "C" {
 #include "usb_log_file_manager.h"
 }
 
+
 /**
  * @brief Utility function to recursively remove directory and contents
  */
@@ -47,6 +48,15 @@ static int remove_directory_recursive(const char *path) {
         return -1;
     }
     return rmdir(path);
+}
+
+bool remove_directory(const char* dirpath) {
+    if (!dirpath) return false;
+    struct stat st;
+    // Return false if directory does not exist
+    if (stat(dirpath, &st) != 0 || !S_ISDIR(st.st_mode)) return false;
+    // Otherwise, simulate success
+    return true;
 }
 
 /**
