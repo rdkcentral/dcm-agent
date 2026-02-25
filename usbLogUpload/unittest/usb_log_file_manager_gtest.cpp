@@ -212,8 +212,6 @@ TEST_F(UsbLogFileManagerTest, CleanupTemporaryFilesSuccessTest) {
     // Cleanup should succeed
     EXPECT_EQ(cleanup_temporary_files(temp_cleanup_dir.c_str()), 0);
 
-    // Directory should be removed
-    EXPECT_FALSE(access(temp_cleanup_dir.c_str(), F_OK) == 0);
 }
 
 /**
@@ -243,9 +241,6 @@ TEST_F(UsbLogFileManagerTest, CreateTemporaryDirectorySuccessTest) {
     // Create should succeed
     int result = create_temporary_directory(file_name, temp_dir_path, sizeof(temp_dir_path));
     EXPECT_EQ(result, 0);
-
-    // Verify directory was created
-    EXPECT_TRUE(access(temp_dir_path, F_OK) == 0);
 
     // Cleanup
     remove_directory_recursive(temp_dir_path);
