@@ -31,7 +31,7 @@ AM_CPPFLAGS = $(COMMON_CPPFLAGS)
 AM_CXXFLAGS = -std=c++14
 
 # Common libraries
-COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -lrdkloggers -lfwutils /usr/local/lib -luploadstblogs
+COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -lrdkloggers -lfwutils -L/usr/local/lib -luploadstblogs
 
 # Common compiler flags
 COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result
