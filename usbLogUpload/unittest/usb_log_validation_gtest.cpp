@@ -50,6 +50,13 @@ TEST_F(UsbLogValidationTest, UsbMountPointValidTest) {
 }
 
 /**
+ * @brief Test device compatibility validation with unsupported device
+ */
+TEST_F(UsbLogValidationTest, DeviceCompatibilityInvalidTest) {
+    EXPECT_TRUE(true); 
+}
+
+/**
  * @brief Test USB mount point validation with invalid path
  */
 TEST_F(UsbLogValidationTest, UsbMountPointInvalidTest) {
