@@ -34,7 +34,8 @@ from helper_functions import *
 
 def run_uploadlogsnow():
     """Execute uploadlogsnow using the specific binary command"""
-    subprocess.run("/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log.0",shell=True)
+    result = subprocess.run("/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log.0",shell=True)
+    return result
 
 class TestUploadLogsNow:
     """Test suite for uploadLogsNow immediate upload functionality"""
