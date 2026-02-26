@@ -674,21 +674,18 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                 __FUNCTION__, __LINE__);
     }
 
-    // Delete old backup files (3+ days old)
-    // Remove old timestamp directories and logbackup directories
+    // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
-    int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
-    if (removed > 0) {
+            "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
+    int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
+    if (removed_dirs > 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old timestamp directories\n", 
-                __FUNCTION__, __LINE__, remoinsved);
-    }
-    removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
-    if (removed > 0) {
+                "[%s:%d] Removed %d old log backup directories\n", 
+                __FUNCTION__, __LINE__, removed_dirs);
+    } else {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old logbackup directories\n", 
-                __FUNCTION__, __LINE__, removed);
+                "[%s:%d] No old log backup directories removed\n", 
+                __FUNCTION__, __LINE__);
     }
     
     // Create timestamp for permanent log path
