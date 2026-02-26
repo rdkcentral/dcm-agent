@@ -222,6 +222,21 @@ TEST_F(UsbLogFileManagerTest, CleanupTemporaryFilesNullPathTest) {
 }
 
 /**
+ * @brief Test temporary directory creation with valid input
+ */
+TEST_F(UsbLogFileManagerTest, CreateTemporaryDirectorySuccessTest) {
+    char temp_dir_path[256];
+    const char* file_name = "test";
+    mkdir("/opt/tmpusb/test", 0755);
+    // Create should succeed
+    int result = create_temporary_directory(file_name, temp_dir_path, sizeof(temp_dir_path));
+    EXPECT_EQ(result, 0);
+
+    // Cleanup
+    remove_directory_recursive(temp_dir_path);
+}
+
+/**
  * @brief Test temporary file cleanup with non-existent directory
  */
 TEST_F(UsbLogFileManagerTest, CleanupTemporaryFilesNonExistentTest) {
