@@ -897,5 +897,3 @@ int remove_old_directories(const char* base_path, const char* pattern, int days_
 
     return 0;
 }
-
-
