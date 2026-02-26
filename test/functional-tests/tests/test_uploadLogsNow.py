@@ -34,7 +34,6 @@ from helper_functions import *
 
 def run_uploadlogsnow():
     """Execute uploadlogsnow using the specific binary command"""
-    cmd = "/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log"
     subprocess.run("/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log",shell=True)
 
 class TestUploadLogsNow:
