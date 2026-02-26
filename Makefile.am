@@ -18,7 +18,7 @@
 ##########################################################################
 
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = uploadstblogs/src
+SUBDIRS = uploadstblogs/src usbLogUpload
 
 dcmd_CFLAGS += -fPIC -pthread
 
