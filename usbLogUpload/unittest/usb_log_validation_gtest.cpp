@@ -49,15 +49,6 @@ TEST_F(UsbLogValidationTest, DeviceCompatibilityValidTest) {
 }
 
 /**
- * @brief Test device compatibility validation with unsupported device
- */
-TEST_F(UsbLogValidationTest, DeviceCompatibilityInvalidTest) {
-    // TODO: Test validate_device_compatibility with non-PLATCO device
-    // This would require mocking environment variables or config
-    EXPECT_TRUE(true); // Placeholder
-}
-
-/**
  * @brief Test USB mount point validation with valid path
  */
 TEST_F(UsbLogValidationTest, UsbMountPointValidTest) {
