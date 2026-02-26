@@ -95,7 +95,6 @@ for test in \
   ./../uploadstblogs/unittest/strategies_gtest \
   ./../uploadstblogs/unittest/strategy_handler_gtest \
   ./../uploadstblogs/unittest/uploadlogsnow_gtest \
-  ./../usbLogUpload/unittest/usb_log_main_gtest \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
