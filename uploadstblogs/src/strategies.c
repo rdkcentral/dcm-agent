@@ -46,6 +46,7 @@
 #include "rbus_interface.h"
 #include "rdk_debug.h"
 #include "event_manager.h"
+#include "cleanup_handler.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
