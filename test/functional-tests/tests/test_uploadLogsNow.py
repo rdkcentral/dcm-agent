@@ -34,7 +34,7 @@ from helper_functions import *
 
 def run_uploadlogsnow():
     """Execute uploadlogsnow using the specific binary command"""
-    cmd = "/usr/local/bin/logupload uploadlogsnow"
+    cmd = "/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
     return result
 
