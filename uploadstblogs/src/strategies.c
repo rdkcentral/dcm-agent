@@ -1,4 +1,4 @@
-﻿/*
+/*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
@@ -678,21 +678,19 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     // Remove old timestamp directories and logbackup directories
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
-    
     int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
     if (removed > 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Removed %d old timestamp directories\n", 
-                __FUNCTION__, __LINE__, removed);
+                __FUNCTION__, __LINE__, remoinsved);
     }
-    
     removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
     if (removed > 0) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Removed %d old logbackup directories\n", 
                 __FUNCTION__, __LINE__, removed);
     }
-
+    
     // Create timestamp for permanent log path
     char timestamp[64];
     time_t now = time(NULL);
