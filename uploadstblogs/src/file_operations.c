@@ -35,6 +35,7 @@
 #include "system_utils.h"
 #include "rdk_debug.h"
 #include "uploadstblogs_types.h"
+#include "cleanup_handler.h"
 
 bool file_exists(const char* filepath)
 {
@@ -822,79 +823,7 @@ int clear_old_packet_captures(const char* log_path)
  */
 int remove_old_directories(const char* base_path, const char* pattern, int days_old)
 {
-    if (!base_path || !pattern || days_old < 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!dir_exists(base_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Base directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, base_path);
-        return 0; // Not an error if base doesn't exist
-    }
-
-    time_t now = time(NULL);
-    time_t cutoff_time = now - (days_old * 24 * 60 * 60);
-
-    DIR* dir = opendir(base_path);
-    if (!dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to open directory: %s\n", 
-                __FUNCTION__, __LINE__, base_path);
-        return -1;
-    }
-
-    int removed_count = 0;
-    struct dirent* entry;
-
-    while ((entry = readdir(dir)) != NULL) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        // Check if name matches pattern (simple substring match)
-        if (strstr(entry->d_name, pattern) != NULL) {
-            char dir_path[MAX_PATH_LENGTH];
-            int path_ret = snprintf(dir_path, sizeof(dir_path), "%s/%s", base_path, entry->d_name);
-            
-            // Check for snprintf truncation
-            if (path_ret < 0 || path_ret >= (int)sizeof(dir_path)) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                        "[%s:%d] Path too long, skipping: %s\n", 
-                        __FUNCTION__, __LINE__, entry->d_name);
-                continue;
-            }
-
-            struct stat st;
-            if (stat(dir_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-                // Check if directory is old enough
-                if (st.st_mtime < cutoff_time) {
-                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                            "[%s:%d] Removing old directory: %s (age: %ld days)\n", 
-                            __FUNCTION__, __LINE__, entry->d_name, 
-                            (now - st.st_mtime) / (24 * 60 * 60));
-
-                    if (remove_directory(dir_path)) {
-                        removed_count++;
-                    } else {
-                        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                                "[%s:%d] Failed to remove directory: %s\n", 
-                                __FUNCTION__, __LINE__, dir_path);
-                    }
-                }
-            }
-        }
-    }
-
-    closedir(dir);
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Removed %d old directories matching pattern '%s'\n", 
-            __FUNCTION__, __LINE__, removed_count, pattern);
-
-    return 0;
+    // pattern is ignored, as cleanup_old_log_backups uses regex internally
+    return cleanup_old_log_backups(base_path, days_old);
 }
 
