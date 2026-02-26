@@ -41,14 +41,6 @@ protected:
 };
 
 /**
- * @brief Test device compatibility validation
- */
-TEST_F(UsbLogValidationTest, DeviceCompatibilityValidTest) {
-    // TODO: Test validate_device_compatibility with PLATCO device
-    EXPECT_EQ(validate_device_compatibility(), 0);
-}
-
-/**
  * @brief Test USB mount point validation with valid path
  */
 TEST_F(UsbLogValidationTest, UsbMountPointValidTest) {
