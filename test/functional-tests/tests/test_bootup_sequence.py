@@ -45,6 +45,7 @@ def test_telemetry_communication():
 
 @pytest.mark.run(order=4)
 def test_receive_event_setConfig():
+    
     sleep(2)
     assert "Event Name: Device.DCM.Setconfig" in grep_dcmdlogs("Event Name: Device.DCM.Setconfig")
 
