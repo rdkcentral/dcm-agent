@@ -35,7 +35,8 @@ INCLUDE_PROPERTIES = "/etc/include.properties"
 
 def run_uploadstblogs(args=""):
     """Execute uploadSTBLogs with optional arguments"""
-    result = subprocess.run("{UPLOADSTB_BINARY} {args} >> /opt/logs/logupload.log.0",shell=True)
+    cmd = f"{UPLOADSTB_BINARY} {args}" if args else UPLOADSTB_BINARY
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=400)
     return result
 
 def grep_uploadstb_logs(search_pattern, log_file=UPLOADSTB_LOG):
