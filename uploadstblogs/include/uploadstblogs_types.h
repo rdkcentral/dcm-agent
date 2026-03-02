@@ -310,6 +310,3 @@ void t2_count_notify(char *marker);
 void t2_val_notify(char *marker, char *val);
 
 #endif /* UPLOADSTBLOGS_TYPES_H */
-
-
-
