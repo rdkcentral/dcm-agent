@@ -521,5 +521,3 @@ bool create_block_marker(UploadPath path, int duration_seconds)
         return false;
     }
 }
-
-
