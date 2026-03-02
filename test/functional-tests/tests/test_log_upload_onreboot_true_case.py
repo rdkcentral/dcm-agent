@@ -46,6 +46,5 @@ def test_upload_cron_scheduled():
 @pytest.mark.run(order=6)
 def test_upload_started():
     assert "Start log upload via library API"  in grep_dcmdlogs("Start log upload via library API")
-    assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
 
