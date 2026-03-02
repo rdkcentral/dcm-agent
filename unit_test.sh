@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=false
+ENABLE_COV=true
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
@@ -29,7 +29,8 @@ if [ "x$1" = "x--enable-cov" ]; then
 fi
 export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
-
+export LD_LIBRARY_PATH="/usr/local/lib:$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
+echo "RDK_PROFILE=TV" >> /etc/device.properties
 cd unittest/
 cp mocks/mockrbus.h /usr/local/include
 cp ../uploadstblogs/include/*.h /usr/local/include
@@ -42,6 +43,9 @@ make clean
 make
 
 cd ../uploadstblogs/unittest
+cd ../..
+sh cov_build.sh
+cd -
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
@@ -55,9 +59,18 @@ autoreconf --install
 
 make clean
 make
+pwd
+cd ../../usbLogUpload/unittest
+automake --add-missing
+autoreconf --install
 
+./configure
+
+make clean
+make
+echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
-cd -
+cd $TOP_DIR/unittest/
 
 for test in \
   ./dcm_utils_gtest \
@@ -81,7 +94,11 @@ for test in \
   ./../uploadstblogs/unittest/retry_logic_gtest \
   ./../uploadstblogs/unittest/strategies_gtest \
   ./../uploadstblogs/unittest/strategy_handler_gtest \
-  ./../uploadstblogs/unittest/uploadlogsnow_gtest
+  ./../uploadstblogs/unittest/uploadlogsnow_gtest \
+  ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
+  ./../usbLogUpload/unittest/usb_log_validation_gtest \
+  ./../usbLogUpload/unittest/usb_log_utils_gtest \
+  ./../usbLogUpload/unittest/usb_log_archive_gtest
   
 do
     $test
@@ -107,5 +124,4 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --capture --directory . --output-file coverage.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
-    lcov --list coverage.info
 fi

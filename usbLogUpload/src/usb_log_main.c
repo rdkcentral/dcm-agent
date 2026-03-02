@@ -32,6 +32,7 @@
 #include <time.h>
 #include <string.h>
 
+#ifndef GTEST_ENABLE
 /**
  * @brief Main application entry point
  * 
@@ -66,6 +67,7 @@ int main(int argc, char *argv[])
     
     return ret;
 }
+#endif
 
 /**
  * @brief Execute USB log upload operation
