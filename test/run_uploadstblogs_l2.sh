@@ -59,6 +59,8 @@ if ! grep -q "BUILD_TYPE=" /etc/device.properties; then
     echo "BUILD_TYPE=dev" >> /etc/device.properties
 fi
 
+echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
+
 cd /usr/common_utilities
 sed -i '/file_upload\.sslverify/s/= 1;/= 0;/' uploadutils/mtls_upload.c
 sed -i 's/\(ret_code = setCommonCurlOpt(curl, s3url, NULL, \)true\()\)/\1false\2/g' uploadutils/uploadUtil.c
@@ -93,7 +95,6 @@ echo "3. Running Error Handling Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/error_handling.json test/functional-tests/tests/test_uploadstblogs_error_handling.py
 
-echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
 
 mkdir -p /opt/logs
 mkdir -p /opt/logs/PreviousLogs
