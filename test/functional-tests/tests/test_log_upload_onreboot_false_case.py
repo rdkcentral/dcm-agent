@@ -52,7 +52,7 @@ def test_upload_cron_scheduled():
 
 @pytest.mark.run(order=5)
 def test_upload_script_started():
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
+    assert "Start log upload via library API"  in grep_dcmdlogs("Start log upload via library API")
     assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
 
 @pytest.mark.run(order=6)
