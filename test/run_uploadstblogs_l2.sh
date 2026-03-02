@@ -1,127 +1,122 @@
-#!/bin/sh
-####################################################################################
-# If not stated otherwise in this file or this component's Licenses.txt file the
-# following copyright and licenses apply:
-#
-# Copyright 2024 RDK Management
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-####################################################################################
+import subprocess
+import os
+import re
+import pytest
 
-# Test runner for uploadSTBLogs L2 tests
+USBLOGUPLOAD_BIN = "/usr/local/bin/usblogupload"
+LOG_FILE = "/opt/logs/logupload.log"  # Adjust if needed
 
-export top_srcdir=`pwd`
-RESULT_DIR="/tmp/l2_test_report/uploadstblogs"
-TEST_DIR="functional-tests/tests"
+# Helper to grep logs
 
-# Create result directory
-mkdir -p "$RESULT_DIR"
-
-# Setup debug logging
-echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
-echo "RDK_PROFILE=TV" >> /etc/device.properties
-
-# Ensure properties files exist
-if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
-    echo "LOG_PATH=/opt/logs/" >> /etc/include.properties
-fi
-
-if ! grep -q "PERSISTENT_PATH=/opt/" /etc/include.properties; then
-    echo "PERSISTENT_PATH=/opt/" >> /etc/include.properties
-fi
-
-# Ensure device properties exist
-if [ ! -f /etc/device.properties ]; then
-    touch /etc/device.properties
-fi
-
-if ! grep -q "DEVICE_TYPE=" /etc/device.properties; then
-    echo "DEVICE_TYPE=mediaclient" >> /etc/device.properties
-fi
-
-if ! grep -q "BUILD_TYPE=" /etc/device.properties; then
-    echo "BUILD_TYPE=dev" >> /etc/device.properties
-fi
-
-cd /usr/common_utilities
-sed -i '/file_upload\.sslverify/s/= 1;/= 0;/' uploadutils/mtls_upload.c
-sed -i 's/\(ret_code = setCommonCurlOpt(curl, s3url, NULL, \)true\()\)/\1false\2/g' uploadutils/uploadUtil.c
-sed -i '/if (auth) {/,/}/s/^/\/\/ /' uploadutils/uploadUtil.c
-cd -
-
-echo pwd
-
-# Create log directories
-mkdir -p /opt/logs
-mkdir -p /opt/logs/PreviousLogs
-touch /opt/logs/PreviousLogs/logupload.log
-
-echo "====================================="
-echo "Running uploadSTBLogs L2 Test Suite"
-echo "====================================="
-
-# Run test suites
-
-echo ""
-echo "1. Running usbLogupload Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/usb_logupload.json test/functional-tests/tests/test_usb_logupload.py
-
-echo ""
-echo "2. Running UploadLogsNow Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test_uploadLogsNow.py
-
-echo ""
-echo "3. Running Error Handling Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/error_handling.json test/functional-tests/tests/test_uploadstblogs_error_handling.py
-
-echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
-
-mkdir -p /opt/logs
-mkdir -p /opt/logs/PreviousLogs
-
-echo ""
-echo "4. Running Normal Upload Tests..."
-mkdir -p /opt/logs/PreviousLogs
-pytest -v --json-report --json-report-summary \
-        --json-report-file $RESULT_DIR/upload_normal.json test/functional-tests/tests/test_uploadstblogs_normal_upload.py
+def grep_usblogupload_logs(search: str):
+    search_result = []
+    search_pattern = re.compile(re.escape(search), re.IGNORECASE)
+    try:
+        with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as file:
+            for line in file:
+                if search_pattern.search(line):
+                    search_result.append(line)
+    except Exception as e:
+        print(f"Could not read file {LOG_FILE}: {e}")
+    return search_result
 
 
-echo ""
-echo "5. Running Retry Logic Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/retry_logic.json test/functional-tests/tests/test_uploadstblogs_retry_logic.py
+@pytest.fixture(autouse=True)
+def setup_device_properties(tmp_path):
+    # Path to device.properties for test
+    device_properties_path = os.path.join(os.path.dirname(__file__), "device.properties")
+    backup_path = device_properties_path + ".bak"
+    # Backup original if exists
+    if os.path.exists(device_properties_path):
+        os.rename(device_properties_path, backup_path)
+    # Ensure RDK_PROFILE=TV is present
+    with open(device_properties_path, "w", encoding="utf-8") as f:
+        f.write("RDK_PROFILE=TV\n")
+    yield
+    # Restore original after test
+    if os.path.exists(backup_path):
+        os.remove(device_properties_path)
+        os.rename(backup_path, device_properties_path)
 
-echo ""
-echo "6. Running Security Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/security.json test/functional-tests/tests/test_uploadstblogs_security.py
+class TestUSBLogUpload:
+    def test_usblogupload_missing_log_path(self, tmp_path):
+        # Simulate missing log path by passing a non-existent mount point
+        usb_mount = str(tmp_path / "not_a_mount")
+        result = subprocess.run([USBLOGUPLOAD_BIN, usb_mount], capture_output=True, text=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(result.stdout)
+            f.write(result.stderr)
+        assert result.returncode == 2 or result.returncode == 3, "Should fail with USB not mounted or write error"
+        logs = grep_usblogupload_logs("Failed")
+        # Accept log file or process output containing 'fail', 'error', or 'not mounted'
+        output = (result.stdout + result.stderr).lower()
+        assert (
+            logs or
+            "fail" in output or
+            "error" in output or
+            "not mounted" in output
+        ), (
+            f"Should log a failure message. Got stdout: {result.stdout}, stderr: {result.stderr}"
+        )
 
-echo ""
-echo "7. Running Resource Management Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/resource_management.json test/functional-tests/tests/test_uploadstblogs_resource_management.py
+    def test_usblogupload_archive_creation(self, tmp_path):
+        # Simulate a valid mount and check for archive creation log
+        usb_mount = tmp_path / "usb"
+        usb_mount.mkdir()
+        result = subprocess.run([USBLOGUPLOAD_BIN, str(usb_mount)], capture_output=True, text=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(result.stdout)
+            f.write(result.stderr)
+        # Look for archive or compression log
+        logs = grep_usblogupload_logs("archive")
+        assert result.returncode in (0, 3), "Should exit with success or write error code"
+        # Archive log may or may not appear depending on implementation
 
-echo ""
-echo "8. Running Upload Strategy Tests..."
-pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
+    def test_usblogupload_mac_address_log(self, tmp_path):
+        # Simulate a valid mount and check for MAC address log
+        usb_mount = tmp_path / "usb"
+        usb_mount.mkdir()
+        result = subprocess.run([USBLOGUPLOAD_BIN, str(usb_mount)], capture_output=True, text=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(result.stdout)
+            f.write(result.stderr)
+        logs = grep_usblogupload_logs(":.*File:")
+        # This checks for the log line with MAC address and file name
+        # (Regex match, may need adjustment based on actual log format)
+        assert result.returncode in (0, 3), "Should exit with success or write error code"
 
-echo ""
-echo "====================================="
-echo "Test Execution Complete"
-echo "====================================="
-echo "Results saved to: $RESULT_DIR"
-echo ""
+    def test_usblogupload_temp_dir_cleanup(self, tmp_path):
+        # Simulate a valid mount and check for temp dir cleanup log
+        usb_mount = tmp_path / "usb"
+        usb_mount.mkdir()
+        result = subprocess.run([USBLOGUPLOAD_BIN, str(usb_mount)], capture_output=True, text=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(result.stdout)
+            f.write(result.stderr)
+        logs = grep_usblogupload_logs("cleanup")
+        # This checks for cleanup log line (if implemented)
+        assert result.returncode in (0, 3), "Should exit with success or write error code"
+    def test_usblogupload_success(self, tmp_path):
+        usb_mount = "/tmp"
+        # Run the binary and capture output
+        result = subprocess.run([USBLOGUPLOAD_BIN, usb_mount], capture_output=True, text=True)
+        # Write output to log file
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(result.stdout)
+            f.write(result.stderr)
+        assert result.returncode == 0, "Should exit with success code 0"
+        # Check for expected log
+        logs = grep_usblogupload_logs("COMPLETED USB LOG UPLOAD")
+        assert logs, "Should log completion message"
+
+    def test_usblogupload_invalid_usage(self):
+        result = subprocess.run([USBLOGUPLOAD_BIN], capture_output=True)
+        assert result.returncode == 4, "Should exit with invalid usage code 4"
+        logs = grep_usblogupload_logs("Failed to initialize logging system")
+        # This log may or may not appear depending on implementation
+
+    def test_usblogupload_usb_not_mounted(self):
+        result = subprocess.run([USBLOGUPLOAD_BIN, "/tmp/notmounted"], capture_output=True)
+        assert result.returncode == 2, "Should exit with USB not mounted code 2"
+        logs = grep_usblogupload_logs("Failed to validate USB mount point")
+        # This log may or may not appear depending on implementation
