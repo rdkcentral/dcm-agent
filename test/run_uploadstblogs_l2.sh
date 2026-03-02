@@ -29,9 +29,15 @@ mkdir -p "$RESULT_DIR"
 
 # Setup debug logging
 echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
-echo "RDK_PROFILE=TV" >> /etc/device.properties
 
 # Ensure properties files exist
+
+if grep -q '^RDK_PROFILE=' /etc/device.properties; then
+  sed -i 's/^RDK_PROFILE=.*/RDK_PROFILE=TV/' /etc/device.properties
+else
+  echo 'RDK_PROFILE=TV' >> /etc/device.properties
+fi
+
 if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
     echo "LOG_PATH=/opt/logs/" >> /etc/include.properties
 fi
