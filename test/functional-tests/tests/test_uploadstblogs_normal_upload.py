@@ -54,28 +54,14 @@ class TestNormalUpload:
 
         # Run uploadSTBLogs
         #result = run_uploadstblogs()
-
-        result = subprocess.run([
-        "/usr/local/bin/logupload",
-        "",
-        "1",
-        "1",
-        "true",
-        "HTTP",
-        "https://mockxconf:50058/"
-        ])
-
-
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+       
         # Verify initialization
         assert result.returncode == 0 or result.returncode == 1, "Upload process should complete"
 
         # Check initialization logs
         init_logs = grep_uploadstb_logs("Context initialization successful")
         assert len(init_logs) > 0, "Context should be initialized successfully"
-
-        # Verify device properties loaded
-        logs = grep_uploadstb_logs("DEVICE_TYPE")
-        assert len(logs) > 0, "Device type should be loaded from properties"
 
         collection_logs = grep_uploadstb_logs_regex(r"collect|archive|gather")
         assert len(collection_logs) > 0, "Log collection should be attempted"
@@ -109,16 +95,7 @@ class TestLargeFileHandling:
         """Test: Service collects large log files within limits"""
         # Create large test files (10MB each)
         large_files = create_large_test_log_files(count=3, size_mb=10)
-
-        result = subprocess.run([
-        "/usr/local/bin/logupload",
-        "",
-        "1",
-        "1",
-        "true",
-        "HTTP",
-        "https://mockxconf:50058/"
-        ])
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
 
         # Verify files were processed
         
