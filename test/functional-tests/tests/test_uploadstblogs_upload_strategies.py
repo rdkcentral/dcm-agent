@@ -163,16 +163,17 @@ class TestDCMScheduledStrategy:
 
     @pytest.mark.order(1)
     def test_dcm_scheduled_trigger(self):
-            """Test: DCM scheduled upload is triggered correctly"""
-            restore_device_properties()
-            # Create test log files in /opt/logs
-            for i in range(2):
-                subprocess.run(f"dd if=/dev/urandom of=/opt/logs/test_log_{i}.log bs=1024 count=100 2>/dev/null", shell=True)
-            # DCM scheduled upload (FLAG=0, DCM_FLAG=0, TriggerType=0)
-            result = subprocess.run("/usr/local/bin/logupload '' 0 0 0 HTTP http://localhost:8080 0 0 '' >> /opt/logs/logupload.log.0",shell=True)
-            # Check for DCM processing
-            dcm_logs = grep_uploadstb_logs_regex(r"DCM|scheduled|FLAG.*0")
-            assert len(dcm_logs) > 0, "DCM scheduled upload should be processed"
+        """Test: DCM scheduled upload is triggered correctly"""
+        create_test_log_files(count=2)
+        
+        # DCM scheduled upload (FLAG=0, DCM_FLAG=0, TriggerType=0)
+        args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
+        
+        result = run_uploadstblogs(args)
+        
+        # Check for DCM processing
+        dcm_logs = grep_uploadstb_logs_regex(r"DCM|scheduled|FLAG.*0")
+        assert len(dcm_logs) > 0, "DCM scheduled upload should be processed"
 
     @pytest.mark.order(2)
     def test_dcm_log_collection(self):
