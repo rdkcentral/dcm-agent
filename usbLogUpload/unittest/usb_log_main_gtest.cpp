@@ -21,6 +21,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "../../uploadstblogs/unittest/mocks/mock_file_operations.h"
 
 extern "C" {
 #include "usb_log_main.h"
@@ -70,4 +71,17 @@ TEST_F(UsbLogMainTest, MainArgumentValidationTest) {
     char* test_argv[] = {(char*)"usblogupload", (char*)"/tmp/test_usb"};
     // This would require refactoring main to be testable
     EXPECT_TRUE(true); // Placeholder
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int result = RUN_ALL_TESTS();
+
+    // Ensure global mock is cleaned up
+    if (g_mockFileOperations) {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+
+    return result;
 }
