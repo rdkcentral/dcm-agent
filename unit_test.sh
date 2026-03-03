@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=true
+ENABLE_COV=false
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
