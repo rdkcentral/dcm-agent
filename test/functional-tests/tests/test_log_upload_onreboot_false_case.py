@@ -36,7 +36,6 @@ def test_upload_cron_present():
 
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
-    sleep(420)
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
 
