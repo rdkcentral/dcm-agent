@@ -55,7 +55,7 @@ cp include/*.h /usr/local/include
 sh  build_inside_container.sh
 
 cd ${ROOT}
-git clone https://github.com/rdkcentral/common_utilities.git
+git clone https://github.com/rdkcentral/common_utilities.git -b feature/certupload
 cd common_utilities
 autoreconf -i
 ./configure --enable-rdkcertselector --enable-mountutils --prefix=${INSTALL_DIR} CFLAGS="-Wno-stringop-truncation -DL2_TEST_ENABLED -DRDK_LOGGER"
