@@ -36,8 +36,7 @@ def test_upload_cron_present():
 
 @pytest.mark.run(order=2)
 def test_upload_script_started_onboot_false():
-    assert "UploadOnReboot=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadLogOnReboot with false" in grep_dcmdlogs("Called uploadLogOnReboot with false")
+    assert "Triggering log upload without reboot flag via library API" in grep_dcmdlogs("Triggering log upload without reboot flag via library API")
     sleep(420)
 
 @pytest.mark.run(order=3)
@@ -52,8 +51,7 @@ def test_upload_cron_scheduled():
 
 @pytest.mark.run(order=5)
 def test_upload_script_started():
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
-    assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
+    assert "Start log upload via library API"  in grep_dcmdlogs("Start log upload via library API")
 
 @pytest.mark.run(order=6)
 def test_fwupdate_script_started():

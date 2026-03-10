@@ -42,15 +42,6 @@ extern "C" {
 int validate_usb_mount_point(const char *mount_point);
 
 /**
- * @brief Validate system prerequisites
- * 
- * Checks that all required system components and utilities are available.
- * 
- * @return int 0 if all prerequisites met, negative error code otherwise
- */
-int validate_system_prerequisites(void);
-
-/**
  * @brief Validate input parameters
  * 
  * @param argc Argument count

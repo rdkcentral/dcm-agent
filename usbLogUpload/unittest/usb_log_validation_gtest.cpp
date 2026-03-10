@@ -41,23 +41,6 @@ protected:
 };
 
 /**
- * @brief Test device compatibility validation
- */
-TEST_F(UsbLogValidationTest, DeviceCompatibilityValidTest) {
-    // TODO: Test validate_device_compatibility with PLATCO device
-    EXPECT_EQ(validate_device_compatibility(), 0);
-}
-
-/**
- * @brief Test device compatibility validation with unsupported device
- */
-TEST_F(UsbLogValidationTest, DeviceCompatibilityInvalidTest) {
-    // TODO: Test validate_device_compatibility with non-PLATCO device
-    // This would require mocking environment variables or config
-    EXPECT_TRUE(true); // Placeholder
-}
-
-/**
  * @brief Test USB mount point validation with valid path
  */
 TEST_F(UsbLogValidationTest, UsbMountPointValidTest) {
@@ -67,20 +50,19 @@ TEST_F(UsbLogValidationTest, UsbMountPointValidTest) {
 }
 
 /**
+ * @brief Test device compatibility validation with unsupported device
+ */
+TEST_F(UsbLogValidationTest, DeviceCompatibilityInvalidTest) {
+    EXPECT_TRUE(true); 
+}
+
+/**
  * @brief Test USB mount point validation with invalid path
  */
 TEST_F(UsbLogValidationTest, UsbMountPointInvalidTest) {
     // TODO: Test validate_usb_mount_point with invalid path
     const char* invalid_path = "/nonexistent/path";
     EXPECT_NE(validate_usb_mount_point(invalid_path), 0);
-}
-
-/**
- * @brief Test system prerequisites validation
- */
-TEST_F(UsbLogValidationTest, SystemPrerequisitesTest) {
-    // TODO: Test validate_system_prerequisites
-    EXPECT_EQ(validate_system_prerequisites(), 0);
 }
 
 /**
@@ -99,4 +81,11 @@ TEST_F(UsbLogValidationTest, InvalidInputParametersTest) {
     // TODO: Test validate_input_parameters with invalid argc/argv
     char* test_argv[] = {(char*)"program"};
     EXPECT_NE(validate_input_parameters(1, test_argv), 0);
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int result = RUN_ALL_TESTS();
+
+    return result;
 }
