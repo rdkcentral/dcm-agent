@@ -126,6 +126,7 @@ bool create_directory(const char* dirpath)
                 if (createDir(path_copy) != RDK_API_SUCCESS) {
                     RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create directory %s\n", 
                             __FUNCTION__, __LINE__, path_copy);
+                    // coverity[MISSING_RESTORE : FALSE] Restore is not needed because function returns immediately.
                     return false;
                 }
             }
