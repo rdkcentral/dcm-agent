@@ -151,7 +151,6 @@ typedef struct {
 
 #define MAX_SPECIAL_FILES 32  // Maximum number of special files to handle
 ```
-```
 
 ### 3.2 Memory Management Strategy
 - Use fixed-size buffers to avoid dynamic allocation
