@@ -110,7 +110,7 @@ END
 START HDD Disabled Strategy
   |
   v
-Remove existing last_bootfile
+Remove existing last_reboot marker
   |
   v  
 Check for messages.txt in Previous Logs
