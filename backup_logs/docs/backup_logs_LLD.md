@@ -182,9 +182,8 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config);
 int backup_execute_common_operations(const backup_config_t* config);
 
 // Helper function to move log files by pattern
-int move_log_files_by_pattern(const char* source_dir, const char* dest_dir);
-``` 
-                                 char* timestamp_dir, size_t dir_size);
+int move_log_files_by_pattern(const char* source_dir, const char* dest_dir,
+                               char* timestamp_dir, size_t dir_size);
 
 // Create last_reboot marker file
 int backup_create_reboot_marker(const char* directory);
