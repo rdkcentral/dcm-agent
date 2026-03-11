@@ -2,7 +2,7 @@
  * If not stated otherwise in this file or this component's LICENSE
  * file the following copyright and licenses apply:
  *
- * Copyright 2026 Comcast Cable Communications Management, LLC
+ * Copyright 2024 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +98,16 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
     
     const char* sysLog = "messages.txt";
     char syslog_path[PATH_MAX];
-    snprintf(syslog_path, sizeof(syslog_path), "%s/%s", config->prev_log_path, sysLog);
+    
+    /* Check path length to avoid truncation */
+    if (strlen(config->prev_log_path) + strlen("/") + strlen(sysLog) >= PATH_MAX) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Path too long: %s\n", config->prev_log_path);
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
+    strcpy(syslog_path, config->prev_log_path);
+    strcat(syslog_path, "/");
+    strcat(syslog_path, sysLog);
     
     if (filePresentCheck(syslog_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "First time backup - moving logs to %s\n", config->prev_log_path);
@@ -107,7 +116,15 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
         
         /* Touch last_reboot */
         char last_reboot_path[PATH_MAX];
-        snprintf(last_reboot_path, sizeof(last_reboot_path), "%s/last_reboot", config->prev_log_path);
+        
+        /* Check path length */
+        if (strlen(config->prev_log_path) + 13 >= PATH_MAX) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Path too long for last_reboot\n");
+            return BACKUP_ERROR_FILESYSTEM;
+        }
+        
+        strcpy(last_reboot_path, config->prev_log_path);
+        strcat(last_reboot_path, "/last_reboot");
         FILE *fp = fopen(last_reboot_path, "a");
         if (fp) {
             fclose(fp);
@@ -122,7 +139,15 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
             while ((entry = readdir(dir)) != NULL) {
                 if (strcmp(entry->d_name, "last_reboot") == 0) {
                     char marker_path[PATH_MAX];
-                    snprintf(marker_path, sizeof(marker_path), "%s/%s", config->prev_log_path, entry->d_name);
+                    
+                    /* Check path length */
+                    if (strlen(config->prev_log_path) + strlen("/") + strlen(entry->d_name) >= PATH_MAX) {
+                        continue; /* Skip this file if path would be too long */
+                    }
+                    
+                    strcpy(marker_path, config->prev_log_path);
+                    strcat(marker_path, "/");
+                    strcat(marker_path, entry->d_name);
                     remove(marker_path);
                 }
             }
@@ -139,7 +164,15 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
         timeinfo = localtime(&rawtime);
         strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M-%S%p", timeinfo);
         
-        snprintf(timestamped_path, sizeof(timestamped_path), "%s/logbackup-%s", config->prev_log_path, timestamp);
+        /* Check path length */
+        if (strlen(config->prev_log_path) + strlen("/logbackup-") + strlen(timestamp) >= PATH_MAX) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Timestamped path would be too long\n");
+            return BACKUP_ERROR_FILESYSTEM;
+        }
+        
+        strcpy(timestamped_path, config->prev_log_path);
+        strcat(timestamped_path, "/logbackup-");
+        strcat(timestamped_path, timestamp);
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Creating timestamped backup directory: %s\n", timestamped_path);
         
         /* Create timestamped directory */
@@ -153,7 +186,15 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
         
         /* Touch last_reboot in timestamped directory */
         char last_reboot_path[PATH_MAX];
-        snprintf(last_reboot_path, sizeof(last_reboot_path), "%s/last_reboot", timestamped_path);
+        
+        /* Check path length */
+        if (strlen(timestamped_path) + 13 >= PATH_MAX) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Path too long for timestamped last_reboot\n");
+            return BACKUP_ERROR_FILESYSTEM;
+        }
+        
+        strcpy(last_reboot_path, timestamped_path);
+        strcat(last_reboot_path, "/last_reboot");
         FILE *fp = fopen(last_reboot_path, "a");
         if (fp) {
             fclose(fp);
@@ -174,15 +215,30 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
     
     /* Build file paths for checking */
     char syslog_path[PATH_MAX], bak1_path[PATH_MAX], bak2_path[PATH_MAX], bak3_path[PATH_MAX];
-    snprintf(syslog_path, sizeof(syslog_path), "%s/%s", config->prev_log_path, sysLog);
-    snprintf(bak1_path, sizeof(bak1_path), "%s/%s", config->prev_log_path, sysLogBAK1);
-    snprintf(bak2_path, sizeof(bak2_path), "%s/%s", config->prev_log_path, sysLogBAK2);
-    snprintf(bak3_path, sizeof(bak3_path), "%s/%s", config->prev_log_path, sysLogBAK3);
+    
+    /* Check base path length */
+    size_t base_len = strlen(config->prev_log_path);
+    if (base_len + 19 >= PATH_MAX) { /* 19 = strlen("/bak1_messages.txt") + 1 */
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Base path too long: %s\n", config->prev_log_path);
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
+    strcpy(syslog_path, config->prev_log_path); strcat(syslog_path, "/"); strcat(syslog_path, sysLog);
+    strcpy(bak1_path, config->prev_log_path); strcat(bak1_path, "/"); strcat(bak1_path, sysLogBAK1);
+    strcpy(bak2_path, config->prev_log_path); strcat(bak2_path, "/"); strcat(bak2_path, sysLogBAK2);
+    strcpy(bak3_path, config->prev_log_path); strcat(bak3_path, "/"); strcat(bak3_path, sysLogBAK3);
     
     /* Ensure paths end with slash for backup_and_recover_logs */
     char log_path_slash[PATH_MAX], prev_log_path_slash[PATH_MAX];
-    snprintf(log_path_slash, sizeof(log_path_slash), "%s/", config->log_path);
-    snprintf(prev_log_path_slash, sizeof(prev_log_path_slash), "%s/", config->prev_log_path);
+    
+    /* Check lengths */
+    if (strlen(config->log_path) + 2 >= PATH_MAX || strlen(config->prev_log_path) + 2 >= PATH_MAX) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Path too long for slash addition\n");
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
+    strcpy(log_path_slash, config->log_path); strcat(log_path_slash, "/");
+    strcpy(prev_log_path_slash, config->prev_log_path); strcat(prev_log_path_slash, "/");
     
     /* HDD disabled backup rotation logic */
     if (filePresentCheck(syslog_path) != 0) {
@@ -209,13 +265,21 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
     
     /* Touch last_reboot file */
     char last_reboot_path[PATH_MAX];
-    snprintf(last_reboot_path, sizeof(last_reboot_path), "%s/last_reboot", config->prev_log_path);
+    
+    /* Check path length */
+    if (strlen(config->prev_log_path) + 13 >= PATH_MAX) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Path too long for last_reboot\n");
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
+    strcpy(last_reboot_path, config->prev_log_path);
+    strcat(last_reboot_path, "/last_reboot");
     FILE *fp = fopen(last_reboot_path, "a");
     if (fp) {
         fclose(fp);
     }
     
-    /* Cleanup LOG_PATH like shell script does: rm -rf $LOG_PATH/*.* */
+    /* Cleanup LOG_PATH like shell script does: rm -rf $LOG_PATH slash asterisk dot asterisk */
     DIR* dir = opendir(config->log_path);
     if (dir) {
         struct dirent* entry;
@@ -224,7 +288,15 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
                 continue;
             }
             char file_path[PATH_MAX];
-            snprintf(file_path, sizeof(file_path), "%s/%s", config->log_path, entry->d_name);
+            
+            /* Check path length */
+            if (strlen(config->log_path) + strlen("/") + strlen(entry->d_name) >= PATH_MAX) {
+                continue; /* Skip if path would be too long */
+            }
+            
+            strcpy(file_path, config->log_path);
+            strcat(file_path, "/");
+            strcat(file_path, entry->d_name);
             remove(file_path);
         }
         closedir(dir);
