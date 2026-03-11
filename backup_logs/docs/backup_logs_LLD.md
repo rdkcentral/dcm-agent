@@ -107,7 +107,6 @@ typedef struct backup_state {
 ## 3. Module Interface Definitions
 
 ### 3.1 Configuration Manager Module
-### 3.1 Configuration Manager Module
 ```c
 // config_manager.h (actual implementation interfaces)
 
