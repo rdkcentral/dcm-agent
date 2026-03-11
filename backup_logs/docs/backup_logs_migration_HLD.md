@@ -106,20 +106,19 @@ typedef struct {
     bool hdd_enabled;
 } backup_config_t;
 
-typedef struct {
-    char source_path[PATH_MAX];
-    char dest_path[PATH_MAX];
-    backup_operation_t operation;
-    char source_extension[32];
-    char dest_extension[32];
-} backup_operation_t;
-
 typedef enum {
     BACKUP_OP_MOVE,
     BACKUP_OP_COPY,
     BACKUP_OP_DELETE
 } backup_operation_type_t;
 
+typedef struct {
+    char source_path[PATH_MAX];
+    char dest_path[PATH_MAX];
+    backup_operation_type_t operation;
+    char source_extension[32];
+    char dest_extension[32];
+} backup_operation_t;
 typedef struct {
     int error_code;
     char error_message[256];
