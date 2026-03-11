@@ -130,6 +130,13 @@ int backup_logs_init(backup_config_t *config) {
     
     /* Touch persistent file like shell script does */
     char persistent_file[PATH_MAX];
+    
+    /* Check path length to avoid truncation */
+    if (strlen(config->persistent_path) + strlen("/logFileBackup") >= PATH_MAX) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Persistent path too long: %s\n", config->persistent_path);
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
     snprintf(persistent_file, sizeof(persistent_file), "%s/logFileBackup", config->persistent_path);
     
     /* Create persistent directory if it doesn't exist */
@@ -163,6 +170,13 @@ int backup_logs_execute(const backup_config_t *config) {
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Starting backup execution process\n");
     /* Find and remove last_reboot file like shell script does */
     char last_bootfile[PATH_MAX];
+    
+    /* Check path length to avoid truncation */
+    if (strlen(config->prev_log_path) + strlen("/last_reboot") >= PATH_MAX) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Previous log path too long: %s\n", config->prev_log_path);
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    
     snprintf(last_bootfile, sizeof(last_bootfile), "%s/last_reboot", config->prev_log_path);
     
     if (filePresentCheck(last_bootfile) == 0) {
