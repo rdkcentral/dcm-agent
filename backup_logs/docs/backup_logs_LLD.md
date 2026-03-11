@@ -818,39 +818,47 @@ int fileops_find_pattern_optimized(const char* directory, const char* pattern,
 
 ### 8.1 Resource Cleanup Framework
 ```c
+#define MAX_CLEANUP_HANDLERS 16
+
 typedef struct cleanup_handler {
     void (*cleanup_func)(void*);
     void* resource;
-    struct cleanup_handler* next;
+    bool in_use;
 } cleanup_handler_t;
 
-static cleanup_handler_t* g_cleanup_list = NULL;
+static cleanup_handler_t g_cleanup_handlers[MAX_CLEANUP_HANDLERS];
 
 int register_cleanup(void (*cleanup_func)(void*), void* resource) {
-    cleanup_handler_t* handler = malloc(sizeof(cleanup_handler_t));
-    if (!handler) {
+    int i;
+
+    if (cleanup_func == NULL) {
         return -1;
     }
-    
-    handler->cleanup_func = cleanup_func;
-    handler->resource = resource;
-    handler->next = g_cleanup_list;
-    g_cleanup_list = handler;
-    
-    return 0;
+
+    for (i = 0; i < MAX_CLEANUP_HANDLERS; ++i) {
+        if (!g_cleanup_handlers[i].in_use) {
+            g_cleanup_handlers[i].cleanup_func = cleanup_func;
+            g_cleanup_handlers[i].resource = resource;
+            g_cleanup_handlers[i].in_use = true;
+            return 0;
+        }
+    }
+
+    /* No free slot available */
+    return -1;
 }
 
 void execute_all_cleanup(void) {
-    cleanup_handler_t* current = g_cleanup_list;
-    while (current) {
-        if (current->cleanup_func && current->resource) {
-            current->cleanup_func(current->resource);
+    int i;
+
+    for (i = 0; i < MAX_CLEANUP_HANDLERS; ++i) {
+        if (g_cleanup_handlers[i].in_use && g_cleanup_handlers[i].cleanup_func != NULL) {
+            g_cleanup_handlers[i].cleanup_func(g_cleanup_handlers[i].resource);
+            g_cleanup_handlers[i].cleanup_func = NULL;
+            g_cleanup_handlers[i].resource = NULL;
+            g_cleanup_handlers[i].in_use = false;
         }
-        cleanup_handler_t* next = current->next;
-        free(current);
-        current = next;
     }
-    g_cleanup_list = NULL;
 }
 
 // Signal handler for graceful shutdown
