@@ -121,11 +121,11 @@ const char* config_get_log_path(void);
 bool config_is_hdd_enabled(void);
 
 // Special files configuration interface
-int special_files_config_load(special_files_config_t* config, const char* config_file);
-int special_files_config_validate(const special_files_config_t* config);
-void special_files_config_free(special_files_config_t* config);
-int special_files_execute_operations(const special_files_config_t* config, 
-                                   const backup_config_t* backup_config);
+int special_files_load_config(special_files_config_t* config, const char* config_file);
+int special_files_validate_config(const special_files_config_t* config);
+void special_files_free_config(special_files_config_t* config);
+int special_files_execute_all(const special_files_config_t* config,
+                                const backup_config_t* backup_config);
 ```
 
 ### 3.2 Directory Manager Module
