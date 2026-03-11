@@ -42,7 +42,6 @@ backup_logs (main executable)
 - **Responsibilities**:
   - Parse `/etc/include.properties`
   - Parse `/etc/device.properties`
-  - Parse `/etc/env_setup.sh` if available
   - Validate configuration parameters
   - Provide configuration data to other modules
 
