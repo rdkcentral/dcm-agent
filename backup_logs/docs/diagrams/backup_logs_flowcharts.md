@@ -343,12 +343,11 @@ Operation Successful?
 ### Main Backup Process Flow (Mermaid)
 ```mermaid
 flowchart TD
-    A[Start backup_logs] --> B[Load Configuration]
-    B --> C{Configuration Valid?}
-    C -->|No| D[Log Error & Exit]
-    C -->|Yes| E[Initialize Logging]
-    
-    E --> F[Create Log Workspace]
+    A[Start backup_logs] --> B[Initialize Logging]
+    B --> C[Load Configuration]
+    C --> D{Configuration Valid?}
+    D -->|No| E[Log Error & Exit]
+    D -->|Yes| F[Create Log Workspace]
     F --> G[Create Previous Log Directories]
     G --> H[Check Disk Threshold]
     
@@ -383,7 +382,7 @@ flowchart TD
     AA --> BB[Send Systemd Notification]
     BB --> CC[End]
     
-    D --> CC
+    E --> CC
 ```
 
 ### HDD Disabled Strategy Detail (Mermaid)
