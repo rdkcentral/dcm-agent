@@ -253,11 +253,11 @@ backup_logs_CPPFLAGS = -DRDK_LOGGER_EXT
 - RDK property system for LOG_PATH and HDD_ENABLED configuration
 - Access to `/proc` filesystem for system information
 
-### 5.2 External Scripts
+### 5.5 External Scripts
 - `/lib/rdk/disk_threshold_check.sh` - Disk usage monitoring
 - Configuration parsing utilities for shell variable format
 
-### 5.3 File System Requirements
+### 5.6 File System Requirements
 - Write access to log directories
 - Sufficient disk space for log rotation (minimum 2x current log size)
 - Support for atomic file operations (rename)
