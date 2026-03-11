@@ -210,6 +210,10 @@ int backup_logs_cleanup(backup_config_t *config) {
 
 /* Main entry point */
 int backup_logs_main(int argc, char *argv[]) {
+    /* Suppress unused parameter warnings */
+    (void)argc;
+    (void)argv;
+    
     int result;
     backup_config_t config = {0};
 
