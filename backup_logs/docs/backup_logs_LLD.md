@@ -331,11 +331,6 @@ int config_load_rdk_properties(backup_config_t* config) {
     return BACKUP_SUCCESS;
 }
 ```
-    
-    return 1;  // Success
-}
-```
-
 ### 4.2 HDD-Disabled Backup Level Detection
 ```c
 backup_level_t backup_detect_level_hdd_disabled(const backup_config_t* config) {
