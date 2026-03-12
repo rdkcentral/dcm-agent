@@ -25,7 +25,6 @@ bin_PROGRAMS = backup_logs
 backup_logs_SOURCES = \
     src/backup_logs.c \
     src/backup_engine.c \
-    src/backup_utils.c \
     src/config_manager.c \
     src/special_files.c \
     src/sys_integration.c
