@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 
 
@@ -59,8 +60,20 @@ int config_load(backup_config_t* config) {
     config->log_path[sizeof(config->log_path) - 1] = '\0';
     
     /* Build derived paths like the shell script does */
-    snprintf(config->prev_log_path, sizeof(config->prev_log_path), "%s/PreviousLogs", config->log_path);
-    snprintf(config->prev_log_backup_path, sizeof(config->prev_log_backup_path), "%s/PreviousLogs_backup", config->log_path);
+    int ret1 = snprintf(config->prev_log_path, sizeof(config->prev_log_path), "%s/PreviousLogs", config->log_path);
+    if (ret1 >= sizeof(config->prev_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "prev_log_path truncated: required %d bytes, available %zu\n", 
+                ret1, sizeof(config->prev_log_path));
+        return BACKUP_ERROR_CONFIG;
+    }
+    
+    int ret2 = snprintf(config->prev_log_backup_path, sizeof(config->prev_log_backup_path), "%s/PreviousLogs_backup", config->log_path);
+    if (ret2 >= sizeof(config->prev_log_backup_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "prev_log_backup_path truncated: required %d bytes, available %zu\n", 
+                ret2, sizeof(config->prev_log_backup_path));
+        return BACKUP_ERROR_CONFIG;
+    }
+    
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Derived paths - prev_log_path: %s, prev_log_backup_path: %s\n", 
             config->prev_log_path, config->prev_log_backup_path);
     
@@ -90,4 +103,70 @@ int config_load(backup_config_t* config) {
             config->log_path, config->persistent_path, config->hdd_enabled ? "true" : "false");
     
     return BACKUP_SUCCESS;
+}
+
+/* Global configuration instance */
+static backup_config_t g_config = {0};
+static bool g_config_loaded = false;
+
+/* Validate backup configuration */
+int config_validate(const backup_config_t* config) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting configuration validation\n");
+    
+    if (!config) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration validation failed: NULL config parameter\n");
+        return BACKUP_ERROR_INVALID_PARAM;
+    }
+
+    /* Check if log_path is set and valid */
+    if (strlen(config->log_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration validation failed: log_path is empty\n");
+        return BACKUP_ERROR_CONFIG;
+    }
+
+    /* Check if persistent_path is set and valid */
+    if (strlen(config->persistent_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration validation failed: persistent_path is empty\n");
+        return BACKUP_ERROR_CONFIG;
+    }
+
+    /* Check if derived paths are properly constructed */
+    if (strlen(config->prev_log_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration validation failed: prev_log_path is empty\n");
+        return BACKUP_ERROR_CONFIG;
+    }
+
+    if (strlen(config->prev_log_backup_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration validation failed: prev_log_backup_path is empty\n");
+        return BACKUP_ERROR_CONFIG;
+    }
+
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Configuration validation completed successfully\n");
+    return BACKUP_SUCCESS;
+}
+
+/* Get log path from configuration */
+const char* config_get_log_path(void) {
+    if (!g_config_loaded) {
+        if (config_load(&g_config) != BACKUP_SUCCESS) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to load configuration in config_get_log_path\n");
+            return NULL;
+        }
+        g_config_loaded = true;
+    }
+    
+    return g_config.log_path;
+}
+
+/* Check if HDD is enabled */
+bool config_is_hdd_enabled(void) {
+    if (!g_config_loaded) {
+        if (config_load(&g_config) != BACKUP_SUCCESS) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to load configuration in config_is_hdd_enabled\n");
+            return true;  /* Default to true on error */
+        }
+        g_config_loaded = true;
+    }
+    
+    return g_config.hdd_enabled;
 }
