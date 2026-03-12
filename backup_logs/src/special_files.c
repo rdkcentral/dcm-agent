@@ -142,8 +142,13 @@ int special_files_execute_entry(const special_file_entry_t* entry,
     /* Build full destination path using backup config */
     char full_dest_path[PATH_MAX];
     if (backup_config && backup_config->log_path) {
-        snprintf(full_dest_path, sizeof(full_dest_path), "%s/%s", 
+        int ret = snprintf(full_dest_path, sizeof(full_dest_path), "%s/%s", 
                 backup_config->log_path, entry->destination_path);
+        if (ret >= (int)sizeof(full_dest_path)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "full_dest_path truncated: required %d bytes, available %zu\n", 
+                    ret, sizeof(full_dest_path));
+            return BACKUP_ERROR_CONFIG;
+        }
     } else {
         strncpy(full_dest_path, entry->destination_path, sizeof(full_dest_path) - 1);
         full_dest_path[sizeof(full_dest_path) - 1] = '\0';
