@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+
 #include "config_manager.h"
 #include "rdk_fwdl_utils.h"
 #include "common_device_api.h"
@@ -58,14 +60,14 @@ int config_load(backup_config_t* config) {
     
     /* Build derived paths like the shell script does */
     int ret1 = snprintf(config->prev_log_path, sizeof(config->prev_log_path), "%s/PreviousLogs", config->log_path);
-    if (ret1 >= sizeof(config->prev_log_path)) {
+    if (ret1 >= (int)sizeof(config->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "prev_log_path truncated: required %d bytes, available %zu\n", 
                 ret1, sizeof(config->prev_log_path));
         return BACKUP_ERROR_CONFIG;
     }
     
     int ret2 = snprintf(config->prev_log_backup_path, sizeof(config->prev_log_backup_path), "%s/PreviousLogs_backup", config->log_path);
-    if (ret2 >= sizeof(config->prev_log_backup_path)) {
+    if (ret2 >= (int)sizeof(config->prev_log_backup_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "prev_log_backup_path truncated: required %d bytes, available %zu\n", 
                 ret2, sizeof(config->prev_log_backup_path));
         return BACKUP_ERROR_CONFIG;
