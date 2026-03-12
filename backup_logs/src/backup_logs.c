@@ -33,7 +33,6 @@
 #include "backup_engine.h"
 #include "sys_integration.h"
 #include "special_files.h"
-#include "backup_utils.h"
 #include "system_utils.h"
 
 #define BACKUP_LOGS_VERSION "1.0.0"
