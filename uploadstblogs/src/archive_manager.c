@@ -700,7 +700,7 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
             __FUNCTION__, __LINE__, 
-            ctx->mac_address ? ctx->mac_address : "(NULL)", 
+            (ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL)", 
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
@@ -736,10 +736,36 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     // Write two 512-byte blocks of zeros (TAR EOF marker)
     char eof_blocks[TAR_BLOCK_SIZE * 2];
     memset(eof_blocks, 0, sizeof(eof_blocks));
-    gzwrite(gz, eof_blocks, sizeof(eof_blocks));
+    if (gzwrite(gz, eof_blocks, sizeof(eof_blocks)) != sizeof(eof_blocks)) {
+        int zerr = Z_OK;
+        const char* zmsg = gzerror(gz, &zerr);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] gzwrite failed to write EOF blocks (zerr=%d, msg=%s)\n",
+                __FUNCTION__, __LINE__, zerr, zmsg ? zmsg : "(null)");
+        ret = -1;
+    }
     
     // Close gzip file
-    gzclose(gz);
+    int gzclose_ret = gzclose(gz);
+    if (gzclose_ret != Z_OK) {
+        const char* zmsg = zError(gzclose_ret);
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+            "[%s:%d] gzclose failed (zret=%d, msg=%s)\n",
+            __FUNCTION__, __LINE__, gzclose_ret, zmsg ? zmsg : "(null)");
+        ret = -1;
+    }
+
+    if (ret != 0 && file_exists(archive_path)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] Removing incomplete archive: %s\n",
+                __FUNCTION__, __LINE__, archive_path);
+        errno = 0;
+        if (!remove_file(archive_path)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove incomplete archive: %s (errno=%d, %s)\n",
+                    __FUNCTION__, __LINE__, archive_path, errno, strerror(errno));
+        }
+    }
 
     if (ret == 0 && file_exists(archive_path)) {
         long size = get_archive_size(archive_path);
