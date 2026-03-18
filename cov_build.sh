@@ -58,7 +58,7 @@ cd ${ROOT}
 git clone https://github.com/rdkcentral/common_utilities.git
 cd common_utilities
 autoreconf -i
-./configure "--enable-rdkcertselector --enable-mountutils -DL2_TEST_ENABLED -DRDK_LOGGER"
+./configure --enable-rdkcertselector --enable-mountutils CFLAGS="-DL2_TEST_ENABLED -DRDK_LOGGER"
 cp uploadutils/*.h /usr/local/include
 make
 make install
