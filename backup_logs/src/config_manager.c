@@ -77,7 +77,7 @@ int config_load(backup_config_t* config) {
             config->prev_log_path, config->prev_log_backup_path);
     
     /* Handle APP_PERSISTENT_PATH like the shell script */
-    if (getDevicePropertyData("APP_PERSISTENT_PATH", app_persistent_path_buf, sizeof(app_persistent_path_buf)) == 0 && strlen(app_persistent_path_buf) > 0) {
+    if (getDevicePropertyData("APP_PERSISTENT_PATH", app_persistent_path_buf, sizeof(app_persistent_path_buf)) == UTILS_SUCCESS && strlen(app_persistent_path_buf) > 0) {
         strncpy(config->persistent_path, app_persistent_path_buf, sizeof(config->persistent_path) - 1);
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "APP_PERSISTENT_PATH loaded from properties: %s\n", app_persistent_path_buf);
     } else {
@@ -88,12 +88,12 @@ int config_load(backup_config_t* config) {
     config->persistent_path[sizeof(config->persistent_path) - 1] = '\0';
     
     /* Check HDD_ENABLED like shell script */
-    if (getDevicePropertyData("HDD_ENABLED", hdd_enabled_buf, sizeof(hdd_enabled_buf)) == 0) {
+    if (getDevicePropertyData("HDD_ENABLED", hdd_enabled_buf, sizeof(hdd_enabled_buf)) == UTILS_SUCCESS) {
         config->hdd_enabled = (strcmp(hdd_enabled_buf, "false") != 0);
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "HDD_ENABLED loaded from properties: %s (evaluated to %s)\n", 
                 hdd_enabled_buf, config->hdd_enabled ? "true" : "false");
     } else {
-        config->hdd_enabled = true;  /* Default to true if not found */
+        config->hdd_enabled = false;  /* Default to false if not found */
         RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "HDD_ENABLED not found in properties, using default: true\n");
     }
     
