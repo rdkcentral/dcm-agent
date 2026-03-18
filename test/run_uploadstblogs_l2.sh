@@ -31,6 +31,13 @@ mkdir -p "$RESULT_DIR"
 echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
 
 # Ensure properties files exist
+
+if grep -q '^RDK_PROFILE=' /etc/device.properties; then
+  sed -i 's/^RDK_PROFILE=.*/RDK_PROFILE=TV/' /etc/device.properties
+else
+  echo 'RDK_PROFILE=TV' >> /etc/device.properties
+fi
+
 if ! grep -q "LOG_PATH=/opt/logs/" /etc/include.properties; then
     echo "LOG_PATH=/opt/logs/" >> /etc/include.properties
 fi
@@ -52,6 +59,8 @@ if ! grep -q "BUILD_TYPE=" /etc/device.properties; then
     echo "BUILD_TYPE=dev" >> /etc/device.properties
 fi
 
+echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
+
 cd /usr/common_utilities
 sed -i '/file_upload\.sslverify/s/= 1;/= 0;/' uploadutils/mtls_upload.c
 sed -i 's/\(ret_code = setCommonCurlOpt(curl, s3url, NULL, \)true\()\)/\1false\2/g' uploadutils/uploadUtil.c
@@ -72,44 +81,48 @@ echo "====================================="
 # Run test suites
 
 echo ""
-echo "1. Running UploadLogsNow Tests..."
+echo "1. Running usbLogupload Tests..."
 pytest -v --json-report --json-report-summary \
-    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test4.py
+    --json-report-file $RESULT_DIR/usb_logupload.json test/functional-tests/tests/test_usb_logupload.py
 
 echo ""
-echo "2. Running Error Handling Tests..."
+echo "2. Running UploadLogsNow Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/uploadLogsNow.json test/functional-tests/tests/test_uploadLogsNow.py
+
+echo ""
+echo "3. Running Error Handling Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/error_handling.json test/functional-tests/tests/test_uploadstblogs_error_handling.py
 
-echo "AA:BB:CC:dd:EE:FF" >> /tmp/.estb_mac
 
 mkdir -p /opt/logs
 mkdir -p /opt/logs/PreviousLogs
 
 echo ""
-echo "3. Running Normal Upload Tests..."
+echo "4. Running Normal Upload Tests..."
 mkdir -p /opt/logs/PreviousLogs
 pytest -v --json-report --json-report-summary \
         --json-report-file $RESULT_DIR/upload_normal.json test/functional-tests/tests/test_uploadstblogs_normal_upload.py
 
 
 echo ""
-echo "4. Running Retry Logic Tests..."
+echo "5. Running Retry Logic Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/retry_logic.json test/functional-tests/tests/test_uploadstblogs_retry_logic.py
 
 echo ""
-echo "5. Running Security Tests..."
+echo "6. Running Security Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/security.json test/functional-tests/tests/test_uploadstblogs_security.py
 
 echo ""
-echo "6. Running Resource Management Tests..."
+echo "7. Running Resource Management Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/resource_management.json test/functional-tests/tests/test_uploadstblogs_resource_management.py
 
 echo ""
-echo "7. Running Upload Strategy Tests..."
+echo "8. Running Upload Strategy Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
 
