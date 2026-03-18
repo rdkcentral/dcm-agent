@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include <fnmatch.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 
 
@@ -343,7 +344,19 @@ int backup_and_recover_logs(const char* source, const char* dest,
         snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
         
         /* Check if it's a regular file (match shell script -type f) */
-        if (filePresentCheck(source_file) != 0) {
+        /* Skip directories - only process regular files */
+        struct stat file_stat;
+        if (stat(source_file, &file_stat) != 0) {
+            /* Skip if we can't stat the file */
+            continue;
+        }
+        if (S_ISDIR(file_stat.st_mode)) {
+            /* Skip directories - we don't want to backup directories to PreviousLogs */
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping directory: %s\n", source_file);
+            continue;
+        }
+        if (!S_ISREG(file_stat.st_mode)) {
+            /* Skip non-regular files (symlinks, devices, etc.) */
             continue;
         }
         
