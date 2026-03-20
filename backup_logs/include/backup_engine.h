@@ -67,6 +67,15 @@ int backup_and_recover_logs(const char* source, const char* dest,
                            const char* d_ext);
 
 /**
+ * @brief Move log files matching patterns (.txt, .log, bootlog)
+ * 
+ * @param source_dir Source directory path
+ * @param dest_dir Destination directory path
+ * @return int BACKUP_SUCCESS on success, error code on failure
+ */
+int move_log_files_by_pattern(const char* source_dir, const char* dest_dir);
+
+/**
  * @brief Rotate backup levels for HDD-disabled devices
  * 
  * @param config Backup configuration
