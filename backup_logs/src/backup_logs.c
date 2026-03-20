@@ -34,6 +34,7 @@
 #include "sys_integration.h"
 #include "special_files.h"
 #include "system_utils.h"
+#include <secure_wrapper.h>
 
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
@@ -155,7 +156,7 @@ int backup_logs_init(backup_config_t *config) {
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Checking for disk threshold check script: /lib/rdk/disk_threshold_check.sh\n");
     if (filePresentCheck("/lib/rdk/disk_threshold_check.sh") == 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing disk threshold check script with parameter 0 (bootup cleanup)\n");
-        result = system("/lib/rdk/disk_threshold_check.sh 0");
+        result = v_secure_system("/lib/rdk/disk_threshold_check.sh 0");
         if (result != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Disk threshold check script failed with exit code: %d\n", result);
             /* Continue anyway - not critical */
