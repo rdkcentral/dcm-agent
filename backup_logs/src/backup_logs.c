@@ -22,278 +22,251 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <getopt.h>
+#include <errno.h>
 
-
-
-#include "backup_logs.h"
-#include "backup_types.h"
-#include "config_manager.h"
-#include "backup_engine.h"
-#include "sys_integration.h"
 #include "special_files.h"
 #include "system_utils.h"
 
-#define BACKUP_LOGS_VERSION "1.0.0"
-#define BACKUP_LOGS_BUILD_DATE __DATE__
-#define DEBUG_INI_NAME "/etc/debug.ini"
-
-/* Initialize backup system */
-int backup_logs_init(backup_config_t *config) {
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup system initialization\n");
+/* Initialize special files manager */
+int special_files_init(void) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting special files manager initialization\n");
     
-    if (!config) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Backup initialization failed: NULL config parameter\n");
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Special files manager initialization completed successfully\n");
+    return BACKUP_SUCCESS;
+}
+
+/* Cleanup special files manager */
+void special_files_cleanup(void) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting special files manager cleanup\n");
+    
+    /* Nothing to cleanup */
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Special files manager cleanup completed\n");
+}
+
+/* Load special files configuration from config file */
+int special_files_load_config(special_files_config_t* config, const char* config_file) {
+    FILE* fp;
+    char line[512];
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting special files configuration loading from: %s\n", 
+            config_file ? config_file : "(null)");
+    
+    if (!config || !config_file) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration loading failed: NULL parameter (config=%p, config_file=%p)\n", 
+                (void*)config, (void*)config_file);
         return BACKUP_ERROR_INVALID_PARAM;
     }
-    /* Initialize RDK logging */
-#ifdef RDK_LOGGER_EXT
-    /* Extended RDK logger configuration */
-    rdk_logger_ext_config_t logger_config = {
-        .pModuleName = "LOG.RDK.BACKUPLOGS",       /* Module name */
-        .loglevel = RDK_LOG_INFO,                  /* Default log level */
-        .output = RDKLOG_OUTPUT_CONSOLE,           /* Output to console (stdout/stderr) */
-        .format = RDKLOG_FORMAT_WITH_TS,           /* Timestamped format */
-        .pFilePolicy = NULL                        /* Not using file output, so NULL */
-    };
     
-    if (rdk_logger_ext_init(&logger_config) != RDK_SUCCESS) {
-        printf("BACKUP_LOGS : ERROR - Extended logger init failed\n");
-    }
-#endif
-
-#ifdef RDK_LOGGER_ENABLED
-    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized successfully\n");
-    } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "RDK Logger initialization failed, logging may not work properly\n");
-    }
-#endif
+    /* Initialize config */
+    config->count = 0;
+    config->config_loaded = false;
     
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Initializing backup system configuration\n");
-    
-    /* Initializing backup system */
-    
-    /* Load configuration from properties files */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Loading backup configuration\n");
-    int result = config_load(config);
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Configuration loading failed with result: %d\n", result);
-        return result;
+    /* Try to open config file */
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Attempting to open config file: %s\n", config_file);
+    fp = fopen(config_file, "r");
+    if (!fp) {
+        /* Config file not found - return with empty config */
+        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Config file not found: %s (errno: %d - %s)\n", 
+                config_file, errno, strerror(errno));
+        config->config_loaded = false;
+        return BACKUP_ERROR_CONFIG;
     }
     
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Configuration loaded successfully - log_path: %s, hdd_enabled: %s\n", 
-            config->log_path, config->hdd_enabled ? "true" : "false");
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Config file opened successfully: %s\n", config_file);
     
-    /* Create log workspace if not there */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Creating log directory: %s\n", config->log_path);
-    if (createDir((char*)config->log_path) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to create log directory: %s\n", config->log_path);
-        return BACKUP_ERROR_FILESYSTEM;
-    }
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Log directory created/verified: %s\n", config->log_path);
-    
-    /* Create intermediate log workspace if not there */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Creating previous logs directory: %s\n", config->prev_log_path);
-    if (createDir((char*)config->prev_log_path) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to create previous logs directory: %s\n", config->prev_log_path);
-        return BACKUP_ERROR_FILESYSTEM;
-    }
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Previous logs directory created/verified: %s\n", config->prev_log_path);
-    
-    /* Create log backup workspace if not there, clean it if exists */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Creating/cleaning backup directory: %s\n", config->prev_log_backup_path);
-    if (createDir((char*)config->prev_log_backup_path) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to create backup directory: %s\n", config->prev_log_backup_path);
-        return BACKUP_ERROR_FILESYSTEM;
-    } else {
-        /* Clean the backup directory like shell script does: rm -rf $PREV_LOG_BACKUP_PATH/asterisk */
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Emptying backup directory: %s\n", config->prev_log_backup_path);
-        if (emptyFolder((char*)config->prev_log_backup_path) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to empty backup directory: %s\n", config->prev_log_backup_path);
-            /* Continue anyway - not critical */
-        } else {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Backup directory emptied successfully: %s\n", config->prev_log_backup_path);
+    /* Read lines from config file */
+    while (fgets(line, sizeof(line), fp) && config->count < MAX_SPECIAL_FILES) {
+        /* Skip comments and empty lines */
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') {
+            continue;
+        }
+        
+        /* Remove trailing newline */
+        char* newline = strchr(line, '\n');
+        if (newline) {
+            *newline = '\0';
+        }
+        newline = strchr(line, '\r');
+        if (newline) {
+            *newline = '\0';
+        }
+        
+        /* Skip empty lines after trimming */
+        if (strlen(line) == 0) {
+            continue;
+        }
+        
+        /* Process filename */
+        if (strlen(line) > 0) {
+            special_file_entry_t* entry = &config->entries[config->count];
+            
+            /* Copy source path directly */
+            strncpy(entry->source_path, line, sizeof(entry->source_path) - 1);
+            entry->source_path[sizeof(entry->source_path) - 1] = '\0';
+            
+            /* Determine destination filename from source path */
+            const char* filename = strrchr(line, '/');
+            if (filename) {
+                filename++; /* Skip the '/' */
+            } else {
+                filename = line; /* No path separator, use entire string */
+            }
+            
+            strncpy(entry->destination_path, filename, sizeof(entry->destination_path) - 1);
+            entry->destination_path[sizeof(entry->destination_path) - 1] = '\0';
+            
+            /* All operations will be determined manually in execute function */
+            entry->operation = SPECIAL_FILE_COPY; /* Default, will be overridden */
+            entry->conditional_check[0] = '\0';  /* No conditions */
+            
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Loaded special file entry %zu: source=%s, dest=%s\n", 
+                    config->count, entry->source_path, entry->destination_path);
+            config->count++;
         }
     }
     
-    /* Touch persistent file like shell script does */
-    char persistent_file[PATH_MAX];
+    fclose(fp);
+    config->config_loaded = true;
     
-    /* Check path length to avoid truncation */
-    size_t path_len = strlen(config->persistent_path);
-    if (path_len + 15 >= PATH_MAX) { /* 15 = strlen("/logFileBackup") + 1 for null terminator */
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Persistent path too long: %s\n", config->persistent_path);
-        return BACKUP_ERROR_FILESYSTEM;
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Special files configuration loading completed successfully - loaded %zu entries\n", config->count);
+    return BACKUP_SUCCESS;
+}
+
+/* Simple validation for special file entry */
+int special_files_validate_entry(const special_file_entry_t* entry) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Validating special file entry\n");
+    
+    if (!entry) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Entry validation failed: NULL entry parameter\n");
+        return BACKUP_ERROR_INVALID_PARAM;
     }
     
-    /* Safely construct the path */
-    strcpy(persistent_file, config->persistent_path);
-    strcat(persistent_file, "/logFileBackup");
+    if (strlen(entry->source_path) == 0 || strlen(entry->destination_path) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Entry validation failed: empty paths (source='%s', dest='%s')\n", 
+                entry->source_path, entry->destination_path);
+        return BACKUP_ERROR_CONFIG;
+    }
     
-    /* Create persistent directory if it doesn't exist */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Creating persistent directory: %s\n", config->persistent_path);
-    if (createDir((char*)config->persistent_path) != 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to create persistent directory: %s\n", config->persistent_path);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Entry validation successful for: %s -> %s\n", 
+            entry->source_path, entry->destination_path);
+    return BACKUP_SUCCESS;
+}
+
+/* Execute single special file operation */
+int special_files_execute_entry(const special_file_entry_t* entry, 
+                               const backup_config_t* backup_config) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting execution of special file entry\n");
+    
+    if (!entry) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Entry execution failed: NULL entry parameter\n");
+        return BACKUP_ERROR_INVALID_PARAM;
+    }
+    
+    /* Validate entry */
+    int result = special_files_validate_entry(entry);
+    if (result != BACKUP_SUCCESS) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Entry execution aborted due to validation failure\n");
+        return result;
+    }
+    
+    /* Build full destination path using backup config */
+    char full_dest_path[PATH_MAX];
+    if (backup_config && backup_config->log_path) {
+        int ret = snprintf(full_dest_path, sizeof(full_dest_path), "%s/%s", 
+                backup_config->log_path, entry->destination_path);
+        if (ret >= (int)sizeof(full_dest_path)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "full_dest_path truncated: required %d bytes, available %zu\n", 
+                    ret, sizeof(full_dest_path));
+            return BACKUP_ERROR_CONFIG;
+        }
     } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Persistent directory created/verified: %s\n", config->persistent_path);
+        strncpy(full_dest_path, entry->destination_path, sizeof(full_dest_path) - 1);
+        full_dest_path[sizeof(full_dest_path) - 1] = '\0';
     }
     
-    /* Touch the logFileBackup file */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Creating/touching persistent file: %s\n", persistent_file);
-    FILE *fp = fopen(persistent_file, "a");
-    if (fp) {
-        fclose(fp);
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Persistent file created/touched successfully: %s\n", persistent_file);
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Full destination path resolved: %s\n", full_dest_path);
+    
+    /* Check if source file exists */
+    if (filePresentCheck(entry->source_path) != 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Source file does not exist, skipping: %s\n", entry->source_path);
+        return BACKUP_SUCCESS;  /* File doesn't exist - not an error */
+    }
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Source file exists, proceeding with operation: %s\n", entry->source_path);
+    
+    /* Determine operation manually based on specific files like original script */
+    bool should_move = false;
+    if (strcmp(entry->source_path, "/tmp/disk_cleanup.log") == 0 ||
+        strcmp(entry->source_path, "/tmp/mount_log.txt") == 0 ||
+        strcmp(entry->source_path, "/tmp/mount-ta_log.txt") == 0) {
+        should_move = true;
+    }
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing %s operation: %s -> %s\n", 
+            should_move ? "MOVE" : "COPY", entry->source_path, full_dest_path);
+    
+    /* Execute operation */
+    if (should_move) {
+        /* Move operation: copy + delete */
+        result = copyFiles((char*)entry->source_path, full_dest_path);
+        if (result == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Copy completed, removing source file: %s\n", entry->source_path);
+            if (remove(entry->source_path) != 0) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to remove source file: %s (errno: %d - %s)\n", 
+                        entry->source_path, errno, strerror(errno));
+                result = -1;
+            } else {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Source file removed successfully: %s\n", entry->source_path);
+            }
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Copy operation failed for move: %s -> %s\n", 
+                    entry->source_path, full_dest_path);
+        }
     } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to create/touch persistent file: %s\n", persistent_file);
-        /* Continue anyway - not critical */
-    }
-    
-    /* Run disk threshold check if script exists */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Checking for disk threshold check script: /lib/rdk/disk_threshold_check.sh\n");
-    if (filePresentCheck("/lib/rdk/disk_threshold_check.sh") == 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing disk threshold check script with parameter 0 (bootup cleanup)\n");
-        result = system("/lib/rdk/disk_threshold_check.sh 0");
+        /* Copy operation for version files */
+        result = copyFiles((char*)entry->source_path, full_dest_path);
         if (result != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Disk threshold check script failed with exit code: %d\n", result);
-            /* Continue anyway - not critical */
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Copy operation failed: %s -> %s\n", 
+                    entry->source_path, full_dest_path);
         } else {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Disk threshold check script completed successfully\n");
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Copy operation completed successfully: %s -> %s\n", 
+                    entry->source_path, full_dest_path);
         }
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Disk threshold check script not found, skipping\n");
     }
     
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup system initialization completed successfully\n");
-    return BACKUP_SUCCESS;
+    int final_result = (result == 0) ? BACKUP_SUCCESS : BACKUP_ERROR_FILESYSTEM;
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Special file operation completed with result: %s\n", 
+            final_result == BACKUP_SUCCESS ? "SUCCESS" : "FAILURE");
+    
+    return final_result;
 }
 
-/* Execute complete backup process */
-int backup_logs_execute(const backup_config_t *config) {
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup execution process\n");
+/* Execute all special file operations from config */
+int special_files_execute_all(const special_files_config_t* config, 
+                             const backup_config_t* backup_config) {
+    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting execution of all special file operations\n");
     
     if (!config) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Backup execution failed: NULL config parameter\n");
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Execute all failed: NULL config parameter\n");
         return BACKUP_ERROR_INVALID_PARAM;
     }
     
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing backup with strategy: %s\n", 
-            config->hdd_enabled ? "HDD-enabled" : "HDD-disabled");
-    /* Find and remove last_reboot file like shell script does */
-    char last_bootfile[PATH_MAX];
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Processing %zu special file entries\n", config->count);
+    int success_count = 0;
     
-    /* Check path length to avoid truncation */
-    size_t path_len = strlen(config->prev_log_path);
-    if (path_len + 13 >= PATH_MAX) { /* 13 = strlen("/last_reboot") + 1 for null terminator */
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Previous log path too long: %s\n", config->prev_log_path);
-        return BACKUP_ERROR_FILESYSTEM;
-    }
-    
-    /* Safely construct the path */
-    strcpy(last_bootfile, config->prev_log_path);
-    strcat(last_bootfile, "/last_reboot");
-    
-    if (filePresentCheck(last_bootfile) == 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Found last_reboot file, removing: %s\n", last_bootfile);
-        if (removeFile(last_bootfile) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove last_reboot file: %s\n", last_bootfile);
-            /* Continue anyway - not critical */
+    /* Process all entries in config */
+    for (size_t i = 0; i < config->count; i++) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Processing special file entry %zu of %zu\n", i + 1, config->count);
+        int result = special_files_execute_entry(&config->entries[i], backup_config);
+        if (result == BACKUP_SUCCESS) {
+            success_count++;
         } else {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Successfully removed last_reboot file: %s\n", last_bootfile);
+            RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Special file entry %zu failed, continuing with remaining entries\n", i + 1);
         }
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "No last_reboot file found at: %s\n", last_bootfile);
+        /* Continue processing even if individual operations fail */
     }
     
-    /* Execute appropriate backup strategy based on HDD_ENABLED */
-    int result;
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing backup strategy for HDD_ENABLED=%s\n", 
-            config->hdd_enabled ? "true" : "false");
-    if (config->hdd_enabled) {
-        result = backup_execute_hdd_enabled_strategy(config);
-    } else {
-        result = backup_execute_hdd_disabled_strategy(config);
-    }
-    
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Backup strategy execution failed with result: %d\n", result);
-        return result;
-    }
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup strategy execution completed successfully\n");
-    
-    /* Execute common operations (special files, version files, systemd notification) */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting common backup operations\n");
-    result = backup_execute_common_operations(config);
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Common operations failed with result: %d, continuing\n", result);
-        /* Continue anyway - not critical for main backup operation */
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Common backup operations completed successfully\n");
-    }
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup execution process completed successfully\n");
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Special file operations completed: %d/%zu successful\n", 
+            success_count, config->count);
     return BACKUP_SUCCESS;
-}
-
-/* Cleanup and shutdown backup system */
-int backup_logs_cleanup(backup_config_t *config) {
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup system cleanup\n");
-    
-    /* Suppress unused parameter warning */
-    (void)config;
-    
-    /* Cleanup special files manager */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Cleaning up special files manager\n");
-    special_files_cleanup();
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup system cleanup completed successfully\n");
-    return BACKUP_SUCCESS;
-}
-
-/* Main entry point */
-int backup_logs_main(int argc, char *argv[]) {
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup_logs main function with %d arguments\n", argc);
-    
-    /* Suppress unused parameter warnings */
-    (void)argc;
-    (void)argv;
-    
-    int result;
-    backup_config_t config = {0};
-
-    /* Initialize backup system */
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Initializing backup system\n");
-    result = backup_logs_init(&config);
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to initialize backup system with result: %d\n", result);
-        return EXIT_FAILURE;
-    }
-
-    /* Execute backup process */
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Starting backup execution\n");
-    result = backup_logs_execute(&config);
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Backup execution failed with result: %d\n", result);
-        backup_logs_cleanup(&config);
-        return EXIT_FAILURE;
-    }
-
-    /* Cleanup and exit */
-    RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting cleanup and shutdown\n");
-    result = backup_logs_cleanup(&config);
-    if (result != BACKUP_SUCCESS) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Cleanup failed with result: %d\n", result);
-        return EXIT_FAILURE;
-    }
-
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
-    return EXIT_SUCCESS;
-}
-
-/* Standard main function for executable */
-int main(int argc, char *argv[]) {
-    return backup_logs_main(argc, argv);
 }
