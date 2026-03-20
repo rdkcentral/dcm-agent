@@ -50,17 +50,27 @@ int backup_logs_init(backup_config_t *config) {
     }
     /* Initialize RDK logging */
 #ifdef RDK_LOGGER_EXT
-    /* Extended RDK logger configuration */
+    /* Extended RDK logger configuration with file output */
+    rdk_LogOutput_File filelog;
+    strncpy(filelog.fileName, "backup_logs.log", sizeof(filelog.fileName)-1);
+    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
+    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
+    filelog.fileSizeMax = 51200;  /* 50KB max file size */
+    filelog.fileCountMax = 5;     /* Keep 5 rotated files */
+
     rdk_logger_ext_config_t logger_config = {
         .pModuleName = "LOG.RDK.BACKUPLOGS",       /* Module name */
         .loglevel = RDK_LOG_INFO,                  /* Default log level */
-        .output = RDKLOG_OUTPUT_CONSOLE,           /* Output to console (stdout/stderr) */
+        .output = RDKLOG_OUTPUT_FILE,              /* Output to FILE */
         .format = RDKLOG_FORMAT_WITH_TS,           /* Timestamped format */
-        .pFilePolicy = NULL                        /* Not using file output, so NULL */
+        .pFilePolicy = &filelog                    /* Using file output */
     };
     
     if (rdk_logger_ext_init(&logger_config) != RDK_SUCCESS) {
         printf("BACKUP_LOGS : ERROR - Extended logger init failed\n");
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized with file output: /opt/logs/backup_logs.log\n");
     }
 #endif
 
