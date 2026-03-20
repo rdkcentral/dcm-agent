@@ -53,7 +53,7 @@ special_files_gtest_LDADD = $(COMMON_LDADD)
 special_files_gtest_LDFLAGS = -Wl,--wrap=fopen -Wl,--wrap=fgets -Wl,--wrap=fclose -Wl,--wrap=remove
 special_files_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 special_files_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-config_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
+special_files_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
                                -DRDK_LOG_FATAL=0 \
                                -DRDK_LOG_ERROR=1 \
                                -DRDK_LOG_WARN=2 \
