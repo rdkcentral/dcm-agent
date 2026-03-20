@@ -303,8 +303,9 @@ int backup_logs_main(int argc, char *argv[]) {
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
     return EXIT_SUCCESS;
 }
-
+#ifndef GTEST_ENABLE
 /* Standard main function for executable */
 int main(int argc, char *argv[]) {
     return backup_logs_main(argc, argv);
 }
+#endif
