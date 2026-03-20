@@ -36,7 +36,7 @@ backup_logs_CPPFLAGS = -I$(top_srcdir)/include \
 
 backup_logs_CFLAGS = -Wall -Wextra -std=c99
 
-backup_logs_LDADD = -lm -lrdkloggers -lfwutils -lsystemd 
+backup_logs_LDADD = -lm -lrdkloggers -lfwutils -lsystemd -lsecure_wrapper
 
 backup_logs_LDFLAGS = -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib \
                       -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
