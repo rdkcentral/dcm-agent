@@ -61,17 +61,6 @@ int backup_logs_execute(const backup_config_t *config);
  */
 int backup_logs_cleanup(backup_config_t *config);
 
-/**
- * @brief Print version information
- */
-void backup_logs_print_version(void);
-
-/**
- * @brief Print usage information
- * 
- * @param program_name Name of the program
- */
-void backup_logs_print_usage(const char *program_name);
 
 #ifdef __cplusplus
 }
