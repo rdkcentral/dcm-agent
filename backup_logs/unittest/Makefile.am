@@ -30,7 +30,7 @@ EXTRA_DIST = Makefile.config_manager \
             run_backup_logs_test.py
 
 # Define the test executables
-bin_PROGRAMS = special_files_gtest config_manager_gtest sys_integration_gtest backup_logs_gtest
+bin_PROGRAMS = special_files_gtest config_manager_gtest sys_integration_gtest backup_logs_gtest backup_engine_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -I../include -I../../include -I../../../include -I/usr/include/cjson \
@@ -164,3 +164,47 @@ backup_logs_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
                            -Wl,--wrap=fclose
 backup_logs_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 backup_logs_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+# Backup engine test configuration
+backup_engine_gtest_SOURCES = backup_engine_gtest.cpp ../src/backup_engine.c
+
+backup_engine_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
+                              -DRDK_LOG_FATAL=0 \
+                              -DRDK_LOG_ERROR=1 \
+                              -DRDK_LOG_WARN=2 \
+                              -DRDK_LOG_NOTICE=3 \
+                              -DRDK_LOG_INFO=4 \
+                              -DRDK_LOG_DEBUG=5 \
+                              -DRDK_LOG_TRACE1=6 \
+                              -DRDK_LOG_TRACE2=7 \
+                              -DRDK_LOG_TRACE3=8 \
+                              -DRDK_LOG_TRACE4=9 \
+                              -DRDK_LOG_TRACE5=10 \
+                              -DRDK_LOG_TRACE6=11 \
+                              -DRDK_LOG_TRACE7=12 \
+                              -DRDK_LOG_TRACE8=13 \
+                              -DRDK_LOG_TRACE9=14 \
+                              -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
+                              -DUTILS_SUCCESS=1
+backup_engine_gtest_LDADD = $(COMMON_LDADD)
+backup_engine_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
+                             -Wl,--wrap=opendir \
+                             -Wl,--wrap=readdir \
+                             -Wl,--wrap=closedir \
+                             -Wl,--wrap=filePresentCheck \
+                             -Wl,--wrap=createDir \
+                             -Wl,--wrap=copyFiles \
+                             -Wl,--wrap=remove \
+                             -Wl,--wrap=fopen \
+                             -Wl,--wrap=fclose \
+                             -Wl,--wrap=stat \
+                             -Wl,--wrap=time \
+                             -Wl,--wrap=localtime \
+                             -Wl,--wrap=strftime \
+                             -Wl,--wrap=special_files_init \
+                             -Wl,--wrap=special_files_load_config \
+                             -Wl,--wrap=special_files_execute_all \
+                             -Wl,--wrap=special_files_cleanup \
+                             -Wl,--wrap=sys_send_systemd_notification
+backup_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
