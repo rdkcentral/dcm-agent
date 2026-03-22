@@ -68,6 +68,13 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
         
         /* Check if filename matches patterns: *.txt*, *.log*, bootlog */
         const char* name = entry->d_name;
+        
+        /* Exclude backup_logs.log from processing to prevent moving active log file */
+        if (strcmp(name, "backup_logs.log") == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping active log file: %s\n", name);
+            continue;
+        }
+        
         bool matches = (strcmp(name, "bootlog") == 0) || 
                       (strstr(name, ".txt") != NULL) || 
                       (strstr(name, ".log") != NULL);
@@ -340,6 +347,12 @@ int backup_and_recover_logs(const char* source, const char* dest,
             continue;
         }
         
+        /* Exclude backup_logs.log from processing to prevent moving active log file */
+        if (strcmp(entry->d_name, "backup_logs.log.0") == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping active log file: %s\n", entry->d_name);
+            continue;
+        }
+        
         /* Build full source file path */
         snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
         
@@ -452,4 +465,3 @@ int backup_execute_common_operations(const backup_config_t* config) {
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Common backup operations completed\n");
     return BACKUP_SUCCESS;
 }
-
