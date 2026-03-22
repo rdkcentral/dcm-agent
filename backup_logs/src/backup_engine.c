@@ -70,7 +70,7 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
         const char* name = entry->d_name;
         
         /* Exclude backup_logs.log from processing to prevent moving active log file */
-        if (strcmp(name, "backup_logs.log") == 0) {
+        if (strcmp(name, "backup_logs.log.0") == 0) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping active log file: %s\n", name);
             continue;
         }
