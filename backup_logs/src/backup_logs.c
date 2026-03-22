@@ -54,7 +54,7 @@ int backup_logs_init(backup_config_t *config) {
     rdk_LogOutput_File filelog;
     strncpy(filelog.fileName, "backup_logs.log", sizeof(filelog.fileName)-1);
     filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
-    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    strncpy(filelog.fileLocation, "/tmp/", sizeof(filelog.fileLocation)-1);
     filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
     filelog.fileSizeMax = 51200;  /* 50KB max file size */
     filelog.fileCountMax = 5;     /* Keep 5 rotated files */
