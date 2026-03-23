@@ -49,12 +49,28 @@ int sys_execute_script(const char* script_path, const char* args, int* result_co
 /**
  * @brief Get process status and resource usage
  * 
- * @param memory_usage Pointer to store memory usage in bytes
- * @param cpu_usage Pointer to store CPU usage percentage
+ * This default implementation is a stub that reports the functionality
+ * as unavailable. It ensures callers have a well-defined, linkable
+ * symbol even on platforms where process status monitoring is not
+ * supported.
+ * 
+ * @param memory_usage Pointer to store memory usage in bytes (set to 0 on failure)
+ * @param cpu_usage Pointer to store CPU usage percentage (set to 0.0f on failure)
  * @return int BACKUP_SUCCESS on success, error code on failure
  */
-int sys_get_process_status(long* memory_usage, float* cpu_usage);
+static inline int sys_get_process_status(long* memory_usage, float* cpu_usage)
+{
+    if (memory_usage != NULL) {
+        *memory_usage = 0L;
+    }
 
+    if (cpu_usage != NULL) {
+        *cpu_usage = 0.0f;
+    }
+
+    /* Functionality not implemented on this platform/build */
+    return -1;
+}
 /**
  * @brief Set signal handlers for graceful shutdown
  * 
