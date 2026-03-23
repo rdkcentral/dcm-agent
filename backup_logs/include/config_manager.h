@@ -37,28 +37,6 @@ extern "C" {
 int config_load(backup_config_t* config);
 
 /**
- * @brief Validate backup configuration
- * 
- * @param config Backup configuration to validate
- * @return int BACKUP_SUCCESS if valid, error code if invalid
- */
-int config_validate(const backup_config_t* config);
-
-/**
- * @brief Get log path from configuration
- * 
- * @return const char* Log path string or NULL if not set
- */
-const char* config_get_log_path(void);
-
-/**
- * @brief Check if HDD is enabled
- * 
- * @return true if HDD enabled, false otherwise
- */
-bool config_is_hdd_enabled(void);
-
-/**
  * @brief Load special files configuration
  * 
  * @param config Special files configuration structure
