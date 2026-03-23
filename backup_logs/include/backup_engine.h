@@ -75,59 +75,6 @@ int backup_and_recover_logs(const char* source, const char* dest,
  */
 int move_log_files_by_pattern(const char* source_dir, const char* dest_dir);
 
-/**
- * @brief Rotate backup levels for HDD-disabled devices
- * 
- * @param config Backup configuration
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int backup_rotate_levels(const backup_config_t* config);
-
-/**
- * @brief Check backup levels and determine rotation strategy
- * 
- * @param config Backup configuration
- * @param level1_exists Pointer to store level 1 existence status
- * @param level2_exists Pointer to store level 2 existence status
- * @param level3_exists Pointer to store level 3 existence status
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int backup_check_levels(const backup_config_t* config, 
-                       bool* level1_exists, bool* level2_exists, bool* level3_exists);
-
-/**
- * @brief Create reboot marker file
- * 
- * @param path Path where to create the marker
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int backup_create_reboot_marker(const char* path);
-
-/**
- * @brief Remove old reboot markers
- * 
- * @param path Path where to remove markers from
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int backup_remove_old_markers(const char* path);
-
-/**
- * @brief Create timestamped backup directory for HDD-enabled devices
- * 
- * @param base_path Base path for backup
- * @param timestamp_dir Pointer to store created directory name
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int backup_create_timestamped_dir(const char* base_path, char* timestamp_dir);
-
-/**
- * @brief Validate backup operation parameters
- * 
- * @param operation Backup operation to validate
- * @return int BACKUP_SUCCESS if valid, error code if invalid
- */
-int backup_validate_operation(const backup_operation_t* operation);
-
 #ifdef __cplusplus
 }
 #endif
