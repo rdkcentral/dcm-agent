@@ -94,7 +94,7 @@ int config_load(backup_config_t* config) {
                 hdd_enabled_buf, config->hdd_enabled ? "true" : "false");
     } else {
         config->hdd_enabled = false;  /* Default to false if not found */
-        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "HDD_ENABLED not found in properties, using default: true\n");
+        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "HDD_ENABLED not found in properties, using default: false\n");
     }
     
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Configuration loading completed successfully\n");
