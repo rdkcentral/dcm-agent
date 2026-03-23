@@ -86,7 +86,9 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Moving log file: %s -> %s\n", source_file, dest_file);
             
             if (copyFiles(source_file, dest_file) == 0) {
-                remove(source_file); /* Move operation: copy + delete */
+                if (remove(source_file) != 0) { /* Move operation: copy + delete */
+                    RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove source file after copy: %s\n", source_file);
+                }
                 moved_count++;
                 RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Successfully moved: %s\n", entry->d_name);
             } else {
@@ -156,7 +158,9 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
                     strcpy(marker_path, config->prev_log_path);
                     strcat(marker_path, "/");
                     strcat(marker_path, entry->d_name);
-                    remove(marker_path);
+                    if (remove(marker_path) != 0) {
+                        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove last_reboot marker: %s\n", marker_path);
+                    }
                 }
             }
             closedir(dir);
@@ -305,7 +309,9 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
             strcpy(file_path, config->log_path);
             strcat(file_path, "/");
             strcat(file_path, entry->d_name);
-            remove(file_path);
+            if (remove(file_path) != 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove file during log cleanup: %s\n", file_path);
+            }
         }
         closedir(dir);
     }
@@ -318,6 +324,11 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
 int backup_and_recover_logs(const char* source, const char* dest, 
                            backup_operation_type_t op, const char* s_ext, 
                            const char* d_ext) {
+    if (!source || !dest) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "backup_and_recover_logs: NULL source or dest parameter\n");
+        return BACKUP_ERROR_INVALID_PARAM;
+    }
+
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "backup_and_recover_logs: %s -> %s, op=%d, s_ext='%s', d_ext='%s'\n",
             source, dest, op, s_ext ? s_ext : "(none)", d_ext ? d_ext : "(none)");
     char source_file[PATH_MAX];
@@ -329,7 +340,7 @@ int backup_and_recover_logs(const char* source, const char* dest,
     
     /* Build combined prefix for path removal: source + s_ext */
     snprintf(combined_prefix, sizeof(combined_prefix), "%s%s", 
-             source ? source : "", s_ext ? s_ext : "");
+             source, s_ext ? s_ext : "");
     
     /* Open source directory */
     DIR* dir = opendir(source);
@@ -357,9 +368,11 @@ int backup_and_recover_logs(const char* source, const char* dest,
         snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
         
         /* Check if it's a regular file (match shell script -type f) */
-        /* Skip directories - only process regular files */
+        /* Use lstat() instead of stat() to avoid TOCTOU: lstat does not follow
+         * symlinks, so the type check and subsequent file operation act on the
+         * same filesystem object, preventing a symlink-swap race (CWE-367). */
         struct stat file_stat;
-        if (stat(source_file, &file_stat) != 0) {
+        if (lstat(source_file, &file_stat) != 0) {
             /* Skip if we can't stat the file */
             continue;
         }
@@ -439,22 +452,26 @@ int backup_and_recover_logs(const char* source, const char* dest,
 /* Execute common backup operations (special files, version files, notifications) */
 int backup_execute_common_operations(const backup_config_t* config) {
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing common backup operations\n");
-    special_files_config_t special_config;
-    
+
+    /* Declared static to avoid large stack frame (~264KB) - CWE-400 / STACK_USE.
+     * Placed in BSS segment instead of the stack. Reset before each use. */
+    static special_files_config_t special_config;
+    memset(&special_config, 0, sizeof(special_config));
+
     /* Initialize special files manager */
     special_files_init();
     
     /* Load configuration from file */
     int result = special_files_load_config(&special_config, "/etc/backup_logs/special_files.conf");
     if (result == BACKUP_SUCCESS && special_config.count > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Processing %d special files\n", special_config.count);
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Processing %zu special files\n", special_config.count);
         /* Execute all special file operations */
         result = special_files_execute_all(&special_config, config);
     } else {
         RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "No special files configuration found or empty config\n");
     }
     /* If config file doesn't exist or is empty, skip special files processing */
-    
+
     /* Send systemd notification like shell script does */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Sending systemd notification\n");
     sys_send_systemd_notification("Logs Backup Done..!");
