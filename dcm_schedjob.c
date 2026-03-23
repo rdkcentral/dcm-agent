@@ -52,13 +52,32 @@ void* dcmSchedulerThread(void *arg)
     struct timespec _now;
     time_t timeOffset, currentTime;
 
-    while(!pDCMSched->terminated) {
+    while(1) {
         pthread_mutex_lock(&pDCMSched->tMutex);
 
-        if(!pDCMSched->startSched) {
-            n = pthread_cond_wait(&pDCMSched->tCond, &pDCMSched->tMutex);
+        // Check termination condition while holding the lock
+        if(pDCMSched->terminated) {
+            pthread_mutex_unlock(&pDCMSched->tMutex);
+            break;
         }
-        else {
+
+        // Wait for scheduling to start - use proper loop for spurious wakeups
+        while(!pDCMSched->startSched && !pDCMSched->terminated) {
+            n = pthread_cond_wait(&pDCMSched->tCond, &pDCMSched->tMutex);
+            if(n != 0) {
+                DCMWarn("%s pthread_cond_wait failed: %d (%s)\n", pDCMSched->name, n, strerror(n));
+                pthread_mutex_unlock(&pDCMSched->tMutex);
+                goto thread_exit;
+            }
+        }
+        
+        // Check termination again after wait
+        if(pDCMSched->terminated) {
+            pthread_mutex_unlock(&pDCMSched->tMutex);
+            break;
+        }
+        
+        if(pDCMSched->startSched) {
             memset(&_now, 0, sizeof(struct timespec));
 
             clock_gettime(CLOCK_REALTIME, &_now);
@@ -67,7 +86,25 @@ void* dcmSchedulerThread(void *arg)
             timeOffset = dcmCronParseGetNext(&pDCMSched->parseData, currentTime);
             _now.tv_sec += (timeOffset - currentTime);
 
-            n = pthread_cond_timedwait(&pDCMSched->tCond, &pDCMSched->tMutex, &_now);
+            // Wait with predicate re-check under lock to handle spurious wakeups
+            while(pDCMSched->startSched && !pDCMSched->terminated) {
+                n = pthread_cond_timedwait(&pDCMSched->tCond, &pDCMSched->tMutex, &_now);
+
+                if(n == ETIMEDOUT) {
+                    break;
+                }
+
+                if(n != 0) {
+                    DCMWarn("%s pthread_cond_timedwait failed: %d (%s)\n", pDCMSched->name, n, strerror(n));
+                    pthread_mutex_unlock(&pDCMSched->tMutex);
+                    goto thread_exit;
+                }
+            }
+
+            if(pDCMSched->terminated) {
+                pthread_mutex_unlock(&pDCMSched->tMutex);
+                goto thread_exit;
+            }
 
             if(n == ETIMEDOUT) {
                 DCMInfo("Scheduling %s Job handle: %p\n", pDCMSched->name, pDCMSched->pUserData);
@@ -87,6 +124,7 @@ void* dcmSchedulerThread(void *arg)
         }
         pthread_mutex_unlock(&pDCMSched->tMutex);
     }
+thread_exit:
     return NULL;
 }
 
