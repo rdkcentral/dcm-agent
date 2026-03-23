@@ -273,7 +273,10 @@ int backup_logs_main(int argc, char *argv[]) {
     (void)argv;
     
     int result;
-    backup_config_t config = {0};
+    /* Declared static to avoid large stack frame (~16KB) - CWE-400 / STACK_USE.
+     * Placed in BSS segment instead of the stack. Reset before each use. */
+    static backup_config_t config;
+    memset(&config, 0, sizeof(config));
 
     /* Initialize backup system */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Initializing backup system\n");
