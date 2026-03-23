@@ -48,7 +48,7 @@ int config_load(backup_config_t* config) {
     }
 
     /* Get LOG_PATH from include properties (equivalent to sourcing include.properties) */
-    if (getIncludePropertyData("LOG_PATH", log_path_buf, sizeof(log_path_buf)) == 0 && strlen(log_path_buf) > 0) {
+    if (getIncludePropertyData("LOG_PATH", log_path_buf, sizeof(log_path_buf)) == UTILS_SUCCESS && strlen(log_path_buf) > 0) {
         strncpy(config->log_path, log_path_buf, sizeof(config->log_path) - 1);
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "LOG_PATH loaded from properties: %s\n", log_path_buf);
     } else {
