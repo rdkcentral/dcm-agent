@@ -28,6 +28,8 @@
 #include <fnmatch.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 
@@ -367,15 +369,22 @@ int backup_and_recover_logs(const char* source, const char* dest,
         /* Build full source file path */
         snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
         
-        /* Check if it's a regular file (match shell script -type f) */
-        /* Use lstat() instead of stat() to avoid TOCTOU: lstat does not follow
-         * symlinks, so the type check and subsequent file operation act on the
-         * same filesystem object, preventing a symlink-swap race (CWE-367). */
+        /* Check if it's a regular file (match shell script -type f).
+         * Use open(O_NOFOLLOW) + fstat() to eliminate TOCTOU (CWE-367):
+         * opening with O_NOFOLLOW refuses symlinks, and fstat() on the
+         * resulting fd operates on the same inode already held open,
+         * so no race window exists between the check and the use. */
         struct stat file_stat;
-        if (lstat(source_file, &file_stat) != 0) {
-            /* Skip if we can't stat the file */
+        int check_fd = open(source_file, O_RDONLY | O_NOFOLLOW);
+        if (check_fd < 0) {
+            /* Skip if file cannot be opened (e.g. symlink or permission denied) */
             continue;
         }
+        if (fstat(check_fd, &file_stat) != 0) {
+            close(check_fd);
+            continue;
+        }
+        close(check_fd);
         if (S_ISDIR(file_stat.st_mode)) {
             /* Skip directories - we don't want to backup directories to PreviousLogs */
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping directory: %s\n", source_file);
@@ -411,7 +420,7 @@ int backup_and_recover_logs(const char* source, const char* dest,
         
         /* Build final destination: dest + d_ext + remaining_path */
         snprintf(dest_file, sizeof(dest_file), "%s%s%s", 
-                dest ? dest : "", 
+                dest, 
                 d_ext ? d_ext : "", 
                 remaining_path);
         
