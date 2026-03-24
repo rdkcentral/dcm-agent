@@ -34,22 +34,7 @@ extern "C" {
  */
 int sys_send_systemd_notification(const char* message);
 
-/**
- * @brief Execute external script
- * 
- * @param script_path Path to script to execute
- * @param args Arguments to pass to script
- * @param result_code Pointer to store script exit code
- * @return int BACKUP_SUCCESS on success, error code on failure
- */
-int sys_execute_script(const char* script_path, const char* args, int* result_code);
 
-/**
- * @brief Get process status and resource usage
- * 
- * This default implementation is a stub that reports the functionality
- * as unavailable. It ensures callers have a well-defined, linkable
- * symbol even on platforms where process status monitoring is not
 #ifdef __cplusplus
 }
 #endif
