@@ -206,17 +206,40 @@ Create a minimal reproduction scenario:
 ### For Configuration Issues
 ```c
 // Test configuration parsing
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
 #include "dcm_parseconf.h"
 
-void test_parse_bad_config() {
-    DCMDHandle handle = {};
-    // Create test config with issue
-    FILE *f = fopen("/tmp/test_dcmresponse.txt", "w");
-    fprintf(f, "{invalid json}");
-    fclose(f);
-    
-    int ret = dcmParseConfig(&handle, "/tmp/test_dcmresponse.txt");
-    // Should fail gracefully
+void test_parse_bad_config(void)
+{
+    DCMDHandle handle;
+    FILE *f;
+    int ret;
+
+    /* Initialize handle to a known state */
+    memset(&handle, 0, sizeof(handle));
+
+    /* Create test config with issue */
+    f = fopen("/tmp/test_dcmresponse.txt", "w");
+    if (f == NULL) {
+        perror("fopen failed");
+        return;
+    }
+
+    if (fprintf(f, "{invalid json}") < 0) {
+        perror("fprintf failed");
+        (void)fclose(f);
+        return;
+    }
+
+    if (fclose(f) != 0) {
+        perror("fclose failed");
+        return;
+    }
+
+    ret = dcmParseConfig(&handle, "/tmp/test_dcmresponse.txt");
+    /* Should fail gracefully */
     assert(ret != 0);
 }
 ```
