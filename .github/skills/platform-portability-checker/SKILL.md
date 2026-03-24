@@ -201,8 +201,8 @@ event_loop_t* create_event_loop(void);
 typeof(x) y = x;
 int array[0];  // Zero-length array
 
-// FIX: Use C11 standard features
-__auto_type y = x;  // C11
+// FIX: Avoid compiler-specific typeof/__auto_type; use standard types
+int y = x;  // declare with explicit type
 
 // Or avoid non-standard features
 // Define proper types instead
