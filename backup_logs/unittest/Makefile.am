@@ -52,11 +52,28 @@ COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings
 # Define source files for each test
 special_files_gtest_SOURCES = special_files_gtest.cpp
 
-special_files_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 special_files_gtest_LDADD = $(COMMON_LDADD)
 special_files_gtest_LDFLAGS = -Wl,--wrap=fopen -Wl,--wrap=fgets -Wl,--wrap=fclose -Wl,--wrap=remove
 special_files_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 special_files_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+special_files_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
+                               -DRDK_LOG_FATAL=0 \
+                               -DRDK_LOG_ERROR=1 \
+                               -DRDK_LOG_WARN=2 \
+                               -DRDK_LOG_NOTICE=3 \
+                               -DRDK_LOG_INFO=4 \
+                               -DRDK_LOG_DEBUG=5 \
+                               -DRDK_LOG_TRACE1=6 \
+                               -DRDK_LOG_TRACE2=7 \
+                               -DRDK_LOG_TRACE3=8 \
+                               -DRDK_LOG_TRACE4=9 \
+                               -DRDK_LOG_TRACE5=10 \
+                               -DRDK_LOG_TRACE6=11 \
+                               -DRDK_LOG_TRACE7=12 \
+                               -DRDK_LOG_TRACE8=13 \
+                               -DRDK_LOG_TRACE9=14 \
+                               -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
+                               -DUTILS_SUCCESS=0
 
 # Config manager test configuration
 config_manager_gtest_SOURCES = config_manager_gtest.cpp ../src/config_manager.c
