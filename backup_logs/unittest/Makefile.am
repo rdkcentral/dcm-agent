@@ -19,19 +19,6 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-# Extra files to distribute
-EXTRA_DIST = Makefile.config_manager \
-            README_config_manager_tests.md \
-            Makefile.sys_integration \
-            README_sys_integration_tests.md \
-            Makefile.backup_logs \
-            README_backup_logs_tests.md \
-            README_backup_engine_tests.md \
-            run_config_manager_test.py \
-            run_sys_integration_test.py \
-            run_backup_logs_test.py \
-            run_backup_engine_test.py
-
 # Define the test executables
 bin_PROGRAMS = special_files_gtest config_manager_gtest sys_integration_gtest backup_logs_gtest backup_engine_gtest
 
