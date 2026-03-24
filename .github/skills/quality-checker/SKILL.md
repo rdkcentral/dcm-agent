@@ -86,7 +86,7 @@ docker exec -i native-platform /bin/bash -c "
            --error-exitcode=0 \
            --xml \
            --xml-version=2 \
-           src/ 2> cppcheck-report.xml
+           . 2> cppcheck-report.xml
 "
 ```
 
