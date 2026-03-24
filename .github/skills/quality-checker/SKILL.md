@@ -135,8 +135,8 @@ docker exec -i native-platform /bin/bash -c "
 docker exec -i native-platform /bin/bash -c "
   cd /mnt/workspace && \
   autoreconf -fi && \
-  ./configure --enable-gtest CFLAGS='-Wall -Wextra -Werror' CXXFLAGS='-Wall -Wextra -Werror' && \\
-  make -j\$(nproc) && \\
+  ./configure --enable-gtest CFLAGS='-Wall -Wextra -Werror' CXXFLAGS='-Wall -Wextra -Werror' && \
+  make -j\$(nproc) && \
   if [ -f 'dcmd' ]; then
     ls -lh dcmd
     file dcmd
