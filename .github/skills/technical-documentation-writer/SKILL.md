@@ -706,9 +706,9 @@ grep -r "TODO\|FIXME\|XXX" docs/ && exit 1
 markdown-link-check docs/**/*.md
 ```
 
-## Examples From This Project
+## Example References
 
-See existing documentation for reference:
-- [CURL Architecture](../../../source/docs/protocol/curl_usage_architecture.md) - Good example of architecture doc with diagrams
+See documentation references for guidance:
+- [CURL Architecture](https://curl.se/docs/architecture.html) - Good example of architecture documentation with diagrams
 - [Memory Safety Skill](../memory-safety-analyzer/SKILL.md) - Example skill documentation
 - [Build Instructions](../../../.github/instructions/build-system.instructions.md) - Integration guide example
