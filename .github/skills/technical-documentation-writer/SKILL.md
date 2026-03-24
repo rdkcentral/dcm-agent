@@ -280,8 +280,6 @@ Profile created and activated successfully
 - Always check return values
 - Call profile_destroy() even on error paths
 - Profile name must be unique
-```
-\`\`\`
 
 ### Step 5: Document APIs
 
