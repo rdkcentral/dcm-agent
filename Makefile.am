@@ -21,7 +21,7 @@ AUTOMAKE_OPTIONS = foreign
 SUBDIRS = uploadstblogs/src usbLogUpload backup_logs
 # Install config file to /etc/backup_logs/
 backup_logs_confdir = $(sysconfdir)/backup_logs
-backup_logs_conf_DATA = config/special_files.conf
+backup_logs_conf_DATA = special_files.conf
 
 dcmd_CFLAGS += -fPIC -pthread
 
