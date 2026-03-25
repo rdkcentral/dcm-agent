@@ -390,7 +390,8 @@ int backup_and_recover_logs(const char* source, const char* dest,
         }
         
         /* Exclude backup_logs.log from processing to prevent moving active log file */
-        if (strcmp(entry->d_name, "backup_logs.log.0") == 0) {
+        if ((strcmp(entry->d_name, "backup_logs.log") == 0) ||
+            (strcmp(entry->d_name, "backup_logs.log.0") == 0)) {
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping active log file: %s\n", entry->d_name);
             continue;
         }
