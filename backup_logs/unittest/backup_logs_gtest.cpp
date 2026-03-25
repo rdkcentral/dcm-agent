@@ -309,19 +309,14 @@ TEST_F(BackupLogsTest, InitSuccess) {
 }
 
 TEST_F(BackupLogsTest, InitNullConfig) {
-    // NOTE: This test currently crashes due to a bug in backup_logs_init()
-    // The function appears to access config fields before checking for NULL
-    // Crash occurs at strlen call in backup_logs.c:134
-    // TODO: Fix backup_logs_init() to properly handle NULL config parameter
+    // Verify that backup_logs_init safely handles a NULL config pointer.
 
-    // DISABLED: Segfaults due to implementation bug
-    // int result = backup_logs_init(nullptr);
-    // EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
-    // EXPECT_FALSE(mock_control.config_load_called);
+    mock_control.config_load_called = false;
 
-    // For now, just test that the mock system is working
+    int result = backup_logs_init(nullptr);
+
+    EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
     EXPECT_FALSE(mock_control.config_load_called);
-    EXPECT_EQ(mock_control.config_load_return, BACKUP_SUCCESS);
 }
 
 TEST_F(BackupLogsTest, InitConfigLoadFailure) {
