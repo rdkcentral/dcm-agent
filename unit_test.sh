@@ -68,6 +68,17 @@ autoreconf --install
 
 make clean
 make
+
+cd ../../backup_logs/unittest
+automake --add-missing
+autoreconf --install
+
+./configure
+
+make clean
+make
+
+
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
@@ -98,8 +109,12 @@ for test in \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
-  ./../usbLogUpload/unittest/usb_log_archive_gtest
-  
+  ./../usbLogUpload/unittest/usb_log_archive_gtest \
+  ./../backup_logs/unittest/backup_engine_gtest \
+  ./../backup_logs/unittest/backup_logs_gtest \
+  ./../backup_logs/unittest/config_manager_gtest \
+  ./../backup_logs/unittest/special_files_gtest \
+  ./../backup_logs/unittest/sys_integration_gtest
 do
     $test
     status=$?
