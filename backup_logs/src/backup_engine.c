@@ -422,10 +422,21 @@ int backup_and_recover_logs(const char* source, const char* dest,
         }
         
         /* Build final destination: dest + d_ext + remaining_path */
-        snprintf(dest_file, sizeof(dest_file), "%s%s%s", 
-                dest, 
-                d_ext ? d_ext : "", 
-                remaining_path);
+        {
+            int snprintf_ret = snprintf(dest_file, sizeof(dest_file), "%s%s%s",
+                                        dest ? dest : "",
+                                        d_ext ? d_ext : "",
+                                        remaining_path);
+            if (snprintf_ret < 0 || (size_t)snprintf_ret >= sizeof(dest_file)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS,
+                        "Destination path too long or invalid when building \"%s%s%s\"; skipping file \"%s\"\n",
+                        dest ? dest : "",
+                        d_ext ? d_ext : "",
+                        remaining_path,
+                        source_file);
+                continue;
+            }
+        }
         
         /* Perform the operation */
         int result;
