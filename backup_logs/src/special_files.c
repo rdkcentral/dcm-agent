@@ -74,40 +74,45 @@ int special_files_load_config(special_files_config_t* config, const char* config
     
     /* Read lines from config file */
     while (fgets(line, sizeof(line), fp) && config->count < MAX_SPECIAL_FILES) {
-        /* Skip comments and empty lines */
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') {
+        char *trimmed = line;
+        char *end;
+
+        /* Skip leading whitespace characters */
+        while (*trimmed == ' ' || *trimmed == '\t' || *trimmed == '\r' || *trimmed == '\n') {
+            trimmed++;
+        }
+
+        /* Skip comments and empty/whitespace-only lines */
+        if (*trimmed == '\0' || *trimmed == '#') {
             continue;
         }
-        
-        /* Remove trailing newline */
-        char* newline = strchr(line, '\n');
-        if (newline) {
-            *newline = '\0';
+
+        /* Remove trailing whitespace (including newlines) */
+        end = trimmed + strlen(trimmed);
+        while (end > trimmed && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) {
+            end--;
         }
-        newline = strchr(line, '\r');
-        if (newline) {
-            *newline = '\0';
-        }
-        
+        *end = '\0';
+
         /* Skip empty lines after trimming */
-        if (strlen(line) == 0) {
+        if (*trimmed == '\0') {
             continue;
         }
         
         /* Process filename */
-        if (strlen(line) > 0) {
+        if (strlen(trimmed) > 0) {
             special_file_entry_t* entry = &config->entries[config->count];
             
             /* Copy source path directly */
-            strncpy(entry->source_path, line, sizeof(entry->source_path) - 1);
+            strncpy(entry->source_path, trimmed, sizeof(entry->source_path) - 1);
             entry->source_path[sizeof(entry->source_path) - 1] = '\0';
             
             /* Determine destination filename from source path */
-            const char* filename = strrchr(line, '/');
+            const char* filename = strrchr(trimmed, '/');
             if (filename) {
                 filename++; /* Skip the '/' */
             } else {
-                filename = line; /* No path separator, use entire string */
+                filename = trimmed; /* No path separator, use entire string */
             }
             
             strncpy(entry->destination_path, filename, sizeof(entry->destination_path) - 1);
