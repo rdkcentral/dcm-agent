@@ -333,8 +333,9 @@ extern "C" {
     }
     
     // Special files operation mocks
-    void __wrap_special_files_init(void) {
+    int __wrap_special_files_init(void) {
         mock_control.special_files_init_called = true;
+        return BACKUP_SUCCESS;
     }
     
     int __wrap_special_files_load_config(special_files_config_t *config, const char *config_file) {
