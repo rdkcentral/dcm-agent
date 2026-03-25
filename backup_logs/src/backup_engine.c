@@ -64,7 +64,11 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
         }
         
         char source_file[PATH_MAX];
-        snprintf(source_file, sizeof(source_file), "%s/%s", source_dir, entry->d_name);
+        int snprintf_ret = snprintf(source_file, sizeof(source_file), "%s/%s", source_dir, entry->d_name);
+        if (snprintf_ret < 0 || (size_t)snprintf_ret >= sizeof(source_file)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Source path too long: \"%s/%s\"; skipping file\n", source_dir, entry->d_name);
+            continue;
+        }
         
         /* Check if it's a regular file */
         if (filePresentCheck(source_file) != 0) {
@@ -86,7 +90,11 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
         
         if (matches) {
             char dest_file[PATH_MAX];
-            snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_dir, entry->d_name);
+            int dest_snprintf_ret = snprintf(dest_file, sizeof(dest_file), "%s/%s", dest_dir, entry->d_name);
+            if (dest_snprintf_ret < 0 || (size_t)dest_snprintf_ret >= sizeof(dest_file)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Destination path too long: \"%s/%s\"; skipping file\n", dest_dir, entry->d_name);
+                continue;
+            }
             
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Moving log file: %s -> %s\n", source_file, dest_file);
             
@@ -358,11 +366,11 @@ int backup_and_recover_logs(const char* source, const char* dest,
     
     /* Build combined prefix for path removal: source + s_ext */
     int combined_prefix_len = snprintf(combined_prefix, sizeof(combined_prefix), "%s%s",
-                                       source, s_ext ? s_ext : "");
+                                       source, s_ext);
     if (combined_prefix_len < 0 || (size_t)combined_prefix_len >= sizeof(combined_prefix)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS,
                 "backup_and_recover_logs: combined prefix too long for buffer (source='%s', s_ext='%s')\n",
-                source, s_ext ? s_ext : "");
+                source, s_ext);
         return BACKUP_ERROR_INVALID_PARAM;
     }
     /* Open source directory */
@@ -388,7 +396,11 @@ int backup_and_recover_logs(const char* source, const char* dest,
         }
         
         /* Build full source file path */
-        snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
+        int source_snprintf_ret = snprintf(source_file, sizeof(source_file), "%s%s", source, entry->d_name);
+        if (source_snprintf_ret < 0 || (size_t)source_snprintf_ret >= sizeof(source_file)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Source path too long: \"%s%s\"; skipping file\n", source, entry->d_name);
+            continue;
+        }
         
         /* Check if it's a regular file (match shell script -type f).
          * Use open(O_NOFOLLOW) + fstat() to eliminate TOCTOU (CWE-367):
@@ -442,14 +454,14 @@ int backup_and_recover_logs(const char* source, const char* dest,
         /* Build final destination: dest + d_ext + remaining_path */
         {
             int snprintf_ret = snprintf(dest_file, sizeof(dest_file), "%s%s%s",
-                                        dest ? dest : "",
-                                        d_ext ? d_ext : "",
+                                        dest,
+                                        d_ext,
                                         remaining_path);
             if (snprintf_ret < 0 || (size_t)snprintf_ret >= sizeof(dest_file)) {
                 RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS,
                         "Destination path too long or invalid when building \"%s%s%s\"; skipping file \"%s\"\n",
-                        dest ? dest : "",
-                        d_ext ? d_ext : "",
+                        dest,
+                        d_ext,
                         remaining_path,
                         source_file);
                 continue;
