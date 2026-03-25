@@ -74,9 +74,9 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
         /* Check if filename matches patterns: *.txt*, *.log*, bootlog */
         const char* name = entry->d_name;
         
-        /* Exclude backup_logs.log from processing to prevent moving active log file */
-        if (strcmp(name, "backup_logs.log.0") == 0) {
-            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping active log file: %s\n", name);
+        /* Exclude backup_logs.log and its rotated variants from processing to prevent moving active log files */
+        if (strncmp(name, "backup_logs.log", sizeof("backup_logs.log") - 1) == 0) {
+            RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping backup log file: %s\n", name);
             continue;
         }
         
