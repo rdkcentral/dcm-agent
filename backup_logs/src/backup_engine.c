@@ -357,9 +357,14 @@ int backup_and_recover_logs(const char* source, const char* dest,
     int success_count = 0;
     
     /* Build combined prefix for path removal: source + s_ext */
-    snprintf(combined_prefix, sizeof(combined_prefix), "%s%s", 
-             source, s_ext ? s_ext : "");
-    
+    int combined_prefix_len = snprintf(combined_prefix, sizeof(combined_prefix), "%s%s",
+                                       source, s_ext ? s_ext : "");
+    if (combined_prefix_len < 0 || (size_t)combined_prefix_len >= sizeof(combined_prefix)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS,
+                "backup_and_recover_logs: combined prefix too long for buffer (source='%s', s_ext='%s')\n",
+                source, s_ext ? s_ext : "");
+        return BACKUP_ERROR_INVALID_PARAM;
+    }
     /* Open source directory */
     DIR* dir = opendir(source);
     if (!dir) {
