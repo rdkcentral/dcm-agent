@@ -358,7 +358,7 @@ extern "C" {
     }
     
     // System integration mocks
-    void __wrap_sys_send_systemd_notification(const char *message) {
+    int __wrap_sys_send_systemd_notification(const char *message) {
         mock_control.sys_send_systemd_notification_called = true;
         if (message) {
             strncpy(mock_control.sys_send_systemd_notification_last_message, message, 
