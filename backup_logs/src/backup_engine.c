@@ -179,7 +179,20 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
         
         time(&rawtime);
         timeinfo = localtime(&rawtime);
-        strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M-%S%p", timeinfo);
+        if (timeinfo == NULL) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "localtime() failed, using raw time as fallback for timestamp\n");
+            /* Fallback: use raw time value as decimal string */
+            if (snprintf(timestamp, sizeof(timestamp), "%ld", (long)rawtime) < 0) {
+                timestamp[0] = '\0';
+            }
+        } else {
+            if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M-%S%p", timeinfo) == 0) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "strftime() failed, using raw time as fallback for timestamp\n");
+                if (snprintf(timestamp, sizeof(timestamp), "%ld", (long)rawtime) < 0) {
+                    timestamp[0] = '\0';
+                }
+            }
+        }
         
         /* Check path length */
         if (strlen(config->prev_log_path) + strlen("/logbackup-") + strlen(timestamp) >= PATH_MAX) {
