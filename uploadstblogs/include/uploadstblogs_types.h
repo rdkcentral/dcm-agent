@@ -59,7 +59,8 @@ typedef enum {
     TRIGGER_REBOOT = 2,
     TRIGGER_CRASH = 3,
     TRIGGER_DEBUG = 4,
-    TRIGGER_ONDEMAND = 5
+    TRIGGER_ONDEMAND = 5,
+    TRIGGER_MEMCAPTURE = 6
 } TriggerType;
 
 /**
@@ -309,4 +310,3 @@ void t2_count_notify(char *marker);
 void t2_val_notify(char *marker, char *val);
 
 #endif /* UPLOADSTBLOGS_TYPES_H */
-
