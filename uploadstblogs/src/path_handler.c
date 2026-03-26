@@ -82,7 +82,7 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) 
     {
         md5_ptr = md5_base64;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,"[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n", __FUNCTION__, __LINE__, md5_base64);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,"[%s:%d]  MD5 Hash value of the tar file : %s\n", __FUNCTION__, __LINE__, md5_base64);
     } 
     else 
     {
@@ -103,9 +103,13 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     MtlsAuth_t cert_for_s3;
     memset(&cert_for_s3, 0, sizeof(MtlsAuth_t));
     if (ctx->encryption_enable)
+    {
         UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
+    }
     else
+    {
         UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, NULL, &cert_for_s3);
+    }
     
     if (post_result != UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
