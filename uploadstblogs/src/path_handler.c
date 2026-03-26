@@ -77,24 +77,16 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
         return UPLOADSTB_FAILED;
     }
     
-    // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
-    if (ctx->encryption_enable) {
-        if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) {
-            md5_ptr = md5_base64;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n",
-                    __FUNCTION__, __LINE__, md5_base64);
-        } else {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to calculate MD5 for encryption\n",
-                    __FUNCTION__, __LINE__);
-        }
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-                "[%s:%d] RFC_EncryptCloudUpload_Enable: false\n",
-                __FUNCTION__, __LINE__);
+    if (calculate_file_md5(archive_filepath, md5_base64, sizeof(md5_base64))) 
+    {
+        md5_ptr = md5_base64;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,"[%s:%d] RFC_EncryptCloudUpload_Enable: true, MD5: %s\n", __FUNCTION__, __LINE__, md5_base64);
+    } 
+    else 
+    {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to calculate MD5 for encryption\n", __FUNCTION__, __LINE__);
     }
     
     // Report mTLS usage telemetry (matches script line 355)
@@ -110,7 +102,10 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     // Certificate will be obtained and stored for Stage 2
     MtlsAuth_t cert_for_s3;
     memset(&cert_for_s3, 0, sizeof(MtlsAuth_t));
-    UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
+    if (ctx->encryption_enable)
+        UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
+    else
+        UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, NULL, &cert_for_s3);
     
     if (post_result != UPLOADSTB_SUCCESS) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
