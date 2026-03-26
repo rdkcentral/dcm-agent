@@ -48,6 +48,7 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
 
 UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
 {
+    UploadResult post_result;
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] ENTRY: execute_direct_path called\n", __FUNCTION__, __LINE__);
     
@@ -104,11 +105,11 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     memset(&cert_for_s3, 0, sizeof(MtlsAuth_t));
     if (ctx->encryption_enable)
     {
-        UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
+        post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, md5_ptr, &cert_for_s3);
     }
     else
     {
-        UploadResult post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, NULL, &cert_for_s3);
+        post_result = perform_metadata_post(ctx, session, endpoint_url, archive_filepath, NULL, &cert_for_s3);
     }
     
     if (post_result != UPLOADSTB_SUCCESS) {
