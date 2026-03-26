@@ -279,7 +279,8 @@ void finalize(RuntimeContext* ctx, SessionState* session)
 
     // Update block markers based on upload results (script-aligned behavior)
     update_block_markers(ctx, session);
-
+    if (ctx->trigger_type != TRIGGER_MEMCAPTURE)
+    {
     // Remove archive file if upload was successful
     if (session->success && strlen(session->archive_file) > 0) {
         if (remove_archive(session->archive_file)) {
@@ -291,6 +292,7 @@ void finalize(RuntimeContext* ctx, SessionState* session)
                     "[%s:%d] Failed to remove archive: %s\n", 
                     __FUNCTION__, __LINE__, session->archive_file);
         }
+    }
     }
 
     // Clean up temporary directories
