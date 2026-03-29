@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=false
+ENABLE_COV=true
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
@@ -140,4 +140,7 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
+    lcov --capture --directory ./../backup_logs/unittest --output-file coverage_backup.info
+    lcov --list coverage_backup.info
+
 fi
