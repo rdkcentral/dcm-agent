@@ -48,6 +48,7 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config);
  * @param config Backup configuration
  * @return int BACKUP_SUCCESS on success, error code on failure
  */
+
 int backup_execute_common_operations(const backup_config_t* config);
 
 /**
