@@ -98,6 +98,7 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
             
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Moving log file: %s -> %s\n", source_file, dest_file);
             
+            
             if (copyFiles(source_file, dest_file) == 0) {
                 if (remove(source_file) != 0) { /* Move operation: copy + delete */
                     RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove source file after copy: %s\n", source_file);
