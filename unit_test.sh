@@ -142,8 +142,8 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --list coverage.info
     lcov --capture --directory ./../backup_logs/ --output-file coverage_backup.info
     lcov --remove coverage_backup.info '/usr/*' --output-file coverage_backup.info
-    rm -rf ./../backup_logs/unittest/*
-    lcov --remove coverage_backup.info './../backup_logs/unittest/*' --output-file coverage_backup.info
+    lcov --remove coverage_backup.info '/usr/*' '*/backup_logs/unittest/*' -o coverage_backup.info
+    #lcov --remove coverage_backup.info './../backup_logs/unittest/*' --output-file coverage_backup.info
     lcov --list coverage_backup.info
 
 fi
