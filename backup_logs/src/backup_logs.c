@@ -159,22 +159,22 @@ int backup_logs_init(backup_config_t *config) {
         RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to create/touch persistent file: %s\n", persistent_file);
         /* Continue anyway - not critical */
     }
-    
-    /* Run disk threshold check if script exists */
+    /*
+
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Checking for disk threshold check script: /lib/rdk/disk_threshold_check.sh\n");
     if (filePresentCheck("/lib/rdk/disk_threshold_check.sh") == 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Executing disk threshold check script with parameter 0 (bootup cleanup)\n");
         result = v_secure_system("/lib/rdk/disk_threshold_check.sh 0");
         if (result != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Disk threshold check script failed with exit code: %d\n", result);
-            /* Continue anyway - not critical */
+
         } else {
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Disk threshold check script completed successfully\n");
         }
     } else {
         RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Disk threshold check script not found, skipping\n");
     }
-    
+    */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup system initialization completed successfully\n");
     return BACKUP_SUCCESS;
 }
