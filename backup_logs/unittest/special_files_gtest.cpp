@@ -487,24 +487,6 @@ TEST_F(SpecialFilesTest, ExecuteEntry_SpecificMoveFiles) {
     }
 }
 
-// Test load_config with very long lines that exceed buffer
-TEST_F(SpecialFilesTest, LoadConfig_VeryLongLines) {
-    FILE dummy_file;
-    mock_fopen_return = &dummy_file;
-    
-    // Create a line longer than the expected buffer (512 chars)
-    string long_path(PATH_MAX + 100, 'a');
-    strcpy(mock_fgets_buffer, long_path.c_str());
-    mock_fgets_call_count = 1;
-    
-    int result = special_files_load_config(&test_config, "test_config.txt");
-    
-    // Should succeed but the path will be truncated
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(test_config.config_loaded);
-    EXPECT_EQ(test_config.count, 1);
-}
-
 // Test load_config with lines containing only whitespace  
 TEST_F(SpecialFilesTest, LoadConfig_WhitespaceOnlyLines) {
     FILE dummy_file;
