@@ -141,6 +141,8 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
     lcov --capture --directory ./../backup_logs/ --output-file coverage_backup.info
+    lcov --remove coverage.info '/usr/*' --output-file coverage_backup.info
+    lcov --remove coverage.info ./../backup_logs/unittest --output-file coverage_backup.info
     lcov --list coverage_backup.info
 
 fi
