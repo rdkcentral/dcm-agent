@@ -1,8 +1,8 @@
 /*
- * If not stated otherwise in this file or this component's LICENSE file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's LICENSE
+ * file the following copyright and licenses apply:
  *
- * Copyright 2026 RDK Management
+ * Copyright 2024 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdio.h>
@@ -22,6 +24,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/stat.h>
 
 
 
@@ -37,6 +42,26 @@
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
 #define DEBUG_INI_NAME "/etc/debug.ini"
+
+/* Backup-specific symlink-aware file existence check 
+ * Unlike dcmUtilsFilePresentCheck which uses stat() and follows symlinks,
+ * this function uses lstat() to check the file/symlink itself regardless of target existence
+ */
+static int backup_filePresentCheck_symlink_aware(const char *file_name) {
+    if (!file_name) {
+        return -1;  // Invalid parameter
+    }
+    
+    struct stat sfile;
+    memset(&sfile, 0, sizeof(sfile));
+    
+    /* Use lstat() instead of stat() to check symlink itself, not its target */
+    if (lstat(file_name, &sfile) != 0) {
+        return -1;  // File/symlink doesn't exist
+    }
+    
+    return 0;  // File/symlink exists (regardless of target validity)
+}
 
 /* Initialize backup system */
 int backup_logs_init(backup_config_t *config) {
@@ -68,7 +93,7 @@ int backup_logs_init(backup_config_t *config) {
     if (rdk_logger_ext_init(&logger_config) != RDK_SUCCESS) {
         printf("BACKUP_LOGS : ERROR - Extended logger init failed\n");
     } else {
-        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized with file output: /tmp/backup_logs.log\n");
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized with file output: /opt/logs/backup_logs.log\n");
     }
 #endif
 
@@ -264,6 +289,10 @@ int backup_logs_cleanup(backup_config_t *config) {
 
 /* Main entry point */
 int backup_logs_main(int argc, char *argv[]) {
+    /* Start timing the program execution */
+    struct timespec program_start, program_end;
+    clock_gettime(CLOCK_MONOTONIC, &program_start);
+    
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup_logs main function with %d arguments\n", argc);
     
     /* Suppress unused parameter warnings */
@@ -301,7 +330,10 @@ int backup_logs_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
+    /* Calculate and log total execution time */
+    clock_gettime(CLOCK_MONOTONIC, &program_end);
+    double total_time = (program_end.tv_sec - program_start.tv_sec) + (program_end.tv_nsec - program_start.tv_nsec) / 1000000000.0;
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully - Total runtime: %.3f seconds\n", total_time);
     return EXIT_SUCCESS;
 }
 #ifndef GTEST_ENABLE
