@@ -43,26 +43,6 @@
 #define BACKUP_LOGS_BUILD_DATE __DATE__
 #define DEBUG_INI_NAME "/etc/debug.ini"
 
-/* Backup-specific symlink-aware file existence check 
- * Unlike dcmUtilsFilePresentCheck which uses stat() and follows symlinks,
- * this function uses lstat() to check the file/symlink itself regardless of target existence
- */
-static int backup_filePresentCheck_symlink_aware(const char *file_name) {
-    if (!file_name) {
-        return -1;  // Invalid parameter
-    }
-    
-    struct stat sfile;
-    memset(&sfile, 0, sizeof(sfile));
-    
-    /* Use lstat() instead of stat() to check symlink itself, not its target */
-    if (lstat(file_name, &sfile) != 0) {
-        return -1;  // File/symlink doesn't exist
-    }
-    
-    return 0;  // File/symlink exists (regardless of target validity)
-}
-
 /* Initialize backup system */
 int backup_logs_init(backup_config_t *config) {
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup system initialization\n");
