@@ -73,7 +73,7 @@ int backup_logs_init(backup_config_t *config) {
     if (rdk_logger_ext_init(&logger_config) != RDK_SUCCESS) {
         printf("BACKUP_LOGS : ERROR - Extended logger init failed\n");
     } else {
-        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized with file output: /opt/logs/backup_logs.log\n");
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "RDK Logger initialized with file output: /tmp/backup_logs.log\n");
     }
 #endif
 
