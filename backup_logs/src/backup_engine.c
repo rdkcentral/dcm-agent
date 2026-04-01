@@ -44,6 +44,26 @@
 
 /* RDK Logging component name for Backup Logs */
 
+/* Backup-specific symlink-aware file existence check
+ * This function checks if a file or symlink exists, regardless of whether the symlink target exists
+ * Uses lstat() instead of stat() to examine the symlink itself, not its target
+ */
+static int backup_file_exists_check(const char *file_name) {
+    if (!file_name) {
+        return -1;  // Invalid parameter
+    }
+    
+    struct stat sfile;
+    memset(&sfile, 0, sizeof(sfile));
+    
+    /* Use lstat() to check the file/symlink itself, not the target */
+    if (lstat(file_name, &sfile) != 0) {
+        return -1;  // File/symlink doesn't exist
+    }
+    
+    return 0;  // File or symlink exists
+}
+
 
 /* Helper function to move log files matching patterns */
 int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
@@ -70,8 +90,8 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
             continue;
         }
         
-        /* Check if it's a regular file */
-        if (filePresentCheck(source_file) != 0) {
+        /* Check if it's a file or symlink (using symlink-aware check) */
+        if (backup_file_exists_check(source_file) != 0) {
             continue;
         }
         
@@ -132,7 +152,7 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
     strcat(syslog_path, "/");
     strcat(syslog_path, sysLog);
     
-    if (filePresentCheck(syslog_path) != 0) {
+    if (backup_file_exists_check(syslog_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "First time backup - moving logs to %s\n", config->prev_log_path);
         /* First time - move logs directly to PREV_LOG_PATH */
         move_log_files_by_pattern(config->log_path, config->prev_log_path);
@@ -279,17 +299,17 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
     strcpy(prev_log_path_slash, config->prev_log_path); strcat(prev_log_path_slash, "/");
     
     /* HDD disabled backup rotation logic */
-    if (filePresentCheck(syslog_path) != 0) {
+    if (backup_file_exists_check(syslog_path) != 0) {
         /* First time - move all logs directly */
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "First time HDD-disabled backup - moving all logs\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "");
-    } else if (filePresentCheck(bak1_path) != 0) {
+    } else if (backup_file_exists_check(bak1_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Moving logs to bak1_ prefix\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "bak1_");
-    } else if (filePresentCheck(bak2_path) != 0) {
+    } else if (backup_file_exists_check(bak2_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Moving logs to bak2_ prefix\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "bak2_");
-    } else if (filePresentCheck(bak3_path) != 0) {
+    } else if (backup_file_exists_check(bak3_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Moving logs to bak3_ prefix\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "bak3_");
     } else {
