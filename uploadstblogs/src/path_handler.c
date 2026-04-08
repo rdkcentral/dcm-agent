@@ -24,9 +24,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "path_handler.h"
 #include "verification.h"
 #include "md5_utils.h"
+#include "rdk_debug.h"
 
 // Include the upload library headers
 #ifndef GTEST_ENABLE
