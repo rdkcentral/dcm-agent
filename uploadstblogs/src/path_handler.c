@@ -154,18 +154,6 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
     
-    // Calculate SHA256 hash of the archive for integrity validation
-    char sha256_hex[65] = {0}; // 64 hex chars + null terminator
-    if (calculate_file_sha256(archive_filepath, sha256_hex, sizeof(sha256_hex))) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Archive SHA256: %s\n",
-                __FUNCTION__, __LINE__, sha256_hex);
-    } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to calculate SHA256 for archive\n",
-                __FUNCTION__, __LINE__);
-    }
-    
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
     const char *md5_ptr = NULL;
