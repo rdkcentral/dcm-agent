@@ -29,6 +29,7 @@
 #include <openssl/evp.h>
 #include "md5_utils.h"
 #include "uploadstblogs_types.h"
+#include "rdk_debug.h"
 
 /**
  * @brief Base64 encode binary data using simple implementation
