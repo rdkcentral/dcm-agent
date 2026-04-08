@@ -24,11 +24,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include "path_handler.h"
 #include "verification.h"
 #include "md5_utils.h"
-#include "rdk_debug.h"
 
 // Include the upload library headers
 #ifndef GTEST_ENABLE
@@ -75,6 +73,18 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] No valid upload URL configured (endpoint_url and upload_http_link both empty)\n",
                 __FUNCTION__, __LINE__);
         return UPLOADSTB_FAILED;
+    }
+    
+    // Calculate SHA256 hash of the archive for integrity validation
+    char sha256_hex[65] = {0}; // 64 hex chars + null terminator
+    if (calculate_file_sha256(archive_filepath, sha256_hex, sizeof(sha256_hex))) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Archive SHA256: %s\n",
+                __FUNCTION__, __LINE__, sha256_hex);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to calculate SHA256 for archive\n",
+                __FUNCTION__, __LINE__);
     }
     
     // Calculate MD5 if encryption enabled (matches script line 440)
@@ -143,6 +153,18 @@ UploadResult execute_codebig_path(RuntimeContext* ctx, SessionState* session)
 
     // Prepare upload parameters
     char *archive_filepath = session->archive_file;
+    
+    // Calculate SHA256 hash of the archive for integrity validation
+    char sha256_hex[65] = {0}; // 64 hex chars + null terminator
+    if (calculate_file_sha256(archive_filepath, sha256_hex, sizeof(sha256_hex))) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Archive SHA256: %s\n",
+                __FUNCTION__, __LINE__, sha256_hex);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to calculate SHA256 for archive\n",
+                __FUNCTION__, __LINE__);
+    }
     
     // Calculate MD5 if encryption enabled (matches script line 440)
     char md5_base64[64] = {0};
@@ -506,27 +528,8 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     FILE* curl_info = fopen("/tmp/logupload_curl_info", "r");
     if (curl_info) {
         long http_code = 0;
-        int scan_result;
-        errno = 0;
-        scan_result = fscanf(curl_info, "%ld", &http_code);
-        if (scan_result == 1) {
-            session->http_code = (int)http_code;
-        } else {
-            if (ferror(curl_info)) {
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to read HTTP code from curl info file due to I/O error errno=%d (%s)\n",
-                        __FUNCTION__, __LINE__, errno, strerror(errno));
-            } else if (feof(curl_info)) {
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to read HTTP code from curl info file: unexpected EOF\n",
-                        __FUNCTION__, __LINE__);
-            } else {
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to parse HTTP code from curl info file (scan_result=%d)\n",
-                        __FUNCTION__, __LINE__, scan_result);
-            }
-            session->http_code = -1;
-        }
+        fscanf(curl_info, "%ld", &http_code);
+        session->http_code = (int)http_code;
         fclose(curl_info);
     }
     session->curl_code = s3_result;
