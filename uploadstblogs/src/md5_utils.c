@@ -184,6 +184,15 @@ bool calculate_file_sha256(const char *filepath, char *sha256_hex, size_t output
         }
     }
     
+    if (ferror(file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to read file for SHA256 calculation: %s\n",
+                __FUNCTION__, __LINE__, filepath);
+        EVP_MD_CTX_free(md_ctx);
+        fclose(file);
+        return false;
+    }
+    
     fclose(file);
     
     unsigned char sha256_binary[EVP_MAX_MD_SIZE];
