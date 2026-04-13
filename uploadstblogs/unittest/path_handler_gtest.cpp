@@ -67,6 +67,7 @@ int fscanf(FILE *stream, const char *format, ...);
 
 // Mock external module functions
 bool calculate_file_md5(const char* filepath, char* md5_hash, size_t hash_size);
+bool calculate_file_sha256(const char* filepath, char* sha256_hex, size_t output_size);
 void report_mtls_usage(void);
 void report_curl_error(int curl_code);
 void report_cert_error(int curl_code, const char* fqdn);
@@ -109,6 +110,8 @@ int extractS3PresignedUrl(const char* httpresult_file, char* s3_url, size_t s3_u
 // Mock state
 static bool mock_calculate_md5_result = true;
 static char mock_md5_hash[64] = "abcd1234efgh5678";
+static bool mock_calculate_sha256_result = true;
+static char mock_sha256_hash[65] = "abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx1234yzab5678cdef9012";
 static bool mock_file_exists = true;
 static char mock_file_content[1024] = "https://s3.bucket.com/path/file.tar.gz?query=123";
 static UploadStatusDetail mock_upload_status;
@@ -117,6 +120,7 @@ static int mock_upload_function_result = 0;
 
 // Mock call tracking variables
 static int mock_calculate_md5_calls = 0;
+static int mock_calculate_sha256_calls = 0;
 static int mock_report_mtls_calls = 0;
 static int mock_report_curl_error_calls = 0;
 static int mock_report_cert_error_calls = 0;
@@ -135,6 +139,16 @@ bool calculate_file_md5(const char* filepath, char* md5_hash, size_t hash_size) 
     if (mock_calculate_md5_result && md5_hash && hash_size > 0) {
         strncpy(md5_hash, mock_md5_hash, hash_size - 1);
         md5_hash[hash_size - 1] = '\0';
+        return true;
+    }
+    return false;
+}
+
+bool calculate_file_sha256(const char* filepath, char* sha256_hex, size_t output_size) {
+    mock_calculate_sha256_calls++;
+    if (mock_calculate_sha256_result && sha256_hex && output_size > 0) {
+        strncpy(sha256_hex, mock_sha256_hash, output_size - 1);
+        sha256_hex[output_size - 1] = '\0';
         return true;
     }
     return false;
@@ -318,6 +332,7 @@ int fscanf(FILE *stream, const char *format, ...) {
 
 // Include the actual path handler implementation
 #include "path_handler.h"
+#include "../src/md5_utils.c"
 #include "../src/path_handler.c"
 
 using namespace testing;
@@ -329,6 +344,8 @@ protected:
         // Reset mock state
         mock_calculate_md5_result = true;
         strcpy(mock_md5_hash, "abcd1234efgh5678");
+        mock_calculate_sha256_result = true;
+        strcpy(mock_sha256_hash, "abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx1234yzab5678cdef9012");
         mock_file_exists = true;
         strcpy(mock_file_content, "https://s3.bucket.com/path/file.tar.gz?query=123");
         mock_verify_result = UPLOADSTB_SUCCESS;
@@ -342,6 +359,7 @@ protected:
 
         // Reset call tracking
         mock_calculate_md5_calls = 0;
+        mock_calculate_sha256_calls = 0;
         mock_report_mtls_calls = 0;
         mock_report_curl_error_calls = 0;
         mock_report_cert_error_calls = 0;
