@@ -332,7 +332,7 @@ int fscanf(FILE *stream, const char *format, ...) {
 
 // Include the actual path handler implementation
 #include "path_handler.h"
-#include "../src/md5_utils.c"
+
 #include "../src/path_handler.c"
 
 using namespace testing;
@@ -344,8 +344,6 @@ protected:
         // Reset mock state
         mock_calculate_md5_result = true;
         strcpy(mock_md5_hash, "abcd1234efgh5678");
-        mock_calculate_sha256_result = true;
-        strcpy(mock_sha256_hash, "abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx1234yzab5678cdef9012");
         mock_file_exists = true;
         strcpy(mock_file_content, "https://s3.bucket.com/path/file.tar.gz?query=123");
         mock_verify_result = UPLOADSTB_SUCCESS;
@@ -359,7 +357,6 @@ protected:
 
         // Reset call tracking
         mock_calculate_md5_calls = 0;
-        mock_calculate_sha256_calls = 0;
         mock_report_mtls_calls = 0;
         mock_report_curl_error_calls = 0;
         mock_report_cert_error_calls = 0;
