@@ -332,7 +332,6 @@ int fscanf(FILE *stream, const char *format, ...) {
 
 // Include the actual path handler implementation
 #include "path_handler.h"
-
 #include "../src/path_handler.c"
 
 using namespace testing;
