@@ -20,6 +20,7 @@
 #include <cstring>
 #include <stdio.h>
 #include <fstream>
+#include <cctype>
 
 // Mock RDK_LOG before including other headers
 #ifdef GTEST_ENABLE
@@ -42,12 +43,14 @@ protected:
         // Clean up any test files
         unlink("/tmp/md5_test_file.txt");
         unlink("/tmp/empty_test_file.txt");
+        unlink("/tmp/sha256_test_file.txt");
     }
 
     void TearDown() override {
         // Clean up test files
         unlink("/tmp/md5_test_file.txt");
         unlink("/tmp/empty_test_file.txt");
+        unlink("/tmp/sha256_test_file.txt");
     }
 };
 
@@ -234,6 +237,168 @@ TEST_F(MD5UtilsTest, Base64Encode_BinaryData) {
     // Should encode without issues even with null bytes
     EXPECT_GT(strlen(output), 0);
     EXPECT_EQ(strlen(output), 12); // 8 bytes -> 12 base64 chars (including padding)
+}
+
+// Test calculate_file_sha256 function
+TEST_F(MD5UtilsTest, CalculateFileSHA256_NullFilepath) {
+    char sha256_output[65];
+    EXPECT_FALSE(calculate_file_sha256(nullptr, sha256_output, sizeof(sha256_output)));
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_NullOutput) {
+    EXPECT_FALSE(calculate_file_sha256("/tmp/test.txt", nullptr, 65));
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_BufferTooSmall) {
+    char sha256_output[32]; // Too small for SHA256 hex (needs 65 chars: 64 hex + null)
+    EXPECT_FALSE(calculate_file_sha256("/tmp/test.txt", sha256_output, sizeof(sha256_output)));
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_BufferExactlyTooSmall) {
+    char sha256_output[64]; // Exactly too small (missing space for null terminator)
+    EXPECT_FALSE(calculate_file_sha256("/tmp/test.txt", sha256_output, sizeof(sha256_output)));
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_FileNotExist) {
+    char sha256_output[65];
+    EXPECT_FALSE(calculate_file_sha256("/tmp/nonexistent_file.txt", sha256_output, sizeof(sha256_output)));
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_EmptyFile) {
+    CreateTestFile("/tmp/empty_test_file.txt", "");
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/empty_test_file.txt", sha256_output, sizeof(sha256_output)));
+    
+    // SHA256 of empty file is e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    EXPECT_STREQ(sha256_output, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    EXPECT_EQ(strlen(sha256_output), 64); // Should be exactly 64 hex characters
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_SimpleContent) {
+    CreateTestFile("/tmp/md5_test_file.txt", "Hello World");
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    
+    // SHA256 of "Hello World" is a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e
+    EXPECT_STREQ(sha256_output, "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e");
+    EXPECT_EQ(strlen(sha256_output), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_SingleByte) {
+    CreateTestFile("/tmp/md5_test_file.txt", "A");
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    
+    // SHA256 of "A" is 559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd
+    EXPECT_STREQ(sha256_output, "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd");
+    EXPECT_EQ(strlen(sha256_output), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_MultipleCalls) {
+    CreateTestFile("/tmp/md5_test_file.txt", "Consistent test data");
+    char sha256_output1[65];
+    char sha256_output2[65];
+    
+    // Calculate SHA256 twice and ensure results are the same
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output1, sizeof(sha256_output1)));
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output2, sizeof(sha256_output2)));
+    
+    EXPECT_STREQ(sha256_output1, sha256_output2);
+    EXPECT_EQ(strlen(sha256_output1), 64);
+    EXPECT_EQ(strlen(sha256_output2), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_LargeFile) {
+    // Create a file with repeated content to test buffer reading (8192 byte buffer)
+    const char* content = "This is a test file with some content that will be repeated multiple times to test the buffer reading functionality of the SHA256 calculation. ";
+    std::string large_content;
+    for (int i = 0; i < 100; i++) { // About 14KB of data
+        large_content += content;
+    }
+    
+    CreateTestFile("/tmp/md5_test_file.txt", large_content.c_str());
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    
+    // Should return 64 hex characters
+    EXPECT_EQ(strlen(sha256_output), 64);
+    
+    // Verify all characters are valid hex (0-9, a-f)
+    for (int i = 0; i < 64; i++) {
+        EXPECT_TRUE((sha256_output[i] >= '0' && sha256_output[i] <= '9') || 
+                   (sha256_output[i] >= 'a' && sha256_output[i] <= 'f'))
+            << "Invalid hex character at position " << i << ": " << sha256_output[i];
+    }
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_VeryLargeFile) {
+    // Create a file larger than buffer to test multiple read iterations
+    const char* content = "Large file test content with various characters: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()";
+    std::string very_large_content;
+    for (int i = 0; i < 200; i++) { // About 20KB of data (> 8KB buffer)
+        very_large_content += content;
+    }
+    
+    CreateTestFile("/tmp/md5_test_file.txt", very_large_content.c_str());
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    EXPECT_EQ(strlen(sha256_output), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_BinaryContent) {
+    // Create a file with binary content including null bytes
+    const unsigned char binary_content[] = {0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD, 0xFC, 
+                                            0x7F, 0x80, 0x81, 0x82, 0x00, 0x00, 0x00, 0x00};
+    
+    std::ofstream ofs("/tmp/md5_test_file.txt", std::ios::binary);
+    ofs.write(reinterpret_cast<const char*>(binary_content), sizeof(binary_content));
+    ofs.close();
+    
+    char sha256_output[65];
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    EXPECT_EQ(strlen(sha256_output), 64);
+    
+    // Verify it's a valid hex string
+    for (int i = 0; i < 64; i++) {
+        EXPECT_TRUE(isxdigit(sha256_output[i])) << "Invalid hex digit at position " << i;
+    }
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_MinimalBuffer) {
+    CreateTestFile("/tmp/md5_test_file.txt", "test");
+    char sha256_output[65]; // Exactly 64 chars + null terminator
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    EXPECT_EQ(strlen(sha256_output), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_LargerBuffer) {
+    CreateTestFile("/tmp/md5_test_file.txt", "test");
+    char sha256_output[128]; // Larger than needed
+    
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output, sizeof(sha256_output)));
+    EXPECT_EQ(strlen(sha256_output), 64);
+}
+
+TEST_F(MD5UtilsTest, CalculateFileSHA256_DifferentContent_DifferentHashes) {
+    CreateTestFile("/tmp/md5_test_file.txt", "content1");
+    char sha256_output1[65];
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output1, sizeof(sha256_output1)));
+    
+    CreateTestFile("/tmp/md5_test_file.txt", "content2");
+    char sha256_output2[65];
+    EXPECT_TRUE(calculate_file_sha256("/tmp/md5_test_file.txt", sha256_output2, sizeof(sha256_output2)));
+    
+    // Different content should produce different hashes
+    EXPECT_STRNE(sha256_output1, sha256_output2);
+    EXPECT_EQ(strlen(sha256_output1), 64);
+    EXPECT_EQ(strlen(sha256_output2), 64);
 }
 
 // Main test runner
