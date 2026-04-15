@@ -450,7 +450,7 @@ logupload uploadlogsnow
 
 ## See Also
 
-- [README.md](README.md)
+- [uploadstblogs.md](uploadstblogs.md)
 - [hld/uploadSTBLogs_HLD.md](hld/uploadSTBLogs_HLD.md)
 - [requirements/uploadSTBLogs_requirements.md](requirements/uploadSTBLogs_requirements.md)
 - [../../README.md](../../README.md)
