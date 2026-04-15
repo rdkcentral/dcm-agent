@@ -2,7 +2,7 @@
 
 ## Overview
 
-`UploadLogsNow.sh` has been migrated into the `uploadstblogs` C module as a dedicated execution path implemented in [uploadstblogs/src/uploadlogsnow.c](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/src/uploadlogsnow.c) and exposed by [uploadstblogs/include/uploadlogsnow.h](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/include/uploadlogsnow.h). Instead of shipping a separate shell script, the feature now runs as a special mode of the `logupload` binary and reuses the existing `uploadstblogs` archive and upload engine.
+`UploadLogsNow.sh` has been migrated into the `uploadstblogs` C module as a dedicated execution path implemented in [uploadstblogs/src/uploadlogsnow.c](../src/uploadlogsnow.c) and exposed by [uploadstblogs/include/uploadlogsnow.h](../include/uploadlogsnow.h). Instead of shipping a separate shell script, the feature now runs as a special mode of the `logupload` binary and reuses the existing `uploadstblogs` archive and upload engine.
 
 The entry trigger is:
 
