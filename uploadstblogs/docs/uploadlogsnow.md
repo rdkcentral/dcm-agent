@@ -153,7 +153,7 @@ graph TB
 
 ### Activation
 
-The mode is enabled in [uploadstblogs/src/uploadstblogs.c](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/src/uploadstblogs.c) when the first argument is exactly `uploadlogsnow`.
+The mode is enabled in [uploadstblogs/src/uploadstblogs.c](../src/uploadstblogs.c) when the first argument is exactly `uploadlogsnow`.
 
 The parser then applies these UploadLogsNow-specific runtime defaults:
 
