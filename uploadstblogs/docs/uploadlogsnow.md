@@ -402,7 +402,7 @@ No additional heap-owned module state is introduced by the UploadLogsNow migrati
 
 ## Testing
 
-There is dedicated unit-test coverage for this migrated workflow in [uploadstblogs/unittest/uploadlogsnow_gtest.cpp](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/unittest/uploadlogsnow_gtest.cpp).
+There is dedicated unit-test coverage for this migrated workflow in [uploadstblogs/unittest/uploadlogsnow_gtest.cpp](../unittest/uploadlogsnow_gtest.cpp).
 
 ### Covered Scenarios
 
