@@ -650,12 +650,12 @@ The migrated `uploadstblogs` implementation is consumed in several different way
 | `entservices-softwareupdate` | legacy task orchestration reference | maintenance scheduling code also retains the `uploadSTBLogs.sh` task name and log-upload state tracking as part of the broader maintenance workflow. |
 | `dcm-agent` | native provider | this repository builds the `uploadstblogs` library and the `logupload` binary that the above consumers depend on. |
 
-### Consumers Not Directly Confirmed In This Verification Pass
+### Consumers Not Directly Confirmed
 
 | Repository | Current Assessment |
 |------------|--------------------|
 | `crashupload` | current code-backed search did not confirm a direct call to `logupload`, `uploadSTBLogs.sh`, or `uploadstblogs_run()`. Its upload path is centered on crash/minidump transport rather than STB log upload. |
-| `performancetool` | could not be verified from the available repository index during this pass. Add it here only after a code-backed reference to `logupload` or `uploadstblogs_run()` is available. |
+| `performancetool` | not currently confirmed in this document. Add it here only after a code-backed reference to `logupload` or `uploadstblogs_run()` is available. |
 
 ---
 
