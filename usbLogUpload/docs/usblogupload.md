@@ -427,4 +427,4 @@ The module attempts to keep partial state minimal by cleaning the temporary dire
 - [usb-log-upload-requirements.md](usb-log-upload-requirements.md)
 - [usb-log-upload-flowcharts.md](usb-log-upload-flowcharts.md)
 - [../README.md](../README.md)
-- [../../uploadstblogs/docs/README.md](../../uploadstblogs/docs/README.md)
+- [../../uploadstblogs/docs/uploadstblogs.md](../../uploadstblogs/docs/uploadstblogs.md)
