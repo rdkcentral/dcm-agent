@@ -221,10 +221,10 @@ sequenceDiagram
 
 | File | Role |
 |------|------|
-| [uploadstblogs/src/uploadlogsnow.c](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/src/uploadlogsnow.c) | Dedicated UploadLogsNow workflow implementation |
-| [uploadstblogs/include/uploadlogsnow.h](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/include/uploadlogsnow.h) | Public declaration for `execute_uploadlogsnow_workflow()` |
-| [uploadstblogs/src/uploadstblogs.c](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/src/uploadstblogs.c) | Mode detection and dispatch |
-| [uploadstblogs/include/file_operations.h](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/include/file_operations.h) | UploadLogsNow-specific timestamp helper declaration |
+| [uploadstblogs/src/uploadlogsnow.c](../src/uploadlogsnow.c) | Dedicated UploadLogsNow workflow implementation |
+| [uploadstblogs/include/uploadlogsnow.h](../include/uploadlogsnow.h) | Public declaration for `execute_uploadlogsnow_workflow()` |
+| [uploadstblogs/src/uploadstblogs.c](../src/uploadstblogs.c) | Mode detection and dispatch |
+| [uploadstblogs/include/file_operations.h](../include/file_operations.h) | UploadLogsNow-specific timestamp helper declaration |
 
 ### Constants
 
