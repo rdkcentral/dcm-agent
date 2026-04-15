@@ -106,7 +106,7 @@ From the `dcm-agent` side, the migration preserves consumer compatibility throug
 
 ### Access Note for lostandfound-cpc
 
-`lostandfound-cpc` was named as a consumer in the integration request, but the repository is SSO-protected from the current environment, so its exact trigger file and any corresponding parameter or RPC surface could not be confirmed programmatically in this session. This document therefore records it as a known external consumer while limiting detailed parameter documentation to the verified `tr69hostif` integration.
+`lostandfound-cpc` was named as a consumer in the integration request, but its exact trigger file and any corresponding parameter or RPC surface have not yet been verified. This document therefore records it as a known external consumer while limiting detailed parameter documentation to the verified `tr69hostif` integration.
 
 ## Architecture
 
