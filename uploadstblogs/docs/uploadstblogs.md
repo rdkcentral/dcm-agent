@@ -692,7 +692,7 @@ The upload module does not expose a single universal control API. External compo
 
 ## See Also
 
-- [uploadlogsnow.md](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/docs/uploadlogsnow.md)
+- [uploadlogsnow.md](uploadlogsnow.md)
 - [uploadSTBLogs_HLD.md](hld/uploadSTBLogs_HLD.md)
 - [uploadSTBLogs_requirements.md](requirements/uploadSTBLogs_requirements.md)
 - [../../README.md](../../README.md)
