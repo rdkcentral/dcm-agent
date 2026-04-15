@@ -447,7 +447,7 @@ logupload <TFTP_SERVER> <FLAG> <DCM_FLAG> <UploadOnReboot> \
 logupload uploadlogsnow
 ```
 
-This special mode is recognized in `parse_args()` and maps directly to an on-demand execution profile. The dedicated migration details are documented in [uploadlogsnow.md](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/docs/uploadlogsnow.md).
+This special mode is recognized in `parse_args()` and maps directly to an on-demand execution profile. The dedicated migration details are documented in [uploadlogsnow.md](uploadlogsnow.md).
 
 ---
 
