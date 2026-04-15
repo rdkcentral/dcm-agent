@@ -450,7 +450,7 @@ graph LR
 
 **Lock ordering** — to avoid deadlocks if multiple scheduler jobs are ever accessed concurrently, always acquire job locks in creation order (log upload before FW update).
 
-**Signal handling** — `SIGINT`, `SIGTERM`, `SIGKILL`, and `SIGABRT` all route to `sig_handler()`, which calls `dcmDaemonMainUnInit()` and exits cleanly.
+**Signal handling** — `SIGINT`, `SIGTERM`, and `SIGABRT` route to `sig_handler()`, which calls `dcmDaemonMainUnInit()` and exits cleanly.
 
 ---
 
