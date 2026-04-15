@@ -252,7 +252,7 @@ If a path is too long to fit inside `MAX_PATH_LENGTH`, that entry is skipped and
 
 UploadLogsNow uses `add_timestamp_to_files_uploadlogsnow()` rather than the generic timestamp helper.
 
-This special variant is documented in [uploadstblogs/include/file_operations.h](c:/Users/nhanas001c/Downloads/agentic/dcm/dcm-agent/uploadstblogs/include/file_operations.h) as skipping:
+This special variant is documented in [uploadstblogs/include/file_operations.h](../include/file_operations.h) as skipping:
 
 - files that already carry an `AM`/`PM` timestamp prefix
 - reboot logs
