@@ -181,7 +181,7 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir);
 
 | File | Role |
 |------|------|
-| `src/special_files.c` | Parses `/etc/special_files.properties`, executes move/copy per entry |
+| `src/special_files.c` | Parses `/etc/backup_logs/special_files.conf`, executes move/copy per entry |
 | `include/special_files.h` | Init, load, validate, execute declarations |
 
 The configuration file format is one source path per line. Comments (`#`) and blank lines are skipped. The operation type is determined automatically from the source path prefix: files under `/tmp/` are **moved**; all others are **copied** to `LOG_PATH`.
