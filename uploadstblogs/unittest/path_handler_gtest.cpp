@@ -146,7 +146,7 @@ bool calculate_file_md5(const char* filepath, char* md5_hash, size_t hash_size) 
 
 bool calculate_file_sha256(const char* filepath, char* sha256_hex, size_t output_size) {
     mock_calculate_sha256_calls++;
-    if (mock_calculate_sha256_result && sha256_hex && output_size > 0) {
+    if (mock_calculate_sha256_result && sha256_hex && output_size >= 65) {
         strncpy(sha256_hex, mock_sha256_hash, output_size - 1);
         sha256_hex[output_size - 1] = '\0';
         return true;
