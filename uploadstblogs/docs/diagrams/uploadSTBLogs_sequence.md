@@ -8,6 +8,7 @@ sequenceDiagram
     participant Archive
     participant UploadEngine
     participant Security
+    participant HashUtil
     participant Events
 
     Main->>Config: Context Initialization
@@ -20,6 +21,9 @@ sequenceDiagram
     UploadEngine->>Security: MTLS setup (Direct Path)
     Security-->>UploadEngine: TLS ready
     UploadEngine->>UploadEngine: Pre-sign request
+    UploadEngine->>HashUtil: calculate_file_sha256(archive)
+    HashUtil-->>UploadEngine: SHA256 hex string
+    UploadEngine->>UploadEngine: Log SHA256 at INFO level
     UploadEngine->>UploadEngine: S3 Upload PUT
     UploadEngine-->>Main: Verification success
     Main->>Events: Emit success + cleanup
@@ -31,8 +35,9 @@ sequenceDiagram
 3. Determine Reboot Strategy.
 4. Build archive.
 5. Execute upload (Direct path with mTLS).
-6. Verify success.
-7. Cleanup and emit success event.
+6. Calculate and log SHA256 of archive.
+7. Verify success.
+8. Cleanup and emit success event.
 
 ## 2. Fallback Scenario
 ```mermaid
