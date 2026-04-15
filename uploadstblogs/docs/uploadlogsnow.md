@@ -37,7 +37,7 @@ The original `UploadLogsNow.sh` flow was not only a local helper script; it was 
 | Consumer | Verified Integration | Details |
 |----------|----------------------|---------|
 | `rdkcentral/tr69hostif` | Yes | Uses TR-181 handlers to trigger `backgroundrun /usr/bin/logupload uploadlogsnow >> /opt/logs/dcmscript.log 2>&1` and reads `/opt/loguploadstatus.txt` for status |
-| `rdk-e/lostandfound-cpc` | Consumer reported, repository not inspectable from current environment | GitHub access is SSO-gated in this session, so file-level invocation details could not be verified directly |
+| `rdk-e/lostandfound-cpc` | Not yet verified | Consumer relationship has been reported, but file-level integration details have not yet been verified |
 
 ### tr69hostif Trigger Path
 
