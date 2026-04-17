@@ -370,7 +370,7 @@ Sub-components within `uploadstblogs/`:
 | file\_operations | `file_operations.h` | File I/O helpers |
 | md5\_utils | `md5_utils.h` | MD5 checksum for upload verification |
 | retry\_logic | `retry_logic.h` | Configurable retry with backoff |
-| strategy\_selector | `strategy_selector.h` | HTTP / HTTPS / TFTP upload strategy |
+| strategy\_selector | `strategy_selector.h` | Early upload checks and selection of upload path/handling (for example, Direct vs CodeBig) based on configured inputs |
 | validation | `validation.h` | Parameter and path validation |
 | verification | `verification.h` | Post-upload result verification |
 
