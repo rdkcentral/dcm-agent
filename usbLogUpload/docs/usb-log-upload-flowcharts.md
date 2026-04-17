@@ -20,7 +20,7 @@ flowchart TD
     ConfigOK -->|No| Exit6[Exit Code 6: Config Error]
     
     ConfigOK -->|Yes| DeviceCheck[Check Device Compatibility]
-    DeviceCheck --> DeviceOK{Device == PLATCO?}
+    DeviceCheck --> DeviceOK{Device == TV?}
     DeviceOK -->|No| Exit4_Device[Exit Code 4: Unsupported Device]
     
     DeviceOK -->|Yes| USBCheck[Validate USB Mount Point]
@@ -74,7 +74,7 @@ Config OK? ──NO──→ EXIT(6)
   ↓ YES
 Check Device Type
   ↓
-PLATCO Device? ──NO──→ EXIT(4)
+TV Device? ──NO──→ EXIT(4)
   ↓ YES  
 Validate USB Mount
   ↓
@@ -114,7 +114,7 @@ EXIT(0)
 ```mermaid
 flowchart TD
     ValidateStart([Validation Start]) --> CheckDevice[Check Device Name]
-    CheckDevice --> DeviceMatch{Device == PLATCO?}
+    CheckDevice --> DeviceMatch{Device == TV?}
     DeviceMatch -->|No| DeviceFail[Return Device Error]
     DeviceMatch -->|Yes| CheckUSB[Validate USB Mount Point]
     

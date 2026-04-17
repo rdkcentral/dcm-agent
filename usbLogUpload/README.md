@@ -89,14 +89,14 @@ The module reads configuration from:
 
 ### Environment Variables
 
-- `DEVICE_NAME`: Device type identifier (must be "PLATCO")
+- `DEVICE_NAME`: Device type identifier (must be "TV")
 - `RDK_PATH`: RDK library path (default: `/lib/rdk`)
 - `LOG_PATH`: System log directory path
 - `SYSLOG_NG_ENABLED`: Syslog-ng service status
 
 ## Features
 
-- **Device Validation**: Supports PLATCO devices only
+- **Device Validation**: Supports TV devices only
 - **Log Archival**: Creates compressed `.tgz` archives
 - **Naming Convention**: `<MAC>_Logs_<timestamp>.tgz`
 - **Service Management**: Reloads syslog-ng after log transfer
