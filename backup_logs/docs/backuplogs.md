@@ -496,9 +496,9 @@ sys_send_systemd_notification("STATUS=Logs Backup Done..!");
 
 ## Special Files Configuration
 
-`/etc/special_files.properties` lists additional files to capture during the common operations phase. The format is one absolute source path per line.
+`/etc/backup_logs/special_files.conf` lists additional files to capture during the common operations phase. The format is one absolute source path per line.
 
-```properties
+```conf
 # Special Files Configuration for backup_logs
 # Lines starting with # are comments; blank lines are ignored.
 #
