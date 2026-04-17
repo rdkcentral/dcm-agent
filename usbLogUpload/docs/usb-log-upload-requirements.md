@@ -7,7 +7,7 @@ This document outlines the functional requirements for migrating the `usbLogUplo
 
 ### Core Functionality
 1. **USB Log Transfer**: Transfer system logs from embedded device to external USB storage
-2. **Device Validation**: Verify device compatibility (currently PLATCO devices only)
+2. **Device Validation**: Verify device compatibility (currently TV devices only)
 3. **Log Archival**: Create compressed archive (.tgz) of log files with proper naming convention
 4. **Log Management**: Move logs from system location to USB, reload logging service
 

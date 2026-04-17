@@ -107,7 +107,7 @@ int validate_device_compatibility(void)
         return 4;
     }
     
-    /* Check if device is PLATCO (only supported device) */
+    /* Check if device is TV (only supported device) */
     if (strcmp(device_name, "TV") != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] ERROR! USB Log download not available on this device.\n", 
