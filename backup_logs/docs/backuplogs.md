@@ -682,7 +682,7 @@ docker run --rm \
 |------|-------------|---------|
 | Include properties | `/etc/include.properties` | Source of `LOG_PATH` |
 | Device properties | `/etc/device.properties` | Source of `HDD_ENABLED`, `APP_PERSISTENT_PATH` |
-| Special files list | `/etc/special_files.properties` | Additional files to capture |
+| Special files list | `/etc/backup_logs/special_files.conf` | Additional files to capture |
 | Disk check script | `/lib/rdk/disk_threshold_check.sh` | Optional pre-backup disk threshold check |
 | Debug configuration | `/etc/debug.ini` | RDK logger level settings |
 | Logger output | `/tmp/backup_logs.log` | Extended logger file output (when `-DRDK_LOGGER_EXT`) |
