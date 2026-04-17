@@ -47,7 +47,7 @@
 
 3. **USB-Specific Implementation:**
    - USB mount point validation
-   - Device compatibility checks (PLATCO-only requirement)
+   - Device compatibility checks (TV-only requirement)
    - syslog-ng service restart logic
 
 ## Implementation Benefits:
