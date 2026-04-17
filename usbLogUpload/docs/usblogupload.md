@@ -366,15 +366,13 @@ When run in CI, it also benefits from shared helper coverage provided by the `up
 |--------|---------|
 | command line argument | USB mount point |
 | `/etc/include.properties` | provides `LOG_PATH` |
-| `/etc/device.properties` | provides device metadata |
-| runtime environment | `DEVICE_NAME`, `RDK_PATH`, `SYSLOG_NG_ENABLED` |
+| `/etc/device.properties` | provides `RDK_PROFILE` and `SYSLOG_NG_ENABLED` |
 
 ### Defaults
 
 | Setting | Default |
 |---------|---------|
 | `LOG_PATH` | `/opt/logs` |
-| `RDK_PATH` | `/lib/rdk` |
 
 ### Outputs
 
