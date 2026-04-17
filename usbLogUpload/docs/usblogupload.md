@@ -417,7 +417,7 @@ The module attempts to keep partial state minimal by cleaning the temporary dire
 ## Platform Notes
 
 - supports embedded Linux targets built with Autotools
-- currently validated for `PLATCO` device compatibility checks
+- device compatibility is currently checked using `/etc/device.properties`, where `RDK_PROFILE` must be `TV`
 - depends on POSIX filesystem semantics and standard utilities such as `sync`
 - keeps the runtime simple to minimize CPU and memory pressure during USB export
 
