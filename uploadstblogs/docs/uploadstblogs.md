@@ -568,8 +568,9 @@ Unit tests are under `uploadstblogs/unittest/` and cover nearly every module bou
 | `retry_logic_gtest.cpp` | retry policy behavior |
 | `verification_gtest.cpp` | HTTP/curl result interpretation |
 | `event_manager_gtest.cpp` | event and telemetry paths |
+| `log_collector_gtest.cpp` | log collection and input gathering |
 | `rbus_interface_gtest.cpp` | RBUS integration |
-| `file_operations` / `path_handler` / `md5_utils` tests | helper modules |
+| Helper coverage note | `file_operations`, `path_handler`, and `md5_utils` are covered indirectly through the above tests and mocks; there are no dedicated `file_operations*_gtest.cpp` unit test sources |
 
 Typical execution is performed through the repository test harness in the CI container.
 
