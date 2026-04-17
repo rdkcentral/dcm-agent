@@ -488,8 +488,7 @@ int sys_send_systemd_notification(const char* message);
 
 **Typical calls:**
 ```c
-sys_send_systemd_notification("READY=1");
-sys_send_systemd_notification("STATUS=Logs Backup Done..!");
+sys_send_systemd_notification("Logs Backup Done..!");
 ```
 
 ---
