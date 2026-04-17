@@ -341,7 +341,7 @@ time_t  dcmCronParseGetNext(dcmCronExpr* expr, time_t date);
 | `uploadstblogs/src/` | Compiled into `libuploadstblogs.la` |
 | `uploadstblogs/include/` | Public headers |
 
-Provides a single re-entrant C API replacing the `uploadSTBLogs.sh` script family. The daemon links the library and calls `uploadstblogs_run()` on each log upload trigger.
+Provides a single C API replacing the `uploadSTBLogs.sh` script family. The daemon links the library and calls `uploadstblogs_run()` on each log upload trigger. The current implementation enforces single-instance execution across processes via a file lock, but it is not re-entrant and is not safe for concurrent calls within the same process or from multiple threads.
 
 **Entry point:**
 
