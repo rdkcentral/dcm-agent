@@ -40,4 +40,16 @@
  */
 bool calculate_file_md5(const char *filepath, char *md5_base64, size_t output_size);
 
+/**
+ * @brief Calculate SHA256 hash of a file and encode as hex string
+ * 
+ * Matches script behavior: openssl sha256 < file
+ * 
+ * @param filepath Path to file to hash
+ * @param sha256_hex Output buffer for hex-encoded SHA256 (min 65 bytes)
+ * @param output_size Size of output buffer
+ * @return true on success, false on failure
+ */
+bool calculate_file_sha256(const char *filepath, char *sha256_hex, size_t output_size);
+
 #endif /* MD5_UTILS_H */
