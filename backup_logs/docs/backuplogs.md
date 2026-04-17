@@ -341,7 +341,7 @@ File patterns matched: `*.txt*`, `*.log*`, `bootlog` (no `.bin*` files)
 
 After the device-specific strategy completes, `backup_execute_common_operations()` runs:
 
-1. Loads and processes `/etc/special_files.properties`
+1. Loads and processes `/etc/backup_logs/special_files.conf`
 2. Copies version files: `/version.txt`, `/etc/skyversion.txt`, `/etc/rippleversion.txt`
 3. Removes old `last_reboot` markers
 4. Creates new `last_reboot` marker at `persistent_path/logFileBackup`
