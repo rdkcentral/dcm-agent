@@ -342,7 +342,7 @@ int uploadstblogs_run(const UploadSTBLogsParams* params);
 
 **Thread Safety**
 
-Safe to call from different components because the implementation uses a single-instance lock to serialize active runs.
+The implementation uses a single-instance file lock to serialize active runs across processes. However, `uploadstblogs_run()` is not safe for concurrent calls from multiple threads within the same process and is not re-entrant, because it relies on shared static/global runtime state. Callers must ensure that invocations within a process are externally serialized.
 
 ### `uploadstblogs_execute()`
 
