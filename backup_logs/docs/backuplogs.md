@@ -730,7 +730,7 @@ Designed for ext4, JFFS2, and UBIFS. All directory operations use `createDir()` 
 ### Security Considerations
 
 - All paths are constructed with `snprintf()` and bounds-checked; truncation returns an error rather than a silently-clipped path.
-- Source file paths in `special_files.properties` are processed without shell expansion, preventing command injection.
+- Source file paths in `special_files.conf` are processed without shell expansion, preventing command injection.
 - `secure_wrapper` (`libsecure_wrapper`) is linked to harden string and I/O operations.
 - Symlink safety: `filePresentCheck()` uses `stat()` (follows symlinks by design, consistent with the original shell script behaviour); callers validate the resolved path remains under expected directories.
 
