@@ -222,7 +222,7 @@ Packages staged logs into a compressed archive on USB storage.
 
 | Shared Module | Reused Functionality |
 |---------------|----------------------|
-| `uploadstblogs/archive_manager.h` | `generate_archive_name()`, `create_archive()`, `get_archive_size()` |
+| `uploadstblogs/archive_manager.h` | `generate_archive_name()`, `create_archive()` (`get_archive_size()` is available in `uploadstblogs` but is not used by `usbLogUpload`) |
 | `uploadstblogs/context_manager.h` | `get_mac_address()` |
 | `uploadstblogs/file_operations.h` | directory/file helpers used by USB file manager |
 
