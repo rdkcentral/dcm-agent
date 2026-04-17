@@ -404,7 +404,7 @@ if (ret == BACKUP_SUCCESS) {
 | backup\_engine | `backup_engine.h` | Core backup orchestration |
 | config\_manager | `config_manager.h` | Backup configuration coordination and validation |
 | special\_files | `special_files.h` | `special_files.conf` loading/parsing and file list management |
-| sys\_integration | `sys_integration.h` | Storage and filesystem checks |
+| sys\_integration | `sys_integration.h` | systemd status/READY notification |
 
 Configuration file `special_files.conf` lists files to include in each backup run.
 
