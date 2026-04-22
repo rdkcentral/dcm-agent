@@ -209,7 +209,7 @@ int get_current_timestamp(char *timestamp_buffer, size_t buffer_size)
         return -2; /* Failed to get UTC time */
     }
 
-    /* Format: MM/DD/YY-HH:MM:SS */
+    /* Format (UTC): MM/DD/YY-HH:MM:SS */
     size_t written = strftime(timestamp_buffer, buffer_size, "%m/%d/%y-%H:%M:%S", &tm_utc);
     if (written == 0) {
         return -3; /* Buffer too small */
