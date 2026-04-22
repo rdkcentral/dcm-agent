@@ -415,12 +415,11 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
     }
 
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    if (!tm_info) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to get local time\n", __FUNCTION__, __LINE__);
-        return false;
+
+    struct tm tm_utc;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+         return false;
     }
 
     char timestamp[32];
