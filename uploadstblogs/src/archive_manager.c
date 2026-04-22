@@ -418,8 +418,8 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
 
     struct tm tm_utc;
     if (gmtime_r(&now, &tm_utc) == NULL) {
-         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
-         return false;
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return false;
     }
 
     char timestamp[32];
