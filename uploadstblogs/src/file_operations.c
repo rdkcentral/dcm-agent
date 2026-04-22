@@ -355,10 +355,17 @@ int add_timestamp_to_files(const char* dir_path)
         return -1;
     }
     char timestamp[32];
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", &tm_utc);
-    
-    // Store timestamp prefix globally for removal later (matches script behavior)
-    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    size_t timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", &tm_utc);
+    if (timestamp_len == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format UTC timestamp\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // Store timestamp prefix globally for removal later (matches script behavior)
+    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    g_timestamp_prefix[sizeof(g_timestamp_prefix) - 1] = '\0';
 
     DIR* dir = opendir(dir_path);
     if (!dir) {
