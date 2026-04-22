@@ -424,7 +424,7 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
 
     char timestamp[32];
     // Format: MM-DD-YY-HH-MMAM/PM (matches script: date "+%m-%d-%y-%I-%M%p")
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", tm_info);
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc);
     
     // Remove colons from MAC address for filename (A8:4A:63 -> A84A63)
     char mac_clean[32];
