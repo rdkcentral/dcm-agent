@@ -424,8 +424,11 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
 
     char timestamp[32];
     // Format UTC timestamp as MM-DD-YY-HH-MMAM/PM.
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc);
-    
+    if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
+        return false;
+    }
     // Remove colons from MAC address for filename (A8:4A:63 -> A84A63)
     char mac_clean[32];
     const char* src = mac_address;
