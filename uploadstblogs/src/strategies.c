@@ -475,8 +475,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            (ctx && ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL/INVALID)",
-            (ctx && ctx->device_type[0] != '\0') ? ctx->device_type : "(empty/NULL)");
+            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
