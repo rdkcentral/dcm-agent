@@ -449,6 +449,7 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
             __FUNCTION__, __LINE__, buffer, mac_address, prefix);
     
     return true;
+
 }
 /**
  * @brief Calculate TAR checksum
