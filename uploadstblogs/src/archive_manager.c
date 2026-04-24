@@ -415,20 +415,18 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
     }
 
     time_t now = time(NULL);
-
-    struct tm tm_utc;
-    if (gmtime_r(&now, &tm_utc) == NULL) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+    struct tm* tm_info = localtime(&now);
+    
+    if (!tm_info) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to get local time\n", __FUNCTION__, __LINE__);
         return false;
     }
 
     char timestamp[32];
-    // Format UTC timestamp as MM-DD-YY-HH-MMAM/PM.
-    if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
-        return false;
-    }
+    // Format: MM-DD-YY-HH-MMAM/PM (matches script: date "+%m-%d-%y-%I-%M%p")
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", tm_info);
+    
     // Remove colons from MAC address for filename (A8:4A:63 -> A84A63)
     char mac_clean[32];
     const char* src = mac_address;
@@ -702,7 +700,7 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
             __FUNCTION__, __LINE__, 
-            (ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL)", 
+            ctx->mac_address ? ctx->mac_address : "(NULL)", 
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
@@ -738,36 +736,10 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
     // Write two 512-byte blocks of zeros (TAR EOF marker)
     char eof_blocks[TAR_BLOCK_SIZE * 2];
     memset(eof_blocks, 0, sizeof(eof_blocks));
-    if (gzwrite(gz, eof_blocks, sizeof(eof_blocks)) != sizeof(eof_blocks)) {
-        int zerr = Z_OK;
-        const char* zmsg = gzerror(gz, &zerr);
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] gzwrite failed to write EOF blocks (zerr=%d, msg=%s)\n",
-                __FUNCTION__, __LINE__, zerr, zmsg ? zmsg : "(null)");
-        ret = -1;
-    }
+    gzwrite(gz, eof_blocks, sizeof(eof_blocks));
     
     // Close gzip file
-    int gzclose_ret = gzclose(gz);
-    if (gzclose_ret != Z_OK) {
-        const char* zmsg = zError(gzclose_ret);
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-            "[%s:%d] gzclose failed (zret=%d, msg=%s)\n",
-            __FUNCTION__, __LINE__, gzclose_ret, zmsg ? zmsg : "(null)");
-        ret = -1;
-    }
-
-    if (ret != 0 && file_exists(archive_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] Removing incomplete archive: %s\n",
-                __FUNCTION__, __LINE__, archive_path);
-        errno = 0;
-        if (!remove_file(archive_path)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to remove incomplete archive: %s (errno=%d, %s)\n",
-                    __FUNCTION__, __LINE__, archive_path, errno, strerror(errno));
-        }
-    }
+    gzclose(gz);
 
     if (ret == 0 && file_exists(archive_path)) {
         long size = get_archive_size(archive_path);
