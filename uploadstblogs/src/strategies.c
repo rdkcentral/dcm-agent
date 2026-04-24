@@ -475,8 +475,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
-            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
+            (ctx && ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && ctx->device_type[0] != '\0') ? ctx->device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
@@ -847,10 +847,22 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     } else {
         // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
         bool is_scheduled_reboot = false;
+        char reboot_reason[512] = "unknown";
         FILE* reboot_file = fopen(reboot_info_path, "r");
         if (reboot_file) {
             char line[512];
             while (fgets(line, sizeof(line), reboot_file)) {
+                // Store the first line as reboot reason (with newline removed if present)
+                if (strcmp(reboot_reason, "unknown") == 0) {
+                    strncpy(reboot_reason, line, sizeof(reboot_reason) - 1);
+                    reboot_reason[sizeof(reboot_reason) - 1] = '\0';
+                    // Remove trailing newline if present
+                    size_t len = strlen(reboot_reason);
+                    if (len > 0 && reboot_reason[len-1] == '\n') {
+                        reboot_reason[len-1] = '\0';
+                    }
+                }
+                
                 // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
                 if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
                     is_scheduled_reboot = true;
@@ -858,6 +870,8 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 }
             }
             fclose(reboot_file);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
         
         // Get RFC setting for unscheduled reboot upload via RBUS
@@ -873,6 +887,8 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Reboot reason check - Scheduled: %d, Disable unscheduled RFC: %d\n", 
                 __FUNCTION__, __LINE__, is_scheduled_reboot, disable_unscheduled_upload);
+        
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s, uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, reboot_reason, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
         
         // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
         // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
@@ -1112,4 +1128,6 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
+
+
 
