@@ -847,7 +847,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     } else {
         // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
         bool is_scheduled_reboot = false;
-        char reboot_reason[512] = " ";
         FILE* reboot_file = fopen(reboot_info_path, "r");
         if (reboot_file) {
             char line[512];
