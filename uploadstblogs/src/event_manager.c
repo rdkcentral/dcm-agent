@@ -184,7 +184,7 @@ void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
 void emit_upload_aborted(void)
 {
     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-            "[%s:%d] Upload operation was aborted\n", __FUNCTION__, __LINE__);
+            "[%s:%d] Not Uploading Logs with DCM \n", __FUNCTION__, __LINE__);
     
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);
     send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
