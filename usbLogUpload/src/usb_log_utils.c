@@ -204,13 +204,13 @@ int get_current_timestamp(char *timestamp_buffer, size_t buffer_size)
     }
 
     time_t now = time(NULL);
-    struct tm *tm_info = localtime(&now);
-    if (!tm_info) {
-        return -2; /* Failed to get time */
+    struct tm tm_utc;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        return -2; /* Failed to get UTC time */
     }
 
-    /* Format: MM/DD/YY-HH:MM:SS */
-    size_t written = strftime(timestamp_buffer, buffer_size, "%m/%d/%y-%H:%M:%S", tm_info);
+    /* Format (UTC): MM/DD/YY-HH:MM:SS */
+    size_t written = strftime(timestamp_buffer, buffer_size, "%m/%d/%y-%H:%M:%S", &tm_utc);
     if (written == 0) {
         return -3; /* Buffer too small */
     }

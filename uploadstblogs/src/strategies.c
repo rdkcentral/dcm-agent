@@ -1,4 +1,5 @@
-﻿/*
+
+/*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
@@ -406,11 +407,22 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     // Create timestamp for permanent log path (for logging purposes only)
     char timestamp[64];
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
+    struct tm tm_utc;
+    size_t timestamp_len;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
+    if (timestamp_len == 0U) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format timestamp for permanent log path\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     char perm_log_path[MAX_PATH_LENGTH];
-    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s",
                           ctx->log_path, timestamp);
     
     if (written >= (int)sizeof(perm_log_path)) {
