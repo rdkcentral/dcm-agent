@@ -138,3 +138,83 @@ bool calculate_file_md5(const char *filepath, char *md5_base64, size_t output_si
     
     return true;
 }
+
+bool calculate_file_sha256(const char *filepath, char *sha256_hex, size_t output_size)
+{
+    if (!filepath || !sha256_hex || output_size < 65) { // SHA256 hex = 64 chars + null
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+        return false;
+    }
+    
+    FILE *file = fopen(filepath, "rb");
+    if (!file) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open file: %s\n", __FUNCTION__, __LINE__, filepath);
+        return false;
+    }
+    
+    // Use modern EVP API for SHA256
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_new();
+    if (!md_ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to create SHA256 context\n", __FUNCTION__, __LINE__);
+        fclose(file);
+        return false;
+    }
+    
+    if (EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL) != 1) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to initialize SHA256 digest\n", __FUNCTION__, __LINE__);
+        EVP_MD_CTX_free(md_ctx);
+        fclose(file);
+        return false;
+    }
+    
+    unsigned char buffer[8192];
+    size_t bytes_read;
+    
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        if (EVP_DigestUpdate(md_ctx, buffer, bytes_read) != 1) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to update SHA256 digest\n", __FUNCTION__, __LINE__);
+            EVP_MD_CTX_free(md_ctx);
+            fclose(file);
+            return false;
+        }
+    }
+    
+    if (ferror(file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to read file for SHA256 calculation: %s\n",
+                __FUNCTION__, __LINE__, filepath);
+        EVP_MD_CTX_free(md_ctx);
+        fclose(file);
+        return false;
+    }
+    
+    fclose(file);
+    
+    unsigned char sha256_binary[EVP_MAX_MD_SIZE];
+    unsigned int sha256_len;
+    if (EVP_DigestFinal_ex(md_ctx, sha256_binary, &sha256_len) != 1) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to finalize SHA256 digest\n", __FUNCTION__, __LINE__);
+        EVP_MD_CTX_free(md_ctx);
+        return false;
+    }
+    
+    EVP_MD_CTX_free(md_ctx);
+    
+    // Convert to hex string (matches script: openssl sha256 < file)
+    for (unsigned int i = 0; i < sha256_len; i++) {
+        snprintf(sha256_hex + (i * 2), output_size - (i * 2), "%02x", sha256_binary[i]);
+    }
+    sha256_hex[sha256_len * 2] = '\0';
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Calculated SHA256 for %s: %s\n", 
+            __FUNCTION__, __LINE__, filepath, sha256_hex);
+    
+    return true;
+}

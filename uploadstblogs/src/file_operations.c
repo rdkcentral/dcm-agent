@@ -126,6 +126,7 @@ bool create_directory(const char* dirpath)
                 if (createDir(path_copy) != RDK_API_SUCCESS) {
                     RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create directory %s\n", 
                             __FUNCTION__, __LINE__, path_copy);
+                    // coverity[MISSING_RESTORE : FALSE] Restore is not needed because function returns immediately.
                     return false;
                 }
             }
@@ -348,12 +349,23 @@ int add_timestamp_to_files(const char* dir_path)
 
     // Get current timestamp in script format: MM-DD-YY-HH-MMAM/PM-
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
+    struct tm tm_utc;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
     char timestamp[32];
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", tm_info);
-    
-    // Store timestamp prefix globally for removal later (matches script behavior)
-    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    size_t timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", &tm_utc);
+    if (timestamp_len == 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format UTC timestamp\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // Store timestamp prefix globally for removal later (matches script behavior)
+    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    g_timestamp_prefix[sizeof(g_timestamp_prefix) - 1] = '\0';
 
     DIR* dir = opendir(dir_path);
     if (!dir) {
@@ -538,9 +550,13 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
 
     // Get current timestamp in script format: MM-DD-YY-HH-MMAM/PM-
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
+    struct tm tm_utc;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
     char timestamp[32];
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", tm_info);
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", &tm_utc);
     
     // Store timestamp prefix globally for removal later (matches script behavior)
     strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);

@@ -64,6 +64,14 @@ bool copy_file(const char* src, const char* dest) {
     return true;
 }
 
+bool remove_file(const char* filepath) {
+    if (g_mockFileOperations) {
+        return g_mockFileOperations->remove_file(filepath);
+    }
+    if (!filepath) return false;
+    return true;
+}
+
 void emit_system_validation_event(const char* component, bool success) {
     if (g_mockFileOperations) {
         g_mockFileOperations->emit_system_validation_event(component, success);

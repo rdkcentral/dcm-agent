@@ -79,6 +79,7 @@ graph TB
    - Retry Logic engages fallback if needed.
    - Authentication (mTLS/OAuth).
    - Transfer.
+   - For Direct path: calculate and log SHA256 of archive before S3 PUT.
    - Verification.
 4. Cleanup & Notification.
 
@@ -87,7 +88,8 @@ graph TB
 graph TD
     A[Start Upload Attempt] --> B[Primary Path Request]
     B --> C{HTTP Code}
-    C -->|200| D[Upload to S3]
+    C -->|200| SHA[Calculate & Log SHA256\nDirect Path Only]
+    SHA --> D[Upload to S3]
     C -->|404| E[Terminal Fail]
     C -->|Other| F{Fallback Allowed?}
     F -->|Yes| G[Switch to Alternate Path]

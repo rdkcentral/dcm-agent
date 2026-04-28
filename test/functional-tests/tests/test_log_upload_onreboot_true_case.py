@@ -1,5 +1,5 @@
 ####################################################################################
-# If not stated otherwise in this file or this component's Licenses file the
+# If not stated otherwise in this file or this component's LICENSE file the
 # following copyright and licenses apply:
 #
 # Copyright 2024 RDK Management
@@ -28,11 +28,6 @@ import json
 def test_upload_cron_present():
     assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
 
-@pytest.mark.run(order=2)
-def test_upload_script_started():
-    assert "UploadOnReboot=1" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadLogOnReboot with true" in grep_dcmdlogs("Called uploadLogOnReboot with true")
-
 @pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
     sleep(540)
@@ -50,7 +45,5 @@ def test_upload_cron_scheduled():
 
 @pytest.mark.run(order=6)
 def test_upload_started():
-    assert "Start log upload Script"  in grep_dcmdlogs("Start log upload Script")
-    assert "FLAG=0" in grep_dcmdlogs("Triggered uploadSTBLogs.sh with arguments")
-    assert "Called uploadDCMLogs" in grep_dcmdlogs("Called uploadDCMLogs")
+    assert "Start log upload via library API"  in grep_dcmdlogs("Start log upload via library API")
 

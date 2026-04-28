@@ -39,6 +39,7 @@ The C migration must replicate the shell script’s logic for conditional log pa
 |------------|---------|
 | TR-181 accessor | Fetch RFC and endpoint values |
 | Curl / libcurl | HTTPS pre-sign & upload |
+| OpenSSL EVP (required) | SHA256 hash of archive before upload (Direct path) |
 | OpenSSL (optional) | MD5 checksum (if encryption flag) |
 | Event sender binary | Emit IARM events |
 | Tar/Gzip facility | Create archive (streamed) |
@@ -50,7 +51,7 @@ The C migration must replicate the shell script’s logic for conditional log pa
 |------|-----------|
 | Performance | Minimize process spawning; stream archive creation |
 | Memory | Low footprint (< few MB); fixed buffers |
-| CPU | Compression acceptable; avoid heavy hashing beyond MD5 |
+| CPU | SHA256 computed once per Direct upload for integrity logging; MD5 computed only when encryption flag is set |
 | Portability | POSIX C; avoid shell-only constructs |
 | Security | Privacy abort must prevent data exposure; TLS enforced |
 | Reliability | Deterministic fallback and retries; safe early exits |
@@ -91,6 +92,7 @@ The C migration must replicate the shell script’s logic for conditional log pa
 ## 9. Observability
 
 - Log each stage (strategy chosen, path selected, attempt counts, HTTP codes).
+- Log SHA256 hash of the archive at INFO level before each Direct upload for traceability.
 - Telemetry counters keyed to success, failure, fallback, curl and cert errors.
   
 ## 10. Migration Non-Functional Requirements

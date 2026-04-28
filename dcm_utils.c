@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
@@ -96,9 +97,9 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
     if (fp) {
         if(out) {
             if (fgets (out, len, fp) != NULL) {
-                size_t len = strlen (out);
-                if ((len > 0) && (out[len - 1] == '\n'))
-                    out[len - 1] = 0;
+                size_t str_len = strlen (out);
+                if ((str_len > 0) && (out[str_len - 1] == '\n'))
+                    out[str_len - 1] = 0;
             }
         }
         pclose (fp);
@@ -185,7 +186,13 @@ VOID dcmUtilsRemovePIDfile()
     fp = fopen(DCM_PID_FILE, "r");
     if(fp) {
         fclose(fp);
-        remove(DCM_PID_FILE);
+        errno = 0;
+        if (remove(DCM_PID_FILE) != 0) {
+            if (errno != ENOENT) {      
+                DCMError("Failed to remove PID file: %s errno=%d (%s)\n",
+                         DCM_PID_FILE, errno, strerror(errno));
+            }
+        }
     }
 }
 

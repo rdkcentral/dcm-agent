@@ -13,6 +13,7 @@
 | Archive Manager | `prepare_archive(RuntimeContext*)`, `prepare_rrd_archive(RuntimeContext*)` |
 | Upload Execution Engine | `execute_upload_cycle(RuntimeContext*, SessionState*)` |
 | Direct Upload Path | `presign_direct()`, `upload_direct()` |
+| SHA256 Integrity Logging | `calculate_file_sha256(filepath, sha256_hex, output_size)` (Direct path only) |
 | CodeBig Upload Path | `presign_codebig()`, `upload_codebig()` |
 | Fallback Handler | Integrated in `execute_upload_cycle()` |
 | MTLS Authentication | `setup_mtls(SecurityContext*)` |
@@ -159,6 +160,46 @@ bool presign_request(RuntimeContext* ctx, SessionState* st, UploadPath path) {
 Terminal conditions:
 - HTTP 404 → terminal failure (no fallback).
 - Other non-200 → eligible for fallback unless attempts exceed.
+
+## 7a. SHA256 Integrity Logging (Direct Path)
+
+After a successful pre-sign response and before the S3 upload, the Direct path calculates and logs the SHA256 digest of the archive file:
+
+```c
+// Inside execute_direct_path()
+char sha256_hex[65] = {0}; // 64 hex chars + NUL
+if (calculate_file_sha256(archive_filepath, sha256_hex, sizeof(sha256_hex))) {
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Archive SHA256: %s\n",
+            __FUNCTION__, __LINE__, sha256_hex);
+} else {
+    RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+            "[%s:%d] Failed to calculate SHA256 for archive\n",
+            __FUNCTION__, __LINE__);
+}
+```
+
+`calculate_file_sha256()` signature (in `md5_utils.h`/`md5_utils.c`):
+
+```c
+/**
+ * @brief Calculate SHA256 hash of a file and encode as hex string.
+ *        Uses OpenSSL EVP; matches: openssl sha256 < file
+ *
+ * @param filepath    Path to the file.
+ * @param sha256_hex  Output buffer (minimum 65 bytes: 64 hex chars + NUL).
+ * @param output_size Size of sha256_hex buffer.
+ * @return true on success, false on failure or I/O error.
+ */
+bool calculate_file_sha256(const char *filepath, char *sha256_hex, size_t output_size);
+```
+
+Implementation notes:
+- Uses `EVP_DigestInit_ex` / `EVP_DigestUpdate` / `EVP_DigestFinal_ex` from OpenSSL EVP.
+- Reads the file in `BUFFER_SIZE` chunks to remain memory-efficient.
+- Checks `ferror()` after the read loop; returns `false` for partial reads.
+- Converts binary digest to hex using a nibble lookup table (avoids per-byte `snprintf` overhead).
+- Requires `output_size >= 65`; returns `false` for undersized buffers.
 
 ## 8. Upload Archive
 

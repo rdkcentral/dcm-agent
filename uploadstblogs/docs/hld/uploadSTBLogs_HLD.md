@@ -125,12 +125,13 @@ typedef struct {
 
 ## 6. Upload Execution Steps
 1. Pre-sign Request (Direct mTLS or CodeBig OAuth).
-2. Evaluate HTTP code:
+2. For Direct path: Calculate SHA256 hash of the archive and log it at INFO level for traceability.
+3. Evaluate HTTP code:
    - 200: proceed with S3 PUT.
    - 404: terminal failure (no retry).
    - Other: retry within allowed attempts or fallback.
-3. S3 Upload (PUT) with TLS/MTLS or standard TLS (CodeBig).
-4. Verification: Success if curl success and HTTP 200.
+4. S3 Upload (PUT) with TLS/MTLS or standard TLS (CodeBig).
+5. Verification: Success if curl success and HTTP 200.
 
 ## 7. Retry Logic
 | Path | Attempts | Delay |
@@ -146,6 +147,9 @@ Stops early on success; fallback evaluated after attempts exhausted.
 | Direct | mTLS certificates (xPKI) |
 | CodeBig | OAuth header from signed service URL |
 | OCSP | Add stapling if marker files present |
+
+## 8a. Archive Integrity (Direct Path)
+Before proceeding with the S3 upload on the Direct path, the SHA256 hash of the archive file is calculated using `calculate_file_sha256()` (OpenSSL EVP) and logged at INFO level. This provides traceability of the exact archive content uploaded to the server, matching the behaviour of `openssl sha256 < file` in the original shell script.
 
 ## 9. Archive Manager Functions
 - Timestamp insertion for non OnDemand/Privacy/RRD cases requiring renaming.
