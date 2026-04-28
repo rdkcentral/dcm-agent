@@ -186,7 +186,6 @@ void emit_upload_aborted(void)
     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
             "[%s:%d] Upload operation was aborted\n", __FUNCTION__, __LINE__);
     
-    // Send abort events
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);
     send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
 }
