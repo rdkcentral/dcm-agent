@@ -865,11 +865,14 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             while (fgets(line, sizeof(line), reboot_file)) {
                 // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
                 if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
+		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
                     is_scheduled_reboot = true;
                     break;
                 }
             }
             fclose(reboot_file);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
         
         // Get RFC setting for unscheduled reboot upload via RBUS
@@ -882,9 +885,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             disable_unscheduled_upload = false;
         }
         
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Reboot reason check - Scheduled: %d, Disable unscheduled RFC: %d\n", 
-                __FUNCTION__, __LINE__, is_scheduled_reboot, disable_unscheduled_upload);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
         
         // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
         // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
