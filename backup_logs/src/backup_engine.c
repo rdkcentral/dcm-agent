@@ -181,20 +181,19 @@ int backup_execute_hdd_enabled_strategy(const backup_config_t* config) {
         
         /* Create timestamped directory */
         time_t rawtime;
-        struct tm *timeinfo;
         char timestamp[32];
         char timestamped_path[PATH_MAX];
         
         time(&rawtime);
-        timeinfo = localtime(&rawtime);
-        if (timeinfo == NULL) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "localtime() failed, using raw time as fallback for timestamp\n");
+        struct tm tm_utc;
+        if (gmtime_r(&rawtime, &tm_utc) == NULL) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to get UTC time, using raw time as fallback for timestamp\n");
             /* Fallback: use raw time value as decimal string */
             if (snprintf(timestamp, sizeof(timestamp), "%ld", (long)rawtime) < 0) {
                 timestamp[0] = '\0';
             }
         } else {
-            if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M-%S%p", timeinfo) == 0) {
+            if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M-%S%p", &tm_utc) == 0) {
                 RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "strftime() failed, using raw time as fallback for timestamp\n");
                 if (snprintf(timestamp, sizeof(timestamp), "%ld", (long)rawtime) < 0) {
                     timestamp[0] = '\0';

@@ -1,4 +1,5 @@
-﻿/*
+
+/*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
@@ -406,11 +407,22 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
     // Create timestamp for permanent log path (for logging purposes only)
     char timestamp[64];
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
+    struct tm tm_utc;
+    size_t timestamp_len;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
+    if (timestamp_len == 0U) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format timestamp for permanent log path\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     char perm_log_path[MAX_PATH_LENGTH];
-    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s",
                           ctx->log_path, timestamp);
     
     if (written >= (int)sizeof(perm_log_path)) {
@@ -853,11 +865,14 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             while (fgets(line, sizeof(line), reboot_file)) {
                 // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
                 if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
+		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
                     is_scheduled_reboot = true;
                     break;
                 }
             }
             fclose(reboot_file);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
         
         // Get RFC setting for unscheduled reboot upload via RBUS
@@ -870,9 +885,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             disable_unscheduled_upload = false;
         }
         
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Reboot reason check - Scheduled: %d, Disable unscheduled RFC: %d\n", 
-                __FUNCTION__, __LINE__, is_scheduled_reboot, disable_unscheduled_upload);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
         
         // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
         // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
@@ -887,6 +900,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
+        emit_upload_aborted();
         return 0;
     }
 
