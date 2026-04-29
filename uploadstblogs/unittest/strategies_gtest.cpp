@@ -166,6 +166,11 @@ void emit_no_logs_reboot(const RuntimeContext* ctx) {
     // No-op for tests
 }
 
+// Mock for emit_upload_aborted used by strategies.c
+void emit_upload_aborted(void) {
+    // No-op for tests
+}
+
 int remove_timestamp_from_files(const char* dirpath) {
     return 0; // Success
 }
