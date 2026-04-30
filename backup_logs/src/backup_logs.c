@@ -1,8 +1,8 @@
 /*
- * If not stated otherwise in this file or this component's LICENSE file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's LICENSE
+ * file the following copyright and licenses apply:
  *
- * Copyright 2026 RDK Management
+ * Copyright 2024 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdio.h>
@@ -22,6 +24,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <time.h>
+#include <sys/stat.h>
 
 
 
@@ -264,6 +268,10 @@ int backup_logs_cleanup(backup_config_t *config) {
 
 /* Main entry point */
 int backup_logs_main(int argc, char *argv[]) {
+    /* Start timing the program execution */
+    struct timespec program_start, program_end;
+    clock_gettime(CLOCK_MONOTONIC, &program_start);
+    
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting backup_logs main function with %d arguments\n", argc);
     
     /* Suppress unused parameter warnings */
@@ -301,7 +309,10 @@ int backup_logs_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
+    /* Calculate and log total execution time */
+    clock_gettime(CLOCK_MONOTONIC, &program_end);
+    double total_time = (program_end.tv_sec - program_start.tv_sec) + (program_end.tv_nsec - program_start.tv_nsec) / 1000000000.0;
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully - Total runtime: %.3f seconds\n", total_time);
     return EXIT_SUCCESS;
 }
 #ifndef GTEST_ENABLE
