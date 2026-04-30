@@ -1,6 +1,6 @@
 #!/bin/sh
 ####################################################################################
-# If not stated otherwise in this file or this component's LICENSE file the
+# If not stated otherwise in this file or this component's Licenses.txt file the
 # following copyright and licenses apply:
 #
 # Copyright 2024 RDK Management
@@ -125,6 +125,28 @@ echo ""
 echo "8. Running Upload Strategy Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
+
+
+echo ""
+echo "9. Running backup Engine Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/backup_engine.json test/functional-tests/tests/test_backup_engine.py
+
+echo ""
+echo "10. Running backup configuration manager Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/backuplog_config_manager.json test/functional-tests/tests/test_backuplog_config_manager.py
+
+echo ""
+echo "11. Running backup systemintegration Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/backuplogs_system_integration.json test/functional-tests/tests/test_backuplogs_system_integration.py
+
+
+echo ""
+echo "12. Running backup special file Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/test_backuplogs_special_files.json test/functional-tests/tests/test_backuplogs_special_files.py
 
 echo ""
 echo "====================================="

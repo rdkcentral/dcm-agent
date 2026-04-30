@@ -18,7 +18,7 @@
 ## SPDX-License-Identifier: Apache-2.0
 #
 
-ENABLE_COV=false
+ENABLE_COV=true
 
 if [ "x$1" = "x--enable-cov" ]; then
       echo "Enabling coverage options"
@@ -68,6 +68,17 @@ autoreconf --install
 
 make clean
 make
+
+cd ../../backup_logs/unittest
+automake --add-missing
+autoreconf --install
+
+./configure
+
+make clean
+make
+
+
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
@@ -98,8 +109,12 @@ for test in \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
-  ./../usbLogUpload/unittest/usb_log_archive_gtest
-  
+  ./../usbLogUpload/unittest/usb_log_archive_gtest \
+  ./../backup_logs/unittest/backup_engine_gtest \
+  ./../backup_logs/unittest/backup_logs_gtest \
+  ./../backup_logs/unittest/config_manager_gtest \
+  ./../backup_logs/unittest/special_files_gtest \
+  ./../backup_logs/unittest/sys_integration_gtest
 do
     $test
     status=$?
@@ -125,4 +140,10 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
     lcov --list coverage.info
+    lcov --capture --directory ./../backup_logs/ --output-file coverage_backup.info
+    lcov --remove coverage_backup.info '/usr/*' --output-file coverage_backup.info
+    lcov --remove coverage_backup.info '/usr/*' '*/backup_logs/unittest/*' -o coverage_backup.info
+    #lcov --remove coverage_backup.info './../backup_logs/unittest/*' --output-file coverage_backup.info
+    lcov --list coverage_backup.info
+
 fi
