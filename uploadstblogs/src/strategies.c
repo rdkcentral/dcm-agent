@@ -1073,7 +1073,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     // Clean PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
+            "[%s:%d] Deleting from Previous Logs  Folder\n", __FUNCTION__, __LINE__);
     
     clean_directory(ctx->prev_log_path);
 
