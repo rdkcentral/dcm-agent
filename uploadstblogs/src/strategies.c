@@ -882,7 +882,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
         
         // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
-        // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ] 
+        // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
         if ( ctx->upload_on_reboot==1 || (!is_scheduled_reboot && !disable_unscheduled_upload)) {
             should_upload = true;
         }
