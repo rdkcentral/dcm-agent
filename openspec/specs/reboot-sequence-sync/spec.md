@@ -20,8 +20,7 @@ that must execute in strict order after a device reboot: `backup_logs`, `update-
 
 | Sentinel File | Written by | Consumed by | Meaning |
 |---------------|-----------|-------------|---------|
-| `/tmp/.backup_logs_done` | `backup_logs` binary | `update-prev-reboot-info` | Log backup to PreviousLogs/ completed successfully |
-| `/tmp/Update_rebootInfo_invoked` | `update-prev-reboot-info` | `uploadstblogs` (reboot_setup) | Reboot reason fully derived and persisted to previousreboot.info |
+| `/tmp/.backup_logs_done` | `backup_logs` binary | `update-prev-reboot-info`, `telemetry2_0` (PreviousLogs grep report) | Log backup to PreviousLogs/ completed successfully || `/tmp/stt_received` | NTP daemon / time sync service | `update-prev-reboot-info`, `uploadstblogs` (reboot_setup) | System clock is NTP-synchronized || `/tmp/Update_rebootInfo_invoked` | `update-prev-reboot-info` | `uploadstblogs` (reboot_setup) | Reboot reason fully derived and persisted to previousreboot.info |
 
 Both sentinels reside in `/tmp/` and are therefore volatile — they are cleared automatically
 on every reboot. No explicit removal at startup is required.
@@ -44,9 +43,9 @@ on every reboot. No explicit removal at startup is required.
         ↓ (uploadstblogs polls)
 
 [uploadstblogs TRIGGER_REBOOT]
-    reboot_setup() polls /tmp/Update_rebootInfo_invoked  ← replaces sleep(330)
-    ON SENTINEL DETECTED → proceed with archive/upload
-    ON TIMEOUT → skip reboot upload entirely
+    reboot_setup() polls /tmp/stt_received AND /tmp/Update_rebootInfo_invoked
+    BOTH present → proceed with archive/upload
+    EITHER times out → skip reboot upload entirely
 ```
 
 ---
@@ -95,27 +94,35 @@ the directory is stable before it is read.
 
 ---
 
-### REQ-SYNC-003 — uploadstblogs reboot_setup() Polls for Reboot Reason Readiness
+### REQ-SYNC-003 — uploadstblogs reboot_setup() Polls for All Prerequisites
 
 **Priority**: MUST  
 **Module**: `uploadstblogs/src/strategies.c` (`dcm-agent`)
 
 The `reboot_setup()` function in the REBOOT/NON_DCM strategy MUST replace the existing
-`sleep(330)` with a polling loop that waits for `/tmp/Update_rebootInfo_invoked`.
+`sleep(330)` with a polling loop that waits for **both** of the following sentinels:
+
+1. `/tmp/stt_received` — NTP clock synchronization is complete
+2. `/tmp/Update_rebootInfo_invoked` — reboot reason has been fully derived and persisted
 
 **Poll behavior**:
 - Poll interval: 1 second
-- Timeout: 120 seconds
-- On sentinel detected within timeout: proceed to archive/upload phase
-- On timeout: log error and return a non-zero status code that causes the caller to skip the upload
+- Timeout: 120 seconds (applies to the combined wait for both sentinels)
+- On both sentinels detected within timeout: proceed to archive/upload phase
+- On timeout (either sentinel missing): log error and return a non-zero status code that
+  causes the caller to skip the upload
 
-The uptime check (`get_system_uptime()`) MAY be retained as an early gate (skip sleep if
-uptime ≥ 900s), but the sentinel poll MUST be the primary readiness mechanism.
+The poll loop MUST check `stat()` for both files on each iteration and proceed only when
+both exist. This provides an explicit NTP guarantee rather than relying on transitive
+inference through the sentinel chain.
 
-**Rationale**: `Update_rebootInfo_invoked` is the existing completion signal from
-`update-prev-reboot-info`. By gating on it, `uploadstblogs` avoids reading stale or missing
-`previousreboot.info` and simultaneously ensures NTP is already synchronized (because
-`stt_received`, the NTP sync signal, is an upstream prerequisite to `Update_rebootInfo_invoked`).
+The uptime check (`get_system_uptime()`) MAY be retained as an early gate (skip poll if
+uptime ≥ 900s), but the dual sentinel poll MUST be the primary readiness mechanism.
+
+**Rationale**: Checking `/tmp/stt_received` explicitly makes the NTP dependency
+self-documenting and resilient to future changes in the `update-prev-reboot-info` pipeline.
+Checking `/tmp/Update_rebootInfo_invoked` ensures `previousreboot.info` is written and
+complete before upload decisions are made.
 
 ---
 
@@ -142,12 +149,12 @@ missing reboot reason data.
 **Module**: `uploadstblogs/src/archive_manager.c`, `uploadstblogs/src/file_operations.c` (`dcm-agent`)
 
 All calls to `time(NULL)` within `generate_archive_name()` and `add_timestamp_to_files()`
-MUST execute only after the poll in REQ-SYNC-003 has confirmed `/tmp/Update_rebootInfo_invoked`
-is present.
+MUST execute only after the poll in REQ-SYNC-003 has confirmed **both** `/tmp/stt_received`
+and `/tmp/Update_rebootInfo_invoked` are present.
 
 This is guaranteed structurally: both functions are called in `reboot_archive()` and
 `reboot_setup()` respectively, which execute after `reboot_setup()` returns successfully.
-No additional changes to these functions are required.
+The explicit `/tmp/stt_received` check in REQ-SYNC-003 provides a direct NTP guarantee.
 
 **Note on file mtime**: The `st_mtime` values embedded in TAR headers by `write_tar_header()`
 reflect the on-disk modification time of files copied by `backup_logs` (which runs
@@ -201,7 +208,7 @@ backup_logs  →  update-prev-reboot-info  →  uploadstblogs
 | Component | Polls for | Interval | Timeout | Timeout action |
 |-----------|-----------|----------|---------|----------------|
 | `update-prev-reboot-info` | `/tmp/.backup_logs_done` | 1s | 60s | Exit `ERROR_GENERAL` |
-| `uploadstblogs` `reboot_setup()` | `/tmp/Update_rebootInfo_invoked` | 1s | 120s | Skip reboot upload |
+| `uploadstblogs` `reboot_setup()` | `/tmp/stt_received` AND `/tmp/Update_rebootInfo_invoked` | 1s | 120s | Skip reboot upload |
 
 ---
 
@@ -211,7 +218,7 @@ backup_logs  →  update-prev-reboot-info  →  uploadstblogs
 |-----------|---------|
 | `backup_logs_execute()` fails | Sentinel NOT written; `update-prev-reboot-info` will timeout |
 | `update-prev-reboot-info` times out on `.backup_logs_done` | Exits with error; `Update_rebootInfo_invoked` is NOT written; `uploadstblogs` will timeout |
-| `uploadstblogs` times out on `Update_rebootInfo_invoked` | Skip upload, return failure to strategy handler |
+| `uploadstblogs` times out on `stt_received` or `Update_rebootInfo_invoked` | Skip upload, return failure to strategy handler |
 | `previousreboot.info` absent when sentinel is present | Existing `reboot_upload()` handles gracefully (warns and may skip) |
 
 ---
@@ -219,10 +226,22 @@ backup_logs  →  update-prev-reboot-info  →  uploadstblogs
 ## 6. Cross-Repo Interface Contract
 
 The path `/tmp/.backup_logs_done` is a cross-repository interface between `dcm-agent`
-(writer) and `reboot-manager` (reader). Changes to this path in either repo MUST be
-coordinated and released together.
+(writer) and two consumers:
 
-Both repos MUST document this dependency in their respective `docs/DEPENDENCIES.md`.
+| Repo | Consumer | Purpose |
+|------|----------|---------|
+| `reboot-manager` | `update-prev-reboot-info` | Gates PreviousLogs/ read for reboot reason derivation |
+| `telemetry` | `telemetry2_0` (`profile.c`, `PERSIST_LOG_MON_REF`) | Gates PreviousLogs/ grep marker scan for "Previous Logs" report |
+
+Changes to this sentinel path MUST be coordinated across all three repos and released
+together.
+
+All three repos MUST document this dependency in their respective `docs/DEPENDENCIES.md`.
+
+> **Note**: The telemetry fix is tracked as a separate change in the `telemetry` repository.
+> Telemetry's `CollectAndReport()` sets `customLogPath = PREVIOUS_LOGS_PATH` on first boot
+> when `checkPreviousSeek` is true. This is a one-shot report — if it reads incomplete data,
+> telemetry markers from the previous boot are permanently lost. The sentinel poll prevents this.
 
 ---
 
@@ -233,7 +252,7 @@ Both repos MUST document this dependency in their respective `docs/DEPENDENCIES.
 | TEST-SYNC-001 | backup_logs writes sentinel on success, absent on failure | `backup_logs` unit test |
 | TEST-SYNC-002 | update-prev-reboot-info proceeds when `.backup_logs_done` present | `reboot-manager` unit test |
 | TEST-SYNC-003 | update-prev-reboot-info exits with error after 60s timeout | `reboot-manager` unit test |
-| TEST-SYNC-004 | reboot_setup() proceeds when `Update_rebootInfo_invoked` present | `uploadstblogs` unit test |
-| TEST-SYNC-005 | reboot_setup() skips upload after 120s timeout | `uploadstblogs` unit test |
+| TEST-SYNC-004 | reboot_setup() proceeds when both `stt_received` and `Update_rebootInfo_invoked` present | `uploadstblogs` unit test |
+| TEST-SYNC-005 | reboot_setup() skips upload after 120s timeout (missing either sentinel) | `uploadstblogs` unit test |
 | TEST-SYNC-006 | Archive name timestamp is post-NTP (requires mock time) | `uploadstblogs` unit test |
 | TEST-SYNC-007 | Full boot sequence integration (sentinel chain E2E) | L2 test |

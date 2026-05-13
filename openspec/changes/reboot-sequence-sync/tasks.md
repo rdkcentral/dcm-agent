@@ -149,7 +149,7 @@ LOG_INFO("backup_logs sentinel detected. Proceeding with PreviousLogs/ analysis.
 
 ## Group D — uploadstblogs Sentinel Poll
 
-### TASK-D1 — Add poll constants for reboot readiness
+### TASK-D1 — Add poll constants and sentinel paths for reboot readiness
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/include/uploadstblogs_types.h`  
 **Spec**: REQ-SYNC-003
@@ -157,7 +157,15 @@ LOG_INFO("backup_logs sentinel detected. Proceeding with PreviousLogs/ analysis.
 Add:
 
 ```c
-/** Poll parameters for waiting on reboot reason readiness sentinel.
+/** NTP synchronization sentinel — written by time sync service.
+ *  Explicitly checked to ensure archive timestamps are NTP-accurate. */
+#define STT_FLAG                  "/tmp/stt_received"
+
+/** Reboot reason completion sentinel — written by update-prev-reboot-info.
+ *  Presence guarantees previousreboot.info is written and complete. */
+#define PATH_FLAG_INVOCATION      "/tmp/Update_rebootInfo_invoked"
+
+/** Poll parameters for waiting on upload prerequisites.
  *  See uploadstblogs/src/strategies.c reboot_setup(). */
 #define REBOOT_POLL_INTERVAL_S    1u
 #define REBOOT_POLL_TIMEOUT_S     120u
@@ -165,25 +173,30 @@ Add:
 
 ---
 
-### TASK-D2 — Replace `sleep(330)` with sentinel poll in `reboot_setup()`
+### TASK-D2 — Replace `sleep(330)` with dual-sentinel poll in `reboot_setup()`
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/src/strategies.c`  
 **Spec**: REQ-SYNC-003, REQ-SYNC-004  
 **Depends on**: TASK-D1
 
-Add `wait_for_reboot_info_ready()` static helper and replace the `sleep()` block:
+Add `wait_for_upload_prerequisites()` static helper that checks **both** `/tmp/stt_received`
+(NTP sync) and `/tmp/Update_rebootInfo_invoked` (reboot reason ready), then replace the
+`sleep()` block:
 
 ```c
 #include <sys/stat.h>
 #include <unistd.h>
 
-static int wait_for_reboot_info_ready(void)
+static int wait_for_upload_prerequisites(void)
 {
     unsigned int elapsed = 0u;
     struct stat st;
 
     while (elapsed < REBOOT_POLL_TIMEOUT_S) {
-        if (stat(PATH_FLAG_INVOCATION, &st) == 0) {
+        int ntp_ready    = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
+        int reboot_ready = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+
+        if (ntp_ready && reboot_ready) {
             return 0;
         }
         sleep(REBOOT_POLL_INTERVAL_S);
@@ -207,18 +220,18 @@ if (uptime_secs != -1 && uptime_secs < 900) {
 
 With:
 ```c
-/* NEW — poll for reboot reason readiness */
-LOG_INFO("Waiting for reboot reason sentinel: %s (timeout %us)",
-         PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+/* NEW — poll for NTP sync AND reboot reason readiness */
+LOG_INFO("Waiting for upload prerequisites: NTP (%s) and reboot reason (%s), timeout %us",
+         STT_FLAG, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
 
-if (wait_for_reboot_info_ready() != 0) {
-    LOG_ERROR("Timed out after %us waiting for %s. "
-              "Skipping reboot log upload.",
-              REBOOT_POLL_TIMEOUT_S, PATH_FLAG_INVOCATION);
+if (wait_for_upload_prerequisites() != 0) {
+    LOG_ERROR("Timed out after %us waiting for upload prerequisites "
+              "(NTP: %s, RebootReason: %s). Skipping reboot log upload.",
+              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION);
     return -1;
 }
 
-LOG_INFO("Reboot reason sentinel detected. Proceeding with archive/upload.");
+LOG_INFO("All upload prerequisites met. Proceeding with archive/upload.");
 ```
 
 ---
@@ -236,10 +249,12 @@ Add a section documenting the cross-repo sentinel interface:
 
 ### `/tmp/.backup_logs_done`
 - **Written by**: `backup_logs` binary (this repo), in `backup_logs_main()` after successful `backup_logs_execute()`.
-- **Consumed by**: `reboot-manager` repository, `update-prev-reboot-info` binary.
+- **Consumed by**:
+  - `reboot-manager` repository, `update-prev-reboot-info` binary.
+  - `telemetry` repository, `telemetry2_0` daemon (`profile.c`, PreviousLogs grep report).
 - **Semantics**: File presence indicates that all logs have been safely moved to `/opt/logs/PreviousLogs/` and the directory is stable for reading.
 - **Lifecycle**: Volatile (`/tmp/`); cleared automatically on reboot.
-- **Cross-repo coordination**: Any change to this path MUST be released simultaneously with a matching change in the `reboot-manager` repository.
+- **Cross-repo coordination**: Any change to this path MUST be released simultaneously with matching changes in the `reboot-manager` and `telemetry` repositories.
 ```
 
 ---
@@ -289,16 +304,20 @@ Test cases:
 
 ---
 
-### TASK-F3 — Unit test: reboot_setup() poll and timeout behavior
+### TASK-F3 — Unit test: reboot_setup() dual-sentinel poll and timeout behavior
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/unittest/strategies_gtest.cpp` (or existing equivalent)  
 **Spec**: TEST-SYNC-004, TEST-SYNC-005  
 **Depends on**: TASK-D2
 
 Test cases:
-- `RebootSetup_ProceedsWhenSentinelPresent`: Create `Update_rebootInfo_invoked` before
-  calling `reboot_setup()`. Assert returns 0 (success).
-- `RebootSetup_SkipsUploadOnTimeout`: Do NOT create sentinel. Assert `reboot_setup()`
+- `RebootSetup_ProceedsWhenBothSentinelsPresent`: Create both `stt_received` and
+  `Update_rebootInfo_invoked` before calling `reboot_setup()`. Assert returns 0 (success).
+- `RebootSetup_SkipsUploadWhenNTPMissing`: Create `Update_rebootInfo_invoked` only (no
+  `stt_received`). Assert `reboot_setup()` returns -1 after timeout.
+- `RebootSetup_SkipsUploadWhenRebootReasonMissing`: Create `stt_received` only (no
+  `Update_rebootInfo_invoked`). Assert `reboot_setup()` returns -1 after timeout.
+- `RebootSetup_SkipsUploadOnFullTimeout`: Create neither sentinel. Assert `reboot_setup()`
   returns -1 after `REBOOT_POLL_TIMEOUT_S` (use a short override for fast test execution).
 - `RebootSetup_ArchiveTimestampIsPostNTP`: Stub `time()` to return a known post-NTP epoch.
   Assert archive name contains expected timestamp.

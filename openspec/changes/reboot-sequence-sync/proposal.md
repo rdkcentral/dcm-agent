@@ -13,13 +13,15 @@
 
 | # | Criterion |
 |---|-----------|
-| AC-1 | `update-prev-reboot-info` NEVER reads `PreviousLogs/` before `backup_logs` has fully completed moving all log files |
-| AC-2 | `uploadstblogs` NEVER starts archiving before `previousreboot.info` is written and complete |
-| AC-3 | All reboot-triggered archive filenames and per-file timestamp prefixes reflect post-NTP wall-clock time |
-| AC-4 | The 330-second `sleep()` is removed from `reboot_setup()`; upload begins as soon as prerequisites are met |
-| AC-5 | If any prerequisite times out, the upload is skipped cleanly — no partial or mis-classified upload |
-| AC-6 | `backup_logs` continues to run without any NTP dependency |
-| AC-7 | All new sentinel-poll paths are covered by unit tests; the full chain is covered by an L2 integration test |
+| AC-1 | Log backup completes successfully before reboot reason update starts |
+| AC-2 | Reboot reason is fully updated and persisted before any log cleanup or log upload is triggered |
+| AC-3 | Log Upload Tarfile must be created with NTP-synchronized time to maintain accurate timestamps |
+| AC-4 | Log upload only occurs after reboot reason update is confirmed |
+| AC-5 | The 330-second `sleep()` is replaced with explicit NTP synchronization file (`/tmp/stt_received`) and reboot-reason sentinel (`/tmp/Update_rebootInfo_invoked`) checks; upload proceeds only when all prerequisites are met |
+| AC-6 | Log upload will be skipped cleanly if any prerequisite times out — no partial or mis-classified upload |
+| AC-7 | `backup_logs` continues to run without any NTP dependency |
+| AC-8 | All new sentinel-poll paths are covered by unit tests |
+| AC-9 | The full sentinel chain is covered by an L2 integration test |
 
 ---
 
@@ -28,9 +30,10 @@
 Enforce a strict, sentinel-based execution order across three independent subsystems
 (`backup_logs`, `reboot-manager`, `uploadstblogs`) during device boot-up so that:
 
-1. Log backup completes before reboot-reason derivation starts.
-2. Reboot reason is fully persisted before log upload is triggered.
-3. Log upload archive names and file timestamps are created with NTP-synchronized time.
+1. Log backup completes successfully before reboot-reason derivation starts.
+2. Reboot reason is fully updated and persisted before any log cleanup or log upload is triggered.
+3. Log upload tarfile is created with NTP-synchronized time to maintain accurate timestamps.
+4. Log upload only occurs after reboot reason update is confirmed.
 
 ## Problem
 
@@ -42,14 +45,20 @@ guarantees:
   previous reboot reason and writes `/opt/secure/reboot/previousreboot.info`.
 - **`uploadstblogs`** (dcm-agent, `TRIGGER_REBOOT`) – reads `PreviousLogs/` for archiving
   and reads `previousreboot.info` to decide whether to upload.
+- **`telemetry2_0`** (telemetry repo, `PERSIST_LOG_MON_REF`) – grep-scans `PreviousLogs/`
+  for telemetry markers on first boot. This is a one-shot report; if it reads incomplete
+  data, markers are permanently lost for that boot cycle. **Fix tracked separately in the
+  telemetry repo** — it will poll `/tmp/.backup_logs_done` (written by TASK-B1) before
+  reading `PreviousLogs/`.
 
-The absence of coordination produces three failure modes:
+The absence of coordination produces four failure modes:
 
 | Failure | Symptom |
 |---------|---------|
 | `update-prev-reboot-info` reads `PreviousLogs/` before `backup_logs` finishes | Incomplete or missing reboot reason in `previousreboot.info` |
 | `uploadstblogs` starts before `previousreboot.info` is written | Wrong upload decision (scheduled vs unscheduled reboot gate uses stale/empty data) |
 | `uploadstblogs` calls `time(NULL)` before NTP sync | Archive filenames and file timestamp prefixes carry incorrect pre-NTP wall-clock time |
+| `telemetry2_0` grep-scans `PreviousLogs/` before `backup_logs` finishes | Missing telemetry markers in "Previous Logs" report — one-shot, never retried (tracked separately in telemetry repo) |
 
 The current workaround — a 330-second `sleep()` inside `reboot_setup()` — is both
 unreliable (fast devices may still race) and wasteful (slow devices wait needlessly).

@@ -43,13 +43,14 @@
   │
   └─► uploadstblogs TRIGGER_REBOOT ────────────────────────────────────────────────
         reboot_setup():
-          [optional] if uptime >= 900s → skip poll (already done)
-          poll_sentinel("/tmp/Update_rebootInfo_invoked", 1s, 120s)   ← REPLACES sleep(330)
-            found → proceed with archive/upload
-            timeout → log error, return -1 (skip upload entirely)
+          poll for BOTH:
+            /tmp/stt_received                    ← explicit NTP check (NEW)
+            /tmp/Update_rebootInfo_invoked       ← reboot reason ready (REPLACES sleep(330))
+          BOTH present → proceed with archive/upload
+          EITHER times out (120s) → log error, return -1 (skip upload entirely)
         reboot_archive():
-          generate_archive_name()  ← time(NULL) is now NTP-correct
-          add_timestamp_to_files() ← time(NULL) is now NTP-correct
+          generate_archive_name()  ← time(NULL) is now NTP-correct (explicit guarantee)
+          add_timestamp_to_files() ← time(NULL) is now NTP-correct (explicit guarantee)
         reboot_upload():
           reads previousreboot.info ← guaranteed to exist
         reboot_cleanup():
@@ -192,17 +193,31 @@ if (uptime_secs != -1 && uptime_secs < 900) {
 #include <sys/stat.h>
 #include <unistd.h>
 
-/* REBOOT_POLL_INTERVAL_S and REBOOT_POLL_TIMEOUT_S defined in uploadstblogs_types.h
- * or strategies.h to avoid magic numbers. */
+/* STT_FLAG, REBOOT_POLL_INTERVAL_S and REBOOT_POLL_TIMEOUT_S defined in
+ * uploadstblogs_types.h to avoid magic numbers.
+ * PATH_FLAG_INVOCATION = "/tmp/Update_rebootInfo_invoked" */
 
-static int wait_for_reboot_info_ready(void)
+/**
+ * wait_for_upload_prerequisites - Wait for NTP sync AND reboot reason readiness.
+ *
+ * Polls for both /tmp/stt_received (NTP sync) and
+ * /tmp/Update_rebootInfo_invoked (reboot reason) every REBOOT_POLL_INTERVAL_S.
+ * Proceeds only when BOTH are present.
+ *
+ * Returns  0 when both prerequisites are met.
+ * Returns -1 on timeout (either sentinel missing after REBOOT_POLL_TIMEOUT_S).
+ */
+static int wait_for_upload_prerequisites(void)
 {
     unsigned int elapsed = 0;
     struct stat st;
 
     while (elapsed < REBOOT_POLL_TIMEOUT_S) {
-        if (stat(PATH_FLAG_INVOCATION, &st) == 0) {
-            return 0;           /* /tmp/Update_rebootInfo_invoked found */
+        int ntp_ready    = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
+        int reboot_ready = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+
+        if (ntp_ready && reboot_ready) {
+            return 0;           /* both prerequisites met */
         }
         sleep(REBOOT_POLL_INTERVAL_S);
         elapsed += REBOOT_POLL_INTERVAL_S;
@@ -211,40 +226,53 @@ static int wait_for_reboot_info_ready(void)
 }
 
 /* In reboot_setup(): */
-if (wait_for_reboot_info_ready() != 0) {
-    LOG_ERROR("Timed out after %us waiting for reboot reason readiness (%s). "
-              "Skipping reboot upload.",
-              REBOOT_POLL_TIMEOUT_S, PATH_FLAG_INVOCATION);
+if (wait_for_upload_prerequisites() != 0) {
+    LOG_ERROR("Timed out after %us waiting for upload prerequisites "
+              "(NTP: %s, RebootReason: %s). Skipping reboot upload.",
+              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION);
     return -1;
 }
 ```
 
 **Constants** (add to `uploadstblogs/include/uploadstblogs_types.h` or a dedicated header):
 ```c
+/** NTP synchronization sentinel — written by time sync service. */
+#define STT_FLAG                  "/tmp/stt_received"
+
+/** Reboot reason completion sentinel — written by update-prev-reboot-info. */
+#define PATH_FLAG_INVOCATION      "/tmp/Update_rebootInfo_invoked"
+
 #define REBOOT_POLL_INTERVAL_S    1u
 #define REBOOT_POLL_TIMEOUT_S     120u
 ```
 
-`PATH_FLAG_INVOCATION` is already defined in `update-reboot-info.h` as
-`"/tmp/Update_rebootInfo_invoked"`. Include that header or duplicate the constant locally
-with a comment referencing the source.
-
 ---
 
-## 3. NTP Timestamp Correctness (No Code Change Required)
+## 3. NTP Timestamp Correctness (Explicit Check in reboot_setup)
 
-The sentinel chain already guarantees NTP correctness for archive timestamps:
+The sentinel chain provides a transitive NTP guarantee, but `reboot_setup()` now also
+explicitly checks `/tmp/stt_received` for defense in depth:
 
 ```
-stt_received  (NTP sync complete)
-    ↓  [update-reboot-info.service: ConditionPathExists=/tmp/stt_received]
-update-prev-reboot-info starts
-    ↓  [polls .backup_logs_done, then reads PreviousLogs/]
-writes Update_rebootInfo_invoked
-    ↓  [reboot_setup() poll succeeds]
-reboot_archive() → generate_archive_name()  → time(NULL) is NTP-correct
-                 → add_timestamp_to_files() → time(NULL) is NTP-correct
+stt_received  (NTP sync complete) ───────────────────────────────────────────┐
+    ↓  [update-reboot-info.service: ConditionPathExists=/tmp/stt_received]   │
+update-prev-reboot-info starts                                               │
+    ↓  [polls .backup_logs_done, then reads PreviousLogs/]                   │
+writes Update_rebootInfo_invoked                                             │
+    ↓  [reboot_setup() checks BOTH sentinels]                                │
+    ↓                                                                        │
+reboot_setup() poll: ──────────────── stt_received? ─────────────────────────┘
+                      └────────────── Update_rebootInfo_invoked? ✓
+                                      BOTH present → proceed
+    ↓
+reboot_archive() → generate_archive_name()  → time(NULL) ✓ NTP-correct
+                 → add_timestamp_to_files() → time(NULL) ✓ NTP-correct
 ```
+
+**Why the explicit check?** If the `update-prev-reboot-info` pipeline is ever modified to
+no longer depend on `stt_received`, the transitive guarantee would silently break. The
+explicit `stt_received` check in `reboot_setup()` ensures NTP correctness is directly
+verifiable and self-documenting.
 
 `backup_logs` runs independently and pre-NTP; its `time(NULL)` calls (if any) in the copy
 phase are irrelevant because `backup_logs` does not generate archive names or file timestamp
