@@ -1,4 +1,5 @@
-﻿/*
+
+/*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
@@ -467,6 +468,7 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
 
     return 0;
 }
+
 /**
  * @brief Archive phase for ONDEMAND strategy
  * 
@@ -485,8 +487,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
-            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
+            (ctx && ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && ctx->device_type[0] != '\0') ? ctx->device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
@@ -848,13 +850,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
                 __FUNCTION__, __LINE__);
     }
-    // DCM mode (DCM_FLAG=1): Check upload_on_reboot flag
-    else if (ctx->upload_on_reboot) {
-        should_upload = true;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] DCM mode: Upload enabled from settings (upload_on_reboot=true)\n", 
-                __FUNCTION__, __LINE__);
-    } else {
+    else {
         // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
         bool is_scheduled_reboot = false;
         FILE* reboot_file = fopen(reboot_info_path, "r");
@@ -863,7 +859,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             while (fgets(line, sizeof(line), reboot_file)) {
                 // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
                 if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
-		    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
+		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
                     is_scheduled_reboot = true;
                     break;
                 }
@@ -885,12 +881,12 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
         
-        // Upload if: reboot reason is empty (unscheduled) AND RFC doesn't disable it
-        // Script logic: [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
-        if (!is_scheduled_reboot && !disable_unscheduled_upload) {
+        // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
+        // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
+        // Script logic for the unscheduled reboot path:
+        // [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+        if ( ctx->upload_on_reboot==1 || (!is_scheduled_reboot && !disable_unscheduled_upload)) {
             should_upload = true;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Unscheduled reboot and RFC allows upload\n", __FUNCTION__, __LINE__);
         }
     }
     
@@ -898,7 +894,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
-	emit_upload_aborted();
+        emit_upload_aborted();
         return 0;
     }
 
