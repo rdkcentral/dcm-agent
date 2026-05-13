@@ -1,5 +1,4 @@
-
-/*
+﻿/*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
@@ -468,7 +467,6 @@ static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
 
     return 0;
 }
-
 /**
  * @brief Archive phase for ONDEMAND strategy
  * 
@@ -487,8 +485,8 @@ static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
             "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
             __FUNCTION__, __LINE__, 
             (void*)ctx,
-            (ctx && ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL/INVALID)",
-            (ctx && ctx->device_type[0] != '\0') ? ctx->device_type : "(empty/NULL)");
+            ctx && ctx->mac_address ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
 
     // Create archive from temp directory (NO timestamp modification)
     int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
@@ -842,12 +840,12 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
     bool should_upload = false;
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
-
+    
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
     if (ctx->dcm_flag == 0) {
         should_upload = true;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n",
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
                 __FUNCTION__, __LINE__);
     }
     else {
@@ -859,7 +857,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             while (fgets(line, sizeof(line), reboot_file)) {
                 // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
                 if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
-		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
+		    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
                     is_scheduled_reboot = true;
                     break;
                 }
@@ -868,19 +866,19 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         } else {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
-
+        
         // Get RFC setting for unscheduled reboot upload via RBUS
         bool disable_unscheduled_upload = false;
         if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
                                 &disable_unscheduled_upload)) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to get UploadLogsOnUnscheduledReboot.Disable RFC, assuming false\n",
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to get UploadLogsOnUnscheduledReboot.Disable RFC, assuming false\n", 
                     __FUNCTION__, __LINE__);
             disable_unscheduled_upload = false;
         }
-
+        
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
-
+        
         // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
         // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
         // Script logic for the unscheduled reboot path:
@@ -889,87 +887,87 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             should_upload = true;
         }
     }
-
+    
     if (!should_upload) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n",
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
-        emit_upload_aborted();
+	emit_upload_aborted();
         return 0;
     }
 
     // Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
-    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s",
+    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
                           ctx->prev_log_path, session->archive_file);
-
+    
     if (written >= (int)sizeof(archive_path)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Uploading main logs: %s\n",
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Uploading main logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
 
     // Upload main logs (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Main log upload complete (result=%d)\n",
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Main log upload complete (result=%d)\n", 
             __FUNCTION__, __LINE__, ret);
 
     // Upload DRI logs if directory exists (using separate session to avoid state corruption)
     if (ctx->include_dri && dir_exists(ctx->dri_log_path)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] DRI log directory exists, uploading DRI logs\n",
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
                 __FUNCTION__, __LINE__);
 
         // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
         char dri_filename[MAX_FILENAME_LENGTH];
-        if (!generate_archive_name(dri_filename, sizeof(dri_filename),
+        if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
                                    ctx->mac_address, "DRI_Logs")) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to generate DRI archive filename\n",
+                    "[%s:%d] Failed to generate DRI archive filename\n", 
                     __FUNCTION__, __LINE__);
         } else {
             char dri_archive[MAX_PATH_LENGTH];
-            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s",
+            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
                                   ctx->prev_log_path, dri_filename);
-
+        
         if (written >= (int)sizeof(dri_archive)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                     "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
         } else {
             // Create DRI archive
             int dri_ret = create_dri_archive(ctx, dri_archive);
-
+        
             if (dri_ret == 0) {
 #ifndef L2_TEST_ENABLED
                 sleep(60);
 #endif
-
+            
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
                 dri_session.direct_attempts = 0;       // Reset attempt counters
                 dri_session.codebig_attempts = 0;
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
-
+            
                 // Send telemetry for DRI upload (matches script lines 883, 886)
                 // Script sends SYST_INFO_PDRILogUpload for both success and failure
                 t2_count_notify("SYST_INFO_PDRILogUpload");
-
+                
                 if (dri_ret == 0) {
-                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                            "[%s:%d] DRI log upload succeeded, removing DRI directory\n",
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                            "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
                             __FUNCTION__, __LINE__);
                     remove_directory(ctx->dri_log_path);
                 } else {
-                    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
                 }
-
+            
                 // Clean up DRI archive
                 remove_file(dri_archive);
             }
@@ -979,17 +977,16 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     // Clear old packet captures
     if (ctx->include_pcap) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Clearing old packet captures\n", __FUNCTION__, __LINE__);
         clear_old_packet_captures(ctx->log_path);
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Upload phase complete\n", __FUNCTION__, __LINE__);
 
     return ret;
 }
-
 
 /**
  * @brief Cleanup phase for REBOOT/NON_DCM strategy
