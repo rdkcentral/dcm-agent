@@ -432,6 +432,6 @@ void emit_folder_missing_error(void)
             "[%s:%d] Required folder missing for log upload\n", __FUNCTION__, __LINE__);
     
     // Send maintenance error event (matches script behavior)
-    send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
+    send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
 }
 
