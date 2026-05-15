@@ -553,8 +553,7 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
         }
     }
     
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Direct log upload Success: httpcode= %d, __FUNCTION__, __LINE__, session->http_code);
-    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Direct log upload Success: httpcode= %d", __FUNCTION__, __LINE__, session->http_code);
     
     // Verify S3 PUT result
     UploadResult s3_verified = verify_upload(session);
