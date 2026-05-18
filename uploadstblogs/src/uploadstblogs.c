@@ -127,7 +127,7 @@ bool parse_args(int argc, char** argv, RuntimeContext* ctx)
     
     if (argc >= 5 && argv[4]) {
         // Parse UploadOnReboot
-        ctx->upload_on_reboot = (strcmp(argv[4], "true") == 0) ? 1 : 0;
+        ctx->upload_on_reboot = (strcmp(argv[4], "true") == 0 || strcmp(argv[4], "1") == 0) ? 1 : 0;
         fprintf(stderr, "DEBUG: UploadOnReboot (argv[4]) = '%s' -> %d\n", argv[4], ctx->upload_on_reboot);
     }
     
