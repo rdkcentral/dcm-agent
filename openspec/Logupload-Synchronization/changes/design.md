@@ -209,27 +209,34 @@ if (uptime_secs != -1 && uptime_secs < 900) {
  */
 static int wait_for_upload_prerequisites(void)
 {
-    unsigned int elapsed = 0;
+    struct timespec start, now;
     struct stat st;
 
-    while (elapsed < REBOOT_POLL_TIMEOUT_S) {
-        int ntp_ready    = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
-        int reboot_ready = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-        if (ntp_ready && reboot_ready) {
-            return 0;           /* both prerequisites met */
+    for (;;) {
+        int ntp_ready      = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
+        int reboot_ready   = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+        int telemetry_done = (stat(TELEMETRY_PREVLOGS_DONE_FLAG, &st) == 0) ? 1 : 0;
+
+        if (ntp_ready && reboot_ready && telemetry_done) {
+            return 0;           /* all prerequisites met */
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
+            return -1;          /* timeout */
         }
         sleep(REBOOT_POLL_INTERVAL_S);
-        elapsed += REBOOT_POLL_INTERVAL_S;
     }
-    return -1;                  /* timeout */
 }
 
 /* In reboot_setup(): */
 if (wait_for_upload_prerequisites() != 0) {
     LOG_ERROR("Timed out after %us waiting for upload prerequisites "
-              "(NTP: %s, RebootReason: %s). Skipping reboot upload.",
-              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION);
+              "(NTP: %s, RebootReason: %s, Telemetry: %s). Skipping reboot upload.",
+              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION,
+              TELEMETRY_PREVLOGS_DONE_FLAG);
     return -1;
 }
 ```
@@ -237,13 +244,18 @@ if (wait_for_upload_prerequisites() != 0) {
 **Constants** (add to `uploadstblogs/include/uploadstblogs_types.h` or a dedicated header):
 ```c
 /** NTP synchronization sentinel — written by time sync service. */
-#define STT_FLAG                  "/tmp/stt_received"
+#define STT_FLAG                      "/tmp/stt_received"
 
 /** Reboot reason completion sentinel — written by update-prev-reboot-info. */
-#define PATH_FLAG_INVOCATION      "/tmp/Update_rebootInfo_invoked"
+#define PATH_FLAG_INVOCATION          "/tmp/Update_rebootInfo_invoked"
 
-#define REBOOT_POLL_INTERVAL_S    1u
-#define REBOOT_POLL_TIMEOUT_S     120u
+/** Telemetry PreviousLogs scan completion sentinel — written by telemetry2_0.
+ *  Cross-repo interface: path also defined in telemetry repo.
+ *  Any change MUST be coordinated with the telemetry repository. */
+#define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
+
+#define REBOOT_POLL_INTERVAL_S        1u
+#define REBOOT_POLL_TIMEOUT_S         120u
 ```
 
 ---
@@ -259,11 +271,12 @@ stt_received  (NTP sync complete) ───────────────�
 update-prev-reboot-info starts                                               │
     ↓  [polls .backup_logs_done, then reads PreviousLogs/]                   │
 writes Update_rebootInfo_invoked                                             │
-    ↓  [reboot_setup() checks BOTH sentinels]                                │
+    ↓  [reboot_setup() checks ALL THREE sentinels]                               │
     ↓                                                                        │
 reboot_setup() poll: ──────────────── stt_received? ─────────────────────────┘
-                      └────────────── Update_rebootInfo_invoked? ✓
-                                      BOTH present → proceed
+                      ├────────────── Update_rebootInfo_invoked? ✓
+                      └────────────── .telemetry_prevlogs_done? ✓
+                                      ALL THREE present → proceed
     ↓
 reboot_archive() → generate_archive_name()  → time(NULL) ✓ NTP-correct
                  → add_timestamp_to_files() → time(NULL) ✓ NTP-correct
@@ -282,17 +295,26 @@ prefixes.
 
 ## 4. Polling Implementation Notes
 
-### 4.1 Why `stat()` Instead of `inotify`
+### 4.1 Polling Implementation: `stat()` + `clock_gettime(CLOCK_MONOTONIC)`
 
-- `inotify` is Linux-specific and not available on all embedded targets.
-- `stat()` with a 1-second sleep is idiomatic in this codebase (mirrors the existing
-  `waitForFile()` pattern used in `dcm_utils.c`).
-- `stat()` is defined in POSIX and portable to all target platforms.
+`stat()` polling is chosen over `inotify` and `select()`-based event-driven approaches:
+
+- **Portability**: `stat()` is defined in POSIX and available on all target platforms.
+  `inotify` is Linux-specific. While all current targets are embedded Linux, `stat()`
+  keeps the implementation portable and consistent with the existing `waitForFile()` pattern
+  in `dcm_utils.c`.
+- **Simplicity**: No file descriptor lifecycle to manage; no watch registration/cleanup.
+- **Correctness**: `clock_gettime(CLOCK_MONOTONIC)` tracks actual elapsed time rather than
+  accumulating `sleep()` call counts. This eliminates timeout drift caused by `EINTR`
+  signal interruptions — the elapsed time is measured in real wall-clock seconds regardless
+  of how many times `sleep()` returns early.
 
 ### 4.2 `sleep()` Accuracy on Embedded Systems
 
-On constrained platforms `sleep(1)` may wake slightly late. This is acceptable; the cumulative
-drift over 60–120 iterations is bounded and does not affect correctness.
+On constrained platforms `sleep(1)` may wake slightly late due to scheduler granularity or
+`EINTR` interruptions. Using `clock_gettime(CLOCK_MONOTONIC)` to measure elapsed time (see
+section 4.1) ensures the timeout is based on actual wall-clock duration rather than a
+counted number of `sleep()` calls, eliminating cumulative drift.
 
 ### 4.3 Thread Safety
 
@@ -303,10 +325,11 @@ drift over 60–120 iterations is bounded and does not affect correctness.
 
 ### 4.4 Signal Handling / Interruption
 
-Both poll loops use `sleep()` which can be interrupted by signals (`EINTR`). In the context
-of a short-lived daemon that does not register custom signal handlers during setup, this is
-acceptable. If `sleep()` is interrupted, the loop will re-evaluate `stat()` on the next
-iteration, which may slightly reduce the effective timeout — this is tolerable.
+Both poll loops use `sleep()` which can be interrupted by signals (`EINTR`). When `sleep()`
+is interrupted early, the loop re-evaluates `stat()` on the next iteration (a benign extra
+check). The effective timeout is measured by `clock_gettime(CLOCK_MONOTONIC)` (see section
+4.1), so `EINTR` interruptions do not shorten the timeout window — elapsed time is measured
+directly rather than inferred from `sleep()` call counts.
 
 ---
 
@@ -315,6 +338,8 @@ iteration, which may slightly reduce the effective timeout — this is tolerable
 ```
 backup_logs fails
   → .backup_logs_done NOT written
+  → telemetry2_0 polls for 60s, times out → skips PreviousLogs report
+  → .telemetry_prevlogs_done NOT written
   → update-prev-reboot-info polls for 60s, times out
   → update-prev-reboot-info exits ERROR_GENERAL
   → Update_rebootInfo_invoked NOT written
@@ -323,21 +348,42 @@ backup_logs fails
   → device continues boot; next reboot will retry normally
 ```
 
-This is the safest degradation path: no partial upload, no upload with incorrect data.
+In the case where `backup_logs` succeeds but `telemetry2_0` times out on its scan:
+```
+.backup_logs_done written
+  → telemetry2_0 starts scan, times out (internal telemetry timeout)
+  → .telemetry_prevlogs_done NOT written
+  → uploadstblogs reboot_setup() polls for 120s, times out on .telemetry_prevlogs_done
+  → uploadstblogs skips reboot upload, logs error
+```
+
+This is the safest degradation path: no partial upload, no upload with incorrect data,
+and no `add_timestamp_to_files()` called while telemetry is still scanning.
 
 ---
 
 ## 6. Interface Contract Documentation
 
-The path `/tmp/.backup_logs_done` crosses a repository boundary. Both repositories MUST
-document this in their `docs/DEPENDENCIES.md`:
+Two sentinel paths cross repository boundaries. All three repositories MUST document both
+in their `docs/DEPENDENCIES.md`:
 
 **In `dcm-agent/docs/DEPENDENCIES.md`**:
 > `backup_logs` writes `/tmp/.backup_logs_done` upon successful completion. This sentinel
-> is consumed by `reboot-manager/reboot-reason-fetcher`. Any change to this path requires
-> coordinated release with `reboot-manager`.
+> is consumed by `reboot-manager/reboot-reason-fetcher` and `telemetry/telemetry2_0`.
+> Any change to this path requires coordinated simultaneous release with `reboot-manager`
+> and `telemetry`.
+>
+> `uploadstblogs` reads `/tmp/.telemetry_prevlogs_done` (written by `telemetry/telemetry2_0`)
+> before calling `add_timestamp_to_files()`. Any change to this path requires coordinated
+> simultaneous release with `telemetry`.
 
 **In `reboot-manager/docs/DEPENDENCIES.md`** (or equivalent):
 > `update-prev-reboot-info` polls `/tmp/.backup_logs_done` before reading `PreviousLogs/`.
 > This sentinel is written by `dcm-agent/backup_logs`. Any change to this path requires
-> coordinated release with `dcm-agent`.
+> coordinated simultaneous release with `dcm-agent` and `telemetry`.
+
+**In `telemetry/docs/DEPENDENCIES.md`** (or equivalent):
+> `telemetry2_0` polls `/tmp/.backup_logs_done` (written by `dcm-agent/backup_logs`)
+> before grep-scanning `PreviousLogs/`. After the scan, it writes `/tmp/.telemetry_prevlogs_done`
+> which is consumed by `dcm-agent/uploadstblogs`. Any change to either path requires
+> coordinated simultaneous release with `dcm-agent` and `reboot-manager`.

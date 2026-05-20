@@ -1,9 +1,7 @@
 ---
 theme: default
 title: Logupload Synchronization
-info: |
-  Reboot Sequence Synchronization for dcm-agent
-  Coordinating backup_logs, reboot-info, uploadstblogs, and telemetry
+info: Boot-time log upload synchronization via signal files — dcm-agent, reboot-manager, and telemetry coordinated.
 highlighter: shiki
 transition: slide-left
 mdc: true
@@ -11,7 +9,9 @@ mdc: true
 
 # Logupload Synchronization
 
-Reboot Sequence Sync for dcm-agent
+### Boot-Time Coordination for `dcm-agent`
+
+`backup_logs` · `reboot-info` · `telemetry2_0` · `uploadstblogs`
 
 ---
 
@@ -32,6 +32,23 @@ Reboot Sequence Sync for dcm-agent
 - **Telemetry markers permanently lost** — one-shot report, never retried
 
 ---
+
+# Known Issues — Evidence from RDK Stack
+
+These defects trace directly to the boot-time race conditions described above:
+
+| Defect | Platform | Symptom | Root Cause |
+|--------|----------|---------|------------|
+| **XIONE-18338** | Alpaca IT / RDK 8.4 | `UploadOnReboot` flag set to `false` even when XConf offers `true` | Upload suppressed due to race between DCM config delivery and reboot upload trigger |
+| **DELIA-70285** | LLAMA Gen1/Gen2, CELLO | After CDL-initiated or maintenance reboot, device records wrong reboot reason — `SOFTWARE_MASTER_RESET` | `update-prev-reboot-info` reads `PreviousLogs/` before `backup_logs` completes; derives stale reboot reason |
+| **XIONE-18607** | XIONE ALPACA IT | Log upload file name wrong for days | `uploadstblogs` archives before NTP sync — timestamp in filename reflects pre-NTP epoch |
+
+&nbsp;
+
+> All three defects share a single root cause: **no ordering guarantee** between boot-time subsystems.
+> The signal-file chain proposed here closes all three gaps simultaneously.
+
+---
 layout: two-cols
 ---
 
@@ -47,7 +64,7 @@ layout: two-cols
 
 # Target State
 
-- **Sentinel file chain** enforces strict order
+- **Signal-file chain** enforces strict order
 - Each subsystem waits for prerequisites
 - NTP synchronization required before upload
 - Telemetry polls `.backup_logs_done` before grep scan
@@ -55,19 +72,20 @@ layout: two-cols
 
 ---
 
-# Sentinel File Protocol
+# File-Based Signaling Protocol
 
 ```mermaid
-graph TD
+graph LR
   BL["backup_logs"] -->|creates| S1[".backup_logs_done"]
   NTP["NTP Sync"] -->|creates| S2["stt_received"]
-  S1 -->|waits for| RM["update-prev-reboot-info"]
-  S1 -->|waits for| T2["telemetry2_0"]
-  S2 -->|waits for| RM
+  S1 -->|gates| RM["reboot-info"]
+  S1 -->|gates| T2["telemetry2_0"]
+  S2 -->|gates| RM
   RM -->|creates| S3["Update_rebootInfo_invoked"]
-  S2 -->|waits for| UL["uploadstblogs"]
-  S3 -->|waits for| UL
-  T2 -->|grep scan| PL["PreviousLogs"]
+  T2 -->|creates| S4[".telemetry_prevlogs_done"]
+  S2 -->|gates| UL["uploadstblogs"]
+  S3 -->|gates| UL
+  S4 -->|gates| UL
   UL -->|uploads| SERVER["Log Server"]
 
   style BL fill:#4CAF50,color:#fff
@@ -80,7 +98,7 @@ graph TD
   style S3 fill:#E3F2FD,stroke:#2196F3
 ```
 
-Sentinel files act as **completion signals** between stages.
+Signal files coordinate execution between stages.
 
 ---
 
@@ -89,14 +107,14 @@ Sentinel files act as **completion signals** between stages.
 1. **Device Reboots**
 2. `backup_logs` starts → moves logs to `/opt/logs/PreviousLogs/`
 3. On success → creates `/tmp/.backup_logs_done`
-4. `update-prev-reboot-info` polls for:
-   - `/tmp/.backup_logs_done`
-   - `/tmp/stt_received` (NTP sync)
+4. `update-prev-reboot-info` polls `.backup_logs_done` + `stt_received` (NTP)
 5. Derives reboot reason → creates `/tmp/Update_rebootInfo_invoked`
-6. `uploadstblogs` polls for:
+6. `telemetry2_0` polls `.backup_logs_done` → grep-scans `PreviousLogs/` → creates `/tmp/.telemetry_prevlogs_done`
+7. `uploadstblogs` polls **all three** before proceeding:
    - `/tmp/stt_received`
    - `/tmp/Update_rebootInfo_invoked`
-7. Proceeds with log upload
+   - `/tmp/.telemetry_prevlogs_done`
+8. Proceeds with archive + upload
 
 ---
 
@@ -121,6 +139,7 @@ sequenceDiagram
   Telemetry->>Device: Poll .backup_logs_done
   Telemetry->>Telemetry: Grep scan PreviousLogs/
   Telemetry-->>Server: Send Previous Logs report
+  Telemetry-->>Device: Create /tmp/.telemetry_prevlogs_done
 
   RebootMgr->>Device: Poll .backup_logs_done
   RebootMgr->>Device: Poll stt_received
@@ -129,6 +148,7 @@ sequenceDiagram
 
   Upload->>Device: Poll stt_received
   Upload->>Device: Poll Update_rebootInfo_invoked
+  Upload->>Device: Poll .telemetry_prevlogs_done
   Upload->>Server: Upload logs
   Server-->>Upload: Acknowledge
 ```
@@ -139,18 +159,18 @@ sequenceDiagram
 
 | Component | Language | Role |
 |-----------|----------|------|
-| **backup_logs** | C (migrated from shell) | Move logs to backup directory |
+| **backup_logs** | C | Move logs to backup directory |
 | **Reboot Manager** | C | Derive and persist reboot reason |
 | **uploadstblogs** | C | Archive & upload logs to server |
 | **telemetry2_0** | C | Grep-scan PreviousLogs/ for markers |
-| **Sentinel Files** | Filesystem | Inter-process synchronization |
+| **Signal Files** | Filesystem | Inter-process synchronization |
 
 ---
 
 # Error Handling
 
 - Each subsystem polls with a **configurable timeout**
-- If a sentinel file is not created in time:
+- If a signal file is not created in time:
   - Dependent subsystem logs an error
   - **Skips its operation cleanly**
 - No cascading failures — each stage fails independently
@@ -168,34 +188,17 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Waiting: Boot
-  Waiting --> Polling: Prerequisites identified
-  Polling --> Ready: All sentinel files found
-  Polling --> TimedOut: Timeout exceeded
-  Ready --> Running: Execute task
-  Running --> Done: Success
-  Running --> Failed: Error
-  Done --> [*]: Create sentinel file
-  TimedOut --> Skipped: Log & skip
-  Failed --> Skipped: Log & skip
+  direction LR
+  [*] --> Polling : Boot
+  Polling --> Running : All signal files present
+  Polling --> Skipped : Timeout exceeded
+  Running --> Done : Success
+  Running --> Skipped : Error
+  Done --> [*]
   Skipped --> [*]
 ```
 
 Each subsystem follows this state machine independently.
-
----
-
-# backup_logs Migration
-
-Migrated from **shell script → C** for:
-
-- Better performance on resource-constrained devices
-- Modular architecture:
-  - `config_manager` — configuration handling
-  - `backup_engine` — core log backup logic
-  - `special_files` — special file handling
-  - `sys_integration` — system integration layer
-- Comprehensive unit tests with Google Test
 
 ---
 
@@ -212,18 +215,19 @@ Migrated from **shell script → C** for:
 
 # Cross-Repo Interface Contract
 
-The sentinel `/tmp/.backup_logs_done` is a **3-repo interface**:
+The signal file `/tmp/.backup_logs_done` is a **3-repo interface**:
 
 | Repo | Role | Action |
 |------|------|--------|
-| **dcm-agent** | Writer | `backup_logs` creates sentinel on success |
-| **reboot-manager** | Consumer | Polls before reading PreviousLogs/ |
-| **telemetry** | Consumer | Polls before grep-scanning PreviousLogs/ |
+| **dcm-agent** | Writer | `backup_logs` creates `.backup_logs_done` on success |
+| **reboot-manager** | Consumer | Polls `.backup_logs_done` before reading PreviousLogs/ |
+| **telemetry** | Consumer + Writer | Polls `.backup_logs_done`; writes `.telemetry_prevlogs_done` after grep scan |
+| **dcm-agent** | Consumer | `uploadstblogs` polls `.telemetry_prevlogs_done` before archive |
 
 - All path changes must be **coordinated across all three repos**
-- Sentinel resides in `/tmp/` — volatile, cleared on every reboot
-- Telemetry fix tracked as a **separate change** in the telemetry repo
-- The write side is already planned (TASK-B1 in reboot-sequence-sync)
+- Signal files reside in `/tmp/` — volatile, cleared on every reboot
+- **Atomic 3-repo release** required — no backward compatibility window
+- Telemetry changes tracked as **Group G** tasks in this change (TASK-G1 – TASK-G4)
 
 ---
 layout: center
@@ -231,24 +235,28 @@ layout: center
 
 # The Telemetry Gap
 
-**Discovery**: `telemetry2_0` reads PreviousLogs/ at boot — **outside the sentinel chain**
+**Discovery**: `telemetry2_0` reads PreviousLogs/ at boot — **outside the signal chain**
 
 ```mermaid
 graph LR
   BL[backup_logs] -->|.backup_logs_done| RM[reboot-info]
+  BL -->|.backup_logs_done| T2[telemetry2_0]
   RM -->|Update_rebootInfo_invoked| UL[uploadstblogs]
-  BL -.->|NO GATE| T2[telemetry2_0]
+  T2 -->|.telemetry_prevlogs_done| UL
 
-  style T2 fill:#E91E63,color:#fff,stroke:#B71C1C,stroke-width:3px
+  style T2 fill:#E91E63,color:#fff
   style BL fill:#4CAF50,color:#fff
   style RM fill:#2196F3,color:#fff
   style UL fill:#FF9800,color:#fff
 ```
 
-- `PERSIST_LOG_MON_REF` enabled on **all builds**
+- `PERSIST_LOG_MON_REF` enabled on **all builds** — telemetry always scans PreviousLogs/
 - PreviousLogs grep report is **fire-and-forget** — never retried
-- If it reads incomplete data, telemetry markers are **permanently lost**
-- Fix: poll `.backup_logs_done` in telemetry repo before PreviousLogs scan
+- If it reads while `add_timestamp_to_files()` is renaming, markers are **permanently lost**
+- **Fix (now in scope — Group G)**:
+  - Telemetry polls `.backup_logs_done` before grep scan (TASK-G1)
+  - Telemetry writes `.telemetry_prevlogs_done` after scan (TASK-G2)
+  - `uploadstblogs` polls `.telemetry_prevlogs_done` before calling `add_timestamp_to_files()` (TASK-D2)
 
 ---
 layout: center
@@ -256,13 +264,15 @@ layout: center
 
 # Summary
 
-Sentinel file chain eliminates race conditions at boot
+Signal-file chain eliminates race conditions at boot
 
-**backup_logs → { telemetry, reboot-info } → uploadstblogs**
+**backup_logs → { telemetry2_0, reboot-info } → uploadstblogs**
 
-3-repo coordination: dcm-agent, reboot-manager, telemetry
+4 signal files: `.backup_logs_done` · `stt_received` · `Update_rebootInfo_invoked` · `.telemetry_prevlogs_done`
 
-Reliable, ordered, and fault-tolerant log processing
+3-repo atomic release: dcm-agent · reboot-manager · telemetry
+
+18 tasks across 7 groups — clean skip on any timeout
 
 ---
 layout: center

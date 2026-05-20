@@ -1,8 +1,8 @@
 # Tasks: Reboot Sequence Synchronization
 
 > Execute tasks in the order listed. Tasks within the same group can be parallelized
-> across contributors. Cross-repo tasks (marked `[reboot-manager]`) apply to the
-> `reboot-manager` repository.
+> across contributors. Cross-repo tasks are marked with their target repository:
+> `[reboot-manager]` for the reboot-manager repo, `[telemetry]` for the telemetry repo.
 
 ---
 
@@ -152,57 +152,70 @@ LOG_INFO("backup_logs sentinel detected. Proceeding with PreviousLogs/ analysis.
 ### TASK-D1 — Add poll constants and sentinel paths for reboot readiness
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/include/uploadstblogs_types.h`  
-**Spec**: REQ-SYNC-003
+**Spec**: REQ-SYNC-003, REQ-SYNC-008
 
 Add:
 
 ```c
 /** NTP synchronization sentinel — written by time sync service.
  *  Explicitly checked to ensure archive timestamps are NTP-accurate. */
-#define STT_FLAG                  "/tmp/stt_received"
+#define STT_FLAG                      "/tmp/stt_received"
 
 /** Reboot reason completion sentinel — written by update-prev-reboot-info.
  *  Presence guarantees previousreboot.info is written and complete. */
-#define PATH_FLAG_INVOCATION      "/tmp/Update_rebootInfo_invoked"
+#define PATH_FLAG_INVOCATION          "/tmp/Update_rebootInfo_invoked"
+
+/** Telemetry PreviousLogs scan completion sentinel — written by telemetry2_0.
+ *  Cross-repo interface: path also defined in the telemetry repository.
+ *  Any change MUST be coordinated with and released simultaneously with telemetry. */
+#define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
 
 /** Poll parameters for waiting on upload prerequisites.
  *  See uploadstblogs/src/strategies.c reboot_setup(). */
-#define REBOOT_POLL_INTERVAL_S    1u
-#define REBOOT_POLL_TIMEOUT_S     120u
+#define REBOOT_POLL_INTERVAL_S        1u
+#define REBOOT_POLL_TIMEOUT_S         120u
 ```
 
 ---
 
-### TASK-D2 — Replace `sleep(330)` with dual-sentinel poll in `reboot_setup()`
+### TASK-D2 — Replace `sleep(330)` with triple-sentinel poll in `reboot_setup()`
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/src/strategies.c`  
 **Spec**: REQ-SYNC-003, REQ-SYNC-004  
 **Depends on**: TASK-D1
 
-Add `wait_for_upload_prerequisites()` static helper that checks **both** `/tmp/stt_received`
-(NTP sync) and `/tmp/Update_rebootInfo_invoked` (reboot reason ready), then replace the
-`sleep()` block:
+Add `wait_for_upload_prerequisites()` static helper that checks **all three** sentinels
+`/tmp/stt_received` (NTP sync), `/tmp/Update_rebootInfo_invoked` (reboot reason ready),
+and `/tmp/.telemetry_prevlogs_done` (telemetry done with PreviousLogs/). Use
+`clock_gettime(CLOCK_MONOTONIC)` for accurate timeout tracking (avoids `EINTR` drift):
 
 ```c
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 static int wait_for_upload_prerequisites(void)
 {
-    unsigned int elapsed = 0u;
+    struct timespec start, now;
     struct stat st;
 
-    while (elapsed < REBOOT_POLL_TIMEOUT_S) {
-        int ntp_ready    = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
-        int reboot_ready = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-        if (ntp_ready && reboot_ready) {
+    for (;;) {
+        int ntp_ready      = (stat(STT_FLAG, &st) == 0) ? 1 : 0;
+        int reboot_ready   = (stat(PATH_FLAG_INVOCATION, &st) == 0) ? 1 : 0;
+        int telemetry_done = (stat(TELEMETRY_PREVLOGS_DONE_FLAG, &st) == 0) ? 1 : 0;
+
+        if (ntp_ready && reboot_ready && telemetry_done) {
             return 0;
         }
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
+            return -1;
+        }
         sleep(REBOOT_POLL_INTERVAL_S);
-        elapsed += REBOOT_POLL_INTERVAL_S;
     }
-    return -1;
 }
 ```
 
@@ -220,14 +233,17 @@ if (uptime_secs != -1 && uptime_secs < 900) {
 
 With:
 ```c
-/* NEW — poll for NTP sync AND reboot reason readiness */
-LOG_INFO("Waiting for upload prerequisites: NTP (%s) and reboot reason (%s), timeout %us",
-         STT_FLAG, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+/* NEW — poll for NTP sync, reboot reason, and telemetry completion */
+LOG_INFO("Waiting for upload prerequisites: NTP (%s), reboot reason (%s), "
+         "telemetry (%s), timeout %us",
+         STT_FLAG, PATH_FLAG_INVOCATION, TELEMETRY_PREVLOGS_DONE_FLAG,
+         REBOOT_POLL_TIMEOUT_S);
 
 if (wait_for_upload_prerequisites() != 0) {
     LOG_ERROR("Timed out after %us waiting for upload prerequisites "
-              "(NTP: %s, RebootReason: %s). Skipping reboot log upload.",
-              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION);
+              "(NTP: %s, RebootReason: %s, Telemetry: %s). Skipping reboot log upload.",
+              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION,
+              TELEMETRY_PREVLOGS_DONE_FLAG);
     return -1;
 }
 
@@ -240,21 +256,28 @@ LOG_INFO("All upload prerequisites met. Proceeding with archive/upload.");
 
 ### TASK-E1 — Update `dcm-agent/docs/DEPENDENCIES.md`
 **Repo**: `dcm-agent`  
-**Spec**: REQ-SYNC-006
+**Spec**: REQ-SYNC-006, REQ-SYNC-010
 
-Add a section documenting the cross-repo sentinel interface:
+Add a section documenting both cross-repo sentinel interfaces:
 
 ```markdown
-## Cross-Repository Sentinel Interface
+## Cross-Repository Sentinel Interfaces
 
 ### `/tmp/.backup_logs_done`
 - **Written by**: `backup_logs` binary (this repo), in `backup_logs_main()` after successful `backup_logs_execute()`.
 - **Consumed by**:
   - `reboot-manager` repository, `update-prev-reboot-info` binary.
   - `telemetry` repository, `telemetry2_0` daemon (`profile.c`, PreviousLogs grep report).
-- **Semantics**: File presence indicates that all logs have been safely moved to `/opt/logs/PreviousLogs/` and the directory is stable for reading.
+- **Semantics**: File presence indicates all logs have been safely moved to `/opt/logs/PreviousLogs/`.
 - **Lifecycle**: Volatile (`/tmp/`); cleared automatically on reboot.
-- **Cross-repo coordination**: Any change to this path MUST be released simultaneously with matching changes in the `reboot-manager` and `telemetry` repositories.
+- **Coordination**: Any change MUST be released simultaneously with `reboot-manager` and `telemetry`.
+
+### `/tmp/.telemetry_prevlogs_done`
+- **Written by**: `telemetry` repository, `telemetry2_0` daemon, after completing the PreviousLogs grep scan.
+- **Consumed by**: `uploadstblogs` (this repo) in `reboot_setup()` before calling `add_timestamp_to_files()`.
+- **Semantics**: File presence indicates `telemetry2_0` has finished reading `PreviousLogs/`.
+- **Lifecycle**: Volatile (`/tmp/`); cleared automatically on reboot.
+- **Coordination**: Any change MUST be released simultaneously with `telemetry`.
 ```
 
 ---
@@ -304,21 +327,27 @@ Test cases:
 
 ---
 
-### TASK-F3 — Unit test: reboot_setup() dual-sentinel poll and timeout behavior
+### TASK-F3 — Unit test: reboot_setup() triple-sentinel poll and timeout behavior
 **Repo**: `dcm-agent`  
 **File**: `uploadstblogs/unittest/strategies_gtest.cpp` (or existing equivalent)  
-**Spec**: TEST-SYNC-004, TEST-SYNC-005  
+**Spec**: TEST-SYNC-004, TEST-SYNC-005, TEST-SYNC-009  
 **Depends on**: TASK-D2
 
 Test cases:
-- `RebootSetup_ProceedsWhenBothSentinelsPresent`: Create both `stt_received` and
-  `Update_rebootInfo_invoked` before calling `reboot_setup()`. Assert returns 0 (success).
-- `RebootSetup_SkipsUploadWhenNTPMissing`: Create `Update_rebootInfo_invoked` only (no
-  `stt_received`). Assert `reboot_setup()` returns -1 after timeout.
-- `RebootSetup_SkipsUploadWhenRebootReasonMissing`: Create `stt_received` only (no
-  `Update_rebootInfo_invoked`). Assert `reboot_setup()` returns -1 after timeout.
-- `RebootSetup_SkipsUploadOnFullTimeout`: Create neither sentinel. Assert `reboot_setup()`
-  returns -1 after `REBOOT_POLL_TIMEOUT_S` (use a short override for fast test execution).
+- `RebootSetup_ProceedsWhenAllSentinelsPresent`: Create all three sentinels (`stt_received`,
+  `Update_rebootInfo_invoked`, `.telemetry_prevlogs_done`) before calling `reboot_setup()`.
+  Assert returns 0 (success).
+- `RebootSetup_SkipsUploadWhenNTPMissing`: Create `Update_rebootInfo_invoked` and
+  `.telemetry_prevlogs_done` only (no `stt_received`). Assert `reboot_setup()` returns -1
+  after timeout.
+- `RebootSetup_SkipsUploadWhenRebootReasonMissing`: Create `stt_received` and
+  `.telemetry_prevlogs_done` only (no `Update_rebootInfo_invoked`). Assert returns -1.
+- `RebootSetup_SkipsUploadWhenTelemetryMissing`: Create `stt_received` and
+  `Update_rebootInfo_invoked` only (no `.telemetry_prevlogs_done`). Assert returns -1
+  after timeout. (TEST-SYNC-009)
+- `RebootSetup_SkipsUploadOnFullTimeout`: Create none of the three sentinels. Assert
+  `reboot_setup()` returns -1 after `REBOOT_POLL_TIMEOUT_S` (use a short override for
+  fast test execution).
 - `RebootSetup_ArchiveTimestampIsPostNTP`: Stub `time()` to return a known post-NTP epoch.
   Assert archive name contains expected timestamp.
 
@@ -328,19 +357,104 @@ Test cases:
 **Repo**: `dcm-agent`  
 **File**: `test/functional-tests/` (new feature file)  
 **Spec**: TEST-SYNC-007  
-**Depends on**: All Group B, C, D tasks
+**Depends on**: All Group B, C, D, G tasks
 
 Verify the complete sentinel chain end-to-end in the Docker CI environment:
 
 1. Start with a clean `/tmp/` (no sentinels).
 2. Run `backup_logs` binary → assert `/tmp/.backup_logs_done` created.
-3. Run `update-prev-reboot-info` → assert it reads PreviousLogs/ correctly and writes
+3. Simulate `telemetry2_0` scan completion → assert `/tmp/.telemetry_prevlogs_done` created.
+4. Run `update-prev-reboot-info` → assert it reads PreviousLogs/ correctly and writes
    `/tmp/Update_rebootInfo_invoked`.
-4. Run `uploadstblogs` with `TRIGGER_REBOOT` → assert it proceeds without the 330s sleep.
-5. Inject failure: run `update-prev-reboot-info` without first creating `.backup_logs_done`
+5. Run `uploadstblogs` with `TRIGGER_REBOOT` → assert it proceeds without the 330s sleep.
+6. Inject failure: run `update-prev-reboot-info` without first creating `.backup_logs_done`
    → assert it exits non-zero after timeout.
-6. Inject failure: run `reboot_setup()` without `Update_rebootInfo_invoked` → assert
+7. Inject failure: run `reboot_setup()` without `Update_rebootInfo_invoked` → assert
    upload is skipped.
+8. Inject failure: run `reboot_setup()` without `.telemetry_prevlogs_done` → assert
+   upload is skipped (telemetry timeout path).
+
+---
+
+---
+
+## Group G — Telemetry Repo Changes [telemetry]
+
+### TASK-G1 — Poll `.backup_logs_done` before PreviousLogs grep scan
+**Repo**: `telemetry`  
+**File**: `telemetry2_0/src/profile.c` (or equivalent, in `CollectAndReport()`)
+**Spec**: REQ-SYNC-001 (consumer side), REQ-SYNC-008  
+**Depends on**: TASK-B1 (sentinel written by backup_logs)
+
+In the `checkPreviousSeek` / `PERSIST_LOG_MON_REF` code path that sets
+`customLogPath = PREVIOUS_LOGS_PATH`, add a poll for `/tmp/.backup_logs_done`
+before reading any files from `PreviousLogs/`:
+
+- Poll interval: 1 second  
+- Timeout: 60 seconds  
+- On timeout: skip the PreviousLogs report entirely; do NOT write the completion sentinel.
+
+---
+
+### TASK-G2 — Write `/tmp/.telemetry_prevlogs_done` after PreviousLogs scan completes
+**Repo**: `telemetry`  
+**File**: `telemetry2_0/src/profile.c` (or equivalent)  
+**Spec**: REQ-SYNC-008  
+**Depends on**: TASK-G1
+
+After all grep patterns for the Previous Logs report have been evaluated (whether or not
+any markers were found), write the completion sentinel:
+
+```c
+/* After PreviousLogs grep scan completes successfully: */
+{
+    int sentinel_fd = open("/tmp/.telemetry_prevlogs_done", O_CREAT | O_WRONLY, 0644);
+    if (sentinel_fd < 0) {
+        LOG_WARN("Failed to create telemetry sentinel: %s", strerror(errno));
+        /* Non-fatal: uploadstblogs will timeout and skip reboot upload */
+    } else {
+        close(sentinel_fd);
+    }
+}
+```
+
+Do NOT write the sentinel if the grep scan was skipped due to `.backup_logs_done` timeout.
+
+---
+
+### TASK-G3 — Define sentinel path constants in telemetry header
+**Repo**: `telemetry`  
+**File**: Appropriate telemetry header  
+**Spec**: REQ-SYNC-006, REQ-SYNC-008
+
+Define:
+
+```c
+/** Sentinel written by backup_logs (dcm-agent). Gates PreviousLogs/ grep scan.
+ *  Cross-repo interface: also defined in dcm-agent/backup_logs/include/backup_logs.h.
+ *  Any change MUST be coordinated with dcm-agent and reboot-manager. */
+#define PATH_FLAG_BACKUP_LOGS_DONE      "/tmp/.backup_logs_done"
+#define TELEMETRY_PREVLOGS_POLL_INTERVAL_S  1u
+#define TELEMETRY_PREVLOGS_POLL_TIMEOUT_S   60u
+
+/** Sentinel written by telemetry2_0 after PreviousLogs/ scan.
+ *  Cross-repo interface: consumed by dcm-agent/uploadstblogs/reboot_setup().
+ *  Any change MUST be coordinated with dcm-agent. */
+#define PATH_FLAG_TELEMETRY_PREVLOGS_DONE "/tmp/.telemetry_prevlogs_done"
+```
+
+---
+
+### TASK-G4 — Unit test: telemetry2_0 sentinel write behavior
+**Repo**: `telemetry`  
+**Spec**: TEST-SYNC-008  
+**Depends on**: TASK-G2
+
+Test cases:
+- `TelemetrySentinel_WrittenAfterScan`: Simulate successful PreviousLogs/ grep scan.
+  Assert `/tmp/.telemetry_prevlogs_done` exists after `CollectAndReport()` returns.
+- `TelemetrySentinel_NotWrittenOnTimeout`: Do NOT create `.backup_logs_done`. Assert
+  `.telemetry_prevlogs_done` does NOT exist after `CollectAndReport()` times out.
 
 ---
 
@@ -353,7 +467,11 @@ TASK-A2 ──┤
            ├─► TASK-C1 ──► TASK-C2 ──► TASK-F2
            └─► TASK-D1 ──► TASK-D2 ──► TASK-F3
 
+TASK-G3 ──┬
+           ├─► TASK-G1 ──► TASK-G2 ──► TASK-G4
+           └─ (depends on TASK-B1 sentinel being written)
+
 TASK-E1, TASK-E2 (parallel, no dependencies)
 
-TASK-F4 ──► after all implementation tasks complete
+TASK-F4 ──► after all Groups B, C, D, G tasks complete
 ```
