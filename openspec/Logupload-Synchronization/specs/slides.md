@@ -6,11 +6,10 @@ highlighter: shiki
 transition: slide-left
 mdc: true
 ---
-
+ 
 # Logupload Synchronization
 
 ### Boot-Time Coordination for `dcm-agent`
-
 `backup_logs` · `reboot-info` · `telemetry2_0` · `uploadstblogs`
 
 ---
@@ -102,19 +101,28 @@ Signal files coordinate execution between stages.
 
 ---
 
+
+
 # Execution Flow
 
-1. **Device Reboots**
-2. `backup_logs` starts → moves logs to `/opt/logs/PreviousLogs/`
-3. On success → creates `/tmp/.backup_logs_done`
-4. `update-prev-reboot-info` polls `.backup_logs_done` + `stt_received` (NTP)
-5. Derives reboot reason → creates `/tmp/Update_rebootInfo_invoked`
-6. `telemetry2_0` polls `.backup_logs_done` → grep-scans `PreviousLogs/` → creates `/tmp/.telemetry_prevlogs_done`
-7. `uploadstblogs` polls **all three** before proceeding:
-   - `/tmp/stt_received`
-   - `/tmp/Update_rebootInfo_invoked`
-   - `/tmp/.telemetry_prevlogs_done`
-8. Proceeds with archive + upload
+- **Device Reboots**
+  - `backup_logs` starts → moves logs to `/opt/logs/PreviousLogs/`
+    - If fails, **abort**. If succeeds, continue.
+  - On success → creates `/tmp/.backup_logs_done`
+  - `update-prev-reboot-info` polls `.backup_logs_done` + `stt_received` (NTP)
+    - If missing, trigger reboot reason update and wait. If still missing after timeout, proceed.
+  - Derives reboot reason → creates `/tmp/Update_rebootInfo_invoked`
+  - `telemetry2_0` polls `.backup_logs_done` → grep-scans `PreviousLogs/` → creates `/tmp/.telemetry_prevlogs_done`
+    - If missing, trigger telemetry scan and wait. If still missing after timeout, proceed.
+  - `uploadstblogs` polls all three before proceeding:
+    - `/tmp/stt_received`
+      - **CheckSTT:** If missing, do NOT trigger STT acquisition. Instead, check internet connectivity.
+        - If internet is up but NTP is not synced, use last known good time from **systemtimemgr**.
+        - If internet is down, upload proceeds with error annotation.
+    - `/tmp/Update_rebootInfo_invoked`
+    - `/tmp/.telemetry_prevlogs_done`
+  - Proceeds with archive + upload
+    - Always upload if backup succeeded, annotating any missing metadata.
 
 ---
 
@@ -164,6 +172,8 @@ sequenceDiagram
 | **uploadstblogs** | C | Archive & upload logs to server |
 | **telemetry2_0** | C | Grep-scan PreviousLogs/ for markers |
 | **Signal Files** | Filesystem | Inter-process synchronization |
+| **systemtimemgr** | C | Provides last known good time if NTP/internet is unavailable |
+| **entservices-maintenancemanager** | C | Coordinates timer logic for log upload task |
 
 ---
 
@@ -184,21 +194,27 @@ sequenceDiagram
 
 ---
 
-# Subsystem State Machine
 
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> Polling : Boot
-  Polling --> Running : All signal files present
-  Polling --> Skipped : Timeout exceeded
-  Running --> Done : Success
-  Running --> Skipped : Error
-  Done --> [*]
-  Skipped --> [*]
-```
+# Risks & Notes
 
-Each subsystem follows this state machine independently.
+- If both STT and internet are missing, upload proceeds but is heavily annotated as incomplete.
+- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks and triggers.
+- Timeouts must be coordinated to avoid indefinite waits.
+- All fallback uploads must clearly annotate what metadata was missing or defaulted.
+
+---
+
+# Log Upload: State Machine & Fallbacks
+
+> **Fallback Method:** Log upload must always happen except when log backup fails. All missing/failed steps are annotated in the upload for diagnostics.
+
+- DCM Agent synchronizes backup, STT, reboot reason, telemetry, and upload.
+- Each module owns its state; DCM Agent triggers and coordinates as needed.
+- State machine ensures robust fallback and retry logic.
+
+👉 **[Logupload State Machine & Fallbacks](./logupload-state-machine.md)**
+
+Refer to the linked file for the scenario breakdowns and state diagram.
 
 ---
 
@@ -278,6 +294,28 @@ Signal-file chain eliminates race conditions at boot
 layout: center
 ---
 
+
+## Summary Table
+
+| Step           | Hard Dependency | Fallback Action                | Upload Allowed? |
+|----------------|----------------|--------------------------------|-----------------|
+| BackupLogs     | Yes            | None (abort if missing)        | No              |
+| STT            | No             | Check internet, use last good time | Yes         |
+| RebootInfo     | No             | Trigger update, wait, proceed  | Yes             |
+| TelemetryFlag  | No             | Trigger scan, wait, proceed    | Yes             |
+
+---
+
+## Risks & Notes
+
+- If both STT and internet are missing, upload proceeds but is heavily annotated as incomplete.
+- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks and triggers.
+- Timeouts must be coordinated to avoid indefinite waits.
+- All fallback uploads must clearly annotate what metadata was missing or defaulted.
+
+---
+
 # Thank You
 
 [dcm-agent Repository](https://github.com/rdkcentral/dcm-agent)
+---
