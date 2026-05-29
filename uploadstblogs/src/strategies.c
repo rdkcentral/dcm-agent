@@ -1057,7 +1057,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     // Script lines 900-902: rm -rf + mkdir -p PREV_LOG_BACKUP_PATH
     // PREV_LOG_BACKUP_PATH = $LOG_PATH/PreviousLogs_backup/
     char prev_log_backup_path[MAX_PATH_LENGTH];
-    written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
+    int written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
                       ctx->log_path);
     
     if (written >= (int)sizeof(prev_log_backup_path)) {
