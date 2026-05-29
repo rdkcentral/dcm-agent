@@ -129,5 +129,19 @@ int cleanup_old_archives(const char *log_path);
  * @return true if matches pattern, false otherwise
  */
 bool is_timestamped_backup(const char *filename);
+/**
+ * @brief Remove files from log_path whose names contain a timestamp prefix
+ *        (MM-DD-YY-HH-MMAM/PM-*) but are not logbackup dirs or moca.pcap files.
+ *
+ * Matches shell:
+ *   for item in `ls $LOG_PATH/*-*-*-*-*M-* | grep "[0-9]*-[0-9]*-[0-9]*-[0-9]*-M*"
+ *               | grep -v "logbackup" | grep -v "moca.pcap"`;do
+ *       if [ -f "$item" ]; then rm -rf $item; fi
+ *   done
+ *
+ * @param log_path Directory to scan
+ * @return Number of files removed, or -1 on error
+ */
+int remove_stale_timestamped_files(const char* log_path);
 
 #endif /* CLEANUP_HANDLER_H */
