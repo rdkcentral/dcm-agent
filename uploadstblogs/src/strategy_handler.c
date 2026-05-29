@@ -70,6 +70,9 @@ int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
+    /* Remove stale .tgz archives from log path before any strategy runs.
+    cleanup_old_archives(ctx->log_path);
+
     // Verify context has valid data
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Context check: ctx=%p, MAC='%s', device_type='%s'\n",
