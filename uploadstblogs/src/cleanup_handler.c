@@ -220,20 +220,20 @@ int cleanup_old_archives(const char *log_path)
     DIR *dir = opendir(log_path);
     if (!dir) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to open directory: %s\n",
+                "[%s:%d] Failed to open directory: %s\n", 
                 __FUNCTION__, __LINE__, log_path);
         return -1;
     }
-
+    
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
-
+    
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-
+        
         snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
 
         struct stat st;
@@ -266,13 +266,13 @@ int cleanup_old_archives(const char *log_path)
             }
         }
     }
-
+    
     closedir(dir);
-
+    
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
             "[%s:%d] Archive cleanup complete: removed %d .tgz files from %s\n",
             __FUNCTION__, __LINE__, removed_count, log_path);
-
+    
     return removed_count;
 }
 
