@@ -554,6 +554,87 @@ int remove_stale_timestamped_files(const char* log_path)
     while ((entry = readdir(dir)) != NULL) {
         const char* name = entry->d_name;
 
+        /* Check that name STARTS with MM-DD-YY-HH-MMAM/PM- prefix.
+         * is_timestamped_backup() checks names that END with the pattern
+         * (backup dirs). Here we need files that BEGIN with the prefix,
+         * i.e. files renamed by a previous modifyFileWithTimestamp() run.
+         * Format: NN-NN-NN-NN-NNxx- (19 chars min, xx = AM or PM) */
+        if (strlen(name) < 19 ||
+            name[2] != '-' || name[5] != '-' || name[8] != '-' || name[11] != '-' ||
+            !isdigit((unsigned char)name[0])  || !isdigit((unsigned char)name[1])  ||
+            !isdigit((unsigned char)name[3])  || !isdigit((unsigned char)name[4])  ||
+            !isdigit((unsigned char)name[6])  || !isdigit((unsigned char)name[7])  ||
+            !isdigit((unsigned char)name[9])  || !isdigit((unsigned char)name[10]) ||
+            !isdigit((unsigned char)name[12]) || !isdigit((unsigned char)name[13]) ||
+            !((name[14] == 'A' || name[14] == 'P') && name[15] == 'M' && name[16] == '-')) {
+            continue;
+        }
+
+        /* Skip logbackup directories */
+        if (strstr(name, "logbackup") != NULL) {
+            continue;
+        }
+        /* Skip moca.pcap files */
+        if (strstr(name, "moca.pcap") != NULL) {
+            continue;
+        }
+
+        snprintf(full_path, sizeof(full_path), "%s/%s", log_path, name);
+
+        /* Only remove regular files (matches script: if [ -f "$item" ]) */
+        struct stat st;
+        if (stat(full_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+            continue;
+        }
+
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Removing stale timestamped file: %s\n", __FUNCTION__, __LINE__, full_path);
+
+        if (unlink(full_path) == 0) {
+            removed_count++;
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to remove: %s\n", __FUNCTION__, __LINE__, full_path);
+        }
+    }
+
+    closedir(dir);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Removed %d stale timestamped files from %s\n", __FUNCTION__, __LINE__, removed_count, log_path);
+
+    return removed_count;
+}
+
+/**
+ * @brief Remove files from log_path whose names carry a timestamp prefix
+ *        (MM-DD-YY-HH-MMAM/PM-*) left over from a previous run, skipping
+ *        logbackup directories and moca.pcap files.
+ *
+ * Matches shell:
+ *   for item in `ls $LOG_PATH/*-*-*-*-*M-*
+ *               | grep "[0-9]*-[0-9]*-[0-9]*-[0-9]*-M*"
+ *               | grep -v "logbackup" | grep -v "moca.pcap"`;do
+ *       if [ -f "$item" ]; then rm -rf $item; fi
+ *   done
+ */
+int remove_stale_timestamped_files(const char* log_path)
+{
+    if (!log_path) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    DIR* dir = opendir(log_path);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Cannot open directory: %s\n", __FUNCTION__, __LINE__, log_path);
+        return -1;
+    }
+
+    int removed_count = 0;
+    struct dirent* entry;
+    char full_path[512];
+
+    while ((entry = readdir(dir)) != NULL) {
+        const char* name = entry->d_name;
+
         /* Pattern check via helper */
         if (!is_timestamped_backup(name)) {
             continue;
