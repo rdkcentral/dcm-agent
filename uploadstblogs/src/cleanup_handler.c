@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <regex.h>
+#include <ctype.h>
 #include "cleanup_handler.h"
 #include "context_manager.h"
 #include "event_manager.h"
@@ -527,12 +528,6 @@ bool create_block_marker(UploadPath path, int duration_seconds)
  *        (MM-DD-YY-HH-MMAM/PM-*) left over from a previous run, skipping
  *        logbackup directories and moca.pcap files.
  *
- * Matches shell:
- *   for item in `ls $LOG_PATH/*-*-*-*-*M-*
- *               | grep "[0-9]*-[0-9]*-[0-9]*-[0-9]*-M*"
- *               | grep -v "logbackup" | grep -v "moca.pcap"`;do
- *       if [ -f "$item" ]; then rm -rf $item; fi
- *   done
  */
 int remove_stale_timestamped_files(const char* log_path)
 {
