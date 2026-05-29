@@ -1012,11 +1012,27 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
         return -1;
     }
 
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Checking tar file for removal: '%s' (archive_file='%s')\n",
+            __FUNCTION__, __LINE__, tar_path, session->archive_file);
+
     if (file_exists(tar_path)) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removing tar file: %s\n", 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Tar file found, removing: %s\n",
                 __FUNCTION__, __LINE__, tar_path);
-        remove_file(tar_path);
+        if (remove_file(tar_path)) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Tar file removed successfully: %s\n",
+                    __FUNCTION__, __LINE__, tar_path);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to remove tar file: %s\n",
+                    __FUNCTION__, __LINE__, tar_path);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Tar file not found (already removed or never created): %s\n",
+                __FUNCTION__, __LINE__, tar_path);
     }
 
     // Remove timestamps from filenames (restore original names)
