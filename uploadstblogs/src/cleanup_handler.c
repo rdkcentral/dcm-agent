@@ -225,24 +225,26 @@ int cleanup_old_archives(const char *log_path)
         return -1;
     }
     
+    int dfd = dirfd(dir);
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
-    
+
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
         
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
-
         struct stat st;
-        if (lstat(fullpath, &st) != 0) {
+        /* fstatat with AT_SYMLINK_NOFOLLOW on the open dir FD: check and subsequent
+         * unlinkat both refer to the same dir entry, eliminating the TOCTOU race. */
+        if (fstatat(dfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
             continue;
         }
 
         if (S_ISDIR(st.st_mode)) {
             /* Recurse into subdirectories (matches shell: find $LOG_PATH -name "*.tgz") */
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
             int sub_count = cleanup_old_archives(fullpath);
             if (sub_count > 0) {
                 removed_count += sub_count;
@@ -253,9 +255,11 @@ int cleanup_old_archives(const char *log_path)
                 continue;
             }
 
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removing old archive: %s\n", __FUNCTION__, __LINE__, fullpath);
 
-            if (unlink(fullpath) == 0) {
+            /* unlinkat operates on the same dir FD — no path race possible */
+            if (unlinkat(dfd, entry->d_name, 0) == 0) {
                 removed_count++;
             } else {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
