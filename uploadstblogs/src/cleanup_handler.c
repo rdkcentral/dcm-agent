@@ -237,7 +237,7 @@ int cleanup_old_archives(const char *log_path)
         snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
 
         struct stat st;
-        if (stat(fullpath, &st) != 0) {
+        if (lstat(fullpath, &st) != 0) {
             continue;
         }
 
