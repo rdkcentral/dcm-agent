@@ -896,7 +896,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
-		strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1)
+		strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1);
         emit_upload_aborted();
         return 0;
     }
