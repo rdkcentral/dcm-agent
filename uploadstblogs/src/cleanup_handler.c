@@ -215,8 +215,8 @@ int cleanup_old_archives(const char *log_path)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
         return -1;
-    }
-
+     }
+    
     DIR *dir = opendir(log_path);
     if (!dir) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
