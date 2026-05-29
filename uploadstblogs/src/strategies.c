@@ -1002,37 +1002,11 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     sleep(5);
 
     // Delete tar file
-    char tar_path[MAX_PATH_LENGTH];
-    int written = snprintf(tar_path, sizeof(tar_path), "%s/%s", 
-                          ctx->prev_log_path, session->archive_file);
-    
-    if (written >= (int)sizeof(tar_path)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Tar path too long\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Checking tar file for removal: '%s' (archive_file='%s')\n",
-            __FUNCTION__, __LINE__, tar_path, session->archive_file);
-
-    if (file_exists(tar_path)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Tar file found, removing: %s\n",
-                __FUNCTION__, __LINE__, tar_path);
-        if (remove_file(tar_path)) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Tar file removed successfully: %s\n",
-                    __FUNCTION__, __LINE__, tar_path);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to remove tar file: %s\n",
-                    __FUNCTION__, __LINE__, tar_path);
-        }
-    } else {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Tar file not found (already removed or never created): %s\n",
-                __FUNCTION__, __LINE__, tar_path);
+    if (file_exists(session->archive_file)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removing tar file: %s\n", 
+                __FUNCTION__, __LINE__, session->archive_file);
+        remove_file(session->archive_file);
     }
 
     // Remove timestamps from filenames (restore original names)
@@ -1128,4 +1102,3 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
-
