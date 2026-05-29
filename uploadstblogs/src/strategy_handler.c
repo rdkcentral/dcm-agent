@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include "strategy_handler.h"
+#include "cleanup_handler.h"
 #include "rdk_debug.h"
 #include <string.h>
 
