@@ -216,48 +216,63 @@ int cleanup_old_archives(const char *log_path)
                 "[%s:%d] Invalid log path\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    
+
     DIR *dir = opendir(log_path);
     if (!dir) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to open directory: %s\n", 
+                "[%s:%d] Failed to open directory: %s\n",
                 __FUNCTION__, __LINE__, log_path);
         return -1;
     }
-    
+
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
-    
+
     while ((entry = readdir(dir)) != NULL) {
-        // Check if file ends with .tgz
-        size_t len = strlen(entry->d_name);
-        if (len < 5 || strcmp(entry->d_name + len - 4, ".tgz") != 0) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        
+
         snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
-        
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Removing old archive: %s\n",
-                __FUNCTION__, __LINE__, fullpath);
-        
-        // Use unlink to remove file (more explicit than remove)
-        if (unlink(fullpath) == 0) {
-            removed_count++;
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to remove: %s\n", 
+
+        struct stat st;
+        if (stat(fullpath, &st) != 0) {
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            /* Recurse into subdirectories (matches shell: find $LOG_PATH -name "*.tgz") */
+            int sub_count = cleanup_old_archives(fullpath);
+            if (sub_count > 0) {
+                removed_count += sub_count;
+            }
+        } else if (S_ISREG(st.st_mode)) {
+            size_t len = strlen(entry->d_name);
+            if (len < 5 || strcmp(entry->d_name + len - 4, ".tgz") != 0) {
+                continue;
+            }
+
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Removing old archive: %s\n",
                     __FUNCTION__, __LINE__, fullpath);
+
+            if (unlink(fullpath) == 0) {
+                removed_count++;
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to remove: %s\n",
+                        __FUNCTION__, __LINE__, fullpath);
+            }
         }
     }
-    
+
     closedir(dir);
-    
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
             "[%s:%d] Archive cleanup complete: removed %d .tgz files from %s\n",
             __FUNCTION__, __LINE__, removed_count, log_path);
-    
+
     return removed_count;
 }
 
