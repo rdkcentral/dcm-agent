@@ -253,9 +253,7 @@ int cleanup_old_archives(const char *log_path)
                 continue;
             }
 
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-                    "[%s:%d] Removing old archive: %s\n",
-                    __FUNCTION__, __LINE__, fullpath);
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removing old archive: %s\n", __FUNCTION__, __LINE__, fullpath);
 
             if (unlink(fullpath) == 0) {
                 removed_count++;
