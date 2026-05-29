@@ -253,7 +253,7 @@ int cleanup_old_archives(const char *log_path)
                 continue;
             }
 
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
                     "[%s:%d] Removing old archive: %s\n",
                     __FUNCTION__, __LINE__, fullpath);
 
@@ -269,7 +269,7 @@ int cleanup_old_archives(const char *log_path)
     
     closedir(dir);
     
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Archive cleanup complete: removed %d .tgz files from %s\n",
             __FUNCTION__, __LINE__, removed_count, log_path);
     
