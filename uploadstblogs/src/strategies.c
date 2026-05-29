@@ -47,6 +47,7 @@
 #include "rbus_interface.h"
 #include "rdk_debug.h"
 #include "event_manager.h"
+#include "cleanup_handler.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
@@ -686,25 +687,15 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                 __FUNCTION__, __LINE__);
     }
 
-    // Delete old backup files (3+ days old)
-    // Remove old timestamp directories and logbackup directories
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
-    
-    int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
-    if (removed > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old timestamp directories\n", 
-                __FUNCTION__, __LINE__, removed);
+    // Clean up old log backup directories (older than 3 days)
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
+    int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
+    if (removed_dirs > 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removed %d old log backup directories\n", __FUNCTION__, __LINE__, removed_dirs);
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No old log backup directories removed\n", __FUNCTION__, __LINE__);
     }
     
-    removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
-    if (removed > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old logbackup directories\n", 
-                __FUNCTION__, __LINE__, removed);
-    }
-
     // Create timestamp for permanent log path
     char timestamp[64];
     time_t now = time(NULL);
@@ -1011,21 +1002,11 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     sleep(5);
 
     // Delete tar file
-    char tar_path[MAX_PATH_LENGTH];
-    int written = snprintf(tar_path, sizeof(tar_path), "%s/%s", 
-                          ctx->prev_log_path, session->archive_file);
-    
-    if (written >= (int)sizeof(tar_path)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Tar path too long\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (file_exists(tar_path)) {
+    if (file_exists(session->archive_file)) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
                 "[%s:%d] Removing tar file: %s\n", 
-                __FUNCTION__, __LINE__, tar_path);
-        remove_file(tar_path);
+                __FUNCTION__, __LINE__, session->archive_file);
+        remove_file(session->archive_file);
     }
 
     // Remove timestamps from filenames (restore original names)
@@ -1121,4 +1102,3 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
-
