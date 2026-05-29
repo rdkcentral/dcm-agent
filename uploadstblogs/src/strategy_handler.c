@@ -71,7 +71,7 @@ int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    /* Remove stale .tgz archives from log path before any strategy runs.
+    // Remove stale .tgz archives from log path before any strategy runs.
     cleanup_old_archives(ctx->log_path);
 
     // Verify context has valid data
