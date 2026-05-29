@@ -881,24 +881,24 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             should_upload = true;
         }
     }
-    
-    if (!should_upload) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
-                __FUNCTION__, __LINE__);
-        emit_upload_aborted();
-        return 0;
-    }
 
-    // Construct full archive path using session archive filename
+	// Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
-    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", 
-                          ctx->prev_log_path, session->archive_file);
+    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->prev_log_path, session->archive_file);
     
     if (written >= (int)sizeof(archive_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;
+    }
+    
+    if (!should_upload) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
+                __FUNCTION__, __LINE__);
+		strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1)
+        emit_upload_aborted();
+        return 0;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
