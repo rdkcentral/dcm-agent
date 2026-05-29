@@ -78,7 +78,7 @@ int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session)
      * timestamp prefix (MM-DD-YY-HH-MMAM/PM-*), skipping logbackup dirs
      * and moca.pcap files.
    ` */
-    remove_stale_timestamped_files(ctx->log_path);
+    //remove_stale_timestamped_files(ctx->log_path);
 
     // Verify context has valid data
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
