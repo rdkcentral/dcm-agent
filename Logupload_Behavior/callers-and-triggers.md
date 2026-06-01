@@ -57,7 +57,7 @@ suppressed — the Maintenance Manager owns the schedule instead.
 
 ---
 
-## Trigger 2 — Maintenance Manager (Scheduled Maintenance Window)
+## Trigger 2 — Maintenance Manager (Scheduled+Unscheduled Maintenance Window)
 
 **Repository:** `rdkcentral/rdkservices`  
 **File:** `MaintenanceManager/MaintenanceManager.cpp` → `task_execution_thread()`  
@@ -143,36 +143,6 @@ Upload parameters are read from:
 - RFC `Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MTLS.mTlsLogUpload.Enable`
   → controls mTLS / xPKI path selection
 
-### mTLS handling
-
-If `FORCE_MTLS=true` in `/etc/device.properties` or the mTLS RFC is enabled, the HTTP
-URL is modified:
-
-```cpp
-// append /secure/cgi-bin in place of /cgi-bin
-upload_httplink = regex_replace(httplink, regex("cgi-bin"), "secure/cgi-bin");
-```
-
----
-
-## Trigger 4 — SystemServices Deep Sleep Pre-Upload
-
-**Repository:** `rdkcentral/rdkservices`  
-**File:** `SystemServices/uploadlogs.cpp` → `LogUploadBeforeDeepSleep()`  
-**Interface:** Called internally when device enters deep sleep
-
-### How it works
-
-```cpp
-// Checks RFC flag first
-if (!checkLogUploadBeforeDeepSleepFlag()) return E_NOK;
-
-string cmd = "nice -n 19 /bin/busybox sh /lib/rdk/uploadSTBLogs.sh "
-           + tftp_server + " 0 1 0 "
-           + upload_protocol + " " + upload_httplink
-           + " 1 & \0";
-system(cmd.c_str());
-```
 
 ### RFC control
 
@@ -185,7 +155,7 @@ logs at reduced priority (`nice -n 19`) immediately before entering deep sleep.
 
 ---
 
-## Trigger 5 — UploadLogsNow (Immediate On-Demand Mode)
+## Trigger 5 — UploadLogsNow (Immediate On-Demand Mode - From TR69hostif)
 
 **Repository:** `rdkcentral/dcm-agent`  
 **File:** `uploadstblogs/src/uploadlogsnow.c` → `execute_uploadlogsnow_workflow()`  
@@ -212,7 +182,7 @@ if (argc >= 2 && strcmp(argv[1], "uploadlogsnow") == 0) {
 
 ### Who calls this
 
-- `SystemServices` Thunder plugin → on `org.rdk.SystemServices.1.uploadLogs` JSON-RPC
+- Tr69hostif RFC : Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.Logging.xOpsDMUploadLogsNow
 - Manual operator invocation
 - App-layer via Thunder → SystemServices → uploadlogsnow mode
 
@@ -273,11 +243,10 @@ boot
 | Trigger | Who | Interface | Trigger Type | IARM Events | Lock |
 |---------|-----|-----------|--------------|-------------|------|
 | DCM scheduler | dcm-agent `dcmd` | C library `uploadstblogs_run()` | `TRIGGER_SCHEDULED` | yes | yes |
-| MaintenanceManager | rdkservices Thunder plugin | Shell script | `TRIGGER_SCHEDULED` | yes | yes |
-| SystemServices API | rdkservices Thunder plugin | `fork+execve` shell | `TRIGGER_ONDEMAND` | no | yes |
-| Deep sleep | rdkservices Thunder plugin | `system()` shell | `TRIGGER_ONDEMAND` | no | yes |
-| UploadLogsNow | app → SystemServices | `uploadstblogs uploadlogsnow` | `TRIGGER_ONDEMAND` | no | yes |
-| Post-reboot | boot sequence | binary after signal file poll | `TRIGGER_REBOOT` | yes | yes |
+| MaintenanceManager | rdkservices Thunder plugin | /usr/bin/logupload | `TRIGGER_SCHEDULED` | yes | yes |
+| SystemServices API | rdkservices Thunder plugin |  /usr/bin/logupload  | `TRIGGER_ONDEMAND` | no | yes |
+| UploadLogsNow | TR69hostif RFC | `uploadstblogs uploadlogsnow` | `TRIGGER_ONDEMAND` | no | yes |
+| Post-reboot | boot sequence |  C library `uploadstblogs_run() | `TRIGGER_REBOOT` | yes | yes |
 
 All paths use the `/tmp/.log-upload.lock` flock guard (matching the legacy shell `flock -n`)
 to prevent concurrent uploads.
