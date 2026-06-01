@@ -229,7 +229,7 @@ int cleanup_old_archives(const char *log_path)
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
-
+    
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
@@ -255,13 +255,20 @@ int cleanup_old_archives(const char *log_path)
                 continue;
             }
 
-            int path_written = snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
-            if (path_written < 0 || path_written >= (int)sizeof(fullpath)) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Path too long, skipping file: %s/%s\n",
-                        __FUNCTION__, __LINE__, log_path, entry->d_name);
-                continue;
-            }
+            int path_written = snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
+
+            if (path_written < 0 || path_written >= (int)sizeof(fullpath)) {
+
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+
+                        "[%s:%d] Path too long, skipping file: %s/%s\n",
+
+                        __FUNCTION__, __LINE__, log_path, entry->d_name);
+
+                continue;
+
+            }
+
             RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removing old archive: %s\n", __FUNCTION__, __LINE__, fullpath);
             /* unlinkat operates on the same dir FD — no path race possible */
             if (unlinkat(dfd, entry->d_name, 0) == 0) {
