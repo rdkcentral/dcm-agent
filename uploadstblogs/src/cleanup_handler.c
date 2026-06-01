@@ -226,13 +226,12 @@ int cleanup_old_archives(const char *log_path)
     }
     
     int dfd = dirfd(dir);
-    if (dfd < 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] dirfd() failed for: %s\n",
-                __FUNCTION__, __LINE__, log_path);
-        closedir(dir);
-        return -1;
-    }
+    if (dfd < 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] dirfd() failed for: %s\n", __FUNCTION__, __LINE__, log_path);
+        closedir(dir);
+        return -1;
+    }
+
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
