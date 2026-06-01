@@ -156,6 +156,33 @@ Legend:
 ---
 # Boot Signal Chain Detail (Scheduled / Bootup Paths)
 
+Before Synchronization Fixes (Race-Prone):
+
+```mermaid
+graph LR
+  BL0["backup_logs"] --> PL0["PreviousLogs/"]
+  RM0["reboot-info"] --> RR0["previousreboot.info"]
+  T20["telemetry2_0"] --> TR0["PreviousLogs scan"]
+  UL0["uploadstblogs"] --> UP0["Archive + Upload"]
+  NTP0["NTP Sync"] --> TS0["stable time"]
+
+  PL0 -."may race".-> RM0
+  PL0 -."may race".-> T20
+  TR0 -."may overlap rename".-> UL0
+  RR0 -."may be late".-> UL0
+  TS0 -."may be unavailable".-> UL0
+  UL0 --> SERVER0["Log Server"]
+
+  style BL0 fill:#8bc34a,color:#fff
+  style RM0 fill:#42a5f5,color:#fff
+  style T20 fill:#ec407a,color:#fff
+  style UL0 fill:#ff9800,color:#fff
+  style NTP0 fill:#ab47bc,color:#fff
+  style SERVER0 fill:#00897b,color:#fff
+```
+
+After Synchronization Fixes (Sentinel-Gated):
+
 ```mermaid
 graph LR
   BL["backup_logs"] -->|creates| S1[".backup_logs_done"]
@@ -180,9 +207,8 @@ graph LR
   style S3 fill:#E3F2FD,stroke:#2196F3
   style S4 fill:#FCE4EC,stroke:#E91E63
 ```
-
 Note:
-- This boot signal-chain view applies to scheduled/bootup paths and is shown separately from on-demand caller paths for clarity.
+- This boot signal-chain comparison applies to scheduled/bootup paths and is shown separately from on-demand caller paths for clarity.
 
 ---
 
