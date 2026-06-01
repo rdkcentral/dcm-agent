@@ -51,6 +51,7 @@ These defects trace directly to the boot-time race conditions described above:
 layout: two-cols
 ---
 
+
 # Current State
 
 - Four subsystems launch independently at boot
@@ -70,38 +71,6 @@ layout: two-cols
 - Clean skip on timeout / failure
 
 ---
-
-# File-Based Signaling Protocol
-
-```mermaid
-graph LR
-  BL["backup_logs"] -->|creates| S1[".backup_logs_done"]
-  NTP["NTP Sync"] -->|creates| S2["stt_received"]
-  S1 -->|gates| RM["reboot-info"]
-  S1 -->|gates| T2["telemetry2_0"]
-  S2 -->|gates| RM
-  RM -->|creates| S3["Update_rebootInfo_invoked"]
-  T2 -->|creates| S4[".telemetry_prevlogs_done"]
-  S2 -->|gates| UL["uploadstblogs"]
-  S3 -->|gates| UL
-  S4 -->|gates| UL
-  UL -->|uploads| SERVER["Log Server"]
-
-  style BL fill:#4CAF50,color:#fff
-  style RM fill:#2196F3,color:#fff
-  style UL fill:#FF9800,color:#fff
-  style NTP fill:#9C27B0,color:#fff
-  style T2 fill:#E91E63,color:#fff
-  style S1 fill:#E8F5E9,stroke:#4CAF50
-  style S2 fill:#F3E5F5,stroke:#9C27B0
-  style S3 fill:#E3F2FD,stroke:#2196F3
-```
-
-Signal files coordinate execution between stages.
-
----
-
-
 
 # Execution Flow
 
@@ -174,6 +143,133 @@ sequenceDiagram
 | **Signal Files** | Filesystem | Inter-process synchronization |
 | **systemtimemgr** | C | Provides last known good time if NTP/internet is unavailable |
 | **entservices-maintenancemanager** | C | Coordinates timer logic for log upload task |
+
+---
+
+# Log Upload Callers and Triggers Across Modules
+
+| Trigger Path | Caller Module | Interface / Path | Trigger Type | Gate / Blocking Condition |
+|--------------|---------------|------------------|--------------|---------------------------|
+| DCM Scheduler | dcm-agent (`dcmd`) | `dcmRunJobs()` -> `uploadstblogs_run()` | `TRIGGER_SCHEDULED` | Suppressed when `dcmSettingsGetMMFlag()` is true |
+| Unsolicited Maintenance | rdkservices (`MaintenanceManager`) | `/lib/rdk/Start_uploadSTBLogs.sh` via maintenance workflow | `TRIGGER_SCHEDULED` | Bootup-triggered maintenance path |
+| SystemServices API | rdkservices (`SystemServices`) | Thunder `org.rdk.SystemServices.uploadLogs` -> `/lib/rdk/uploadSTBLogs.sh` | `TRIGGER_ONDEMAND` | On-demand invocation path |
+| UploadLogsNow | TR69hostif / operator / app path | `uploadstblogs uploadlogsnow` | `TRIGGER_ONDEMAND` | Immediate mode; does not rely on `UploadOnReboot=false` |
+| Solicited Maintenance from AS | AS-triggered maintenance call | Maintenance invocation from AS | `TRIGGER_ONDEMAND` | Upload may be skipped when `/opt/logs/PreviousLogs/` is empty |
+
+Bootup-triggered uploads:
+- DCM Scheduler
+- Unsolicited Maintenance
+
+On-demand uploads:
+- SystemServices API
+- UploadLogsNow
+- Solicited Maintenance from AS
+
+Shared behavior:
+- All trigger paths serialize upload via `/tmp/.log-upload.lock` to prevent concurrent uploads.
+
+---
+
+# Log Upload Flow in RDK
+
+```mermaid
+graph LR
+  subgraph C["Caller / Trigger Paths"]
+    DCM["DCM Scheduler"]
+    UMM["Unsolicited Maintenance"]
+    SS["SystemServices API"]
+    ULN["UploadLogsNow"]
+    AS["Solicited Maintenance from AS"]
+  end
+
+  subgraph P["Primary Upload Paths"]
+    BUP["Bootup upload path"]
+    ODP["On-demand upload path"]
+    ASG{"PreviousLogs has files?"}
+  end
+
+  subgraph S["Support Signals (Bootup only)"]
+    S1[".backup_logs_done"]
+    S2["stt_received"]
+    S3["Update_rebootInfo_invoked"]
+    S4[".telemetry_prevlogs_done"]
+  end
+
+  DCM --> BUP
+  UMM --> BUP
+  SS --> ODP
+  ULN --> ODP
+  AS --> ASG
+  ASG -->|No| SKIP["Skip upload"]
+  ASG -->|Yes| BUP
+
+  S1 -.gates.-> BUP
+  S2 -.gates.-> BUP
+  S3 -.gates.-> BUP
+  S4 -.gates.-> BUP
+
+  BUP --> PREV["Source: /opt/logs/PreviousLogs/"]
+  ODP --> CURR["Source: /opt/logs/ current logs"]
+  PREV --> CORE["uploadstblogs core"]
+  CURR --> CORE
+  CORE --> LOCK["/tmp/.log-upload.lock"]
+  LOCK --> SERVER["Log Server"]
+
+  style DCM fill:#2e7d32,color:#fff
+  style UMM fill:#2e7d32,color:#fff
+  style SS fill:#ef6c00,color:#fff
+  style ULN fill:#ef6c00,color:#fff
+  style AS fill:#8e24aa,color:#fff
+  style BUP fill:#43a047,color:#fff
+  style ODP fill:#fb8c00,color:#fff
+  style SKIP fill:#c62828,color:#fff
+  style CORE fill:#1565c0,color:#fff
+  style LOCK fill:#455a64,color:#fff
+  style SERVER fill:#00897b,color:#fff
+```
+
+Note:
+- On-demand uploads use current logs under `/opt/logs/` and do not require boot signal-chain gating.
+- Solicited Maintenance from AS may skip upload when `/opt/logs/PreviousLogs/` is empty.
+
+Legend:
+- Green: bootup-triggered callers
+- Orange: on-demand callers
+- Purple: AS solicited maintenance decision
+- Red: skip path
+- Blue/Grey/Teal: upload pipeline
+
+---
+
+# Boot Signal Chain Detail (Scheduled / Bootup Paths)
+
+```mermaid
+graph LR
+  BL["backup_logs"] -->|creates| S1[".backup_logs_done"]
+  NTP["NTP Sync"] -->|creates| S2["stt_received"]
+  S1 -->|gates| RM["reboot-info"]
+  S1 -->|gates| T2["telemetry2_0"]
+  S2 -->|gates| RM
+  RM -->|creates| S3["Update_rebootInfo_invoked"]
+  T2 -->|creates| S4[".telemetry_prevlogs_done"]
+  S2 -->|gates| UL["uploadstblogs"]
+  S3 -->|gates| UL
+  S4 -->|gates| UL
+  UL -->|uploads| SERVER["Log Server"]
+
+  style BL fill:#4CAF50,color:#fff
+  style RM fill:#2196F3,color:#fff
+  style UL fill:#FF9800,color:#fff
+  style NTP fill:#9C27B0,color:#fff
+  style T2 fill:#E91E63,color:#fff
+  style S1 fill:#E8F5E9,stroke:#4CAF50
+  style S2 fill:#F3E5F5,stroke:#9C27B0
+  style S3 fill:#E3F2FD,stroke:#2196F3
+  style S4 fill:#FCE4EC,stroke:#E91E63
+```
+
+Note:
+- This boot signal-chain view applies to scheduled/bootup paths and is shown separately from on-demand caller paths for clarity.
 
 ---
 
