@@ -697,7 +697,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     }
     
     // Create timestamp for permanent log path
-	char timestamp[64];
+    char timestamp[64];
     time_t now = time(NULL);
     struct tm tm_utc;
     size_t timestamp_len;
