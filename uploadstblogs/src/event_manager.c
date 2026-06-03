@@ -431,7 +431,7 @@ void emit_folder_missing_error(void)
     RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
             "[%s:%d] Required folder missing for log upload\n", __FUNCTION__, __LINE__);
     
-    // Send maintenance error event (matches script behavior)
-    send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
+    // Send maintenance complete event (matches script behavior)
+    send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
 }
 
