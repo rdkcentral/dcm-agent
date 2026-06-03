@@ -186,7 +186,7 @@ if (poll_for_sentinel(PATH_FLAG_BACKUP_LOGS_DONE,
 
 ---
 
-### 2.3 `uploadstblogs` — `uploadstblogs/src/strategies.c` — `reboot_setup()`
+### 2.3 `uploadstblogs` — `uploadstblogs/src/strategies.c` — `reboot_setup()` — Trigger-Then-Poll
 
 **Current code** (relevant portion):
 ```c
@@ -208,6 +208,42 @@ if (uptime_secs != -1 && uptime_secs < 900) {
 /* STT_FLAG, REBOOT_POLL_INTERVAL_S and REBOOT_POLL_TIMEOUT_S defined in
  * uploadstblogs_types.h to avoid magic numbers.
  * PATH_FLAG_INVOCATION = "/tmp/Update_rebootInfo_invoked" */
+
+/**
+ * trigger_missing_services - Write trigger sentinels for services that have not
+ * yet signalled completion.
+ *
+ * Called ONCE at the start of reboot_setup(), before the polling loop.
+ * Writing a trigger file signals the respective service to start or retry;
+ * the polling loop then waits for their completion sentinels.
+ *
+ * Cross-repo interfaces:
+ *   TRIGGER_REBOOT_INFO_UPDATE  → consumed by reboot-manager/update-prev-reboot-info
+ *   TRIGGER_TELEMETRY_SCAN      → consumed by telemetry/telemetry2_0
+ */
+static void trigger_missing_services(void)
+{
+    struct stat st;
+    int fd;
+
+    /* Trigger reboot reason update if Update_rebootInfo_invoked is absent */
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        fd = open(TRIGGER_REBOOT_INFO_UPDATE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd >= 0) {
+            close(fd);
+            LOG_INFO("Wrote reboot reason trigger: %s", TRIGGER_REBOOT_INFO_UPDATE);
+        }
+    }
+
+    /* Trigger telemetry PreviousLogs scan if .telemetry_prevlogs_done is absent */
+    if (stat(TELEMETRY_PREVLOGS_DONE_FLAG, &st) != 0) {
+        fd = open(TRIGGER_TELEMETRY_SCAN, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd >= 0) {
+            close(fd);
+            LOG_INFO("Wrote telemetry scan trigger: %s", TRIGGER_TELEMETRY_SCAN);
+        }
+    }
+}
 
 /**
  * wait_for_upload_prerequisites - Poll for upload prerequisites with soft-gate semantics.
@@ -257,6 +293,10 @@ static int wait_for_upload_prerequisites(void)
 
 /* In reboot_setup(): */
 {
+    /* STEP 1: Write trigger files to invoke any services not yet signalled */
+    trigger_missing_services();
+
+    /* STEP 2: Poll for all three soft-gate sentinels */
     int missing = wait_for_upload_prerequisites();
     if (missing & PREREQ_NTP) {
         /* NTP unavailable — fall back to systemtimemgr last-known time or annotate */
@@ -292,6 +332,13 @@ static int wait_for_upload_prerequisites(void)
  *  Cross-repo interface: path also defined in telemetry repo.
  *  Any change MUST be coordinated with the telemetry repository. */
 #define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
+
+/** Trigger files written by uploadstblogs to invoke services that have not
+ *  yet produced their completion sentinels. The respective service (reboot-manager
+ *  or telemetry) watches for these trigger files and retries if needed.
+ *  Cross-repo interfaces: any path change requires coordinated release. */
+#define TRIGGER_REBOOT_INFO_UPDATE    "/tmp/.trigger_reboot_info_update"
+#define TRIGGER_TELEMETRY_SCAN        "/tmp/.trigger_telemetry_prevlogs_scan"
 
 #define REBOOT_POLL_INTERVAL_S        1u
 #define REBOOT_POLL_TIMEOUT_S         120u
@@ -402,7 +449,9 @@ backup_logs fails
 
 ```
 .backup_logs_done written
-  → update-prev-reboot-info times out → Update_rebootInfo_invoked NOT written
+  → uploadstblogs writes TRIGGER_REBOOT_INFO_UPDATE (/tmp/.trigger_reboot_info_update)
+      → update-prev-reboot-info retries (if trigger-watching logic added — see TASK-D3)
+  → poll 120s: Update_rebootInfo_invoked NOT written after timeout
   → uploadstblogs: set_upload_annotation(ANNOTATION_REBOOT_REASON_UNAVAILABLE)
   → upload proceeds; previousreboot.info may be absent or incomplete
 ```
@@ -411,7 +460,9 @@ backup_logs fails
 
 ```
 .backup_logs_done written
-  → telemetry2_0 times out → .telemetry_prevlogs_done NOT written
+  → uploadstblogs writes TRIGGER_TELEMETRY_SCAN (/tmp/.trigger_telemetry_prevlogs_scan)
+      → telemetry2_0 retries PreviousLogs scan (if trigger-watching logic added — see TASK-D3)
+  → poll 120s: .telemetry_prevlogs_done NOT written after timeout
   → uploadstblogs: set_upload_annotation(ANNOTATION_TELEMETRY_UNAVAILABLE)
   → add_timestamp_to_files() proceeds (telemetry scan timed out — race risk gone after timeout)
   → upload proceeds with annotation
@@ -448,3 +499,149 @@ in their `docs/DEPENDENCIES.md`:
 > before grep-scanning `PreviousLogs/`. After the scan, it writes `/tmp/.telemetry_prevlogs_done`
 > which is consumed by `dcm-agent/uploadstblogs`. Any change to either path requires
 > coordinated simultaneous release with `dcm-agent` and `reboot-manager`.
+
+---
+
+## 7. `uploadstblogs` Execution State Machine
+
+The following state machine covers all four failure/success scenarios for the
+`reboot_setup()` → `reboot_archive()` → `reboot_upload()` execution path.
+
+```mermaid
+stateDiagram-v2
+    [*] --> BackupLogs : Device boot
+
+    BackupLogs --> S1_Abort : SCENARIO 1 — backup_logs fails
+    BackupLogs --> WriteBackupDone : backup_logs succeeds
+
+    state S1_Abort {
+        [*] --> LogBackupError
+        LogBackupError --> [*]
+    }
+    S1_Abort --> [*] : EXIT_FAILURE — no upload
+
+    WriteBackupDone --> WriteTriggers : create /tmp/.backup_logs_done
+
+    state WriteTriggers {
+        [*] --> TriggerRI : write /tmp/.trigger_reboot_info_update (if RI absent)
+        TriggerRI --> TriggerTel : write /tmp/.trigger_telemetry_prevlogs_scan (if Tel absent)
+        TriggerTel --> [*]
+    }
+
+    WriteTriggers --> Poll120s : start 120 s monotonic poll
+
+    state Poll120s {
+        [*] --> PollLoop
+        PollLoop --> AllReady : all 3 sentinels present
+        PollLoop --> TimedOut : elapsed >= 120 s
+        AllReady --> [*] : bitmask = 0
+        TimedOut --> [*] : bitmask = PREREQ_NTP|REBOOT|TELEMETRY (partial)
+    }
+
+    Poll120s --> HandleNTP
+
+    state HandleNTP {
+        [*] --> NTPPresent : stt_received found
+        [*] --> S3_NTPMissing : SCENARIO 3 — NTP timed out
+        NTPPresent --> [*] : time(NULL) NTP-accurate
+        state S3_NTPMissing {
+            [*] --> CheckInternet
+            CheckInternet --> ApplySystemTimeMgr : internet reachable
+            CheckInternet --> ApplyPreNTP : internet unreachable
+            ApplySystemTimeMgr --> [*] : annotate NTP_FALLBACK_SYSTEMTIMEMGR
+            ApplyPreNTP --> [*] : annotate NTP_UNAVAILABLE
+        }
+        S3_NTPMissing --> [*]
+    }
+
+    HandleNTP --> HandleRebootInfo
+
+    state HandleRebootInfo {
+        [*] --> RIPresent : Update_rebootInfo_invoked found
+        [*] --> S2_RIMissing : SCENARIO 2 — reboot info timed out
+        RIPresent --> [*]
+        S2_RIMissing --> AnnotateRI : set_upload_annotation(REBOOT_REASON_UNAVAILABLE)
+        AnnotateRI --> [*]
+    }
+
+    HandleRebootInfo --> HandleTelemetry
+
+    state HandleTelemetry {
+        [*] --> TelPresent : .telemetry_prevlogs_done found
+        [*] --> S4_TelMissing : SCENARIO 4 — telemetry timed out
+        TelPresent --> [*]
+        S4_TelMissing --> AnnotateTel : set_upload_annotation(TELEMETRY_UNAVAILABLE)
+        AnnotateTel --> [*]
+    }
+
+    HandleTelemetry --> UploadPhase : ALWAYS proceeds (soft gates only annotate)
+
+    state UploadPhase {
+        [*] --> CreateArchive
+        CreateArchive --> UploadPackage : generate_archive_name() + add_timestamp_to_files()
+        UploadPackage --> NotifyMM_OK : upload success
+        UploadPackage --> NotifyMM_ERR : upload failure
+        NotifyMM_OK --> [*] : MAINT_LOGUPLOAD_COMPLETE
+        NotifyMM_ERR --> [*] : MAINT_LOGUPLOAD_ERROR
+    }
+
+    UploadPhase --> [*]
+```
+
+### Scenario Summary
+
+| # | Scenario | Outcome |
+|---|----------|---------|
+| S1 | `backup_logs` fails | Hard abort — no upload, `EXIT_FAILURE`, all downstream sentinels absent |
+| S2 | Backup OK, reboot reason times out | Trigger written, poll 120 s, annotate `REBOOT_REASON_UNAVAILABLE`, upload proceeds |
+| S3 | Backup OK, NTP + reboot reason both timeout | Check internet → `systemtimemgr` fallback OR `NTP_UNAVAILABLE`, annotate + upload |
+| S4 | Backup OK, telemetry sentinel missing | Trigger written, poll 120 s, annotate `TELEMETRY_UNAVAILABLE`, upload proceeds |
+
+---
+
+## 8. Maintenance Manager Timer Interaction
+
+`entservices-maintenancemanager` schedules log upload as one of three sequential tasks
+(`TASK_RFC` → `TASK_SWUPDATE` → `TASK_LOGUPLOAD`). It starts a per-task watchdog timer
+via `task_startTimer()` when executing `LOGUPLOAD`.
+
+### Timer parameters (from `MaintenanceManager.h`)
+
+```
+TASK_TIMEOUT  = 3600 s  (1 hour)  — configurable at build time via -DTASK_TIMEOUT=<n>
+TASK_RETRY_COUNT = 1             — one retry on system() invocation failure
+TASK_RETRY_DELAY = 5 s           — delay between retry attempts
+```
+
+### Compatibility analysis
+
+```
+Maximum uploadstblogs time budget:
+  sentinel poll window        : 120 s   (REBOOT_POLL_TIMEOUT_S)
+  apply_ntp_fallback_time()   :  ~5 s   (internet probe + systemtimemgr query)
+  archive creation            :  ~30 s  (estimate, device-dependent)
+  upload transfer             :  varies (network-dependent)
+  ─────────────────────────────────────────────
+  Worst-case visible to MM    : << 3600 s
+
+Conclusion: TASK_TIMEOUT = 3600 s safely encompasses the maximum sentinel poll
+window (120 s) plus all upload steps. No TASK_TIMEOUT adjustment is required.
+```
+
+### Key facts
+
+- The `LOGUPLOAD` task is launched as a **background shell process** (`task += " &"`).
+  MaintenanceManager blocks in `task_thread.wait(lck)` until it receives
+  `MAINT_LOGUPLOAD_COMPLETE` or `MAINT_LOGUPLOAD_ERROR` via IARM event.
+- `uploadstblogs` **must** send one of these IARM events upon completion or failure.
+  The sentinel-chain annotations do not replace this event — they are embedded in the
+  upload payload, not in the MM signalling path.
+- If `uploadstblogs` were to hang indefinitely (e.g., network stall), the `TASK_TIMEOUT`
+  watchdog fires and the MaintenanceManager marks the task as error. The 120 s sentinel
+  poll cannot cause this by design.
+- If `TASK_TIMEOUT` is ever reduced below `REBOOT_POLL_TIMEOUT_S + upload_time_max`,
+  the sentinel poll must be shortened proportionally. Add an assertion in CI:
+  ```
+  static_assert(TASK_TIMEOUT > REBOOT_POLL_TIMEOUT_S + 300,
+                "MM watchdog too short for sentinel chain + upload");
+  ```
