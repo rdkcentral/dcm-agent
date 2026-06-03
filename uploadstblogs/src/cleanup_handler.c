@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <regex.h>
+#include <ctype.h>
 #include "cleanup_handler.h"
 #include "context_manager.h"
 #include "event_manager.h"
@@ -224,36 +225,71 @@ int cleanup_old_archives(const char *log_path)
         return -1;
     }
     
+    int dfd = dirfd(dir);
+    if (dfd < 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] dirfd() failed for: %s\n", __FUNCTION__, __LINE__, log_path);
+        closedir(dir);
+        return -1;
+    }
+
     int removed_count = 0;
     struct dirent *entry;
     char fullpath[512];
     
     while ((entry = readdir(dir)) != NULL) {
-        // Check if file ends with .tgz
-        size_t len = strlen(entry->d_name);
-        if (len < 5 || strcmp(entry->d_name + len - 4, ".tgz") != 0) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
         
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
-        
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Removing old archive: %s\n",
-                __FUNCTION__, __LINE__, fullpath);
-        
-        // Use unlink to remove file (more explicit than remove)
-        if (unlink(fullpath) == 0) {
-            removed_count++;
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to remove: %s\n", 
-                    __FUNCTION__, __LINE__, fullpath);
+        struct stat st;
+        /* fstatat with AT_SYMLINK_NOFOLLOW on the open dir FD: check and subsequent
+         * unlinkat both refer to the same dir entry, eliminating the TOCTOU race. */
+        if (fstatat(dfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            /* Recurse into subdirectories (matches shell: find $LOG_PATH -name "*.tgz") */
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
+            int sub_count = cleanup_old_archives(fullpath);
+            if (sub_count > 0) {
+                removed_count += sub_count;
+            }
+        } else if (S_ISREG(st.st_mode)) {
+            size_t len = strlen(entry->d_name);
+            if (len < 5 || strcmp(entry->d_name + len - 4, ".tgz") != 0) {
+                continue;
+            }
+
+            int path_written = snprintf(fullpath, sizeof(fullpath), "%s/%s", log_path, entry->d_name);
+
+            if (path_written < 0 || path_written >= (int)sizeof(fullpath)) {
+
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+
+                        "[%s:%d] Path too long, skipping file: %s/%s\n",
+
+                        __FUNCTION__, __LINE__, log_path, entry->d_name);
+
+                continue;
+
+            }
+
+            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removing old archive: %s\n", __FUNCTION__, __LINE__, fullpath);
+            /* unlinkat operates on the same dir FD — no path race possible */
+            if (unlinkat(dfd, entry->d_name, 0) == 0) {
+                removed_count++;
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to remove: %s\n",
+                        __FUNCTION__, __LINE__, fullpath);
+            }
         }
     }
     
     closedir(dir);
     
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Archive cleanup complete: removed %d .tgz files from %s\n",
             __FUNCTION__, __LINE__, removed_count, log_path);
     
