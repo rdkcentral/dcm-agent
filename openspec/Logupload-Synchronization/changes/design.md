@@ -41,18 +41,30 @@
   │     parse reboot info → write previousreboot.info
   │     touch /tmp/Update_rebootInfo_invoked   [existing]
   │
+  ├─► telemetry2_0 (telemetry) ──────────────────────────────────────────────────────
+  │     poll_sentinel("/tmp/.backup_logs_done", 1s, 60s)   ← NEW
+  │       found → grep-scan PreviousLogs/
+  │       timeout → skip PreviousLogs report, do NOT write completion sentinel
+  │     open("/tmp/.telemetry_prevlogs_done", O_CREAT|O_WRONLY, 0644)   ← NEW
+  │
   └─► uploadstblogs TRIGGER_REBOOT ────────────────────────────────────────────────
         reboot_setup():
-          poll for BOTH:
-            /tmp/stt_received                    ← explicit NTP check (NEW)
-            /tmp/Update_rebootInfo_invoked       ← reboot reason ready (REPLACES sleep(330))
-          BOTH present → proceed with archive/upload
-          EITHER times out (120s) → log error, return -1 (skip upload entirely)
+          poll /tmp/stt_received (NTP sync — soft gate, NEW)
+            present → use time(NULL) for archive timestamps (NTP-correct)
+            timeout → check internet; use systemtimemgr last-known time if available
+                       → proceed with NTP-fallback annotation either way
+          poll /tmp/Update_rebootInfo_invoked (reboot reason — soft gate, REPLACES sleep(330))
+            present → previousreboot.info is complete
+            timeout → proceed with reboot-reason-unavailable annotation
+          poll /tmp/.telemetry_prevlogs_done (telemetry done — soft gate, NEW)
+            present → safe to call add_timestamp_to_files()
+            timeout → proceed with telemetry-timeout annotation
+          → ALWAYS proceeds to archive/upload if backup_logs succeeded
         reboot_archive():
-          generate_archive_name()  ← time(NULL) is now NTP-correct (explicit guarantee)
-          add_timestamp_to_files() ← time(NULL) is now NTP-correct (explicit guarantee)
+          generate_archive_name()  ← time(NULL) NTP-correct or systemtimemgr fallback
+          add_timestamp_to_files() ← safe: telemetry scan has completed or timed out
         reboot_upload():
-          reads previousreboot.info ← guaranteed to exist
+          reads previousreboot.info if present; annotates upload if absent
         reboot_cleanup():
           removes PreviousLogs/ staging
 ```
@@ -198,15 +210,24 @@ if (uptime_secs != -1 && uptime_secs < 900) {
  * PATH_FLAG_INVOCATION = "/tmp/Update_rebootInfo_invoked" */
 
 /**
- * wait_for_upload_prerequisites - Wait for NTP sync AND reboot reason readiness.
+ * wait_for_upload_prerequisites - Poll for upload prerequisites with soft-gate semantics.
  *
- * Polls for both /tmp/stt_received (NTP sync) and
- * /tmp/Update_rebootInfo_invoked (reboot reason) every REBOOT_POLL_INTERVAL_S.
- * Proceeds only when BOTH are present.
+ * Polls for all three sentinels every REBOOT_POLL_INTERVAL_S:
+ *   - /tmp/stt_received              (NTP sync — soft gate)
+ *   - /tmp/Update_rebootInfo_invoked  (reboot reason ready — soft gate)
+ *   - /tmp/.telemetry_prevlogs_done   (telemetry PreviousLogs scan done — soft gate)
  *
- * Returns  0 when both prerequisites are met.
- * Returns -1 on timeout (either sentinel missing after REBOOT_POLL_TIMEOUT_S).
+ * Returns 0 when all three are present.
+ * Returns a bitmask of missing sentinels on timeout (non-zero), so the caller
+ * can annotate the upload with exactly which prerequisites were unavailable.
+ *
+ * IMPORTANT: A non-zero return does NOT mean skip the upload. The caller
+ * annotates the upload and proceeds. Only backup_logs failure aborts the upload.
  */
+#define PREREQ_NTP       (1 << 0)
+#define PREREQ_REBOOT    (1 << 1)
+#define PREREQ_TELEMETRY (1 << 2)
+
 static int wait_for_upload_prerequisites(void)
 {
     struct timespec start, now;
@@ -225,19 +246,37 @@ static int wait_for_upload_prerequisites(void)
 
         clock_gettime(CLOCK_MONOTONIC, &now);
         if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
-            return -1;          /* timeout */
+            /* Return bitmask of what timed out — caller annotates upload, does NOT skip */
+            return (!ntp_ready      ? PREREQ_NTP       : 0)
+                 | (!reboot_ready   ? PREREQ_REBOOT    : 0)
+                 | (!telemetry_done ? PREREQ_TELEMETRY : 0);
         }
         sleep(REBOOT_POLL_INTERVAL_S);
     }
 }
 
 /* In reboot_setup(): */
-if (wait_for_upload_prerequisites() != 0) {
-    LOG_ERROR("Timed out after %us waiting for upload prerequisites "
-              "(NTP: %s, RebootReason: %s, Telemetry: %s). Skipping reboot upload.",
-              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION,
-              TELEMETRY_PREVLOGS_DONE_FLAG);
-    return -1;
+{
+    int missing = wait_for_upload_prerequisites();
+    if (missing & PREREQ_NTP) {
+        /* NTP unavailable — fall back to systemtimemgr last-known time or annotate */
+        LOG_WARN("NTP sentinel %s not present after %us. "
+                 "Checking internet for systemtimemgr fallback.", STT_FLAG, REBOOT_POLL_TIMEOUT_S);
+        apply_ntp_fallback_time();  /* uses systemtimemgr; annotates upload if also unavailable */
+    }
+    if (missing & PREREQ_REBOOT) {
+        LOG_WARN("Reboot reason sentinel %s not present after %us. "
+                 "Upload will proceed with reboot-reason annotation.",
+                 PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+        set_upload_annotation(ANNOTATION_REBOOT_REASON_UNAVAILABLE);
+    }
+    if (missing & PREREQ_TELEMETRY) {
+        LOG_WARN("Telemetry sentinel %s not present after %us. "
+                 "Upload will proceed with telemetry annotation.",
+                 TELEMETRY_PREVLOGS_DONE_FLAG, REBOOT_POLL_TIMEOUT_S);
+        set_upload_annotation(ANNOTATION_TELEMETRY_UNAVAILABLE);
+    }
+    /* Proceed regardless — backup_logs succeeded, so upload MUST occur */
 }
 ```
 
@@ -260,32 +299,31 @@ if (wait_for_upload_prerequisites() != 0) {
 
 ---
 
-## 3. NTP Timestamp Correctness (Explicit Check in reboot_setup)
+## 3. NTP Timestamp Correctness and Fallback
 
-The sentinel chain provides a transitive NTP guarantee, but `reboot_setup()` now also
-explicitly checks `/tmp/stt_received` for defense in depth:
+`reboot_setup()` polls `/tmp/stt_received` as a soft gate. The full time-source decision tree:
 
 ```
-stt_received  (NTP sync complete) ───────────────────────────────────────────┐
-    ↓  [update-reboot-info.service: ConditionPathExists=/tmp/stt_received]   │
-update-prev-reboot-info starts                                               │
-    ↓  [polls .backup_logs_done, then reads PreviousLogs/]                   │
-writes Update_rebootInfo_invoked                                             │
-    ↓  [reboot_setup() checks ALL THREE sentinels]                               │
-    ↓                                                                        │
-reboot_setup() poll: ──────────────── stt_received? ─────────────────────────┘
-                      ├────────────── Update_rebootInfo_invoked? ✓
-                      └────────────── .telemetry_prevlogs_done? ✓
-                                      ALL THREE present → proceed
-    ↓
-reboot_archive() → generate_archive_name()  → time(NULL) ✓ NTP-correct
-                 → add_timestamp_to_files() → time(NULL) ✓ NTP-correct
+reboot_setup() polls stt_received ──── found → time(NULL) ✓ NTP-correct
+                                  │
+                                  └─── timeout → apply_ntp_fallback_time()
+                                                    │
+                                                    ├── internet reachable?
+                                                    │     yes → use systemtimemgr last-known time
+                                                    │            → annotate upload: NTP_FALLBACK_SYSTEMTIMEMGR
+                                                    │
+                                                    └── internet unreachable?
+                                                          → use time(NULL) as-is (pre-NTP)
+                                                          → annotate upload: NTP_UNAVAILABLE
+
+reboot_archive() → generate_archive_name()  → time source resolved above
+                 → add_timestamp_to_files() → time source resolved above
 ```
 
-**Why the explicit check?** If the `update-prev-reboot-info` pipeline is ever modified to
-no longer depend on `stt_received`, the transitive guarantee would silently break. The
-explicit `stt_received` check in `reboot_setup()` ensures NTP correctness is directly
-verifiable and self-documenting.
+**Why poll stt_received explicitly?** If the `update-prev-reboot-info` pipeline is ever
+modified to no longer depend on `stt_received`, the transitive NTP guarantee would silently
+break. The explicit check ensures NTP awareness is self-documenting and always enforced at
+the upload boundary, with the fallback providing maximum diagnostic value.
 
 `backup_logs` runs independently and pre-NTP; its `time(NULL)` calls (if any) in the copy
 phase are irrelevant because `backup_logs` does not generate archive names or file timestamp
@@ -335,30 +373,53 @@ directly rather than inferred from `sleep()` call counts.
 
 ## 5. Error Propagation
 
+### 5.1 Hard failure — backup_logs fails (only case where upload is aborted)
+
 ```
 backup_logs fails
   → .backup_logs_done NOT written
   → telemetry2_0 polls for 60s, times out → skips PreviousLogs report
   → .telemetry_prevlogs_done NOT written
-  → update-prev-reboot-info polls for 60s, times out
-  → update-prev-reboot-info exits ERROR_GENERAL
+  → update-prev-reboot-info polls for 60s, times out → exits ERROR_GENERAL
   → Update_rebootInfo_invoked NOT written
-  → uploadstblogs reboot_setup() polls for 120s, times out
-  → uploadstblogs skips reboot upload, logs error
+  → uploadstblogs reboot_setup() polls for 120s, all three sentinels missing
+  → uploadstblogs ABORTS reboot upload (backup_logs failure propagated via missing sentinels)
   → device continues boot; next reboot will retry normally
 ```
 
-In the case where `backup_logs` succeeds but `telemetry2_0` times out on its scan:
+### 5.2 Soft failure — backup_logs succeeds, NTP unavailable
+
 ```
 .backup_logs_done written
-  → telemetry2_0 starts scan, times out (internal telemetry timeout)
-  → .telemetry_prevlogs_done NOT written
-  → uploadstblogs reboot_setup() polls for 120s, times out on .telemetry_prevlogs_done
-  → uploadstblogs skips reboot upload, logs error
+  → stt_received NOT written after 120s
+  → apply_ntp_fallback_time(): check internet
+      internet up  → systemtimemgr last-known time → annotate ANNOTATION_NTP_FALLBACK
+      internet down → time(NULL) as-is             → annotate ANNOTATION_NTP_UNAVAILABLE
+  → upload proceeds with annotation
 ```
 
-This is the safest degradation path: no partial upload, no upload with incorrect data,
-and no `add_timestamp_to_files()` called while telemetry is still scanning.
+### 5.3 Soft failure — backup_logs succeeds, reboot reason unavailable
+
+```
+.backup_logs_done written
+  → update-prev-reboot-info times out → Update_rebootInfo_invoked NOT written
+  → uploadstblogs: set_upload_annotation(ANNOTATION_REBOOT_REASON_UNAVAILABLE)
+  → upload proceeds; previousreboot.info may be absent or incomplete
+```
+
+### 5.4 Soft failure — backup_logs succeeds, telemetry times out
+
+```
+.backup_logs_done written
+  → telemetry2_0 times out → .telemetry_prevlogs_done NOT written
+  → uploadstblogs: set_upload_annotation(ANNOTATION_TELEMETRY_UNAVAILABLE)
+  → add_timestamp_to_files() proceeds (telemetry scan timed out — race risk gone after timeout)
+  → upload proceeds with annotation
+```
+
+Note: after the 120s total timeout in `wait_for_upload_prerequisites()`, telemetry's
+60s internal timeout has already elapsed, so the telemetry scan will not be in progress
+when `add_timestamp_to_files()` is called.
 
 ---
 
