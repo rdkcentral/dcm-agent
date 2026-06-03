@@ -170,6 +170,13 @@ Add:
  *  Any change MUST be coordinated with and released simultaneously with telemetry. */
 #define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
 
+/** Trigger files written by uploadstblogs when prerequisite sentinels are absent.
+ *  The respective services (reboot-manager, telemetry) watch for these files
+ *  and retry their operations within the poll window.
+ *  Cross-repo interfaces: any path change requires coordinated simultaneous release. */
+#define TRIGGER_REBOOT_INFO_UPDATE    "/tmp/.trigger_reboot_info_update"
+#define TRIGGER_TELEMETRY_SCAN        "/tmp/.trigger_telemetry_prevlogs_scan"
+
 /** Poll parameters for waiting on upload prerequisites.
  *  See uploadstblogs/src/strategies.c reboot_setup(). */
 #define REBOOT_POLL_INTERVAL_S        1u
@@ -184,15 +191,49 @@ Add:
 **Spec**: REQ-SYNC-003, REQ-SYNC-004  
 **Depends on**: TASK-D1
 
-Add `wait_for_upload_prerequisites()` static helper that checks **all three** sentinels
+Add `wait_for_upload_prerequisites()` static helper that polls all three sentinels
 `/tmp/stt_received` (NTP sync), `/tmp/Update_rebootInfo_invoked` (reboot reason ready),
 and `/tmp/.telemetry_prevlogs_done` (telemetry done with PreviousLogs/). Use
-`clock_gettime(CLOCK_MONOTONIC)` for accurate timeout tracking (avoids `EINTR` drift):
+`clock_gettime(CLOCK_MONOTONIC)` for accurate timeout tracking (avoids `EINTR` drift).
+
+**Trigger-then-poll pattern**: Before the poll loop, call `trigger_missing_services()`
+to write trigger files for any prerequisites not yet present. This gives services that
+may have missed their startup window a chance to respond before the annotation path
+is triggered.
+
+```c
+/**
+ * trigger_missing_services - Write trigger files for absent prerequisites.
+ * Called ONCE before the polling loop.
+ */
+static void trigger_missing_services(void)
+{
+    struct stat st;
+    int fd;
+
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        fd = open(TRIGGER_REBOOT_INFO_UPDATE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd >= 0) { close(fd); }
+    }
+    if (stat(TELEMETRY_PREVLOGS_DONE_FLAG, &st) != 0) {
+        fd = open(TRIGGER_TELEMETRY_SCAN, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd >= 0) { close(fd); }
+    }
+}
+```
+
+**Soft-gate semantics**: timeout returns a bitmask of missing prerequisites, NOT -1.
+The caller annotates the upload with which prerequisites were unavailable and always
+proceeds. Only `backup_logs` failure (sentinel never written) aborts the upload.
 
 ```c
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+
+#define PREREQ_NTP       (1 << 0)
+#define PREREQ_REBOOT    (1 << 1)
+#define PREREQ_TELEMETRY (1 << 2)
 
 static int wait_for_upload_prerequisites(void)
 {
@@ -207,12 +248,14 @@ static int wait_for_upload_prerequisites(void)
         int telemetry_done = (stat(TELEMETRY_PREVLOGS_DONE_FLAG, &st) == 0) ? 1 : 0;
 
         if (ntp_ready && reboot_ready && telemetry_done) {
-            return 0;
+            return 0;   /* all prerequisites met */
         }
 
         clock_gettime(CLOCK_MONOTONIC, &now);
         if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
-            return -1;
+            return (!ntp_ready      ? PREREQ_NTP       : 0)
+                 | (!reboot_ready   ? PREREQ_REBOOT    : 0)
+                 | (!telemetry_done ? PREREQ_TELEMETRY : 0);
         }
         sleep(REBOOT_POLL_INTERVAL_S);
     }
@@ -233,22 +276,82 @@ if (uptime_secs != -1 && uptime_secs < 900) {
 
 With:
 ```c
-/* NEW — poll for NTP sync, reboot reason, and telemetry completion */
+/* NEW — STEP 1: write trigger files, STEP 2: poll soft gates */
 LOG_INFO("Waiting for upload prerequisites: NTP (%s), reboot reason (%s), "
          "telemetry (%s), timeout %us",
          STT_FLAG, PATH_FLAG_INVOCATION, TELEMETRY_PREVLOGS_DONE_FLAG,
          REBOOT_POLL_TIMEOUT_S);
 
-if (wait_for_upload_prerequisites() != 0) {
-    LOG_ERROR("Timed out after %us waiting for upload prerequisites "
-              "(NTP: %s, RebootReason: %s, Telemetry: %s). Skipping reboot log upload.",
-              REBOOT_POLL_TIMEOUT_S, STT_FLAG, PATH_FLAG_INVOCATION,
-              TELEMETRY_PREVLOGS_DONE_FLAG);
-    return -1;
+{
+    trigger_missing_services();         /* trigger before poll (AC-13, AC-14) */
+    int missing = wait_for_upload_prerequisites();
+    if (missing & PREREQ_NTP) {
+        LOG_WARN("NTP sentinel not present. Applying time fallback.");
+        apply_ntp_fallback_time();  /* systemtimemgr or annotate */
+    }
+    if (missing & PREREQ_REBOOT) {
+        LOG_WARN("Reboot reason sentinel not present. Upload will be annotated.");
+        set_upload_annotation(ANNOTATION_REBOOT_REASON_UNAVAILABLE);
+    }
+    if (missing & PREREQ_TELEMETRY) {
+        LOG_WARN("Telemetry sentinel not present. Upload will be annotated.");
+        set_upload_annotation(ANNOTATION_TELEMETRY_UNAVAILABLE);
+    }
+    /* Always proceed — backup_logs succeeded */
 }
 
-LOG_INFO("All upload prerequisites met. Proceeding with archive/upload.");
+LOG_INFO("Proceeding with archive/upload.");
 ```
+
+---
+
+### TASK-D3 — Implement trigger-watching in reboot-manager and telemetry repos
+**Repo**: `reboot-manager`, `telemetry`  
+**Spec**: AC-13, AC-14  
+**Depends on**: TASK-D2 (trigger constants defined), TASK-C2, TASK-G2
+
+`update-prev-reboot-info` (**reboot-manager** repo): after writing `Update_rebootInfo_invoked`,
+or on a retry path, poll `/tmp/.trigger_reboot_info_update` (interval 1 s, max 5 s)
+to detect that uploadstblogs is ready and waiting. The existing `poll_for_sentinel()` helper
+(TASK-C1) can be reused.
+
+`telemetry2_0` (**telemetry** repo): add `/tmp/.trigger_telemetry_prevlogs_scan` as a
+secondary start condition for the PreviousLogs grep scan alongside the existing
+`/tmp/.backup_logs_done` poll. Constant defined in TASK-G3.
+
+**Note**: The trigger files are written once by uploadstblogs and cleared on next reboot
+(volatile `/tmp/`). They do not replace the primary boot-time start conditions; they
+provide a retry signal for the upload-time synchronization window only.
+
+---
+
+### TASK-D4 — Verify Maintenance Manager timer compatibility
+**Repo**: `entservices-maintenancemanager`  
+**Spec**: AC-15  
+**Depends on**: TASK-D1
+
+Verify and document that `TASK_TIMEOUT = 3600 s` safely encompasses the maximum
+uploadstblogs execution time (120 s sentinel poll + archive + upload). No code change
+required — this is a compatibility check and documentation task.
+
+Add a comment to `MaintenanceManager.h` near `TASK_TIMEOUT`:
+
+```c
+#ifndef TASK_TIMEOUT
+/* Default Task Timeout (1 Hour = 3600 s).
+ * Must remain > REBOOT_POLL_TIMEOUT_S (120 s, defined in dcm-agent uploadstblogs)
+ * plus maximum upload transfer time to avoid spurious MAINT_LOGUPLOAD_ERROR. */
+#define TASK_TIMEOUT  3600
+#endif
+```
+
+Add to `entservices-maintenancemanager/docs/DEPENDENCIES.md` (create if absent):
+
+> `TASK_LOGUPLOAD` executes `uploadstblogs LOGUPLOAD`. As of the Reboot Sequence
+> Synchronization change (dcm-agent), `uploadstblogs` may spend up to 120 s polling
+> sentinel files before starting the upload. `TASK_TIMEOUT = 3600 s` safely encompasses
+> this. If `TASK_TIMEOUT` is ever reduced, it MUST remain greater than
+> `REBOOT_POLL_TIMEOUT_S + maximum_upload_duration`.
 
 ---
 
@@ -336,20 +439,33 @@ Test cases:
 Test cases:
 - `RebootSetup_ProceedsWhenAllSentinelsPresent`: Create all three sentinels (`stt_received`,
   `Update_rebootInfo_invoked`, `.telemetry_prevlogs_done`) before calling `reboot_setup()`.
-  Assert returns 0 (success).
-- `RebootSetup_SkipsUploadWhenNTPMissing`: Create `Update_rebootInfo_invoked` and
-  `.telemetry_prevlogs_done` only (no `stt_received`). Assert `reboot_setup()` returns -1
-  after timeout.
-- `RebootSetup_SkipsUploadWhenRebootReasonMissing`: Create `stt_received` and
-  `.telemetry_prevlogs_done` only (no `Update_rebootInfo_invoked`). Assert returns -1.
-- `RebootSetup_SkipsUploadWhenTelemetryMissing`: Create `stt_received` and
-  `Update_rebootInfo_invoked` only (no `.telemetry_prevlogs_done`). Assert returns -1
-  after timeout. (TEST-SYNC-009)
-- `RebootSetup_SkipsUploadOnFullTimeout`: Create none of the three sentinels. Assert
-  `reboot_setup()` returns -1 after `REBOOT_POLL_TIMEOUT_S` (use a short override for
-  fast test execution).
-- `RebootSetup_ArchiveTimestampIsPostNTP`: Stub `time()` to return a known post-NTP epoch.
-  Assert archive name contains expected timestamp.
+  Assert `wait_for_upload_prerequisites()` returns 0. Assert upload proceeds without annotation.
+- `RebootSetup_ProceedsWithAnnotationWhenNTPMissing`: Create `Update_rebootInfo_invoked` and
+  `.telemetry_prevlogs_done` only (no `stt_received`). Assert `wait_for_upload_prerequisites()`
+  returns `PREREQ_NTP` bitmask after timeout. Assert `apply_ntp_fallback_time()` called.
+  Assert upload is NOT skipped (returns 0 from `reboot_setup()`).
+- `RebootSetup_ProceedsWithAnnotationWhenRebootReasonMissing`: Create `stt_received` and
+  `.telemetry_prevlogs_done` only. Assert returns `PREREQ_REBOOT`. Assert
+  `set_upload_annotation(ANNOTATION_REBOOT_REASON_UNAVAILABLE)` called. Upload proceeds.
+- `RebootSetup_ProceedsWithAnnotationWhenTelemetryMissing`: Create `stt_received` and
+  `Update_rebootInfo_invoked` only (no `.telemetry_prevlogs_done`). Assert returns
+  `PREREQ_TELEMETRY`. Assert `set_upload_annotation(ANNOTATION_TELEMETRY_UNAVAILABLE)` called.
+  Upload proceeds. (TEST-SYNC-009)
+- `RebootSetup_ProceedsWithAllAnnotationsWhenNoSentinels`: Create none of the three sentinels.
+  Assert returns `PREREQ_NTP | PREREQ_REBOOT | PREREQ_TELEMETRY`. Assert all three annotations
+  set. Assert upload still proceeds (use a short timeout override for fast test execution).
+- `RebootSetup_TriggerWritten_WhenRebootInfoAbsent`: Before calling `reboot_setup()`, ensure
+  `PATH_FLAG_INVOCATION` is absent. Assert `TRIGGER_REBOOT_INFO_UPDATE` file exists after
+  `trigger_missing_services()` runs. (AC-13)
+- `RebootSetup_TriggerWritten_WhenTelemetryAbsent`: Before calling `reboot_setup()`, ensure
+  `TELEMETRY_PREVLOGS_DONE_FLAG` is absent. Assert `TRIGGER_TELEMETRY_SCAN` file exists after
+  `trigger_missing_services()` runs. (AC-14)
+- `RebootSetup_TriggerNotWritten_WhenSentinelPresent`: Create both sentinels before calling
+  `reboot_setup()`. Assert neither trigger file is written (triggers only written when absent).
+- `RebootSetup_ArchiveTimestampIsPostNTP`: All sentinels present. Stub `time()` to return a
+  known post-NTP epoch. Assert archive name contains expected timestamp.
+- `RebootSetup_ArchiveTimestampUsesFallbackWhenNTPMissing`: NTP sentinel absent; mock
+  `apply_ntp_fallback_time()` to set a known fallback epoch. Assert archive name uses fallback.
 
 ---
 
@@ -369,10 +485,12 @@ Verify the complete sentinel chain end-to-end in the Docker CI environment:
 5. Run `uploadstblogs` with `TRIGGER_REBOOT` → assert it proceeds without the 330s sleep.
 6. Inject failure: run `update-prev-reboot-info` without first creating `.backup_logs_done`
    → assert it exits non-zero after timeout.
-7. Inject failure: run `reboot_setup()` without `Update_rebootInfo_invoked` → assert
-   upload is skipped.
-8. Inject failure: run `reboot_setup()` without `.telemetry_prevlogs_done` → assert
-   upload is skipped (telemetry timeout path).
+7. Inject failure: run `reboot_setup()` without `Update_rebootInfo_invoked` but WITH
+   `stt_received` and `.telemetry_prevlogs_done` → assert trigger file `TRIGGER_REBOOT_INFO_UPDATE`
+   is written AND upload proceeds with `ANNOTATION_REBOOT_REASON_UNAVAILABLE` annotation.
+8. Inject failure: run `reboot_setup()` without `.telemetry_prevlogs_done` but WITH other
+   sentinels present → assert trigger file `TRIGGER_TELEMETRY_SCAN` is written AND upload
+   proceeds with `ANNOTATION_TELEMETRY_UNAVAILABLE` annotation.
 
 ---
 
