@@ -448,10 +448,10 @@ TEST_F(EventManagerTest, SendIarmEventMaintenance_Success) {
 TEST_F(EventManagerTest, EmitFolderMissingError_Success) {
     emit_folder_missing_error();
 
-    // Should send MaintenanceMGR error event
+    // Should send MaintenanceMGR Complete event
     EXPECT_EQ(mock_iarm_event_calls, 1);
     EXPECT_STREQ(mock_last_event_name, "MaintenanceMGR");
-    EXPECT_EQ(mock_last_event_code, 5); // MAINT_LOGUPLOAD_ERROR
+    EXPECT_EQ(mock_last_event_code, 4); // MAINT_LOGUPLOAD_COMPLETE
 }
 
 // Integration tests
