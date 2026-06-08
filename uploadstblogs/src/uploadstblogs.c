@@ -243,9 +243,6 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
         fprintf(stderr, "Failed to acquire lock - another instance running\n");
-        if (is_maintenance_enabled()) {
-            send_iarm_event_maintenance(16);
-        }
         return 1;
     }
 
@@ -358,10 +355,6 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Acquire lock to ensure single instance */
     if (!acquire_lock("/tmp/.log-upload.lock")) {
         fprintf(stderr, "Failed to acquire lock - another instance running\n");
-        /* Script sends MAINT_LOGUPLOAD_INPROGRESS when another instance is already running */
-        if (is_maintenance_enabled()) {
-            send_iarm_event_maintenance(16);  // Matches script: eventSender "MaintenanceMGR" $MAINT_LOGUPLOAD_INPROGRESS
-        }
         return 1;
     }
 
