@@ -142,7 +142,7 @@ sequenceDiagram
 | **telemetry2_0** | C | Grep-scan PreviousLogs/ for markers |
 | **Signal Files** | Filesystem | Inter-process synchronization |
 | **systemtimemgr** | C | Provides last known good time if NTP/internet is unavailable |
-| **entservices-maintenancemanager** | C | Coordinates timer logic for log upload task |
+| **entservices-maintenancemanager** | C | Legacy timer integration; no longer used as a logupload trigger source |
 
 ---
 
@@ -156,17 +156,44 @@ sequenceDiagram
 | UploadLogsNow | TR69hostif / operator / app path | `uploadstblogs uploadlogsnow` | `TRIGGER_ONDEMAND` | Immediate mode; does not rely on `UploadOnReboot=false` |
 | Solicited Maintenance from AS | AS-triggered maintenance call | Maintenance invocation from AS | `TRIGGER_ONDEMAND` | Upload may be skipped when `/opt/logs/PreviousLogs/` is empty |
 
-Bootup-triggered uploads:
-- DCM Scheduler
-- Unsolicited Maintenance
-
-On-demand uploads:
-- SystemServices API
-- UploadLogsNow
-- Solicited Maintenance from AS
-
 Shared behavior:
 - All trigger paths serialize upload via `/tmp/.log-upload.lock` to prevent concurrent uploads.
+
+
+---
+
+# Architectural Direction: Single Logupload Owner
+
+With this US, logupload ownership is explicitly centralized:
+
+- `dcm-agent` is the single authoritative entity for reboot logupload.
+- On reboot, upload is triggered and executed by `dcm-agent` when `backup_logs` succeeds.
+- Maintenance Manager logupload tasks are deprecated in both solicited and unsolicited cases.
+- Valid on-demand trigger paths remain `SystemServices API` and `UploadLogsNow`.
+
+```mermaid
+graph LR
+  DCM["DCM Agent (Reboot Owner)"] --> BKS["backup_logs success"]
+  BKS --> UPL["uploadstblogs"]
+  UPL --> SRV["Log Server"]
+
+  SS["SystemServices API"] --> UPL
+  ULN["UploadLogsNow"] --> UPL
+
+  MM["Maintenance Manager"] -.deprecated for logupload.-> DEP["No trigger role"]
+
+  style DCM fill:#2e7d32,color:#fff
+  style BKS fill:#43a047,color:#fff
+  style UPL fill:#1565c0,color:#fff
+  style SRV fill:#00897b,color:#fff
+  style SS fill:#ef6c00,color:#fff
+  style ULN fill:#ef6c00,color:#fff
+  style MM fill:#9e9e9e,color:#fff
+  style DEP fill:#c62828,color:#fff
+```
+
+Note:
+- This slide captures architectural direction for the US and does not change runtime behavior by itself.
 
 ---
 
@@ -176,16 +203,13 @@ Shared behavior:
 graph LR
   subgraph C["Caller / Trigger Paths"]
     DCM["DCM Scheduler"]
-    UMM["Unsolicited Maintenance"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
-    AS["Solicited Maintenance from AS"]
   end
 
   subgraph P["Primary Upload Paths"]
     BUP["Bootup upload path"]
     ODP["On-demand upload path"]
-    ASG{"PreviousLogs has files?"}
   end
 
   subgraph S["Support Signals (Bootup only)"]
@@ -196,12 +220,8 @@ graph LR
   end
 
   DCM --> BUP
-  UMM --> BUP
   SS --> ODP
   ULN --> ODP
-  AS --> ASG
-  ASG -->|No| SKIP["Skip upload"]
-  ASG -->|Yes| BUP
 
   S1 -.gates.-> BUP
   S2 -.gates.-> BUP
@@ -216,32 +236,54 @@ graph LR
   LOCK --> SERVER["Log Server"]
 
   style DCM fill:#2e7d32,color:#fff
-  style UMM fill:#2e7d32,color:#fff
   style SS fill:#ef6c00,color:#fff
   style ULN fill:#ef6c00,color:#fff
-  style AS fill:#8e24aa,color:#fff
   style BUP fill:#43a047,color:#fff
   style ODP fill:#fb8c00,color:#fff
-  style SKIP fill:#c62828,color:#fff
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
 ```
 
 Note:
+- Reboot uploads are owned by DCM Agent and proceed when `backup_logs` succeeds.
 - On-demand uploads use current logs under `/opt/logs/` and do not require boot signal-chain gating.
-- Solicited Maintenance from AS may skip upload when `/opt/logs/PreviousLogs/` is empty.
 
 Legend:
 - Green: bootup-triggered callers
 - Orange: on-demand callers
-- Purple: AS solicited maintenance decision
-- Red: skip path
 - Blue/Grey/Teal: upload pipeline
 
 ---
 
 # Boot Signal Chain Detail (Scheduled / Bootup Paths)
+
+Before Synchronization Fixes (Race-Prone):
+
+```mermaid
+graph LR
+  BL0["backup_logs"] --> PL0["PreviousLogs/"]
+  RM0["reboot-info"] --> RR0["previousreboot.info"]
+  T20["telemetry2_0"] --> TR0["PreviousLogs scan"]
+  UL0["uploadstblogs"] --> UP0["Archive + Upload"]
+  NTP0["NTP Sync"] --> TS0["stable time"]
+
+  PL0 -."may race".-> RM0
+  PL0 -."may race".-> T20
+  TR0 -."may overlap rename".-> UL0
+  RR0 -."may be late".-> UL0
+  TS0 -."may be unavailable".-> UL0
+  UL0 --> SERVER0["Log Server"]
+
+  style BL0 fill:#8bc34a,color:#fff
+  style RM0 fill:#42a5f5,color:#fff
+  style T20 fill:#ec407a,color:#fff
+  style UL0 fill:#ff9800,color:#fff
+  style NTP0 fill:#ab47bc,color:#fff
+  style SERVER0 fill:#00897b,color:#fff
+```
+
+After Synchronization Fixes (Sentinel-Gated):
 
 ```mermaid
 graph LR
@@ -268,8 +310,13 @@ graph LR
   style S4 fill:#FCE4EC,stroke:#E91E63
 ```
 
+What changed with synchronization fixes:
+- Replaced implicit timing/race behavior with explicit sentinel gating.
+- uploadstblogs proceeds only after NTP, reboot-info, and telemetry completion signals are all present.
+- Scheduled/bootup path ordering is deterministic and easier to debug.
+
 Note:
-- This boot signal-chain view applies to scheduled/bootup paths and is shown separately from on-demand caller paths for clarity.
+- This boot signal-chain comparison applies to scheduled/bootup paths and is shown separately from on-demand caller paths for clarity.
 
 ---
 

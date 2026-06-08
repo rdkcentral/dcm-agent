@@ -23,6 +23,8 @@
 | AC-8 | All new sentinel-poll paths are covered by unit tests |
 | AC-9 | The full sentinel chain is covered by an L2 integration test |
 | AC-10 | `telemetry2_0` completes its one-shot `PreviousLogs/` grep scan and writes `/tmp/.telemetry_prevlogs_done` before `uploadstblogs` calls `add_timestamp_to_files()` or any other operation that mutates filenames in `PreviousLogs/` |
+| AC-11 | On reboot, log upload is owned by DCM Agent and MUST proceed when `backup_logs` succeeds |
+| AC-12 | Maintenance Manager logupload triggers (solicited and unsolicited) are removed as redundant |
 
 ---
 
@@ -36,6 +38,7 @@ Enforce a strict, sentinel-based execution order across four independent subsyst
 3. Reboot reason is fully updated and persisted before any log cleanup or log upload is triggered.
 4. Log upload tarfile is created with NTP-synchronized time to maintain accurate timestamps.
 5. Log upload only occurs after reboot reason update is confirmed.
+6. Reboot-triggered upload ownership is explicit: DCM Agent is the single authoritative trigger path.
 
 ## Problem
 
@@ -100,6 +103,8 @@ stale-sentinel problem across boots.
 - Guarantee reboot reason is persisted before log upload starts.
 - Guarantee archive timestamps use NTP-correct time, with no NTP dependency added to `backup_logs` itself.
 - Remove the unreliable 330-second sleep from `uploadstblogs`.
+- Guarantee reboot uploads are always triggered by DCM Agent when `backup_logs` succeeds.
+- Remove Maintenance Manager logupload triggers in both solicited and unsolicited cases as redundant.
 - Keep changes minimal and platform-neutral (no new IPC, no systemd-specific logic added to C code).
 
 ## Non-Goals
@@ -107,7 +112,7 @@ stale-sentinel problem across boots.
 - Changing the NTP synchronization mechanism itself.
 - Adding NTP awareness to `backup_logs` (it must remain NTP-free by design).
 - Supporting concurrent reboot-triggered uploads (single-instance lock already exists).
-- Altering scheduled (`DCM_LOG_UPLOAD`) or on-demand (`TRIGGER_ONDEMAND`) upload paths.
+- Removing or altering valid on-demand API triggers (`SystemServices API`, `UploadLogsNow`).
 - Providing a backward compatibility window for partial deployments — all three repositories (`dcm-agent`, `reboot-manager`, `telemetry`) MUST be deployed simultaneously.
 
 ## Affected Repositories / Modules

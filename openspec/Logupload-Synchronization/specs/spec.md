@@ -290,6 +290,41 @@ A partial deployment (only some repos updated) MUST be treated as a known risk:
 
 ---
 
+### REQ-SYNC-011 — DCM Agent Owns Reboot Log Upload Triggering
+
+**Priority**: MUST  
+**Scope**: Architecture constraint
+
+Reboot log upload triggering MUST be owned by `dcm-agent`. After reboot, if
+`backup_logs_execute()` succeeds and required sentinels are satisfied, `dcm-agent`
+MUST trigger and execute reboot log upload.
+
+If `backup_logs_execute()` fails, reboot upload MUST be skipped and error-logged.
+
+This requirement defines a single authoritative reboot upload trigger path and removes
+ambiguity from reboot-time ownership.
+
+---
+
+### REQ-SYNC-012 — Maintenance Manager Logupload Triggers Removed
+
+**Priority**: MUST  
+**Scope**: Trigger-path scope
+
+Maintenance Manager MUST NOT be used as a logupload trigger source for either:
+
+1. Unsolicited maintenance path
+2. Solicited maintenance path
+
+Valid on-demand logupload triggers are limited to:
+
+1. `SystemServices API`
+2. `UploadLogsNow`
+
+Documentation and diagrams in this change MUST reflect this reduced trigger set.
+
+---
+
 ## 4. Timeouts Summary
 
 | Component | Polls for | Interval | Timeout | Timeout action |

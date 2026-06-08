@@ -43,11 +43,12 @@
   │
   └─► uploadstblogs TRIGGER_REBOOT ────────────────────────────────────────────────
         reboot_setup():
-          poll for BOTH:
+          poll for ALL THREE:
             /tmp/stt_received                    ← explicit NTP check (NEW)
             /tmp/Update_rebootInfo_invoked       ← reboot reason ready (REPLACES sleep(330))
-          BOTH present → proceed with archive/upload
-          EITHER times out (120s) → log error, return -1 (skip upload entirely)
+            /tmp/.telemetry_prevlogs_done        ← telemetry complete (NEW)
+          ALL THREE present → proceed with archive/upload
+          ANY missing at timeout (120s) → log error, return -1 (skip upload entirely)
         reboot_archive():
           generate_archive_name()  ← time(NULL) is now NTP-correct (explicit guarantee)
           add_timestamp_to_files() ← time(NULL) is now NTP-correct (explicit guarantee)
@@ -56,6 +57,25 @@
         reboot_cleanup():
           removes PreviousLogs/ staging
 ```
+
+### 1.3 Trigger Ownership Decision (Architectural)
+
+```
+Reboot uploads (authoritative path):
+  DCM Agent only
+  backup_logs success -> sentinel chain -> uploadstblogs upload
+
+On-demand uploads (retained):
+  SystemServices API
+  UploadLogsNow
+
+Removed as redundant for logupload triggering:
+  Maintenance Manager unsolicited path
+  Maintenance Manager solicited path
+```
+
+This change explicitly removes Maintenance Manager as a logupload trigger source while
+retaining SystemServices API and UploadLogsNow as valid on-demand entry points.
 
 ---
 
@@ -198,14 +218,14 @@ if (uptime_secs != -1 && uptime_secs < 900) {
  * PATH_FLAG_INVOCATION = "/tmp/Update_rebootInfo_invoked" */
 
 /**
- * wait_for_upload_prerequisites - Wait for NTP sync AND reboot reason readiness.
+ * wait_for_upload_prerequisites - Wait for NTP, reboot reason, and telemetry readiness.
  *
- * Polls for both /tmp/stt_received (NTP sync) and
- * /tmp/Update_rebootInfo_invoked (reboot reason) every REBOOT_POLL_INTERVAL_S.
- * Proceeds only when BOTH are present.
+ * Polls for /tmp/stt_received (NTP sync), /tmp/Update_rebootInfo_invoked
+ * (reboot reason), and /tmp/.telemetry_prevlogs_done (telemetry complete)
+ * every REBOOT_POLL_INTERVAL_S. Proceeds only when ALL THREE are present.
  *
- * Returns  0 when both prerequisites are met.
- * Returns -1 on timeout (either sentinel missing after REBOOT_POLL_TIMEOUT_S).
+ * Returns  0 when all prerequisites are met.
+ * Returns -1 on timeout (any sentinel missing after REBOOT_POLL_TIMEOUT_S).
  */
 static int wait_for_upload_prerequisites(void)
 {

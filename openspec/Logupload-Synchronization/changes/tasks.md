@@ -376,6 +376,48 @@ Verify the complete sentinel chain end-to-end in the Docker CI environment:
 
 ---
 
+## Group H — Trigger Ownership Alignment (Documentation)
+
+### TASK-H1 — Update proposal with trigger ownership decision
+**Repo**: `dcm-agent`  
+**File**: `openspec/Logupload-Synchronization/changes/proposal.md`  
+**Spec**: REQ-SYNC-011, REQ-SYNC-012
+
+Capture architect decision that reboot upload is owned by DCM Agent and proceeds on
+reboot when backup succeeds.
+
+---
+
+### TASK-H2 — Update design to remove Maintenance Manager trigger paths
+**Repo**: `dcm-agent`  
+**File**: `openspec/Logupload-Synchronization/changes/design.md`  
+**Spec**: REQ-SYNC-012
+
+Remove Maintenance Manager solicit/unsolicit trigger ownership from design narrative,
+while keeping SystemServices API and UploadLogsNow as valid on-demand triggers.
+
+---
+
+### TASK-H3 — Update capability spec with new trigger constraints
+**Repo**: `dcm-agent`  
+**File**: `openspec/Logupload-Synchronization/specs/spec.md`  
+**Spec**: REQ-SYNC-011, REQ-SYNC-012
+
+Add explicit requirements for DCM-owned reboot trigger and removal of Maintenance
+Manager trigger paths.
+
+---
+
+### TASK-H4 — Update Slidev docs under `openspec/Logupload-Synchronization/specs/slides.md`
+**Repo**: `dcm-agent`  
+**File**: `openspec/Logupload-Synchronization/specs/slides.md`  
+**Spec**: REQ-SYNC-011, REQ-SYNC-012
+
+Update trigger table, trigger flow diagram, and notes to remove Maintenance Manager
+paths and reflect DCM-owned reboot flow plus on-demand API triggers.
+
+---
+
 ---
 
 ## Group G — Telemetry Repo Changes [telemetry]
