@@ -31,43 +31,38 @@ export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
 export LD_LIBRARY_PATH="/usr/local/lib:$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
 echo "RDK_PROFILE=TV" >> /etc/device.properties
-cd unittest/
+
+cd "$TOP_DIR/unittest" || exit 1
 cp mocks/mockrbus.h /usr/local/include
-cp ../uploadstblogs/include/*.h /usr/local/include
+cp "$TOP_DIR"/uploadstblogs/include/*.h /usr/local/include
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
 
-cd ../uploadstblogs/unittest
-cd ../..
+cd "$TOP_DIR" || exit 1
 sh cov_build.sh
-cd -
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 git clone https://github.com/rdkcentral/rdk_logger.git
 cp rdk_logger/include/rdk_logger.h /usr/local/include
 
+cd "$TOP_DIR/uploadstblogs/unittest" || exit 1
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
-pwd
+
 cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
+
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
