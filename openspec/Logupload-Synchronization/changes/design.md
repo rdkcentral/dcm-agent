@@ -579,10 +579,10 @@ stateDiagram-v2
     state UploadPhase {
         [*] --> CreateArchive
         CreateArchive --> UploadPackage : generate_archive_name() + add_timestamp_to_files()
-        UploadPackage --> NotifyMM_OK : upload success
-        UploadPackage --> NotifyMM_ERR : upload failure
-        NotifyMM_OK --> [*] : MAINT_LOGUPLOAD_COMPLETE
-        NotifyMM_ERR --> [*] : MAINT_LOGUPLOAD_ERROR
+        UploadPackage --> UploadOK : upload success
+        UploadPackage --> UploadERR : upload failure
+        UploadOK --> [*] : EXIT_SUCCESS
+        UploadERR --> [*] : EXIT_FAILURE (logged)
     }
 
     UploadPhase --> [*]
@@ -592,7 +592,7 @@ stateDiagram-v2
 
 | # | Scenario | Outcome |
 |---|----------|---------|
-| S1 | `backup_logs` fails | Hard abort — no upload, `EXIT_FAILURE`, all downstream sentinels absent |
+| S1 | `backup_logs` fails | Hard abort — no upload, `EXIT_FAILURE` |
 | S2 | Backup OK, reboot reason times out | Trigger written, poll 120 s, annotate `REBOOT_REASON_UNAVAILABLE`, upload proceeds |
 | S3 | Backup OK, NTP + reboot reason both timeout | Check internet → `systemtimemgr` fallback OR `NTP_UNAVAILABLE`, annotate + upload |
 | S4 | Backup OK, telemetry sentinel missing | Trigger written, poll 120 s, annotate `TELEMETRY_UNAVAILABLE`, upload proceeds |
