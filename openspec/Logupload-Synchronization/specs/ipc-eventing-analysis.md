@@ -264,7 +264,7 @@ crash-safe). Replace the `sleep(1)` + `stat()` loop with `inotify` + `select()` 
 - Trigger file mechanism (`TRIGGER_REBOOT_INFO_UPDATE`, `TRIGGER_TELEMETRY_SCAN`) — unchanged.
 - Timeout values (`REBOOT_POLL_TIMEOUT_S = 120 s`) — unchanged; now enforced by `select()` timeout.
 - Bitmask return and annotate-and-proceed semantics — unchanged.
-- Maintenance Manager timer compatibility — unchanged.
+- Maintenance Manager timer compatibility — **changed**: the LogUpload task is being removed from the Maintenance Manager (see REQ-SYNC-011 in spec.md). The IARM `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR` broadcasts in `uploadstblogs` will be removed.
 
 ### Implementation note
 
