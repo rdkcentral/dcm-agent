@@ -60,7 +60,7 @@ autoreconf --install
 make clean
 make
 pwd
-cd ../../usbLogUpload/unittest
+cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
 automake --add-missing
 autoreconf --install
 
