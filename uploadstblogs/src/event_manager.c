@@ -52,15 +52,6 @@ static bool iarm_initialized = false;
 #define LOG_UPLOAD_ABORTED 2
 
 
-// Check device type (matches script DEVICE_TYPE check)
-static bool is_device_broadband(const RuntimeContext* ctx)
-{
-    if (!ctx) {
-        return false;
-    }
-    return (strcmp(ctx->device_type, "broadband") == 0);
-}
-
 void emit_privacy_abort(void)
 {
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
