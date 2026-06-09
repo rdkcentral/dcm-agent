@@ -290,6 +290,54 @@ A partial deployment (only some repos updated) MUST be treated as a known risk:
 
 ---
 
+### REQ-SYNC-011 — Remove LogUpload Task from Maintenance Manager
+
+**Priority**: MUST  
+**Module**: `uploadstblogs` (`dcm-agent`), `entservices-maintenancemanager`
+
+The LogUpload task (DCM / periodic log upload) MUST be removed from the Maintenance Manager
+scheduling model. `uploadstblogs` MUST operate as a self-contained binary invoked directly
+by `dcmd` (via cron or systemd timer), with no runtime dependency on the Maintenance Manager
+for scheduling, activation, or completion reporting.
+
+**Changes required**:
+
+1. **`entservices-maintenancemanager`**: Remove the `MAINT_DCM_LOGUPLOAD` task entry from
+   the Maintenance Manager task table. The MaintenanceManager MUST NOT schedule, start,
+   or track the DCM log upload task.
+
+2. **`uploadstblogs` / `event_manager.c`**: Remove the `IARM_Bus_BroadcastEvent()` calls
+   that send `MAINT_LOGUPLOAD_COMPLETE` and `MAINT_LOGUPLOAD_ERROR` to the
+   MaintenanceManager. These events have no consumer once the task is removed.
+
+3. **`dcm-agent` / `dcmd`**: The TRIGGER_LOGUPLOAD and TRIGGER_REBOOT upload paths MUST
+   continue to execute unconditionally on their existing cron/trigger conditions.
+   No MaintenanceManager gate or activation signal is required.
+
+4. **IARM dependency audit**: Once `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR`
+   broadcasts are removed, reassess whether `uploadstblogs` retains any remaining IARM
+   dependency. If IARM is no longer used by `uploadstblogs`, the IARM initialization
+   (`IARM_Bus_Init` / `IARM_Bus_Connect`) MUST also be removed to reduce binary footprint
+   and eliminate the `iarmbusd` runtime dependency.
+
+**What MUST NOT change**:
+- The TRIGGER_REBOOT sentinel-based synchronization defined in REQ-SYNC-001 through
+  REQ-SYNC-010 is unaffected.
+- Existing DCM cron schedule parsing (`dcm_cronparse.c`) and periodic upload logic are
+  unaffected.
+- The `dcmd.service` `After=iarmbusd.service` ordering constraint MAY be removed as a
+  follow-on cleanup once the IARM dependency is confirmed absent.
+
+**Rationale**: The Maintenance Manager was introduced to coordinate housekeeping tasks
+during a defined maintenance window. Boot-time log upload is a time-critical, sentinel-gated
+operation that must complete promptly after reboot. Routing it through the Maintenance Manager
+adds an unnecessary scheduling indirection, a hard runtime dependency on `iarmbusd`, and an
+IARM event roundtrip — none of which benefit the boot-time upload path. Removing the task
+simplifies the dependency graph and eliminates a class of ordering failures where the
+Maintenance Manager window does not open before the sentinel chain completes.
+
+---
+
 ## 4. Timeouts Summary
 
 | Component | Polls for | Interval | Timeout | Timeout action |
@@ -358,3 +406,5 @@ All three repositories MUST document these dependencies in their respective `doc
 | TEST-SYNC-007 | Full boot sequence integration (4-sentinel chain E2E including telemetry) | L2 test |
 | TEST-SYNC-008 | telemetry2_0 writes `.telemetry_prevlogs_done` after scan, not on timeout | `telemetry` unit test |
 | TEST-SYNC-009 | reboot_setup() skips upload when `.telemetry_prevlogs_done` absent | `uploadstblogs` unit test |
+| TEST-SYNC-010 | `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR` IARM events are NOT emitted after REQ-SYNC-011 | `uploadstblogs` unit test |
+| TEST-SYNC-011 | MaintenanceManager does not schedule or activate DCM log upload task | `entservices-maintenancemanager` unit test |
