@@ -68,7 +68,10 @@ void regfree(regex_t *preg) {
 DIR* opendir(const char *dirname);
 struct dirent* readdir(DIR *dirp);
 int closedir(DIR *dirp);
+int dirfd(DIR *dirp);
 int stat(const char *pathname, struct stat *statbuf);
+int fstatat(int dfd, const char *pathname, struct stat *statbuf, int flags);
+int unlinkat(int dfd, const char *pathname, int flags);
 int remove(const char *pathname);
 int rmdir(const char *pathname);
 
@@ -123,6 +126,40 @@ struct dirent* readdir(DIR *dirp) {
 int closedir(DIR *dirp) {
     // Reset readdir count when closing directory
     mock_readdir_count = 0;
+    return 0;
+}
+
+int dirfd(DIR *dirp) {
+    // Return a dummy fd for the fake DIR pointer
+    return 5;
+}
+
+int fstatat(int dfd, const char *pathname, struct stat *statbuf, int flags) {
+    if (stat_fail || !pathname || !statbuf) {
+        return -1;
+    }
+    memset(statbuf, 0, sizeof(struct stat));
+
+    time_t now = time(NULL);
+    if (strstr(pathname, "11-30-25-03-45PM") || strstr(pathname, "old_archive")) {
+        statbuf->st_mtime = now - (5 * 24 * 60 * 60); // 5 days ago
+    } else {
+        statbuf->st_mtime = now - (1 * 24 * 60 * 60); // 1 day ago
+    }
+
+    if (strstr(pathname, "logbackup") || strstr(pathname, "normal_folder")) {
+        statbuf->st_mode = S_IFDIR | 0755;
+    } else {
+        statbuf->st_mode = S_IFREG | 0644;
+    }
+
+    return 0;
+}
+
+int unlinkat(int dfd, const char *pathname, int flags) {
+    if (remove_fail || !pathname) {
+        return -1;
+    }
     return 0;
 }
 
