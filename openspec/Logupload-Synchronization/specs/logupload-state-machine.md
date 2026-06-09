@@ -134,10 +134,10 @@ stateDiagram-v2
     state UploadPhase {
         [*] --> CreateArchive
         CreateArchive --> UploadPackage : generate_archive_name() + add_timestamp_to_files()
-        UploadPackage --> NotifyMM_OK : upload success
-        UploadPackage --> NotifyMM_ERR : upload failure
-        NotifyMM_OK --> [*] : MAINT_LOGUPLOAD_COMPLETE
-        NotifyMM_ERR --> [*] : MAINT_LOGUPLOAD_ERROR
+        UploadPackage --> UploadOK : upload success
+        UploadPackage --> UploadERR : upload failure
+        UploadOK --> [*] : EXIT_SUCCESS
+        UploadERR --> [*] : EXIT_FAILURE (logged, no MM notification)
     }
 
     UploadPhase --> [*]
@@ -147,12 +147,12 @@ stateDiagram-v2
 
 ## Scenario Outcome Summary
 
-| # | Scenario | Trigger written? | Upload outcome | MM event |
-|---|----------|-----------------|----------------|----------|
-| S1 | `backup_logs` fails | No | **Aborted** | None (MM timer eventually fires) |
-| S2 | Backup OK, reboot reason absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `REBOOT_REASON_UNAVAILABLE` | `MAINT_LOGUPLOAD_COMPLETE` |
-| S3 | Backup OK, NTP absent, RI absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` | `MAINT_LOGUPLOAD_COMPLETE` |
-| S4 | Backup OK, telemetry absent | `TRIGGER_TELEMETRY_SCAN` | Proceeds + `TELEMETRY_UNAVAILABLE` | `MAINT_LOGUPLOAD_COMPLETE` |
+| # | Scenario | Trigger written? | Upload outcome |
+|---|----------|-----------------|----------------|
+| S1 | `backup_logs` fails | No | **Aborted** — EXIT_FAILURE, no MM notification |
+| S2 | Backup OK, reboot reason absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `REBOOT_REASON_UNAVAILABLE` |
+| S3 | Backup OK, NTP absent, RI absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` |
+| S4 | Backup OK, telemetry absent | `TRIGGER_TELEMETRY_SCAN` | Proceeds + `TELEMETRY_UNAVAILABLE` |
 
 **Invariant**: Upload always occurs if `backup_logs` succeeded. Missing metadata is
 annotated in the upload payload, never silently discarded.
@@ -161,9 +161,10 @@ annotated in the upload payload, never silently discarded.
 
 ## Maintenance Manager Interaction
 
-`entservices-maintenancemanager` schedules LOGUPLOAD as the third task in its maintenance
-cycle. It starts a `TASK_TIMEOUT = 3600 s` watchdog per task. The sentinel poll window of
-120 s is well within this budget. The `MAINT_LOGUPLOAD_COMPLETE` or `MAINT_LOGUPLOAD_ERROR`
-IARM event from `uploadstblogs` signals the MaintenanceManager to stop the watchdog and
-proceed to the next task. Sentinel-chain annotations are embedded in the upload payload and
-do not affect MM signalling.
+**Removed per REQ-SYNC-011.** The LogUpload task (`MAINT_DCM_LOGUPLOAD`) is being removed
+from the Maintenance Manager scheduling model. `uploadstblogs` will no longer broadcast
+`MAINT_LOGUPLOAD_COMPLETE` or `MAINT_LOGUPLOAD_ERROR` IARM events. It operates as a
+self-contained binary invoked directly by `dcmd` (via cron or systemd timer) with no
+runtime dependency on the Maintenance Manager.
+
+See REQ-SYNC-011 in `spec.md` for full details of the removal scope.
