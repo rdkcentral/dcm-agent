@@ -325,33 +325,25 @@ provide a retry signal for the upload-time synchronization window only.
 
 ---
 
-### TASK-D4 — Verify Maintenance Manager timer compatibility
-**Repo**: `entservices-maintenancemanager`  
-**Spec**: AC-15  
-**Depends on**: TASK-D1
+### TASK-D4 — Remove `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR` IARM events from `uploadstblogs`
+**Repo**: `dcm-agent`  
+**File**: `uploadstblogs/src/event_manager.c` (or wherever the IARM broadcasts are issued)  
+**Spec**: REQ-SYNC-011  
+**Depends on**: TASK-D2
 
-Verify and document that `TASK_TIMEOUT = 3600 s` safely encompasses the maximum
-uploadstblogs execution time (120 s sentinel poll + archive + upload). No code change
-required — this is a compatibility check and documentation task.
+Remove the `IARM_Bus_BroadcastEvent()` calls that send `MAINT_LOGUPLOAD_COMPLETE` and
+`MAINT_LOGUPLOAD_ERROR` to the MaintenanceManager. After removal, audit all remaining
+IARM usages in `uploadstblogs`:
 
-Add a comment to `MaintenanceManager.h` near `TASK_TIMEOUT`:
+- If no other IARM calls remain, also remove `IARM_Bus_Init()` / `IARM_Bus_Connect()` /
+  `IARM_Bus_Disconnect()` / `IARM_Bus_Term()` from the binary entry point.
+- Remove or conditionalize the `iarmbusd` link dependency in `uploadstblogs/Makefile.am`
+  if IARM is fully absent.
+- Remove the `After=iarmbusd.service` ordering in `dcmd.service` only if `dcmd` itself
+  has no remaining IARM dependency (verify with a cross-binary audit first).
 
-```c
-#ifndef TASK_TIMEOUT
-/* Default Task Timeout (1 Hour = 3600 s).
- * Must remain > REBOOT_POLL_TIMEOUT_S (120 s, defined in dcm-agent uploadstblogs)
- * plus maximum upload transfer time to avoid spurious MAINT_LOGUPLOAD_ERROR. */
-#define TASK_TIMEOUT  3600
-#endif
-```
-
-Add to `entservices-maintenancemanager/docs/DEPENDENCIES.md` (create if absent):
-
-> `TASK_LOGUPLOAD` executes `uploadstblogs LOGUPLOAD`. As of the Reboot Sequence
-> Synchronization change (dcm-agent), `uploadstblogs` may spend up to 120 s polling
-> sentinel files before starting the upload. `TASK_TIMEOUT = 3600 s` safely encompasses
-> this. If `TASK_TIMEOUT` is ever reduced, it MUST remain greater than
-> `REBOOT_POLL_TIMEOUT_S + maximum_upload_duration`.
+**What MUST NOT change**: the TRIGGER_REBOOT and TRIGGER_LOGUPLOAD upload logic, cron
+schedule parsing, and sentinel poll code added in TASK-D2.
 
 ---
 
@@ -576,18 +568,108 @@ Test cases:
 
 ---
 
+## Group H — Maintenance Manager LogUpload Task Removal [entservices-maintenancemanager]
+
+### TASK-H1 — Remove `MAINT_DCM_LOGUPLOAD` task from MaintenanceManager
+**Repo**: `entservices-maintenancemanager`  
+**File**: `MaintenanceManager/MaintenanceManager.cpp` (and `MaintenanceManager.h` if task enum is defined there)  
+**Spec**: REQ-SYNC-011
+
+Remove the `MAINT_DCM_LOGUPLOAD` (or equivalent `TASK_LOGUPLOAD`) entry from the
+Maintenance Manager task table. The MaintenanceManager MUST NOT schedule, activate,
+or track the DCM log upload task after this change.
+
+Steps:
+1. Remove the task enum value (e.g., `TASK_LOGUPLOAD`) from the task list.
+2. Remove the task registration / handler hookup for `uploadstblogs`.
+3. Remove any `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR` IARM event handler
+   registrations.
+4. Verify remaining MM task ordering is unaffected (LOGUPLOAD was the third task;
+   renumber or reorder as needed).
+
+---
+
+### TASK-H2 — Remove IARM LogUpload event definitions
+**Repo**: `entservices-maintenancemanager`  
+**File**: `MaintenanceManager/MaintenanceManager.h` (or the header defining `MAINT_LOGUPLOAD_COMPLETE`)  
+**Spec**: REQ-SYNC-011  
+**Depends on**: TASK-H1
+
+Remove the `MAINT_LOGUPLOAD_COMPLETE` and `MAINT_LOGUPLOAD_ERROR` event constant
+definitions (or mark as deprecated with a removal comment) after confirming no other
+consumers reference them.
+
+---
+
+### TASK-H3 — Update `entservices-maintenancemanager/docs/DEPENDENCIES.md`
+**Repo**: `entservices-maintenancemanager`  
+**File**: `docs/DEPENDENCIES.md` (create if absent)  
+**Spec**: REQ-SYNC-011  
+**Depends on**: TASK-H1
+
+Document that the DCM LogUpload task has been removed:
+
+```markdown
+## Removed Dependencies
+
+### DCM Log Upload Task (removed — Reboot Sequence Synchronization change)
+
+The `MAINT_DCM_LOGUPLOAD` task was previously scheduled by the Maintenance Manager
+to invoke `uploadstblogs`. This task has been removed. `uploadstblogs` is now invoked
+directly by `dcmd` via cron or systemd timer and no longer broadcasts
+`MAINT_LOGUPLOAD_COMPLETE` or `MAINT_LOGUPLOAD_ERROR` IARM events.
+```
+
+---
+
+### TASK-H4 — Unit test: IARM LogUpload events are NOT emitted
+**Repo**: `dcm-agent`  
+**File**: `uploadstblogs/unittest/` (add to existing or new test file)  
+**Spec**: TEST-SYNC-010  
+**Depends on**: TASK-D4
+
+Test cases:
+- `UploadComplete_NoMaintLoguploadCompleteEvent`: Run a successful upload through
+  `reboot_setup()` → `reboot_archive()` → `reboot_upload()`. Assert that
+  `IARM_Bus_BroadcastEvent()` is NOT called with `MAINT_LOGUPLOAD_COMPLETE`.
+- `UploadFailure_NoMaintLoguploadErrorEvent`: Simulate upload failure. Assert that
+  `IARM_Bus_BroadcastEvent()` is NOT called with `MAINT_LOGUPLOAD_ERROR`.
+
+---
+
+### TASK-H5 — Unit test: MaintenanceManager does not schedule LogUpload task
+**Repo**: `entservices-maintenancemanager`  
+**File**: `Tests/` (add to existing MaintenanceManager tests)  
+**Spec**: TEST-SYNC-011  
+**Depends on**: TASK-H1
+
+Test cases:
+- `MaintenanceManager_LogUploadTask_NotInTaskList`: Assert that the MM task list does
+  NOT contain `MAINT_DCM_LOGUPLOAD` / `TASK_LOGUPLOAD` after initialization.
+- `MaintenanceManager_LogUploadEvent_NotRegistered`: Assert that
+  `MAINT_LOGUPLOAD_COMPLETE` and `MAINT_LOGUPLOAD_ERROR` IARM event handlers are not
+  registered.
+
+---
+
 ## Implementation Order Summary
 
 ```
 TASK-A1 ──┐
-           ├─► TASK-B1 ──► TASK-F1
 TASK-A2 ──┤
+           ├─► TASK-B1 ──► TASK-F1
            ├─► TASK-C1 ──► TASK-C2 ──► TASK-F2
-           └─► TASK-D1 ──► TASK-D2 ──► TASK-F3
+           └─► TASK-D1 ──► TASK-D2 ──► TASK-D4 ──► TASK-F3
+                                     └─► TASK-H4
 
 TASK-G3 ──┬
            ├─► TASK-G1 ──► TASK-G2 ──► TASK-G4
            └─ (depends on TASK-B1 sentinel being written)
+
+TASK-H1 ──┬
+           ├─► TASK-H2
+           ├─► TASK-H3
+           └─► TASK-H5
 
 TASK-E1, TASK-E2 (parallel, no dependencies)
 
