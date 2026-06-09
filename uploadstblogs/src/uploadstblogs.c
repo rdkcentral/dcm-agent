@@ -297,9 +297,6 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
         return 0;
     }
 
-    /* Emit upload start event */
-    emit_upload_start();
-
     /* Prepare archive based on strategy */
     if (strategy == STRAT_RRD) {
         if (!file_exists(ctx.rrd_file)) {
