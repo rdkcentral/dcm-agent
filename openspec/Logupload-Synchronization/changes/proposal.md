@@ -27,7 +27,7 @@
 | AC-10 | `telemetry2_0` completes its one-shot `PreviousLogs/` grep scan and writes `/tmp/.telemetry_prevlogs_done` before `uploadstblogs` calls `add_timestamp_to_files()` or any other operation that mutates filenames in `PreviousLogs/` |
 | AC-13 | If `Update_rebootInfo_invoked` is absent at the start of the poll window, `uploadstblogs` writes a trigger file (`/tmp/.trigger_reboot_info_update`) to signal `update-prev-reboot-info` to retry before the timeout annotation path is taken |
 | AC-14 | If `.telemetry_prevlogs_done` is absent at the start of the poll window, `uploadstblogs` writes a trigger file (`/tmp/.trigger_telemetry_prevlogs_scan`) to signal `telemetry2_0` to run its `PreviousLogs/` scan before the timeout annotation path is taken |
-| AC-15 | The MaintenanceManager per-task watchdog (`TASK_TIMEOUT = 3600 s`) encompasses the maximum sentinel poll window (`REBOOT_POLL_TIMEOUT_S = 120 s`) plus upload time; no `TASK_TIMEOUT` adjustment is required, and the sentinel chain does not risk a spurious `MAINT_LOGUPLOAD_ERROR` from the watchdog |
+| AC-15 | The LogUpload task (`MAINT_DCM_LOGUPLOAD`) is removed from the Maintenance Manager. `uploadstblogs` no longer broadcasts `MAINT_LOGUPLOAD_COMPLETE` or `MAINT_LOGUPLOAD_ERROR` IARM events. If `uploadstblogs` has no remaining IARM usage after removal, the IARM initialization (`IARM_Bus_Init` / `IARM_Bus_Connect`) is also removed |
 
 ---
 
@@ -130,6 +130,7 @@ stale-sentinel problem across boots.
 - Supporting concurrent reboot-triggered uploads (single-instance lock already exists).
 - Altering scheduled (`DCM_LOG_UPLOAD`) or on-demand (`TRIGGER_ONDEMAND`) upload paths.
 - Providing a backward compatibility window for partial deployments — all three repositories (`dcm-agent`, `reboot-manager`, `telemetry`) MUST be deployed simultaneously.
+- Changing the mechanism by which `uploadstblogs` reports completion status to other MM tasks that remain in the Maintenance Manager (the LogUpload task removal does not affect other MM tasks).
 
 ## Affected Repositories / Modules
 
@@ -141,7 +142,7 @@ stale-sentinel problem across boots.
 | `reboot-manager` | `reboot-reason-fetcher/src/rebootreason_main.c` | Add sentinel poll + trigger file watch |
 | `reboot-manager` | `reboot-reason-fetcher/include/update-reboot-info.h` | Add sentinel + trigger constants |
 | `telemetry` | `telemetry2_0/src/profile.c` (`CollectAndReport`) | Poll `.backup_logs_done`; watch trigger file; write `.telemetry_prevlogs_done` |
-| `entservices-maintenancemanager` | `MaintenanceManager/MaintenanceManager.h` | No change required — existing `TASK_TIMEOUT = 3600 s` encompasses 120 s poll window |
+| `entservices-maintenancemanager` | `MaintenanceManager/` | Remove `MAINT_DCM_LOGUPLOAD` task entry; remove IARM LogUpload event handler |
 
 ## Success Criteria
 
@@ -152,4 +153,5 @@ stale-sentinel problem across boots.
 - Upload always occurs if `backup_logs` succeeded, regardless of NTP/reboot-reason/telemetry timeout status.
 - All timeout and fallback events are annotated in the upload for diagnostics.
 - 330-second sleep removed; typical boot latency before upload reduced on fast devices.
-- Existing unit and L2 tests continue to pass; new tests cover timeout, fallback, and sentinel paths.
+- The Maintenance Manager no longer schedules or tracks the LogUpload task; `MAINT_LOGUPLOAD_COMPLETE` and `MAINT_LOGUPLOAD_ERROR` IARM events are no longer emitted by `uploadstblogs`.
+- Existing unit and L2 tests continue to pass; new tests cover timeout, fallback, sentinel paths, and MM task removal.
