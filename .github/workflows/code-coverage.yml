@@ -32,7 +32,7 @@ jobs:
           docker run -d --name native-platform -v ${{ github.workspace }}:/mnt/L1_CONTAINER_SHARED_VOLUME ghcr.io/rdkcentral/docker-device-mgt-service-test/native-platform:latest
 
       - name: Run unit tests with coverage flags enabled and Caculate the code coverage summary
-        run: docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && unit_test.sh --enable-cov && lcov --list coverage.info | grep 'Lines\|Total' > /tmp/coverage_summary.txt"
+        run: docker exec -i native-platform /bin/bash -c "cd /mnt/L1_CONTAINER_SHARED_VOLUME/dcm-agent && unit_test.sh --enable-cov && lcov --list coverage.info | grep 'Lines\|Total' > /tmp/coverage_summary.txt"
 
       - name: Copy coverage summary to runner
         run: docker cp native-platform:/tmp/coverage_summary.txt /tmp/
