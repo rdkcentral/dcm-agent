@@ -57,7 +57,7 @@ jobs:
             });
 
       - name: Generate the html report
-        run: docker exec -i native-platform /bin/bash -c " cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && genhtml coverage.info --output-directory /tmp/coverage_report"
+        run: docker exec -i native-platform /bin/bash -c " cd /mnt/L1_CONTAINER_SHARED_VOLUME/ && genhtml unittest/coverage.info --output-directory /tmp/coverage_report"
 
       - name: Copy html report to runner
         run: docker cp native-platform:/tmp/coverage_report /tmp/
