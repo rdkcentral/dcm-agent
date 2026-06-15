@@ -31,38 +31,43 @@ export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
 export LD_LIBRARY_PATH="/usr/local/lib:$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
 echo "RDK_PROFILE=TV" >> /etc/device.properties
-
-cd "$TOP_DIR/unittest" || exit 1
+cd unittest/
 cp mocks/mockrbus.h /usr/local/include
-cp "$TOP_DIR"/uploadstblogs/include/*.h /usr/local/include
+cp ../uploadstblogs/include/*.h /usr/local/include
 automake --add-missing
 autoreconf --install
+
 ./configure
+
 make clean
 make
 
-cd "$TOP_DIR" || exit 1
+cd ../uploadstblogs/unittest
+cd ../..
 sh cov_build.sh
+cd -
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 git clone https://github.com/rdkcentral/rdk_logger.git
 cp rdk_logger/include/rdk_logger.h /usr/local/include
 
-cd "$TOP_DIR/uploadstblogs/unittest" || exit 1
 automake --add-missing
 autoreconf --install
+
 ./configure
+
 make clean
 make
-
-cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
+pwd
+cd ../../usbLogUpload/unittest
 automake --add-missing
 autoreconf --install
+
 ./configure
+
 make clean
 make
-
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
@@ -113,8 +118,9 @@ fi
 
 if [ "$ENABLE_COV" = true ]; then
     echo "********************"
-    echo "Generating coverage report"
+    echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
     echo "********************"
+    echo "Generating coverage report"
     lcov --capture --directory . --output-file coverage.info
     lcov --remove coverage.info '/usr/*' --output-file coverage.info
     lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
