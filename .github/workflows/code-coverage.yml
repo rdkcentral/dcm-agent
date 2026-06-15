@@ -2,7 +2,7 @@ name: Code Coverage
 
 on:
   pull_request:
-    branches: [ develop ]
+    branches: [ main, develop ]
 
 env:
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
