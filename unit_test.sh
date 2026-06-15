@@ -63,6 +63,13 @@ autoreconf --install
 make clean
 make
 
+cd "$TOP_DIR/backup_logs/unittest" || exit 1
+automake --add-missing
+autoreconf --install
+./configure
+make clean
+make
+
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
@@ -93,7 +100,13 @@ for test in \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
-  ./../usbLogUpload/unittest/usb_log_archive_gtest
+  ./../usbLogUpload/unittest/usb_log_archive_gtest \
+  ./../usbLogUpload/unittest/usb_log_main_gtest \
+  ./../backup_logs/unittest/backup_engine_gtest \
+  ./../backup_logs/unittest/backup_logs_gtest \
+  ./../backup_logs/unittest/config_manager_gtest \
+  ./../backup_logs/unittest/special_files_gtest \
+  ./../backup_logs/unittest/sys_integration_gtest
   
 do
     $test
@@ -115,8 +128,27 @@ if [ "$ENABLE_COV" = true ]; then
     echo "********************"
     echo "Generating coverage report"
     echo "********************"
-    lcov --capture --directory . --output-file coverage.info
-    lcov --remove coverage.info '/usr/*' --output-file coverage.info
-    lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
-    lcov --list coverage.info
+    COV_DIR="$TOP_DIR/unittest"
+
+    # Per-module capture
+    lcov --capture --directory "$TOP_DIR/unittest" --output-file "$COV_DIR/dcm.info"
+    lcov --capture --directory "$TOP_DIR/uploadstblogs/unittest" --output-file "$COV_DIR/uploadstblogs.info"
+    lcov --capture --directory "$TOP_DIR/usbLogUpload/unittest" --output-file "$COV_DIR/usblogupload.info"
+    lcov --capture --directory "$TOP_DIR/backup_logs/unittest" --output-file "$COV_DIR/backup_logs.info"
+
+    # Per-module filter: strip system headers, test drivers, and mocks
+    for info in dcm.info uploadstblogs.info usblogupload.info backup_logs.info; do
+        lcov --remove "$COV_DIR/$info" '/usr/*' --output-file "$COV_DIR/$info"
+        lcov --remove "$COV_DIR/$info" '*_gtest*' --output-file "$COV_DIR/$info"
+        lcov --remove "$COV_DIR/$info" '*/mocks/*' --output-file "$COV_DIR/$info"
+    done
+
+    # Merge all modules into a single combined report
+    lcov -a "$COV_DIR/dcm.info" \
+         -a "$COV_DIR/uploadstblogs.info" \
+         -a "$COV_DIR/usblogupload.info" \
+         -a "$COV_DIR/backup_logs.info" \
+         --output-file "$COV_DIR/combined.info"
+
+    lcov --list "$COV_DIR/combined.info"
 fi
