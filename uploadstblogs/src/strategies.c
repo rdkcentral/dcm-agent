@@ -852,7 +852,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                     "Writing trigger to request immediate update.\n",
                     __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
             trigger_reboot_info_update();
-            set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
+            session->upload_annotations |= (1 << ANNOTATION_REBOOT_REASON_UNAVAILABLE);
         } else {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
