@@ -837,48 +837,6 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
     return 0;
 }
 
-
-/**
- * @brief Archive phase for REBOOT/NON_DCM strategy
- * 
- * Shell script equivalent (uploadLogOnReboot lines 853-869):
- * - Collect PCAP files to PREV_LOG_PATH if mediaclient
- * - Create tar.gz archive from PREV_LOG_PATH
- * - Sleep 60 seconds
- */
-static int reboot_archive(RuntimeContext* ctx, SessionState* session)
-{
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] REBOOT/NON_DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
-
-    // Collect PCAP files directly to PREV_LOG_PATH if mediaclient
-    if (ctx->include_pcap) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Collecting PCAP file to PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
-        int count = collect_pcap_logs(ctx, ctx->prev_log_path);
-        if (count > 0) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
-        }
-    }
-    
-    // Create archive from PREV_LOG_PATH (files already have timestamps)
-    int ret = create_archive(ctx, session, ctx->prev_log_path);
-    if (ret != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-#ifndef L2_TEST_ENABLED
-    sleep(60);
-#endif
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
-
-    return 0;
-}
-
 /**
  * @brief Upload phase for REBOOT/NON_DCM strategy
  * 
