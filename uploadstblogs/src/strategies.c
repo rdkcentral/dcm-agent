@@ -660,9 +660,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             __FUNCTION__, __LINE__);
 
     // Check if PREV_LOG_PATH exists and has .txt or .log files
-    // Script uploadLogOnReboot lines 805-816:
-    // ret=`ls $PREV_LOG_PATH/*.txt`
-    // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
     if (!dir_exists(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
@@ -677,12 +674,11 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    // Wait for reboot reason sentinel (replaces sleep(330)).
-    // STEP 1: Write trigger to prompt update-prev-reboot-info if sentinel is absent.
-    // STEP 2: Poll until sentinel appears or timeout. Upload always proceeds.
+    // Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
     {
-        trigger_reboot_info_update();
-
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
                 __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
@@ -690,8 +686,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         if (wait_for_reboot_reason() != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                     "[%s:%d] Reboot reason sentinel not present after %us. "
-                    "Upload proceeds with reboot-reason annotation.\n",
+                    "Writing trigger to request immediate update.\n",
                     __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
             set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
         } else {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
