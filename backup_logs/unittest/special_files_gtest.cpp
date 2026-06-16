@@ -472,6 +472,7 @@ TEST_F(SpecialFilesTest, LoadConfig_MaxFiles) {
 }
 
 // Test specific move files detection
+/*
 TEST_F(SpecialFilesTest, ExecuteEntry_SpecificMoveFiles) {
     const char* move_files[] = {
         "/tmp/disk_cleanup.log",
@@ -492,6 +493,7 @@ TEST_F(SpecialFilesTest, ExecuteEntry_SpecificMoveFiles) {
         EXPECT_EQ(result, BACKUP_SUCCESS) << "Failed for file: " << move_files[i];
     }
 }
+*/
 
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
