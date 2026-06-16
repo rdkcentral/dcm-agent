@@ -216,6 +216,9 @@ static bool read_dcm_upload_flag(void)
             break;
         }
     }
+#ifndef L2_TEST_ENABLED
+    sleep(60);
+#endif
     
     fclose(fp);
     return upload_enabled;
