@@ -698,30 +698,29 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         /* Always proceed — backup_logs succeeded; upload must occur */
     }
 
-    // Delete old backup files (3+ days old)
-    // Remove old timestamp directories and logbackup directories
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
-    
-    int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
-    if (removed > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old timestamp directories\n", 
-                __FUNCTION__, __LINE__, removed);
+    // Clean up old log backup directories (older than 3 days)
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
+    int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
+    if (removed_dirs > 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removed %d old log backup directories\n", __FUNCTION__, __LINE__, removed_dirs);
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No old log backup directories removed\n", __FUNCTION__, __LINE__);
     }
     
-    removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
-    if (removed > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
-                "[%s:%d] Removed %d old logbackup directories\n", 
-                __FUNCTION__, __LINE__, removed);
-    }
-
     // Create timestamp for permanent log path
     char timestamp[64];
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
+    struct tm tm_utc;
+    size_t timestamp_len;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
+    if (timestamp_len == 0U) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to format timestamp for permanent log path\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
 
     char perm_log_path[MAX_PATH_LENGTH];
     int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
