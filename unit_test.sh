@@ -132,9 +132,9 @@ if [ "$ENABLE_COV" = true ]; then
 
     # Per-module capture
     lcov --capture --directory "$TOP_DIR/unittest" --output-file "$COV_DIR/dcm.info"
-    lcov --capture --directory "$TOP_DIR/uploadstblogs/unittest" --output-file "$COV_DIR/uploadstblogs.info"
-    lcov --capture --directory "$TOP_DIR/usbLogUpload/unittest" --output-file "$COV_DIR/usblogupload.info"
-    lcov --capture --directory "$TOP_DIR/backup_logs/unittest" --output-file "$COV_DIR/backup_logs.info"
+    lcov --capture --directory "$TOP_DIR/uploadstblogs" --output-file "$COV_DIR/uploadstblogs.info"
+    lcov --capture --directory "$TOP_DIR/usbLogUpload" --output-file "$COV_DIR/usblogupload.info"
+    lcov --capture --directory "$TOP_DIR/backup_logs" --output-file "$COV_DIR/backup_logs.info"
 
     # Per-module filter: strip system headers, test drivers, and mocks
     for info in dcm.info uploadstblogs.info usblogupload.info backup_logs.info; do
@@ -142,6 +142,12 @@ if [ "$ENABLE_COV" = true ]; then
         lcov --remove "$COV_DIR/$info" '*_gtest*' --output-file "$COV_DIR/$info"
         lcov --remove "$COV_DIR/$info" '*/mocks/*' --output-file "$COV_DIR/$info"
     done
+
+    # Keep only production C sources for each module
+    lcov --extract "$COV_DIR/dcm.info" "$TOP_DIR/dcm*.c" --output-file "$COV_DIR/dcm.info"
+    lcov --extract "$COV_DIR/uploadstblogs.info" "$TOP_DIR/uploadstblogs/src/*.c" --output-file "$COV_DIR/uploadstblogs.info"
+    lcov --extract "$COV_DIR/usblogupload.info" "$TOP_DIR/usbLogUpload/src/*.c" --output-file "$COV_DIR/usblogupload.info"
+    lcov --extract "$COV_DIR/backup_logs.info" "$TOP_DIR/backup_logs/src/*.c" --output-file "$COV_DIR/backup_logs.info"
 
     # Build merge arguments: only include info files that have valid coverage records
     MERGE_ARGS=""
