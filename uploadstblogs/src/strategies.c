@@ -946,15 +946,10 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
  */
 static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 {
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
-
-    // Check reboot reason and RFC settings (matches script logic)
-    // Script: if [ "$uploadLog" == "true" ] || [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
-    // Note: When DCM_FLAG=0 (Non-DCM), script ALWAYS passes "true" regardless of UploadOnReboot value
-    //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
     bool should_upload = false;
+	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
+    
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
     
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
@@ -964,42 +959,10 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
                 __FUNCTION__, __LINE__);
     }
-    else {
-        // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
-        bool is_scheduled_reboot = false;
-        FILE* reboot_file = fopen(reboot_info_path, "r");
-        if (reboot_file) {
-            char line[512];
-            while (fgets(line, sizeof(line), reboot_file)) {
-                // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
-                if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
-		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
-                    is_scheduled_reboot = true;
-                    break;
-                }
-            }
-            fclose(reboot_file);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
-        }
-        
-        // Get RFC setting for unscheduled reboot upload via RBUS
-        bool disable_unscheduled_upload = false;
-        if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
-                                &disable_unscheduled_upload)) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                    "[%s:%d] Failed to get UploadLogsOnUnscheduledReboot.Disable RFC, assuming false\n", 
-                    __FUNCTION__, __LINE__);
-            disable_unscheduled_upload = false;
-        }
-        
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
-        
-        // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
-        // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
-        // Script logic for the unscheduled reboot path:
-        // [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
-        if ( ctx->upload_on_reboot==1 || (!is_scheduled_reboot && !disable_unscheduled_upload)) {
+    else 
+	{
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s \n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
+        if ( ctx->upload_on_reboot==1 ) {
             should_upload = true;
         }
     }
