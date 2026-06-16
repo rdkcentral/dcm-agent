@@ -63,45 +63,13 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
-
-
 /* ---- Prerequisite sentinel helpers ---- */
-
-/**
- * wait_for_backup_logs - Hard gate: poll for the backup_logs completion sentinel.
- *
- * Polls BACKUP_LOGS_DONE_FLAG (/tmp/.backup_logs_done) every
- * BACKUP_LOGS_POLL_INTERVAL_S seconds for up to BACKUP_LOGS_POLL_TIMEOUT_S seconds.
- *
- * Returns  0 when the sentinel is present (PreviousLogs/ is complete and safe to read).
- * Returns -1 on timeout.  The caller MUST abort the reboot upload on -1 — there is
- * nothing safe to archive if backup_logs did not complete successfully.
- */
-static int wait_for_backup_logs(void)
-{
-    struct timespec start, now;
-    struct stat st;
-
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
-    for (;;) {
-        if (stat(BACKUP_LOGS_DONE_FLAG, &st) == 0) {
-            return 0; /* backup_logs complete — PreviousLogs/ is safe to read */
-        }
-
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        if ((now.tv_sec - start.tv_sec) >= (time_t)BACKUP_LOGS_POLL_TIMEOUT_S) {
-            return -1; /* timeout — backup_logs may have failed */
-        }
-        sleep(BACKUP_LOGS_POLL_INTERVAL_S);
-    }
-}
 
 /**
  * trigger_reboot_info_update - Write trigger sentinel when reboot-reason is absent.
  *
- * Called ONCE at the start of reboot_setup() before the polling loop.
- * Writing the trigger file signals update-prev-reboot-info (reboot-manager) to
+ * Called only after wait_for_reboot_reason() times out.
+ * Writing the trigger signals update-prev-reboot-info (reboot-manager) to
  * perform an immediate reboot-reason update within the upload window.
  *
  * Cross-repo interface: TRIGGER_REBOOT_INFO_UPDATE consumed by reboot-manager.
@@ -122,13 +90,20 @@ static void trigger_reboot_info_update(void)
 }
 
 /**
- * wait_for_reboot_reason - Poll for the reboot-reason completion sentinel.
+ * wait_for_reboot_reason - Wait for the reboot-reason completion sentinel.
  *
- * Polls PATH_FLAG_INVOCATION (/tmp/Update_rebootInfo_invoked) every
- * REBOOT_POLL_INTERVAL_S seconds for up to REBOOT_POLL_TIMEOUT_S seconds.
+ * Uses inotify to watch /tmp for creation of PATH_FLAG_INVOCATION_FILENAME
+ * ("Update_rebootInfo_invoked").  A select() loop with a 2-second heartbeat
+ * drives the wait; the total window is bounded by REBOOT_POLL_TIMEOUT_S
+ * measured on CLOCK_MONOTONIC so EINTR-interrupted sleeps cannot inflate the
+ * deadline.
  *
- * Uses clock_gettime(CLOCK_MONOTONIC) to measure elapsed time accurately,
- * avoiding cumulative drift from EINTR-interrupted sleep() calls.
+ * A post-watch re-check closes the race window between the initial access()
+ * call and inotify_add_watch().
+ *
+ * If inotify_init1 or inotify_add_watch fails the function falls back to the
+ * simple polling path so the upload is never silently blocked by a missing
+ * kernel feature.
  *
  * Returns  0 when the sentinel is present (previousreboot.info is ready).
  * Returns -1 on timeout.  A timeout does NOT abort the upload; the caller
@@ -136,23 +111,106 @@ static void trigger_reboot_info_update(void)
  */
 static int wait_for_reboot_reason(void)
 {
-    struct timespec start, now;
-    struct stat st;
+    /* Fast path: sentinel already present */
+    if (access(PATH_FLAG_INVOCATION, F_OK) == 0) {
+        return 0;
+    }
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    int ifd = inotify_init1(IN_CLOEXEC);
+    if (ifd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
+                __FUNCTION__, __LINE__, errno);
+        goto fallback_poll;
+    }
 
-    for (;;) {
-        if (stat(PATH_FLAG_INVOCATION, &st) == 0) {
-            return 0; /* reboot reason ready */
+    int wd = inotify_add_watch(ifd, PATH_FLAG_INVOCATION_DIR,
+                               IN_CREATE | IN_MOVED_TO);
+    if (wd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
+                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION_DIR, errno);
+        close(ifd);
+        goto fallback_poll;
+    }
+
+    /* Re-check after watch is set — closes race between access() and add_watch */
+    if (access(PATH_FLAG_INVOCATION, F_OK) == 0) {
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return 0;
+    }
+
+    {
+        struct timespec deadline;
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
+                    __FUNCTION__, __LINE__, errno);
+            inotify_rm_watch(ifd, wd);
+            close(ifd);
+            goto fallback_poll;
+        }
+        deadline.tv_sec += (time_t)REBOOT_POLL_TIMEOUT_S;
+
+        int found = 0;
+        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+        while (!found) {
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+                now.tv_sec >= deadline.tv_sec) {
+                break; /* timeout */
+            }
+
+            struct timeval tv = {2, 0};
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(ifd, &fds);
+
+            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
+            if (ret < 0) {
+                if (errno == EINTR) { continue; }
+                break;
+            }
+            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
+
+            ssize_t len = read(ifd, buf, sizeof(buf));
+            if (len <= 0) { continue; }
+
+            ssize_t offset = 0;
+            while (offset < len) {
+                struct inotify_event *ev =
+                    (struct inotify_event *)(buf + offset);
+                if (ev->len > 0 &&
+                    strcmp(ev->name, PATH_FLAG_INVOCATION_FILENAME) == 0) {
+                    found = 1;
+                    break;
+                }
+                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
+            }
         }
 
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
-            return -1; /* timeout */
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return found ? 0 : -1;
+    }
+
+fallback_poll:
+    {
+        struct timespec start, now;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for (;;) {
+            if (access(PATH_FLAG_INVOCATION, F_OK) == 0) { return 0; }
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
+                return -1;
+            }
+            sleep(REBOOT_POLL_INTERVAL_S);
         }
-        sleep(REBOOT_POLL_INTERVAL_S);
     }
 }
+
 
 /**
  * set_upload_annotation - Record a prerequisite-failure annotation in the session.
