@@ -312,12 +312,6 @@ extern "C" {
         return mock_control.time_return;
     }
     
-    struct tm* __wrap_localtime(const time_t *timep) {
-        (void)timep;
-        mock_control.localtime_called = true;
-        return mock_control.localtime_return;
-    }
-    
     size_t __wrap_strftime(char *s, size_t max, const char *format, const struct tm *tm) {
         mock_control.strftime_called = true;
         if (format) {
@@ -526,7 +520,6 @@ TEST_F(BackupEngineTest, HDDEnabledStrategy_SubsequentBackup) {
     EXPECT_EQ(result, BACKUP_SUCCESS);
     EXPECT_TRUE(mock_control.createDir_called); // Creates timestamped directory
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
     EXPECT_TRUE(mock_control.strftime_called);
 }
 
@@ -742,7 +735,6 @@ TEST_F(BackupEngineTest, TimeOperations_FailureHandling) {
     int result = backup_execute_hdd_enabled_strategy(&test_config);
     
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
     // Function should still attempt to continue
 }
 
