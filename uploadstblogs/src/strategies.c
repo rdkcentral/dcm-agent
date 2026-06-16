@@ -950,8 +950,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
     
-    const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
-    
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
     if (ctx->dcm_flag == 0) {
         should_upload = true;
