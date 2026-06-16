@@ -4,10 +4,6 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-env:
-  AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
-  AUTOMATICS_PASSCODE: ${{ secrets.AUTOMATICS_PASSCODE }}
-
 jobs:
   execute-unit-code-coverage-report-on-release:
     name: Test coverage report for release
