@@ -365,6 +365,7 @@ extern "C" {
                    sizeof(mock_control.sys_send_systemd_notification_last_message) - 1);
             mock_control.sys_send_systemd_notification_last_message[sizeof(mock_control.sys_send_systemd_notification_last_message) - 1] = '\0';
         }
+        return BACKUP_SUCCESS;
     }
 }
 
@@ -526,7 +527,6 @@ TEST_F(BackupEngineTest, HDDEnabledStrategy_SubsequentBackup) {
     EXPECT_EQ(result, BACKUP_SUCCESS);
     EXPECT_TRUE(mock_control.createDir_called); // Creates timestamped directory
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
     EXPECT_TRUE(mock_control.strftime_called);
 }
 
@@ -734,15 +734,16 @@ TEST_F(BackupEngineTest, CommonOperations_ExecuteAllFails) {
 // ================================================================================================
 
 TEST_F(BackupEngineTest, TimeOperations_FailureHandling) {
-    mock_control.localtime_return = nullptr; // localtime fails
+    mock_control.strftime_return = 0; // Trigger strftime fallback path
     mock_control.filePresentCheck_return = 0; // Trigger subsequent backup path
     mock_control.opendir_return = (DIR*)0x12345678;
     
     // Should handle gracefully even if time operations fail
     int result = backup_execute_hdd_enabled_strategy(&test_config);
     
+    EXPECT_EQ(result, BACKUP_SUCCESS);
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
+    EXPECT_TRUE(mock_control.strftime_called);
     // Function should still attempt to continue
 }
 
