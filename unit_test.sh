@@ -135,6 +135,9 @@ if [ "$ENABLE_COV" = true ]; then
     lcov --capture --directory "$TOP_DIR/uploadstblogs/unittest" --output-file "$COV_DIR/uploadstblogs.info"
     lcov --capture --directory "$TOP_DIR/usbLogUpload/unittest" --output-file "$COV_DIR/usblogupload.info"
     lcov --capture --directory "$TOP_DIR/backup_logs/unittest" --output-file "$COV_DIR/backup_logs.info"
+    lcov --list "$COV_DIR/uploadstblogs.info"
+    lcov --list "$COV_DIR/usblogupload.info"
+    lcov --list "$COV_DIR/backup_logs.info"
 
     # Per-module filter: strip system headers, test drivers, and mocks
     for info in dcm.info uploadstblogs.info usblogupload.info backup_logs.info; do
