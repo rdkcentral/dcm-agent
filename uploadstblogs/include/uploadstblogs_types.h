@@ -342,6 +342,7 @@ typedef struct {
     bool used_fallback;             /**< Whether fallback was used */
     bool success;                   /**< Overall success status */
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
+    int upload_annotations;         /**< Bitmask of ANNOTATION_* codes set during prerequisite fallback */
 } SessionState;
 
 /* ==========================
