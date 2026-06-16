@@ -641,6 +641,24 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
+    // Hard gate: wait for backup_logs to complete before touching PreviousLogs/.
+    // If the sentinel is absent, PreviousLogs/ may be incomplete — abort.
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Waiting for backup_logs sentinel %s (timeout %us)\n",
+            __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG, BACKUP_LOGS_POLL_TIMEOUT_S);
+
+    if (wait_for_backup_logs() != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] backup_logs sentinel not present after %us. "
+                "PreviousLogs/ may be incomplete. Aborting reboot upload.\n",
+                __FUNCTION__, __LINE__, BACKUP_LOGS_POLL_TIMEOUT_S);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] backup_logs sentinel detected. PreviousLogs/ is complete.\n",
+            __FUNCTION__, __LINE__);
+
     // Check if PREV_LOG_PATH exists and has .txt or .log files
     // Script uploadLogOnReboot lines 805-816:
     // ret=`ls $PREV_LOG_PATH/*.txt`
@@ -659,57 +677,54 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    // Check system uptime and sleep if needed
-    // Script lines 818-836: if uptime < 900s, sleep 330s
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        if (uptime_seconds < 900.0) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] System uptime %.0f seconds < 900s, sleeping for 330s\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
-            
-            // Script checks ENABLE_MAINTENANCE but both paths result in 330s sleep
-            // For simplicity, just sleep (background job with wait has same effect)
-#ifndef L2_TEST_ENABLED
-            sleep(330);
-#endif
-            
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
+    // Wait for reboot reason sentinel (replaces sleep(330)).
+    // STEP 1: Write trigger to prompt update-prev-reboot-info if sentinel is absent.
+    // STEP 2: Poll until sentinel appears or timeout. Upload always proceeds.
+    {
+        trigger_reboot_info_update();
+
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+
+        if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel not present after %us. "
+                    "Upload proceeds with reboot-reason annotation.\n",
+                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
         } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Device uptime %.0f seconds >= 900s, skipping sleep\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
         }
-    } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to get system uptime, skipping sleep\n", 
-                __FUNCTION__, __LINE__);
+        /* Always proceed — backup_logs succeeded; upload must occur */
     }
 
-    // Clean up old log backup directories (older than 3 days)
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
-    int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
-    if (removed_dirs > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removed %d old log backup directories\n", __FUNCTION__, __LINE__, removed_dirs);
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No old log backup directories removed\n", __FUNCTION__, __LINE__);
+    // Delete old backup files (3+ days old)
+    // Remove old timestamp directories and logbackup directories
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Cleaning old backups (3+ days)\n", __FUNCTION__, __LINE__);
+    
+    int removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-", 3);
+    if (removed > 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removed %d old timestamp directories\n", 
+                __FUNCTION__, __LINE__, removed);
     }
     
+    removed = remove_old_directories(ctx->log_path, "*-*-*-*-*M-logbackup", 3);
+    if (removed > 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removed %d old logbackup directories\n", 
+                __FUNCTION__, __LINE__, removed);
+    }
+
     // Create timestamp for permanent log path
     char timestamp[64];
     time_t now = time(NULL);
-    struct tm tm_utc;
-    size_t timestamp_len;
-    if (gmtime_r(&now, &tm_utc) == NULL) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
-    if (timestamp_len == 0U) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to format timestamp for permanent log path\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
+    struct tm* tm_info = localtime(&now);
+    strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", tm_info);
 
     char perm_log_path[MAX_PATH_LENGTH];
     int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
@@ -780,6 +795,48 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 
     return 0;
 }
+
+/**
+ * @brief Archive phase for REBOOT/NON_DCM strategy
+ * 
+ * Shell script equivalent (uploadLogOnReboot lines 853-869):
+ * - Collect PCAP files to PREV_LOG_PATH if mediaclient
+ * - Create tar.gz archive from PREV_LOG_PATH
+ * - Sleep 60 seconds
+ */
+static int reboot_archive(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
+
+    // Collect PCAP files directly to PREV_LOG_PATH if mediaclient
+    if (ctx->include_pcap) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Collecting PCAP file to PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
+        int count = collect_pcap_logs(ctx, ctx->prev_log_path);
+        if (count > 0) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
+        }
+    }
+    
+    // Create archive from PREV_LOG_PATH (files already have timestamps)
+    int ret = create_archive(ctx, session, ctx->prev_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+#ifndef L2_TEST_ENABLED
+    sleep(60);
+#endif
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
 
 /**
  * @brief Archive phase for REBOOT/NON_DCM strategy
