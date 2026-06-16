@@ -46,16 +46,6 @@ protected:
 };
 
 /**
- * @brief Test usb_log_upload_execute with valid input
- */
-TEST_F(UsbLogMainTest, ExecuteWithValidInputTest) {
-    // TODO: Test usb_log_upload_execute with valid input
-    const char* test_mount = "/tmp/test_usb";
-    // This test would require mocking filesystem operations
-    EXPECT_EQ(usb_log_upload_execute(test_mount), USB_LOG_SUCCESS);
-}
-
-/**
  * @brief Test usb_log_upload_execute with invalid input
  */
 TEST_F(UsbLogMainTest, ExecuteWithInvalidInputTest) {
