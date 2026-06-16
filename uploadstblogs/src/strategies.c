@@ -38,6 +38,8 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
