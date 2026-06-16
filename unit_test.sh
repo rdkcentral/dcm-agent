@@ -31,43 +31,45 @@ export TOP_DIR=`pwd`
 export top_srcdir=`pwd`
 export LD_LIBRARY_PATH="/usr/local/lib:$TOP_DIR/uploadstblogs/src/.libs:$LD_LIBRARY_PATH"
 echo "RDK_PROFILE=TV" >> /etc/device.properties
-cd unittest/
+
+cd "$TOP_DIR/unittest" || exit 1
 cp mocks/mockrbus.h /usr/local/include
-cp ../uploadstblogs/include/*.h /usr/local/include
+cp "$TOP_DIR"/uploadstblogs/include/*.h /usr/local/include
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
 
-cd ../uploadstblogs/unittest
-cd ../..
+cd "$TOP_DIR" || exit 1
 sh cov_build.sh
-cd -
 git clone https://github.com/rdkcentral/iarmmgrs.git
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
 git clone https://github.com/rdkcentral/rdk_logger.git
 cp rdk_logger/include/rdk_logger.h /usr/local/include
 
+cd "$TOP_DIR/uploadstblogs/unittest" || exit 1
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
-pwd
-cd ../../usbLogUpload/unittest
+
+cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
 automake --add-missing
 autoreconf --install
-
 ./configure
-
 make clean
 make
+
+cd "$TOP_DIR/backup_logs/unittest" || exit 1
+automake --add-missing
+autoreconf --install
+./configure
+make clean
+make
+
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
 cd $TOP_DIR/unittest/
@@ -98,7 +100,13 @@ for test in \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
-  ./../usbLogUpload/unittest/usb_log_archive_gtest
+  ./../usbLogUpload/unittest/usb_log_archive_gtest \
+  ./../usbLogUpload/unittest/usb_log_main_gtest \
+  ./../backup_logs/unittest/backup_engine_gtest \
+  ./../backup_logs/unittest/backup_logs_gtest \
+  ./../backup_logs/unittest/config_manager_gtest \
+  ./../backup_logs/unittest/special_files_gtest \
+  ./../backup_logs/unittest/sys_integration_gtest
   
 do
     $test
@@ -118,11 +126,32 @@ fi
 
 if [ "$ENABLE_COV" = true ]; then
     echo "********************"
-    echo "**** CAPTURE DCM-AGENT COVERAGE DATA ****"
-    echo "********************"
     echo "Generating coverage report"
-    lcov --capture --directory . --output-file coverage.info
-    lcov --remove coverage.info '/usr/*' --output-file coverage.info
-    lcov --remove coverage.info "${PWD}/*" --output-file coverage.info
-    lcov --list coverage.info
+    echo "********************"
+    COV_DIR="$TOP_DIR/unittest"
+
+    # Per-module capture
+    lcov --capture --directory "$TOP_DIR/unittest" --output-file "$COV_DIR/dcm.info"
+    lcov --capture --directory "$TOP_DIR/uploadstblogs/unittest" --output-file "$COV_DIR/uploadstblogs.info"
+    lcov --capture --directory "$TOP_DIR/usbLogUpload/unittest" --output-file "$COV_DIR/usblogupload.info"
+    lcov --capture --directory "$TOP_DIR/backup_logs/unittest" --output-file "$COV_DIR/backup_logs.info"
+    lcov --list "$COV_DIR/uploadstblogs.info"
+    lcov --list "$COV_DIR/usblogupload.info"
+    lcov --list "$COV_DIR/backup_logs.info"
+
+    # Per-module filter: strip system headers, test drivers, and mocks
+    for info in dcm.info uploadstblogs.info usblogupload.info backup_logs.info; do
+        lcov --remove "$COV_DIR/$info" '/usr/*' --output-file "$COV_DIR/$info"
+        lcov --remove "$COV_DIR/$info" '*_gtest*' --output-file "$COV_DIR/$info"
+        lcov --remove "$COV_DIR/$info" '*/mocks/*' --output-file "$COV_DIR/$info"
+    done
+
+    # Merge all modules into a single combined report
+    lcov -a "$COV_DIR/dcm.info" \
+         -a "$COV_DIR/uploadstblogs.info" \
+         -a "$COV_DIR/usblogupload.info" \
+         -a "$COV_DIR/backup_logs.info" \
+         --output-file "$COV_DIR/combined.info"
+
+    lcov --list "$COV_DIR/combined.info"
 fi

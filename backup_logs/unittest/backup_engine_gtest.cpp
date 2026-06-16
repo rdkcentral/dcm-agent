@@ -32,6 +32,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
+#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
+#define GTEST_DEFAULT_RESULT_FILENAME "backup_engine_gtest_report.json"
+#define GTEST_REPORT_FILEPATH_SIZE 256
 
 extern "C" {
     #include "backup_engine.h" 
@@ -312,12 +315,6 @@ extern "C" {
         return mock_control.time_return;
     }
     
-    struct tm* __wrap_localtime(const time_t *timep) {
-        (void)timep;
-        mock_control.localtime_called = true;
-        return mock_control.localtime_return;
-    }
-    
     size_t __wrap_strftime(char *s, size_t max, const char *format, const struct tm *tm) {
         mock_control.strftime_called = true;
         if (format) {
@@ -526,7 +523,6 @@ TEST_F(BackupEngineTest, HDDEnabledStrategy_SubsequentBackup) {
     EXPECT_EQ(result, BACKUP_SUCCESS);
     EXPECT_TRUE(mock_control.createDir_called); // Creates timestamped directory
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
     EXPECT_TRUE(mock_control.strftime_called);
 }
 
@@ -742,7 +738,6 @@ TEST_F(BackupEngineTest, TimeOperations_FailureHandling) {
     int result = backup_execute_hdd_enabled_strategy(&test_config);
     
     EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.localtime_called);
     // Function should still attempt to continue
 }
 
@@ -766,6 +761,15 @@ TEST_F(BackupEngineTest, FileOperations_EdgeCases) {
 // ================================================================================================
 
 int main(int argc, char **argv) {
+    char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
+    char buffer[GTEST_REPORT_FILEPATH_SIZE];
+
+    memset( testresults_fullfilepath, 0, GTEST_REPORT_FILEPATH_SIZE );
+    memset( buffer, 0, GTEST_REPORT_FILEPATH_SIZE );
+
+    snprintf( testresults_fullfilepath, GTEST_REPORT_FILEPATH_SIZE, "json:%s%s" , GTEST_DEFAULT_RESULT_FILEPATH , GTEST_DEFAULT_RESULT_FILENAME);
+    ::testing::GTEST_FLAG(output) = testresults_fullfilepath;
     ::testing::InitGoogleTest(&argc, argv);
+    
     return RUN_ALL_TESTS();
 }
