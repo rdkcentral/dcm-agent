@@ -32,6 +32,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
+#define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
+#define GTEST_DEFAULT_RESULT_FILENAME "backup_engine_gtest_report.json"
+#define GTEST_REPORT_FILEPATH_SIZE 256
 
 extern "C" {
     #include "backup_engine.h" 
