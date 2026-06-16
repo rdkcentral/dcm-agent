@@ -61,6 +61,110 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
+
+
+/* ---- Prerequisite sentinel helpers ---- */
+
+/**
+ * wait_for_backup_logs - Hard gate: poll for the backup_logs completion sentinel.
+ *
+ * Polls BACKUP_LOGS_DONE_FLAG (/tmp/.backup_logs_done) every
+ * BACKUP_LOGS_POLL_INTERVAL_S seconds for up to BACKUP_LOGS_POLL_TIMEOUT_S seconds.
+ *
+ * Returns  0 when the sentinel is present (PreviousLogs/ is complete and safe to read).
+ * Returns -1 on timeout.  The caller MUST abort the reboot upload on -1 — there is
+ * nothing safe to archive if backup_logs did not complete successfully.
+ */
+static int wait_for_backup_logs(void)
+{
+    struct timespec start, now;
+    struct stat st;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    for (;;) {
+        if (stat(BACKUP_LOGS_DONE_FLAG, &st) == 0) {
+            return 0; /* backup_logs complete — PreviousLogs/ is safe to read */
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if ((now.tv_sec - start.tv_sec) >= (time_t)BACKUP_LOGS_POLL_TIMEOUT_S) {
+            return -1; /* timeout — backup_logs may have failed */
+        }
+        sleep(BACKUP_LOGS_POLL_INTERVAL_S);
+    }
+}
+
+/**
+ * trigger_reboot_info_update - Write trigger sentinel when reboot-reason is absent.
+ *
+ * Called ONCE at the start of reboot_setup() before the polling loop.
+ * Writing the trigger file signals update-prev-reboot-info (reboot-manager) to
+ * perform an immediate reboot-reason update within the upload window.
+ *
+ * Cross-repo interface: TRIGGER_REBOOT_INFO_UPDATE consumed by reboot-manager.
+ */
+static void trigger_reboot_info_update(void)
+{
+    struct stat st;
+
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        int fd = open(TRIGGER_REBOOT_INFO_UPDATE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if (fd >= 0) {
+            close(fd);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Wrote reboot reason trigger: %s\n",
+                    __FUNCTION__, __LINE__, TRIGGER_REBOOT_INFO_UPDATE);
+        }
+    }
+}
+
+/**
+ * wait_for_reboot_reason - Poll for the reboot-reason completion sentinel.
+ *
+ * Polls PATH_FLAG_INVOCATION (/tmp/Update_rebootInfo_invoked) every
+ * REBOOT_POLL_INTERVAL_S seconds for up to REBOOT_POLL_TIMEOUT_S seconds.
+ *
+ * Uses clock_gettime(CLOCK_MONOTONIC) to measure elapsed time accurately,
+ * avoiding cumulative drift from EINTR-interrupted sleep() calls.
+ *
+ * Returns  0 when the sentinel is present (previousreboot.info is ready).
+ * Returns -1 on timeout.  A timeout does NOT abort the upload; the caller
+ * annotates the session and proceeds.
+ */
+static int wait_for_reboot_reason(void)
+{
+    struct timespec start, now;
+    struct stat st;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    for (;;) {
+        if (stat(PATH_FLAG_INVOCATION, &st) == 0) {
+            return 0; /* reboot reason ready */
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
+            return -1; /* timeout */
+        }
+        sleep(REBOOT_POLL_INTERVAL_S);
+    }
+}
+
+/**
+ * set_upload_annotation - Record a prerequisite-failure annotation in the session.
+ *
+ * @param session     Active session.
+ * @param annotation  One of ANNOTATION_* codes defined in uploadstblogs_types.h.
+ */
+static void set_upload_annotation(SessionState *session, int annotation)
+{
+    if (session) {
+        session->upload_annotations |= (1 << annotation);
+    }
+}
+
 /**
  * @brief Read upload_flag from DCMSettings.conf
  * @return true if upload is enabled, false otherwise
