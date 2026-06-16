@@ -45,6 +45,58 @@
 #define STATUS_FILE "/opt/loguploadstatus.txt"
 #define DCM_TEMP_DIR "/tmp/DCM"
 
+
+/* ==========================
+   Boot Synchronisation Sentinels (REQ-SYNC-001, REQ-SYNC-003)
+   All sentinels are volatile /tmp files; cleared automatically on every reboot.
+   ========================== */
+
+/** backup_logs completion sentinel — written by the backup_logs binary after a
+ *  successful backup_logs_execute().
+ *  Hard gate: if absent at upload time, PreviousLogs/ is incomplete and the reboot
+ *  upload is aborted (nothing safe to archive).
+ *  Cross-repo interface: path is also defined in backup_logs/include/backup_logs.h.
+ *  Any change MUST be coordinated with the reboot-manager and telemetry repositories. */
+#define BACKUP_LOGS_DONE_FLAG         "/tmp/.backup_logs_done"
+
+/** Poll interval and timeout for the backup_logs hard-gate sentinel.  The timeout is
+ *  intentionally shorter than REBOOT_POLL_TIMEOUT_S; if backup_logs hasn't finished
+ *  within this window it is considered failed and the upload is aborted. */
+#define BACKUP_LOGS_POLL_INTERVAL_S   1u
+#ifdef GTEST_ENABLE
+#define BACKUP_LOGS_POLL_TIMEOUT_S    2u
+#else
+#define BACKUP_LOGS_POLL_TIMEOUT_S    60u
+#endif
+
+/** Reboot reason completion sentinel — written by update-prev-reboot-info (reboot-manager).
+ *  Presence guarantees /opt/secure/reboot/previousreboot.info is written and complete.
+ *  Cross-repo interface: path is also defined in reboot-manager.
+ *  Any change MUST be coordinated with the reboot-manager repository. */
+#define PATH_FLAG_INVOCATION          "/tmp/Update_rebootInfo_invoked"
+
+/** Trigger file written by uploadstblogs when PATH_FLAG_INVOCATION is absent at upload
+ *  time, signalling reboot-manager to perform an immediate reboot-reason update.
+ *  Cross-repo interface: consumed by reboot-manager/update-prev-reboot-info.
+ *  Any path change MUST be coordinated with reboot-manager. */
+#define TRIGGER_REBOOT_INFO_UPDATE    "/tmp/.trigger_reboot_info_update"
+
+/** Poll interval (seconds) for the reboot-reason prerequisite sentinel. */
+#define REBOOT_POLL_INTERVAL_S        1u
+
+/** Total poll timeout (seconds) for the reboot-reason prerequisite sentinel.
+ *  For unit tests (GTEST_ENABLE) a shorter value avoids multi-minute waits. */
+#ifdef GTEST_ENABLE
+#define REBOOT_POLL_TIMEOUT_S         2u
+#else
+#define REBOOT_POLL_TIMEOUT_S         120u
+#endif
+
+/** Annotation code set in SessionState when the reboot-reason sentinel times out.
+ *  Upload always proceeds; this records that previousreboot.info was unavailable. */
+#define ANNOTATION_REBOOT_REASON_UNAVAILABLE 1
+
+
 /* ==========================
    Enumerations
    ========================== */
