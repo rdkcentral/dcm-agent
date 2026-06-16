@@ -143,12 +143,22 @@ if [ "$ENABLE_COV" = true ]; then
         lcov --remove "$COV_DIR/$info" '*/mocks/*' --output-file "$COV_DIR/$info"
     done
 
-    # Merge all modules into a single combined report
-    lcov -a "$COV_DIR/dcm.info" \
-         -a "$COV_DIR/uploadstblogs.info" \
-         -a "$COV_DIR/usblogupload.info" \
-         -a "$COV_DIR/backup_logs.info" \
-         --output-file "$COV_DIR/combined.info"
+    # Build merge arguments: only include info files that have valid coverage records
+    MERGE_ARGS=""
+    for info in dcm.info uploadstblogs.info usblogupload.info backup_logs.info; do
+        if grep -q "^DA:" "$COV_DIR/$info" 2>/dev/null; then
+            MERGE_ARGS="$MERGE_ARGS -a $COV_DIR/$info"
+        else
+            echo "Skipping $info: no valid coverage records after filtering"
+        fi
+    done
 
-    lcov --list "$COV_DIR/combined.info"
+    # Merge all non-empty modules into a single combined report
+    if [ -n "$MERGE_ARGS" ]; then
+        # shellcheck disable=SC2086
+        lcov $MERGE_ARGS --output-file "$COV_DIR/combined.info"
+        lcov --list "$COV_DIR/combined.info"
+    else
+        echo "WARNING: No coverage data found in any module; skipping combined report generation"
+    fi
 fi
