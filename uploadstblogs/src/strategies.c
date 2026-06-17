@@ -977,13 +977,13 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     // If the sentinel is absent, PreviousLogs/ may be incomplete — abort.
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
             "[%s:%d] Waiting for backup_logs sentinel %s (timeout %us)\n",
-            __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG, BACKUP_LOGS_POLL_TIMEOUT_S);
+            __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG, BACKUP_LOGS_SYNC_TIMEOUT_S);
 
     if (wait_for_backup_logs_done() != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] backup_logs sentinel not present after %us. "
                 "PreviousLogs/ may be incomplete. Aborting reboot upload.\n",
-                __FUNCTION__, __LINE__, BACKUP_LOGS_POLL_TIMEOUT_S);
+                __FUNCTION__, __LINE__, BACKUP_LOGS_SYNC_TIMEOUT_S);
         return -1;
     }
 
