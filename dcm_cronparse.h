@@ -32,7 +32,7 @@ extern "C"
 #endif
 /**
  * Parsed cron expression
- */
+*/
 typedef struct {
     UINT8 seconds[8];
     UINT8 minutes[8];
