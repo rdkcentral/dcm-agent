@@ -223,7 +223,19 @@ extern "C" {
         return mock_control.remove_return;
     }
     
+    // Real function declarations for forwarding non-test calls
+    extern int __real_open(const char *pathname, int flags, ...);
+    extern int __real_fstat(int fd, struct stat *statbuf);
+    extern int __real_close(int fd);
+    extern FILE* __real_fopen(const char *filename, const char *mode);
+    extern int __real_fclose(FILE *fp);
+
     FILE* __wrap_fopen(const char *filename, const char *mode) {
+        // Pass gcov profiling files through to the real fopen so coverage
+        // data can be written after RUN_ALL_TESTS() regardless of mock state.
+        if (filename && strstr(filename, ".gcda")) {
+            return __real_fopen(filename, mode);
+        }
         mock_control.fopen_called = true;
         if (filename) {
             strncpy(mock_control.fopen_last_filename, filename, PATH_MAX - 1);
@@ -237,11 +249,14 @@ extern "C" {
         } else {
             mock_control.fopen_last_mode[0] = '\0';
         }
-        return mock_control.fopen_return;
+        return (FILE*)mock_control.fopen_return;
     }
-    
+
     int __wrap_fclose(FILE *fp) {
-        (void)fp;
+        if (fp && fp != (FILE*)mock_control.fopen_return) {
+            // Real FILE handle (e.g., from gcov passthrough) — close it for real.
+            return __real_fclose(fp);
+        }
         mock_control.fclose_called = true;
         return mock_control.fclose_return;
     }
@@ -271,6 +286,10 @@ extern "C" {
     // open/fstat/close mocks (used by backup_and_recover_logs for file type check)
     // These forward to real implementations except when open_return is set (non-zero).
     int __wrap_open(const char *pathname, int flags, ...) {
+        // Pass gcov profiling files through so coverage data can be written.
+        if (pathname && strstr(pathname, ".gcda")) {
+            return __real_open(pathname, flags);
+        }
         if (mock_control.open_return > 0) {
             mock_control.open_called = true;
             mock_control.stat_called = true; // Tests check stat_called for file-type checking
@@ -315,7 +334,7 @@ extern "C" {
     struct tm* __wrap_localtime(const time_t *timep) {
         (void)timep;
         mock_control.localtime_called = true;
-        return mock_control.localtime_return;
+        return (struct tm*)mock_control.localtime_return;
     }
     
     size_t __wrap_strftime(char *s, size_t max, const char *format, const struct tm *tm) {
@@ -770,3 +789,6 @@ int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+
+
+
