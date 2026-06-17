@@ -79,6 +79,27 @@
  *  Upload always proceeds; this records that previousreboot.info was unavailable. */
 #define ANNOTATION_REBOOT_REASON_UNAVAILABLE 1
 
+ *  Presence at upload time means the system clock is accurate; absence means the
+ *  device rebooted without receiving NTP, and an internet check + last-known-good
+ *  time fallback should be attempted.
+ *  Cross-repo interface: path matches STT_FLAG in systimemgr and reboot-manager. */
+#define STT_FLAG                "/tmp/stt_received"
+
+/** Telemetry PreviousLogs scan completion sentinel — written by telemetry after it
+ *  finishes grepping PreviousLogs.  Consumed by uploadstblogs as an optional gate.
+ *  Cross-repo interface: any path change MUST be coordinated with telemetry. */
+#define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
+
+/** Annotation code set in SessionState when NTP was not synced at upload time and
+ *  internet connectivity was absent, so the last-known-good time fallback could not
+ *  be applied.  Upload always proceeds. */
+#define ANNOTATION_NTP_UNAVAILABLE   2
+
+/** Path to the last-known-good clock file maintained by systimemgr (RdkDefaultTimeSync).
+ *  Contains a plain epoch-seconds integer written by systimemgr on every successful
+ *  time update.  Read directly in strategies.c when NTP is absent but internet is up.
+ *  Cross-repo interface: path matches RdkDefaultTimeSync default in systimemgr. */
+#define SYSTIMEMGR_CLOCK_FILE        "/opt/secure/clock.txt"
 
 /* ==========================
    Enumerations
