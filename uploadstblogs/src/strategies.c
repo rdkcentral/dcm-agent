@@ -36,13 +36,16 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+#include <errno.h>
 #include <unistd.h>
 #include <time.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/select.h>
+#include <sys/time.h>
 #include <sys/inotify.h>
+#include <curl/curl.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
@@ -65,6 +68,134 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session);
 static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+
+
+#define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
+#define INTERNET_CHECK_TIMEOUT_S  5L
+
+typedef struct {
+    char   buf[512];
+    size_t len;
+} rpc_resp_t;
+
+static size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
+{
+    rpc_resp_t *r = (rpc_resp_t *)userp;
+    size_t incoming = size * nmemb;
+    size_t space = sizeof(r->buf) - r->len - 1u;
+    if (incoming > space) { incoming = space; }
+    memcpy(r->buf + r->len, ptr, incoming);
+    r->len += incoming;
+    r->buf[r->len] = '\0';
+    return size * nmemb;
+}
+
+static bool nm_query_ipver(const char *ipversion)
+{
+    char payload[256];
+    CURL *ch;
+    rpc_resp_t resp;
+    struct curl_slist *hdrs = NULL;
+    CURLcode rc;
+    int n;
+
+    n = snprintf(payload, sizeof(payload),
+        "{\"jsonrpc\":\"2.0\",\"id\":\"42\","
+        "\"method\":\"org.rdk.NetworkManager.IsConnectedToInternet\","
+        "\"params\":{\"ipversion\":\"%s\"}}", ipversion);
+    if (n < 0 || (size_t)n >= sizeof(payload)) { return false; }
+
+    ch = curl_easy_init();
+    if (!ch) { return false; }
+
+    memset(&resp, 0, sizeof(resp));
+    hdrs = curl_slist_append(NULL, "Content-Type: application/json");
+    if (!hdrs) { curl_easy_cleanup(ch); return false; }
+
+    curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL);
+    curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload);
+    curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs);
+    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb);
+    curl_easy_setopt(ch, CURLOPT_WRITEDATA,     &resp);
+    curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S);
+    curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L);
+
+    rc = curl_easy_perform(ch);
+    curl_slist_free_all(hdrs);
+    curl_easy_cleanup(ch);
+
+    if (rc != CURLE_OK) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] NetworkManager RPC (%s) failed: %s\n",
+                __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
+        return false;
+    }
+
+    /* status != "NO_INTERNET" means connected */
+    return (strstr(resp.buf, "NO_INTERNET") == NULL);
+}
+
+static bool check_internet_connectivity(void)
+{
+    /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
+    if (nm_query_ipver("IPv4")) { return true; }
+    return nm_query_ipver("IPv6");
+}
+
+
+/**
+ * apply_ntp_fallback_time - Apply last-known-good time from systimemgr via RBUS.
+ *
+ * Called when STT_FLAG is absent but internet connectivity is available.
+ * Reads SYSTIMEMGR_RBUS_LAST_TIME (epoch seconds string) and sets the system
+ * clock via settimeofday().  Non-fatal: a warning is logged on any failure
+ * and the upload continues with the existing system time.
+ */
+static void apply_ntp_fallback_time(void)
+{
+    char time_buf[32] = {0};
+    long epoch;
+    struct timeval tv;
+    FILE *fp;
+
+    fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
+    if (!fp) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n",
+                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
+        return;
+    }
+    if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr clock file %s is empty\n",
+                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
+        fclose(fp);
+        return;
+    }
+    fclose(fp);
+
+    epoch = strtol(time_buf, NULL, 10);
+    if (epoch <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr returned invalid epoch string: '%s'\n",
+                __FUNCTION__, __LINE__, time_buf);
+        return;
+    }
+
+    tv.tv_sec  = (time_t)epoch;
+    tv.tv_usec = 0;
+    if (settimeofday(&tv, NULL) != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] settimeofday(%ld) failed (errno=%d)\n",
+                __FUNCTION__, __LINE__, epoch, errno);
+        return;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Applied last-known-good time epoch=%ld from systimemgr\n",
+            __FUNCTION__, __LINE__, epoch);
+}
 
 /* ---- Prerequisite sentinel helpers ---- */
 
@@ -806,6 +937,33 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 {
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
+
+	/* NTP sync check (REQ-SYNC-002).
+     * If STT_FLAG is absent the system clock was not set from NTP this boot.
+     * In that case query the network stack: if internet is reachable the clock
+     * is probably ahead of epoch so we retrieve the last-known-good time from
+     * systimemgr (via RBUS) and apply it with settimeofday().  This ensures
+     * archive timestamps are meaningful even without NTP.
+     * If internet is not reachable we annotate the session and continue — the
+     * upload must not be blocked by a missing time source. */
+    {
+        struct stat st_ntp;
+        if (stat(STT_FLAG, &st_ntp) != 0) {
+            bool connected = check_internet_connectivity();
+
+            if (connected) {
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                        "[%s:%d] NTP absent but internet available; applying last-known-good time\n",
+                        __FUNCTION__, __LINE__);
+                apply_ntp_fallback_time();
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] NTP absent and no internet; proceeding with current system time\n",
+                        __FUNCTION__, __LINE__);
+                session->upload_annotations |= (1 << ANNOTATION_NTP_UNAVAILABLE);
+            }
+        }
+    }
 
 	// Wait for reboot reason sentinel.
     // Poll first — update-prev-reboot-info normally runs at boot and should already
