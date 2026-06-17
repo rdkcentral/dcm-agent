@@ -22,6 +22,7 @@
 #include <memory>
 #include <stdio.h>
 #include <time.h>
+#include <dlfcn.h>
 
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "archive_manager_gtest_report.json"
@@ -87,10 +88,16 @@ static int g_fread_call_count = 0; // Global counter for fread calls per file
 // Helper function to detect if this is a test-related file we should mock
 // Mock implementations
 FILE* fopen(const char* filename, const char* mode) {
-    // Don't mock system library files - return nullptr to prevent crashes
-    if (!filename || strstr(filename, "log4c") || strstr(filename, "rdk_debug") || 
-        strstr(filename, "/etc/") || strstr(filename, "/usr/")) {
-        return nullptr;
+    if (!filename) return nullptr;
+    // Delegate to real fopen for system files and GTest output files to prevent
+    // crashes when GTest writes its JSON report using the fake mock FILE pointer.
+    if (strstr(filename, "log4c") || strstr(filename, "rdk_debug") ||
+        strstr(filename, "/etc/") || strstr(filename, "/usr/") ||
+        strstr(filename, GTEST_DEFAULT_RESULT_FILEPATH) || strstr(filename, ".json")) {
+        typedef FILE* (*real_fopen_t)(const char*, const char*);
+        static real_fopen_t real_fopen = nullptr;
+        if (!real_fopen) real_fopen = (real_fopen_t)dlsym(RTLD_NEXT, "fopen");
+        return real_fopen ? real_fopen(filename, mode) : nullptr;
     }
     if (strstr(filename, "fail")) return nullptr;
     g_fread_call_count = 0;
@@ -102,7 +109,11 @@ int fclose(FILE* stream) {
         g_fread_call_count = 0;
         return 0;
     }
-    return -1;
+    // Delegate to real fclose for real FILE handles (e.g., GTest output files)
+    typedef int (*real_fclose_t)(FILE*);
+    static real_fclose_t real_fclose = nullptr;
+    if (!real_fclose) real_fclose = (real_fclose_t)dlsym(RTLD_NEXT, "fclose");
+    return (real_fclose && stream) ? real_fclose(stream) : -1;
 }
 
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -120,8 +131,14 @@ size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
 }
 
 size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream) {
-    if (stream != mock_file_ptr || !ptr) return 0;
-    return nmemb;
+    if (stream == mock_file_ptr) {
+        return ptr ? nmemb : 0;
+    }
+    // Delegate to real fwrite for real FILE handles (e.g., gcov .gcda profiling output)
+    typedef size_t (*real_fwrite_t)(const void*, size_t, size_t, FILE*);
+    static real_fwrite_t real_fwrite = nullptr;
+    if (!real_fwrite) real_fwrite = (real_fwrite_t)dlsym(RTLD_NEXT, "fwrite");
+    return (real_fwrite && ptr && stream) ? real_fwrite(ptr, size, nmemb, stream) : 0;
 }
 
 int stat(const char* path, struct stat* buf) {
@@ -688,3 +705,4 @@ GTEST_API_ int main(int argc, char *argv[]){
     //testing::Mock::AllowLeak(mock);
     return RUN_ALL_TESTS();
 }
+
