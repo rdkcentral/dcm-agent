@@ -1006,30 +1006,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    // Wait for reboot reason sentinel.
-    // Poll first — update-prev-reboot-info normally runs at boot and should already
-    // be done by now.  Only if the sentinel is still absent after the full timeout
-    // do we write the trigger file to nudge reboot-manager into a retry.
-    {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
-                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
-
-        if (wait_for_reboot_reason() != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel not present after %us. "
-                    "Writing trigger to request immediate update.\n",
-                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
-            trigger_reboot_info_update();
-			set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
-        } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
-                    __FUNCTION__, __LINE__);
-        }
-        /* Always proceed — backup_logs succeeded; upload must occur */
-    }
-
     // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
     int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
@@ -1357,10 +1333,33 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
                 "[%s:%d] Failed to move some files to permanent backup\n", 
                 __FUNCTION__, __LINE__);
     }
-
+	
     // Clean PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
+
+	// Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+
+        if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel not present after %us. "
+                    "Writing trigger to request immediate update.\n",
+                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
+			set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
     
     clean_directory(ctx->prev_log_path);
 
