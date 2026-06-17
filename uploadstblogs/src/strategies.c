@@ -68,172 +68,6 @@ static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_s
 
 /* ---- Prerequisite sentinel helpers ---- */
 
-
-/**
- * poll_for_sentinel - busy-wait until a file appears or timeout expires.
- * Returns 0 when the file exists, -1 on timeout.
- */
-static int poll_for_sentinel(const char *path, unsigned int timeout_s,
-                             unsigned int interval_s)
-{
-    struct timespec start, now;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &start) != 0) {
-        return (access(path, F_OK) == 0) ? 0 : -1;
-    }
-    do {
-        if (access(path, F_OK) == 0) {
-            return 0;
-        }
-        sleep(interval_s);
-        clock_gettime(CLOCK_MONOTONIC, &now);
-    } while ((now.tv_sec - start.tv_sec) < (time_t)timeout_s);
-
-    return (access(path, F_OK) == 0) ? 0 : -1;
-}
-
-/**
- * wait_for_backup_logs_done - inotify-based wait for backup_logs completion sentinel.
- *
- * Blocks until BACKUP_LOGS_DONE_FLAG (/tmp/.backup_logs_done) is created or
- * BACKUP_LOGS_SYNC_TIMEOUT_S seconds elapse.  Uses inotify so the process wakes
- * immediately when the file appears rather than burning CPU on a spin-poll.
- *
- * A post-watch re-check after inotify_add_watch closes the race window between
- * the initial access() fast-path and the watch becoming active.
- *
- * Falls back to a plain poll-sleep loop if inotify_init1 or inotify_add_watch
- * fails (missing kernel support, resource exhaustion, etc.).
- *
- * This is a **soft gate**: on timeout the caller logs a warning and continues
- * so that reboot-manager always produces previousreboot.info, even if
- * PreviousLogs/ is not yet fully populated.
- */
-static void wait_for_backup_logs_done(void)
-{
-    /* Fast path: sentinel already written by backup_logs */
-    if (access(BACKUP_LOGS_DONE_FLAG, F_OK) == 0) {
-        RDK_LOG(RDK_LOG_INFO, "LOG.RDK.REBOOTINFO",
-                "[%s:%d] backup_logs sentinel already present\n",
-                __FUNCTION__, __LINE__);
-        return;
-    }
-
-    RDK_LOG(RDK_LOG_INFO, "LOG.RDK.REBOOTINFO",
-            "[%s:%d] Waiting up to %us for backup_logs sentinel %s\n",
-            __FUNCTION__, __LINE__,
-            BACKUP_LOGS_SYNC_TIMEOUT_S, BACKUP_LOGS_DONE_FLAG);
-
-    int ifd = inotify_init1(IN_CLOEXEC);
-    if (ifd < 0) {
-        RDK_LOG(RDK_LOG_WARN, "LOG.RDK.REBOOTINFO",
-                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, errno);
-        goto fallback_poll;
-    }
-
-    {
-        int wd = inotify_add_watch(ifd, BACKUP_LOGS_DONE_DIR,
-                                   IN_CREATE | IN_MOVED_TO);
-        if (wd < 0) {
-            RDK_LOG(RDK_LOG_WARN, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
-                    __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_DIR, errno);
-            close(ifd);
-            goto fallback_poll;
-        }
-
-        /* Re-check after watch is set — closes race between access() and add_watch */
-        if (access(BACKUP_LOGS_DONE_FLAG, F_OK) == 0) {
-            RDK_LOG(RDK_LOG_INFO, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] backup_logs sentinel detected (race resolved)\n",
-                    __FUNCTION__, __LINE__);
-            inotify_rm_watch(ifd, wd);
-            close(ifd);
-            return;
-        }
-
-        struct timespec deadline;
-        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
-            RDK_LOG(RDK_LOG_WARN, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
-                    __FUNCTION__, __LINE__, errno);
-            inotify_rm_watch(ifd, wd);
-            close(ifd);
-            goto fallback_poll;
-        }
-        deadline.tv_sec += (time_t)BACKUP_LOGS_SYNC_TIMEOUT_S;
-
-        int found = 0;
-        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
-
-        while (!found) {
-            struct timespec now;
-            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
-                now.tv_sec >= deadline.tv_sec) {
-                break; /* timeout */
-            }
-
-            struct timeval tv = {2, 0};
-            fd_set fds;
-            FD_ZERO(&fds);
-            FD_SET(ifd, &fds);
-
-            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
-            if (ret < 0) {
-                if (errno == EINTR) { continue; }
-                break;
-            }
-            if (ret == 0) { continue; } /* 2 s heartbeat — re-check deadline */
-
-            ssize_t len = read(ifd, buf, sizeof(buf));
-            if (len <= 0) { continue; }
-
-            ssize_t offset = 0;
-            while (offset < len) {
-                struct inotify_event *ev =
-                    (struct inotify_event *)(buf + offset);
-                if (ev->len > 0 &&
-                    strcmp(ev->name, BACKUP_LOGS_DONE_FILENAME) == 0) {
-                    found = 1;
-                    break;
-                }
-                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
-            }
-        }
-
-        inotify_rm_watch(ifd, wd);
-        close(ifd);
-
-        if (found) {
-            RDK_LOG(RDK_LOG_INFO, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] backup_logs sentinel detected\n",
-                    __FUNCTION__, __LINE__);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] backup_logs sentinel absent after %us; "
-                    "PreviousLogs/ may be incomplete\n",
-                    __FUNCTION__, __LINE__, BACKUP_LOGS_SYNC_TIMEOUT_S);
-        }
-        return;
-    }
-
-fallback_poll:
-    {
-        if (poll_for_sentinel(BACKUP_LOGS_DONE_FLAG,
-                              BACKUP_LOGS_SYNC_TIMEOUT_S, 1u) == 0) {
-            RDK_LOG(RDK_LOG_INFO, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] backup_logs sentinel detected (poll)\n",
-                    __FUNCTION__, __LINE__);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, "LOG.RDK.REBOOTINFO",
-                    "[%s:%d] backup_logs sentinel absent after %us (poll); "
-                    "PreviousLogs/ may be incomplete\n",
-                    __FUNCTION__, __LINE__, BACKUP_LOGS_SYNC_TIMEOUT_S);
-        }
-    }
-}
-
 /**
  * trigger_reboot_info_update - Write trigger sentinel when reboot-reason is absent.
  *
@@ -973,17 +807,28 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
-    // Hard gate: wait for backup_logs to complete before touching PreviousLogs/.
-    // If the sentinel is absent, PreviousLogs/ may be incomplete — abort.
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Waiting for backup_logs sentinel %s (timeout %us)\n",
-            __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG, BACKUP_LOGS_SYNC_TIMEOUT_S);
+	// Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
 
-    wait_for_backup_logs_done();
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] backup_logs sentinel detected. PreviousLogs/ is complete.\n",
-            __FUNCTION__, __LINE__);
+        if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel not present after %us. "
+                    "Writing trigger to request immediate update.\n",
+                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
+			set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
 
     // Check if PREV_LOG_PATH exists and has .txt or .log files
     if (!dir_exists(ctx->prev_log_path)) {
@@ -1331,29 +1176,6 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     // Clean PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
-
-	// Wait for reboot reason sentinel.
-    // Poll first — update-prev-reboot-info normally runs at boot and should already
-    // be done by now.  Only if the sentinel is still absent after the full timeout
-    // do we write the trigger file to nudge reboot-manager into a retry.
-    {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
-                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
-
-        if (wait_for_reboot_reason() != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel not present after %us. "
-                    "Writing trigger to request immediate update.\n",
-                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
-            trigger_reboot_info_update();
-			set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
-        } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
-                    __FUNCTION__, __LINE__);
-        }
-    }
     
     clean_directory(ctx->prev_log_path);
 
