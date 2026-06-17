@@ -51,18 +51,6 @@
    All sentinels are volatile /tmp files; cleared automatically on every reboot.
    ========================== */
 
-#define BACKUP_LOGS_DONE_FLAG      "/tmp/.backup_logs_done"
-/** Directory and filename split required by inotify_add_watch(). */
-#define BACKUP_LOGS_DONE_DIR       "/tmp"
-#define BACKUP_LOGS_DONE_FILENAME  ".backup_logs_done"
-
-#ifdef GTEST_ENABLE
-#  define BACKUP_LOGS_SYNC_TIMEOUT_S  2u
-#else
-#  define BACKUP_LOGS_SYNC_TIMEOUT_S  60u
-#endif
-
-
 /** Reboot reason completion sentinel — written by update-prev-reboot-info (reboot-manager).
  *  Presence guarantees /opt/secure/reboot/previousreboot.info is written and complete.
  *  Cross-repo interface: path is also defined in reboot-manager.
