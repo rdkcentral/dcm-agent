@@ -39,7 +39,10 @@
 #include <unistd.h>
 #include <time.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/inotify.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
