@@ -79,6 +79,7 @@
  *  Upload always proceeds; this records that previousreboot.info was unavailable. */
 #define ANNOTATION_REBOOT_REASON_UNAVAILABLE 1
 
+/** NTP sync completion sentinel — written by systimemgr when NTP is synchronised.
  *  Presence at upload time means the system clock is accurate; absence means the
  *  device rebooted without receiving NTP, and an internet check + last-known-good
  *  time fallback should be attempted.
