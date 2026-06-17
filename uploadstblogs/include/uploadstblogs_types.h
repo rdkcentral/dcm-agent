@@ -51,16 +51,15 @@
    All sentinels are volatile /tmp files; cleared automatically on every reboot.
    ========================== */
 
-#define BACKUP_LOGS_DONE_FLAG         "/tmp/.backup_logs_done"
+#define BACKUP_LOGS_DONE_FLAG      "/tmp/.backup_logs_done"
+/** Directory and filename split required by inotify_add_watch(). */
+#define BACKUP_LOGS_DONE_DIR       "/tmp"
+#define BACKUP_LOGS_DONE_FILENAME  ".backup_logs_done"
 
-/** Poll interval and timeout for the backup_logs hard-gate sentinel.  The timeout is
- *  intentionally shorter than REBOOT_POLL_TIMEOUT_S; if backup_logs hasn't finished
- *  within this window it is considered failed and the upload is aborted. */
-#define BACKUP_LOGS_POLL_INTERVAL_S   1u
 #ifdef GTEST_ENABLE
-#define BACKUP_LOGS_POLL_TIMEOUT_S    2u
+#  define BACKUP_LOGS_SYNC_TIMEOUT_S  2u
 #else
-#define BACKUP_LOGS_POLL_TIMEOUT_S    60u
+#  define BACKUP_LOGS_SYNC_TIMEOUT_S  60u
 #endif
 
 
