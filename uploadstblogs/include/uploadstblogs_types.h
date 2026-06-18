@@ -299,6 +299,7 @@ typedef struct {
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
     bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
+    time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
     
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
@@ -357,7 +358,6 @@ typedef struct {
     bool success;                   /**< Overall success status */
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
     int upload_annotations;         /**< Bitmask of ANNOTATION_* codes set during prerequisite fallback */
-    time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
 } SessionState;
 
 /* ==========================
