@@ -15,8 +15,8 @@ sequenceDiagram
     note over BL,UL: Boot
 
     BL  ->> BL  : assemble previous logs
-    BL  -->> RM : signal backup complete
-    BL  -->> TEL: signal backup complete
+    BL  -->> RM : inotify(.backup_logs_done)
+    BL  -->> TEL: inotify(.backup_logs_done)
 
     note over BL,UL: Processing
 
@@ -31,7 +31,8 @@ sequenceDiagram
 
     UL  ->> UL  : check backup complete
     UL  ->> UL  : check NTP ready
-    UL  ->> UL  : wait for reboot info ready (120 s)
+    UL  ->> UL  : if NTP not synced and internet available - apply fallback time
+    UL  ->> UL  : inotify(Update_rebootInfo_invoked) 120 s
     UL  -->> RM : re-trigger on timeout
     UL  ->> UL  : archive and upload
 ```
@@ -46,8 +47,8 @@ flowchart TB
 
     BOOT --> BL[backup_logs]
 
-    BL -->|backup complete| RM[reboot-manager]
-    BL -->|backup complete| TEL[telemetry]
+    BL -->|inotify .backup_logs_done| RM[reboot-manager]
+    BL -->|inotify .backup_logs_done| TEL[telemetry]
 
     RM  -->|reboot info ready| DCM[dcm-agent]
     TEL -->|RBUS logupload event| DCM
@@ -57,9 +58,12 @@ flowchart TB
         S([start]) --> G1{"backup complete?"}
         G1 -- no  --> ABORT([ABORT])
         G1 -- yes --> G2{"NTP ready?"}
-        G2 -- no  --> NTP[annotate time unavailable]
-        G2 -- yes --> W{"wait for reboot info 120s"}
-        NTP --> W
+        G2 -- yes --> W{"inotify Update_rebootInfo_invoked 120s"}
+        G2 -- no  --> G3{"internet available?"}
+        G3 -- yes --> FALLBACK[apply fallback time]
+        G3 -- no  --> ANNOT[annotate time unavailable]
+        FALLBACK --> W
+        ANNOT --> W
         W -- ok      --> DONE([archive and upload])
         W -- timeout --> TRIG[re-trigger reboot-manager and annotate]
         TRIG --> DONE
