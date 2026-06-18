@@ -50,10 +50,17 @@ flowchart TB
     BOOT --> BL[backup_logs]
 
     BL -->|inotify .backup_logs_done| RM[reboot-manager]
-    BL -->|inotify .backup_logs_done| TEL[telemetry]
+    BL -->|inotify .backup_logs_done| TEL_BL
 
     RM  -->|write reboot info sentinel| W
-    TEL -->|inotify NTP sync then RBUS logupload event| DCM[dcm-agent]
+
+    subgraph TEL [telemetry]
+        direction TB
+        TEL_BL[inotify wait .backup_logs_done] --> TEL_NTP[inotify wait NTP sync indicator]
+        TEL_NTP --> TEL_GREP[grep previous logs]
+    end
+
+    TEL_GREP -->|RBUS logupload event| DCM[dcm-agent]
 
     subgraph UL [uploadstblogs log upload]
         direction TB
