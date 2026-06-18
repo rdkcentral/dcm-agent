@@ -200,25 +200,26 @@ static void apply_ntp_fallback_time(void)
 /* ---- Prerequisite sentinel helpers ---- */
 
 /**
- * trigger_reboot_info_update - Write trigger sentinel when reboot-reason is absent.
+ * trigger_reboot_info_update - Touch STT_FLAG to trigger reboot-reason update.
  *
  * Called only after wait_for_reboot_reason() times out.
- * Writing the trigger signals update-prev-reboot-info (reboot-manager) to
- * perform an immediate reboot-reason update within the upload window.
+ * Touching STT_FLAG (/tmp/stt_received) signals update-prev-reboot-info
+ * (reboot-manager) to perform an immediate reboot-reason update; reboot-manager
+ * watches STT_FLAG as its primary gate to run update_reboot_info().
  *
- * Cross-repo interface: TRIGGER_REBOOT_INFO_UPDATE consumed by reboot-manager.
+ * Cross-repo interface: STT_FLAG is watched by reboot-manager.
  */
 static void trigger_reboot_info_update(void)
 {
     struct stat st;
 
     if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
-        int fd = open(TRIGGER_REBOOT_INFO_UPDATE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
         if (fd >= 0) {
             close(fd);
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Wrote reboot reason trigger: %s\n",
-                    __FUNCTION__, __LINE__, TRIGGER_REBOOT_INFO_UPDATE);
+                    "[%s:%d] Touched STT_FLAG to trigger reboot reason update: %s\n",
+                    __FUNCTION__, __LINE__, STT_FLAG);
         }
     }
 }
