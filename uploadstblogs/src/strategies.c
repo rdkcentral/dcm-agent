@@ -145,18 +145,19 @@ static bool check_internet_connectivity(void)
 
 
 /**
- * apply_ntp_fallback_time - Apply last-known-good time from systimemgr via RBUS.
+ * apply_ntp_fallback_time - Read last-known-good epoch from systimemgr clock file.
  *
  * Called when STT_FLAG is absent but internet connectivity is available.
- * Reads SYSTIMEMGR_RBUS_LAST_TIME (epoch seconds string) and sets the system
- * clock via settimeofday().  Non-fatal: a warning is logged on any failure
- * and the upload continues with the existing system time.
+ * Returns the epoch seconds read from SYSTIMEMGR_CLOCK_FILE so the caller can
+ * embed it directly in the archive filename via ctx->archive_ref_time.
+ * Does NOT modify the system clock.
+ *
+ * Returns the epoch (> 0) on success, 0 on any failure.
  */
-static void apply_ntp_fallback_time(void)
+static time_t apply_ntp_fallback_time(void)
 {
     char time_buf[32] = {0};
     long epoch;
-    struct timeval tv;
     FILE *fp;
 
     fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
@@ -164,14 +165,14 @@ static void apply_ntp_fallback_time(void)
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                 "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n",
                 __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
-        return;
+        return 0;
     }
     if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                 "[%s:%d] systimemgr clock file %s is empty\n",
                 __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
         fclose(fp);
-        return;
+        return 0;
     }
     fclose(fp);
 
@@ -180,21 +181,13 @@ static void apply_ntp_fallback_time(void)
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                 "[%s:%d] systimemgr returned invalid epoch string: '%s'\n",
                 __FUNCTION__, __LINE__, time_buf);
-        return;
-    }
-
-    tv.tv_sec  = (time_t)epoch;
-    tv.tv_usec = 0;
-    if (settimeofday(&tv, NULL) != 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] settimeofday(%ld) failed (errno=%d)\n",
-                __FUNCTION__, __LINE__, epoch, errno);
-        return;
+        return 0;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Applied last-known-good time epoch=%ld from systimemgr\n",
+            "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n",
             __FUNCTION__, __LINE__, epoch);
+    return (time_t)epoch;
 }
 
 /* ---- Prerequisite sentinel helpers ---- */
@@ -971,7 +964,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                         "[%s:%d] NTP absent but internet available; applying last-known-good time\n",
                         __FUNCTION__, __LINE__);
-                apply_ntp_fallback_time();
+                ctx->archive_ref_time = apply_ntp_fallback_time();
             } else {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] NTP absent and no internet; proceeding with current system time\n",
