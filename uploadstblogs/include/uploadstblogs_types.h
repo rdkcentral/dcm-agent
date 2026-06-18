@@ -356,6 +356,7 @@ typedef struct {
     bool success;                   /**< Overall success status */
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
     int upload_annotations;         /**< Bitmask of ANNOTATION_* codes set during prerequisite fallback */
+    time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
 } SessionState;
 
 /* ==========================
