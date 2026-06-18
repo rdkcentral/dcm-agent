@@ -46,43 +46,38 @@ sequenceDiagram
 ## State Machine
 
 ```mermaid
-flowchart LR
+flowchart TB
     BOOT([Boot])
+    BOOT --> SYS["systimemgr<br/>NTP sync"]
+    BOOT --> BL["backup_logs<br/>assemble PreviousLogs"]
 
-    BOOT --> SYS & BL
+    SYS -->|touch| STT[stt_received]
+    SYS -->|write| CLK[clock.txt]
+    BL  -->|write| BLD[.backup_logs_done]
 
-    SYS["systimemgr\nNTP sync"]
-    BL["backup_logs\nassemble PreviousLogs"]
+    STT -->|gate|      RM["reboot-manager<br/>update reboot info"]
+    BLD -->|inotify|   RM
+    BLD -->|inotify|   TEL["telemetry<br/>grep PreviousLogs"]
 
-    SYS -->|touch| STT[/stt_received/]
-    SYS -->|write| CLK[/clock.txt/]
-    BL  -->|write| BLD[/.backup_logs_done/]
+    RM  -->|write| RBI[Update_rebootInfo_invoked]
+    TEL -->|RBUS event| DCM[dcm-agent]
 
-    STT -->|gate|        RM["reboot-manager\nupdate reboot info"]
-    BLD -->|inotify 60s| RM
-    BLD -->|inotify 60s| TEL["telemetry\ngrep PreviousLogs"]
-
-    RM  -->|write| RBI[/Update_rebootInfo_invoked/]
-    TEL -->|RBUS event| DCM["dcm-agent"]
-
-    RBI -->|inotify|         UL_WAIT
-    DCM -->|trigger logupload| UL_START
-
-    subgraph UL [uploadstblogs · reboot_setup]
+    subgraph UL [uploadstblogs reboot_setup]
         direction TB
-        UL_START([start]) --> G1{".backup_logs_done\npresent?"}
+        UL_S([reboot_setup]) --> G1{"backup_logs_done<br/>present?"}
         G1 -- absent  --> ABORT([ABORT])
-        G1 -- present --> G2{"stt_received\npresent?"}
-        G2 -- absent  --> NTP["check internet\nread clock.txt\nor annotate"]
-        G2 -- present --> UL_WAIT{"wait Update_rebootInfo_invoked\n⏱ 120 s"}
-        NTP --> UL_WAIT
-        UL_WAIT -- ok      --> DONE([archive / upload])
-        UL_WAIT -- timeout --> TRIG["touch stt_received\nannotate"]
+        G1 -- present --> G2{"stt_received<br/>present?"}
+        G2 -- absent  --> NTP["check internet<br/>read clock.txt and apply<br/>or annotate NTP_UNAVAILABLE"]
+        G2 -- present --> W{"wait Update_rebootInfo_invoked<br/>120 s"}
+        NTP --> W
+        W -- ok      --> DONE([archive and upload])
+        W -- timeout --> TRIG["touch stt_received to re-trigger RM<br/>annotate REBOOT_REASON_UNAVAILABLE"]
         TRIG --> DONE
     end
 
-    CLK -.->|fallback read| NTP
-    TRIG -.->|re-trigger| RM
+    DCM -->|trigger| UL_S
+    RBI -->|inotify|  W
+    CLK -->|fallback| NTP
 ```
 
 ## Sentinel Reference
