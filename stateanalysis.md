@@ -23,7 +23,8 @@ sequenceDiagram
     RM  ->> RM  : wait for backup complete and NTP ready
     RM  -->> UL : signal reboot info ready
 
-    TEL ->> TEL : wait for backup complete and NTP sync
+    TEL ->> TEL : inotify wait .backup_logs_done
+    TEL ->> TEL : inotify wait NTP sync indicator
     TEL ->> TEL : grep previous logs
     TEL -->> DCM: RBUS logupload event
     DCM -->> UL : trigger log upload
