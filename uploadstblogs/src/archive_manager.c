@@ -385,6 +385,9 @@ struct tar_header {
 static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
                                        const char* source_dir, const char* output_dir,
                                        const char* prefix);
+static bool generate_archive_name_at(char* buffer, size_t buffer_size,
+                                     const char* mac_address, const char* prefix,
+                                     time_t ref_time);
 
 /**
  * @brief Generate archive filename with MAC and timestamp (script format)
@@ -414,16 +417,20 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
         return false;
     }
 
-    time_t now = time(NULL);
+    return generate_archive_name_at(buffer, buffer_size, mac_address, prefix, time(NULL));
+}
 
+static bool generate_archive_name_at(char* buffer, size_t buffer_size,
+                                     const char* mac_address, const char* prefix,
+                                     time_t ref_time)
+{
     struct tm tm_utc;
-    if (gmtime_r(&now, &tm_utc) == NULL) {
+    if (gmtime_r(&ref_time, &tm_utc) == NULL) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
         return false;
     }
 
     char timestamp[32];
-    // Format UTC timestamp as MM-DD-YY-HH-MMAM/PM.
     if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
@@ -706,8 +713,9 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
-    if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
-                               ctx->mac_address, prefix)) {
+    time_t ref_time = (ctx->archive_ref_time != 0) ? ctx->archive_ref_time : time(NULL);
+    if (!generate_archive_name_at(archive_filename, sizeof(archive_filename),
+                                   ctx->mac_address, prefix, ref_time)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
