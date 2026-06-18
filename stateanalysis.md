@@ -26,7 +26,7 @@ sequenceDiagram
     TEL ->> TEL : inotify wait .backup_logs_done
     TEL ->> TEL : inotify wait NTP sync indicator
     TEL ->> TEL : grep previous logs
-    TEL -->> DCM: RBUS logupload event
+    TEL -->> DCM: RBUS event
     DCM -->> UL : trigger log upload
 
     note over BL,UL: uploadstblogs log upload
