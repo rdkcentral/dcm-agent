@@ -30,6 +30,7 @@
 #define UPLOADSTBLOGS_TYPES_H
 
 #include <stdbool.h>
+#include <time.h>
 
 
 /* ==========================
