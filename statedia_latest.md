@@ -56,7 +56,7 @@ flowchart TB
     SYS -->|write| CLK[clock.txt]
     BL  -->|write| BLD[backup_logs_done]
 
-    STT -->|gate|    RM[reboot-manager]
+    STT -->|gate| RM[reboot-manager]
     BLD -->|inotify| RM
     BLD -->|inotify| TEL[telemetry]
 
