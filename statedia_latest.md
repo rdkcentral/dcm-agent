@@ -48,35 +48,36 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     BOOT([Boot])
-    BOOT --> SYS["systimemgr<br/>NTP sync"]
-    BOOT --> BL["backup_logs<br/>assemble PreviousLogs"]
+
+    BOOT --> SYS[systimemgr]
+    BOOT --> BL[backup_logs]
 
     SYS -->|touch| STT[stt_received]
     SYS -->|write| CLK[clock.txt]
-    BL  -->|write| BLD[.backup_logs_done]
+    BL  -->|write| BLD[backup_logs_done]
 
-    STT -->|gate|      RM["reboot-manager<br/>update reboot info"]
-    BLD -->|inotify|   RM
-    BLD -->|inotify|   TEL["telemetry<br/>grep PreviousLogs"]
+    STT -->|gate|    RM[reboot-manager]
+    BLD -->|inotify| RM
+    BLD -->|inotify| TEL[telemetry]
 
-    RM  -->|write| RBI[Update_rebootInfo_invoked]
+    RM  -->|write|      RBI[Update_rebootInfo_invoked]
     TEL -->|RBUS event| DCM[dcm-agent]
 
     subgraph UL [uploadstblogs reboot_setup]
         direction TB
-        UL_S([reboot_setup]) --> G1{"backup_logs_done<br/>present?"}
+        S([start]) --> G1{"backup_logs_done present?"}
         G1 -- absent  --> ABORT([ABORT])
-        G1 -- present --> G2{"stt_received<br/>present?"}
-        G2 -- absent  --> NTP["check internet<br/>read clock.txt and apply<br/>or annotate NTP_UNAVAILABLE"]
-        G2 -- present --> W{"wait Update_rebootInfo_invoked<br/>120 s"}
+        G1 -- present --> G2{"stt_received present?"}
+        G2 -- absent  --> NTP[check internet and apply clock.txt]
+        G2 -- present --> W{"wait Update_rebootInfo_invoked 120s"}
         NTP --> W
         W -- ok      --> DONE([archive and upload])
-        W -- timeout --> TRIG["touch stt_received to re-trigger RM<br/>annotate REBOOT_REASON_UNAVAILABLE"]
+        W -- timeout --> TRIG[touch stt_received and annotate]
         TRIG --> DONE
     end
 
-    DCM -->|trigger| UL_S
-    RBI -->|inotify|  W
+    DCM -->|trigger| S
+    RBI -->|inotify| W
     CLK -->|fallback| NTP
 ```
 
