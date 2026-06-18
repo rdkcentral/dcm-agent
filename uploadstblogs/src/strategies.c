@@ -938,6 +938,21 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
+	/* backup_logs gate (REQ-SYNC-001).
+     * backup_logs writes BACKUP_LOGS_DONE_FLAG when PreviousLogs are fully assembled.
+     * telemetry already waited for this sentinel before grepping PreviousLogs, so it
+     * should be present by now.  If absent, the log set is incomplete — abort and let
+     * the next scheduled upload attempt pick it up once backup_logs finishes. */
+    {
+        struct stat st_bl;
+        if (stat(BACKUP_LOGS_DONE_FLAG, &st_bl) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] backup_logs not done (%s absent); aborting upload\n",
+                    __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
+            return -1;
+        }
+    }
+
 	/* NTP sync check (REQ-SYNC-002).
      * If STT_FLAG is absent the system clock was not set from NTP this boot.
      * In that case query the network stack: if internet is reachable the clock
