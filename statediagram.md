@@ -2,6 +2,52 @@
 
 Cross-repo sentinel flow for dcm-agent · reboot-manager · telemetry · systimemgr.
 
+## High-Level Flow
+
+```mermaid
+sequenceDiagram
+    participant SYS  as systimemgr
+    participant BL   as backup_logs
+    participant RM   as reboot-manager
+    participant TEL  as telemetry
+    participant UL   as uploadstblogs
+
+    note over SYS,UL: ── Boot ──────────────────────────────────────────
+
+    SYS  ->> SYS  : NTP sync attempt
+    SYS  -->> SYS : write /opt/secure/clock.txt (last-known-good)
+    SYS  -->> RM  : [NTP ok] touch /tmp/stt_received
+
+    BL   ->> BL   : assemble PreviousLogs
+    BL   -->> RM  : write /tmp/.backup_logs_done
+    BL   -->> TEL : (same file — inotify)
+    BL   -->> UL  : (same file — stat gate)
+
+    note over SYS,UL: ── Parallel consumers ────────────────────────────
+
+    RM   ->> RM   : inotify wait .backup_logs_done (60 s)
+    RM   ->> RM   : wait STT_FLAG / trigger
+    RM   -->> UL  : write /tmp/Update_rebootInfo_invoked
+
+    TEL  ->> TEL  : inotify wait .backup_logs_done (60 s)
+    TEL  ->> TEL  : grep PreviousLogs
+    TEL  -->> UL  : write /tmp/.telemetry_prevlogs_done
+
+    note over SYS,UL: ── uploadstblogs reboot_setup ────────────────────
+
+    UL   ->> UL   : stat .backup_logs_done → absent? ABORT
+    UL   ->> UL   : stat stt_received → absent?
+    UL   ->> UL   :   check internet (org.rdk.NetworkManager)
+    UL   ->> SYS  :   read /opt/secure/clock.txt → settimeofday
+    UL   ->> UL   : inotify wait Update_rebootInfo_invoked (120 s)
+    UL   -->> RM  : [timeout] touch /tmp/stt_received → re-trigger RM
+    UL   ->> UL   : archive → upload
+```
+
+---
+
+## Detailed State Machine
+
 ```mermaid
 flowchart TD
     BOOT([System Boot]) --> SYS_START & BL_START & RM_START
