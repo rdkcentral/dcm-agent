@@ -51,6 +51,14 @@
    All sentinels are volatile /tmp files; cleared automatically on every reboot.
    ========================== */
 
+/** backup_logs completion sentinel — written by backup_logs (dcm-agent) after
+ *  PreviousLogs have been fully assembled.  Presence guarantees the log set is
+ *  stable and ready for upload.  Absence means backup_logs has not finished;
+ *  reboot_setup() must abort so the upload is not attempted on an incomplete set.
+ *  Cross-repo interface: path is also defined in dcm-agent/backup_logs.
+ *  Any change MUST be coordinated with the backup_logs module. */
+#define BACKUP_LOGS_DONE_FLAG         "/tmp/.backup_logs_done"
+
 /** Reboot reason completion sentinel — written by update-prev-reboot-info (reboot-manager).
  *  Presence guarantees /opt/secure/reboot/previousreboot.info is written and complete.
  *  Cross-repo interface: path is also defined in reboot-manager.
