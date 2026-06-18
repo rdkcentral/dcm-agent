@@ -51,8 +51,8 @@ flowchart TB
     BL -->|inotify .backup_logs_done| RM[reboot-manager]
     BL -->|inotify .backup_logs_done| TEL[telemetry]
 
-    RM  -->|reboot info ready| DCM[dcm-agent]
-    TEL -->|inotify NTP sync then RBUS logupload event| DCM
+    RM  -->|write reboot info sentinel| W
+    TEL -->|inotify NTP sync then RBUS logupload event| DCM[dcm-agent]
 
     subgraph UL [uploadstblogs log upload]
         direction TB
