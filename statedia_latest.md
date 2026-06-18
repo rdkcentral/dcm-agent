@@ -60,7 +60,7 @@ flowchart TB
     BLD -->|inotify| RM
     BLD -->|inotify| TEL[telemetry]
 
-    RM  -->|write|      RBI[Update_rebootInfo_invoked]
+    RM  -->|write| RBI[Update_rebootInfo_invoked]
     TEL -->|RBUS event| DCM[dcm-agent]
 
     subgraph UL [uploadstblogs reboot_setup]
