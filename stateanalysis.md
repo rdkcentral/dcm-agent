@@ -60,7 +60,7 @@ flowchart TB
         TEL_NTP --> TEL_GREP[grep previous logs]
     end
 
-    TEL_GREP -->|RBUS logupload event| DCM[dcm-agent]
+    TEL_GREP -->|RBUS event| DCM[dcm-agent]
 
     subgraph UL [uploadstblogs log upload]
         direction TB
