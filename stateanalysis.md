@@ -23,7 +23,8 @@ sequenceDiagram
     RM  ->> RM  : wait for backup complete and NTP ready
     RM  -->> UL : signal reboot info ready
 
-    TEL ->> TEL : wait for backup complete and grep previous logs
+    TEL ->> TEL : wait for backup complete and NTP sync
+    TEL ->> TEL : grep previous logs
     TEL -->> DCM: RBUS logupload event
     DCM -->> UL : trigger log upload
 
@@ -51,7 +52,7 @@ flowchart TB
     BL -->|inotify .backup_logs_done| TEL[telemetry]
 
     RM  -->|reboot info ready| DCM[dcm-agent]
-    TEL -->|RBUS logupload event| DCM
+    TEL -->|inotify NTP sync then RBUS logupload event| DCM
 
     subgraph UL [uploadstblogs log upload]
         direction TB
