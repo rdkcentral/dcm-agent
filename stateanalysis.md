@@ -1,28 +1,24 @@
 # Boot Synchronisation State Machine
 
-Cross-repo sentinel flow for dcm-agent · reboot-manager · telemetry · systimemgr.
+Cross-repo sentinel flow for dcm-agent · reboot-manager · telemetry.
 
 ## High-Level Flow
 
 ```mermaid
 sequenceDiagram
-    participant SYS as systimemgr
     participant BL  as backup_logs
     participant RM  as reboot-manager
     participant TEL as telemetry
     participant DCM as dcm-agent
     participant UL  as uploadstblogs
 
-    note over SYS,UL: Boot
-
-    SYS ->> SYS : NTP sync and time update
-    SYS -->> RM : signal NTP ready
+    note over BL,UL: Boot
 
     BL  ->> BL  : assemble previous logs
     BL  -->> RM : signal backup complete
     BL  -->> TEL: signal backup complete
 
-    note over SYS,UL: Processing
+    note over BL,UL: Processing
 
     RM  ->> RM  : wait for backup complete and NTP ready
     RM  -->> UL : signal reboot info ready
@@ -31,11 +27,10 @@ sequenceDiagram
     TEL -->> DCM: RBUS logupload event
     DCM -->> UL : trigger log upload
 
-    note over SYS,UL: uploadstblogs log upload
+    note over BL,UL: uploadstblogs log upload
 
-    UL  ->> UL  : check backup complete sentinel
-    UL  ->> UL  : check NTP ready sentinel
-    UL  ->> UL  : check internet and apply fallback time if needed
+    UL  ->> UL  : check backup complete
+    UL  ->> UL  : check NTP ready
     UL  ->> UL  : wait for reboot info ready (120 s)
     UL  -->> RM : re-trigger on timeout
     UL  ->> UL  : archive and upload
@@ -49,12 +44,10 @@ sequenceDiagram
 flowchart TB
     BOOT([Boot])
 
-    BOOT --> SYS[systimemgr]
     BOOT --> BL[backup_logs]
 
-    SYS -->|NTP ready| RM
-    BL  -->|backup complete| RM
-    BL  -->|backup complete| TEL[telemetry]
+    BL -->|backup complete| RM[reboot-manager]
+    BL -->|backup complete| TEL[telemetry]
 
     RM  -->|reboot info ready| DCM[dcm-agent]
     TEL -->|RBUS logupload event| DCM
@@ -64,7 +57,7 @@ flowchart TB
         S([start]) --> G1{"backup complete?"}
         G1 -- no  --> ABORT([ABORT])
         G1 -- yes --> G2{"NTP ready?"}
-        G2 -- no  --> NTP[check internet and apply fallback time]
+        G2 -- no  --> NTP[annotate time unavailable]
         G2 -- yes --> W{"wait for reboot info 120s"}
         NTP --> W
         W -- ok      --> DONE([archive and upload])
