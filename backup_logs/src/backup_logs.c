@@ -35,6 +35,7 @@
 #include <secure_wrapper.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
@@ -278,6 +279,17 @@ int backup_logs_main(int argc, char *argv[]) {
     static backup_config_t config;
     memset(&config, 0, sizeof(config));
 
+    /* Record monotonic start time for elapsed-time measurements */
+    struct timespec start_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    {
+        time_t now = time(NULL);
+        struct tm *tm_info = localtime(&now);
+        char wall_ts[32];
+        strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "backup_logs start wall-clock time: %s\n", wall_ts);
+    }
+
     /* Initialize backup system */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Initializing backup system\n");
     result = backup_logs_init(&config);
@@ -287,6 +299,22 @@ int backup_logs_main(int argc, char *argv[]) {
     }
 
     /* Execute backup process */
+
+    {
+        struct timespec exec_ts;
+        clock_gettime(CLOCK_MONOTONIC, &exec_ts);
+        long el_sec  = (long)(exec_ts.tv_sec  - start_time.tv_sec);
+        long el_msec = (exec_ts.tv_nsec - start_time.tv_nsec) / 1000000L;
+        if (el_msec < 0) { el_sec--; el_msec += 1000L; }
+        time_t wall = time(NULL);
+        struct tm *tm_info = localtime(&wall);
+        char wall_ts[32];
+        strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS,
+                "Backup execution start wall-clock time: %s  (elapsed since backup_logs start: %lds %ldms)\n",
+                wall_ts, el_sec, el_msec);
+    }
+    
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Starting backup execution\n");
     result = backup_logs_execute(&config);
     if (result != BACKUP_SUCCESS) {
@@ -295,6 +323,23 @@ int backup_logs_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    {
+        struct timespec done_ts;
+        clock_gettime(CLOCK_MONOTONIC, &done_ts);
+        long el_sec  = (long)(done_ts.tv_sec  - start_time.tv_sec);
+        long el_msec = (done_ts.tv_nsec - start_time.tv_nsec) / 1000000L;
+        if (el_msec < 0) { el_sec--; el_msec += 1000L; }
+        if (result != BACKUP_SUCCESS) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS,
+                    "Backup execution failed with result: %d  (elapsed since backup_logs start: %lds %ldms)\n",
+                    result, el_sec, el_msec);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS,
+                    "Backup execution completed successfully  (elapsed since backup_logs start: %lds %ldms)\n",
+                    el_sec, el_msec);
+        }
+    }
+    
     /* Cleanup and exit */
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting cleanup and shutdown\n");
     result = backup_logs_cleanup(&config);
@@ -318,6 +363,17 @@ int backup_logs_main(int argc, char *argv[]) {
             close(sentinel_fd);
             RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Sentinel written: %s\n", BACKUP_LOGS_DONE_FLAG);
         }
+    }
+
+    {
+        struct timespec final_ts;
+        clock_gettime(CLOCK_MONOTONIC, &final_ts);
+        long el_sec  = (long)(final_ts.tv_sec  - start_time.tv_sec);
+        long el_msec = (final_ts.tv_nsec - start_time.tv_nsec) / 1000000L;
+        if (el_msec < 0) { el_sec--; el_msec += 1000L; }
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS,
+                "Backup process completed successfully  (total elapsed: %lds %ldms)\n",
+                el_sec, el_msec);
     }
     return EXIT_SUCCESS;
 }
