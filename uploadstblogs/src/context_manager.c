@@ -170,7 +170,7 @@ bool init_context(RuntimeContext* ctx)
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
         //.output = RDKLOG_OUTPUT_FILE,          /* Output to console (stdout/stderr) */
-        .output = RDKLOG_OUTPUT_CONSOLE
+        .output = RDKLOG_OUTPUT_CONSOLE,
         .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
         //.pFilePolicy =  &filelog                  /* Not using file output, so NULL */
         .pFilePolicy = NULL
