@@ -1011,28 +1011,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         emit_no_logs_reboot(ctx);
         return -1;
     }
-
-	    // Check system uptime and sleep if needed
-    // Script lines 818-836: if uptime < 900s, sleep 330s
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        if (uptime_seconds < 900.0) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] System uptime %.0f seconds \n", __FUNCTION__, __LINE__, uptime_seconds);
-		}
-	}
-
-	/* Record monotonic start time for elapsed-time measurement */
-    struct timespec workflow_start;
-    clock_gettime(CLOCK_MONOTONIC, &workflow_start);
-    {
-        time_t now_wall = time(NULL);
-        struct tm *tm_info = localtime(&now_wall);
-        char wall_ts[32];
-        strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Log upload workflow start wall-clock: %s\n",
-                __FUNCTION__, __LINE__, wall_ts);
-    }
 	
     // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
