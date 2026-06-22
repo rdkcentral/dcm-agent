@@ -1177,24 +1177,7 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
  */
 static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 {
-    bool should_upload = false;
 	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
-    
-    // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
-    if (ctx->dcm_flag == 0) {
-        should_upload = true;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
-                __FUNCTION__, __LINE__);
-    }
-    else 
-	{
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s \n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
-        if ( ctx->upload_on_reboot==1 ) {
-            should_upload = true;
-        }
-    }
 
 	// Construct full archive path using session archive filename
     char archive_path[MAX_PATH_LENGTH];
@@ -1206,16 +1189,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
     
-    if (!should_upload) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
-                __FUNCTION__, __LINE__);
-		strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1);
-		session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-        emit_upload_aborted();
-        return 0;
-    }
-
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Uploading main logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
@@ -1253,9 +1226,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-#ifndef L2_TEST_ENABLED
-                sleep(60);
-#endif
             
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
