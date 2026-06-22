@@ -462,6 +462,16 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Release lock and exit */
     release_lock();
+    /* Log elapsed time between upload start and completion */
+    {
+        struct timespec workflow_end;
+        clock_gettime(CLOCK_MONOTONIC, &workflow_end);
+        long elapsed_sec  = (long)(workflow_end.tv_sec  - workflow_start.tv_sec);
+        long elapsed_msec = (workflow_end.tv_nsec - workflow_start.tv_nsec) / 1000000L;
+        if (elapsed_msec < 0) { elapsed_sec--; elapsed_msec += 1000L; }
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Log upload complete. (elapsed: %lds %ldms)\n", __FUNCTION__, __LINE__, elapsed_sec, elapsed_msec);
+    }
+
     return ret;
 }
 
