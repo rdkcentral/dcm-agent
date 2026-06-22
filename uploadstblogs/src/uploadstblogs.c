@@ -233,7 +233,8 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
     SessionState session = {0};
     int ret = 1;
 
-    if (get_system_uptime(&uptime_seconds)) {
+    double uptime_seconds = 0.0;
+	if (get_system_uptime(&uptime_seconds)) {
         if (uptime_seconds < 900.0) {
               RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] System uptime %.0f seconds \n", __FUNCTION__, __LINE__, uptime_seconds);
 		}
@@ -379,6 +380,7 @@ int uploadstblogs_execute(int argc, char** argv)
     /* Clear context to ensure clean state */
     memset(&ctx, 0, sizeof(ctx));
 
+	double uptime_seconds = 0.0;
     if (get_system_uptime(&uptime_seconds)) {
         if (uptime_seconds < 900.0) {
               RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] System uptime %.0f seconds \n", __FUNCTION__, __LINE__, uptime_seconds);
