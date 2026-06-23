@@ -1140,6 +1140,9 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
+#ifndef L2_TEST_ENABLED
+    sleep(120);
+#endif
 
     return 0;
 }
