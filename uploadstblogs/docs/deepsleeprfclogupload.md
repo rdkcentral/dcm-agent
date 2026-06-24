@@ -148,6 +148,65 @@ Result:
 
 When state becomes `DEEP_SLEEP`, SystemServices checks active upload PID and aborts if running. This affects an in-flight upload started earlier, but does not change the true/false gate behavior at ON -> LIGHT_SLEEP.
 
+## Mode State Diagram (Power + RFC Gate)
+
+```mermaid
+stateDiagram-v2
+  [*] --> ON
+
+  ON --> LIGHT_SLEEP: Power change ON->LIGHT_SLEEP
+  state LIGHT_SLEEP {
+    [*] --> EvaluateRFC
+    EvaluateRFC --> StartUpload: RFC_LOG_UPLOAD == true
+    EvaluateRFC --> NoUpload: RFC_LOG_UPLOAD != true
+  }
+
+  StartUpload --> UploadRunning: UploadLogsAsync() + execve(/usr/bin/logupload)
+  NoUpload --> IdleInLightSleep: No upload from RFC gate
+
+  LIGHT_SLEEP --> DEEP_SLEEP: Power change to DEEP_SLEEP
+  UploadRunning --> UploadAborted: AbortLogUpload() on DEEP_SLEEP
+
+  DEEP_SLEEP --> LIGHT_SLEEP: Wake path
+  LIGHT_SLEEP --> ON: Resume active mode
+
+  UploadAborted --> [*]
+```
+
+## Combined Workflow Diagram (rdkservices + dcm-agent)
+
+```mermaid
+flowchart LR
+  subgraph RDK[entservices-systemservices repo]
+    PM[Power Manager Event]
+    S1[SystemServicesImplementation::OnSystemPowerStateChanged]
+    R1[getRFCParameter RFC_LOG_UPLOAD]
+    U1[UploadLogsAsync]
+    U2[UploadLogs::logUploadAsync]
+    EX[execve /usr/bin/logupload]
+    AB[AbortLogUpload on DEEP_SLEEP]
+  end
+
+  subgraph DCM[dcm-agent repo]
+    M1[uploadstblogs main]
+    E1[uploadstblogs_execute]
+    L1[Acquire /tmp/.log-upload.lock]
+    C1[init_context + parse args]
+    S2[early_checks -> STRAT_DCM]
+    A1[dcm_archive create_archive ctx->dcm_log_path]
+    A2[dcm_upload upload_archive]
+  end
+
+  PM --> S1
+  S1 --> R1
+  R1 -->|true| U1
+  R1 -->|false or invalid| N1[No upload from RFC path]
+  U1 --> U2 --> EX --> M1 --> E1 --> L1 --> C1 --> S2 --> A1 --> A2
+  S1 -->|state becomes DEEP_SLEEP| AB
+
+  D1[Source folder from DCM_LOG_PATH or default /tmp/DCM/] --> A1
+```
+
 ## End-to-End Sequence
 
 ```mermaid
