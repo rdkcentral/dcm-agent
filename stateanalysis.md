@@ -14,7 +14,7 @@ sequenceDiagram
 
     note over BL,UL: Boot
 
-    BL  ->> BL  : assemble previous logs
+    BL  ->> BL  : assemble previous logs into temporary log backup (/opt/logs/PreviousLogs)
     BL  -->> RM : inotify(.backup_logs_done)
     BL  -->> TEL: inotify(.backup_logs_done)
 
@@ -47,7 +47,7 @@ sequenceDiagram
 flowchart TB
     BOOT([Boot])
 
-    BOOT --> BL[backup_logs]
+    BOOT --> BL["backup_logs (temporary log backup → /opt/logs/PreviousLogs)"]
 
     BL -->|inotify .backup_logs_done| RM[reboot-manager]
     BL -->|inotify .backup_logs_done| TEL_BL
@@ -85,7 +85,7 @@ flowchart TB
 
 | File | Written by | Consumed by | Mechanism |
 |---|---|---|---|
-| `/tmp/.backup_logs_done` | `backup_logs` (dcm-agent) | reboot-manager, telemetry, uploadstblogs | inotify wait / stat gate |
+| `/tmp/.backup_logs_done` | `backup_logs` (dcm-agent) — temporary log backup (`/opt/logs/PreviousLogs`) | reboot-manager, telemetry, uploadstblogs | inotify wait / stat gate |
 | `/tmp/stt_received` | `systimemgr` (on NTP sync) | reboot-manager (STT gate), uploadstblogs (NTP check); **touched by uploadstblogs** on reboot-reason timeout | stat / touch |
 | `/tmp/Update_rebootInfo_invoked` | `reboot-manager` | uploadstblogs | inotify wait |
 | `/opt/secure/clock.txt` | `systimemgr` (RdkDefaultTimeSync) | uploadstblogs (last-known-good time fallback) | fopen / fgets |
