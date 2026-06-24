@@ -47,7 +47,7 @@ sequenceDiagram
 flowchart TB
     BOOT([Boot])
 
-    BOOT --> BL[backup_logs]
+    BOOT --> BL[Temborary log backup (/opt/logs/PreviousLogs)]
 
     BL -->|inotify .backup_logs_done| RM[reboot-manager]
     BL -->|inotify .backup_logs_done| TEL_BL
