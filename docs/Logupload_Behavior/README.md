@@ -15,10 +15,7 @@ outputs, and how boot-time ordering is (or isn't) enforced.
 ---
 ## RDKE Log Upload Support
 
-```
-
-Yes. Use the following as the Mermaid content in your Markdown:
-
+```mermaid
 flowchart TB
 subgraph T["Trigger Layer"]
 R1["Case 1: Device Reboot"]
