@@ -28,6 +28,7 @@
 extern "C" {
 #include "uploadstblogs_types.h"
 #include "strategy_handler.h"
+int cleanup_old_archives(const char* log_path);
 }
 
 // Mock strategy handlers for testing
@@ -96,6 +97,11 @@ static const StrategyHandler mock_dcm_handler = {
     .upload_phase = mock_upload_phase,
     .cleanup_phase = mock_cleanup_phase
 };
+
+// Mock implementation for cleanup_old_archives
+extern "C" int cleanup_old_archives(const char* log_path) {
+    return 0; // Success
+}
 
 // Override the external strategy handlers
 const StrategyHandler ondemand_strategy_handler = mock_ondemand_handler;

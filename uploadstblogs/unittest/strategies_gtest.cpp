@@ -60,6 +60,7 @@ bool rbus_get_bool_param(const char* param_name, bool* value);
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp);
 int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
 void t2_count_notify(char* marker);
+int cleanup_old_log_backups(const char* log_path, int max_age_days);
 
 // Mock sleep function to avoid delays in tests
 unsigned int sleep(unsigned int seconds);
@@ -202,6 +203,10 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path) {
 
 void t2_count_notify(char* marker) {
     // No-op for tests
+}
+
+int cleanup_old_log_backups(const char* log_path, int max_age_days) {
+    return 0; // Success
 }
 
 // Include the actual implementation for testing

@@ -563,6 +563,7 @@ static UploadResult perform_s3_put_with_fallback(RuntimeContext* ctx, SessionSta
     if (s3_verified == UPLOADSTB_SUCCESS) {
         t2_count_notify("TEST_lu_success");  // Script line 616
         session->success = true;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Direct log upload Success: httpcode= %d\n", __FUNCTION__, __LINE__, session->http_code);
         return UPLOADSTB_SUCCESS;
     }
     
