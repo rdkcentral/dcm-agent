@@ -13,6 +13,9 @@ triggers it, what it does, what events it emits, which other components depend o
 outputs, and how boot-time ordering is (or isn't) enforced.
 
 ---
+<img width="555" height="377" alt="image" src="https://github.com/user-attachments/assets/ea233ee1-2b40-4aad-96b0-963cb913f915" />
+
+---
 
 ## High-Level Ecosystem Map
 
