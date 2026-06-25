@@ -167,8 +167,40 @@ graph LR
 
 
 
+```mermaid
+sequenceDiagram
+    participant BL  as backup_logs
+    participant RM  as reboot-manager
+    participant TEL as telemetry
+    participant DCM as dcm-agent
+    participant UL  as uploadstblogs
 
+    note over BL,UL: Boot
 
+    BL  ->> BL  : assemble previous logs into temporary log backup (/opt/logs/PreviousLogs)
+    BL  -->> RM : inotify(.backup_logs_done)
+    BL  -->> TEL: inotify(.backup_logs_done)
+
+    note over BL,UL: Processing
+
+    RM  ->> RM  : wait for backup complete and NTP ready
+    RM  -->> UL : signal reboot info ready
+
+    TEL ->> TEL : inotify wait .backup_logs_done
+    TEL ->> TEL : inotify wait NTP sync indicator
+    TEL ->> TEL : grep previous logs
+    TEL -->> DCM: RBUS event
+    DCM -->> UL : trigger log upload
+
+    note over BL,UL: uploadstblogs log upload
+
+    UL  ->> UL  : check backup complete
+    UL  ->> UL  : check NTP ready
+    UL  ->> UL  : if NTP not synced and internet available - apply fallback time
+    UL  ->> UL  : inotify(Update_rebootInfo_invoked) 120 s
+    UL  -->> RM : re-trigger on timeout
+    UL  ->> UL  : archive and upload
+```
 
 
 ```mermaid
