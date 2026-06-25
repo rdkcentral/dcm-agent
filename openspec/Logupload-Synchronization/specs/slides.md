@@ -66,6 +66,7 @@ Shared behavior:
 ---
 # Log Upload Flow in RDK
 
+```mermaid
 graph LR
   subgraph C["Caller / Trigger Paths"]
     TEL["telemetry2_0"] -->|NTP sync check & grep previous logs| DCM["DCM Scheduler"]
