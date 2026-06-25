@@ -66,10 +66,9 @@ Shared behavior:
 ---
 # Log Upload Flow in RDK
 
-```mermaid
 graph LR
   subgraph C["Caller / Trigger Paths"]
-    TEL["telemetry2_0"] --> DCM["dcm-agent"]
+    TEL["telemetry2_0"] -->|NTP sync check & grep previous logs| DCM["DCM Scheduler"]
     UMM["Unsolicited Maintenance"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
@@ -110,7 +109,6 @@ graph LR
   LOCK --> SERVER["Log Server"]
 
   style TEL fill:#1b5e20,color:#fff
-  style GREP fill:#2e7d32,color:#fff
   style DCM fill:#2e7d32,color:#fff
   style UMM fill:#2e7d32,color:#fff
   style SS fill:#ef6c00,color:#fff
@@ -122,6 +120,7 @@ graph LR
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
+
 
 
 ```
