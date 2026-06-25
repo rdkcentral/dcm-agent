@@ -670,7 +670,6 @@ graph LR
   S1 -.gates.-> BUP
   S2 -.gates.-> BUP
   S3 -.gates.-> BUP
-  S4 -.gates.-> BUP
 
   BUP --> PREV["Source: /opt/logs/PreviousLogs/"]
   ODP --> CURR["Source: /opt/logs/ current logs"]
