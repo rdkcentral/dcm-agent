@@ -67,16 +67,20 @@ Shared behavior:
 # Log Upload Flow in RDK
 
 ```mermaid
-graph TD
-  subgraph T["Trigger Paths"]
-    direction LR
-    TEL["telemetry2_0"] --> NTP_CHK["NTP sync check"]
-    NTP_CHK --> GREP["grep previous logs"]
+graph LR
+  subgraph C["Caller / Trigger Paths"]
+    TEL["telemetry2_0"] -->|NTP sync check| GREP["grep previous logs"]
     GREP -->|RBUS event| DCM["dcm-agent"]
     UMM["Unsolicited Maintenance"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
     AS["Solicited Maintenance from AS"]
+  end
+
+  subgraph P["Primary Upload Paths"]
+    BUP["Bootup upload path"]
+    ODP["On-demand upload path"]
+    ASG{"PreviousLogs has files?"}
   end
 
   subgraph S["Support Signals (Bootup only)"]
@@ -86,14 +90,13 @@ graph TD
     S4[".telemetry_prevlogs_done"]
   end
 
-  DCM --> BUP["Bootup upload path"]
+  DCM --> BUP
   UMM --> BUP
-  AS --> ASG{"PreviousLogs has files?"}
+  SS --> ODP
+  ULN --> ODP
+  AS --> ASG
   ASG -->|No| SKIP["Skip upload"]
   ASG -->|Yes| BUP
-
-  SS --> ODP["On-demand upload path"]
-  ULN --> ODP
 
   S1 -.gates.-> BUP
   S2 -.gates.-> BUP
@@ -107,6 +110,8 @@ graph TD
   CORE --> LOCK["/tmp/.log-upload.lock"]
   LOCK --> SERVER["Log Server"]
 
+  style TEL fill:#1b5e20,color:#fff
+  style GREP fill:#2e7d32,color:#fff
   style DCM fill:#2e7d32,color:#fff
   style UMM fill:#2e7d32,color:#fff
   style SS fill:#ef6c00,color:#fff
@@ -118,6 +123,7 @@ graph TD
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
+
 
 
 ```
