@@ -164,28 +164,62 @@ Legend:
 
 Before Synchronization Fixes (Race-Prone):
 
-```mermaid
 graph LR
-  BL0["backup_logs"] --> PL0["PreviousLogs/"]
-  RM0["reboot-info"] --> RR0["previousreboot.info"]
-  T20["telemetry2_0"] --> TR0["PreviousLogs scan"]
-  UL0["uploadstblogs"] --> UP0["Archive + Upload"]
-  NTP0["NTP Sync"] --> TS0["stable time"]
+  subgraph C["Caller / Trigger Paths"]
+    TEL["telemetry2_0"] --> DCM["dcm-agent"]
+    UMM["Unsolicited Maintenance"]
+    SS["SystemServices API"]
+    ULN["UploadLogsNow"]
+    AS["Solicited Maintenance from AS"]
+  end
 
-  PL0 -."may race".-> RM0
-  PL0 -."may race".-> T20
-  TR0 -."may overlap rename".-> UL0
-  RR0 -."may be late".-> UL0
-  TS0 -."may be unavailable".-> UL0
-  UL0 --> SERVER0["Log Server"]
+  subgraph P["Primary Upload Paths"]
+    BUP["Bootup upload path"]
+    ODP["On-demand upload path"]
+    ASG{"PreviousLogs has files?"}
+  end
 
-  style BL0 fill:#8bc34a,color:#fff
-  style RM0 fill:#42a5f5,color:#fff
-  style T20 fill:#ec407a,color:#fff
-  style UL0 fill:#ff9800,color:#fff
-  style NTP0 fill:#ab47bc,color:#fff
-  style SERVER0 fill:#00897b,color:#fff
-```
+  subgraph S["Support Signals (Bootup only)"]
+    S1[".backup_logs_done"]
+    S2["stt_received"]
+    S3["Update_rebootInfo_invoked"]
+    S4[".telemetry_prevlogs_done"]
+  end
+
+  DCM --> BUP
+  UMM --> BUP
+  SS --> ODP
+  ULN --> ODP
+  AS --> ASG
+  ASG -->|No| SKIP["Skip upload"]
+  ASG -->|Yes| BUP
+
+  S1 -.gates.-> BUP
+  S2 -.gates.-> BUP
+  S3 -.gates.-> BUP
+  S4 -.gates.-> BUP
+
+  BUP --> PREV["Source: /opt/logs/PreviousLogs/"]
+  ODP --> CURR["Source: /opt/logs/ current logs"]
+  PREV --> CORE["uploadstblogs core"]
+  CURR --> CORE
+  CORE --> LOCK["/tmp/.log-upload.lock"]
+  LOCK --> SERVER["Log Server"]
+
+  style TEL fill:#1b5e20,color:#fff
+  style GREP fill:#2e7d32,color:#fff
+  style DCM fill:#2e7d32,color:#fff
+  style UMM fill:#2e7d32,color:#fff
+  style SS fill:#ef6c00,color:#fff
+  style ULN fill:#ef6c00,color:#fff
+  style AS fill:#8e24aa,color:#fff
+  style BUP fill:#43a047,color:#fff
+  style ODP fill:#fb8c00,color:#fff
+  style SKIP fill:#c62828,color:#fff
+  style CORE fill:#1565c0,color:#fff
+  style LOCK fill:#455a64,color:#fff
+  style SERVER fill:#00897b,color:#fff
+
 
 After Synchronization Fixes (Sentinel-Gated):
 
