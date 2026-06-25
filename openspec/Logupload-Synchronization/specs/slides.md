@@ -68,8 +68,13 @@ Shared behavior:
 
 ```mermaid
 graph LR
-  subgraph C["Caller / Trigger Paths"]
-    DCM["DCM Scheduler"]
+  subgraph T["DCM Triggered Path (Bootup)"]
+    TEL["telemetry2_0"] --> NTP_CHK["NTP sync check"]
+    NTP_CHK --> GREP["grep previous logs"]
+    GREP -->|RBUS event| DCM["dcm-agent"]
+  end
+
+  subgraph C["Other Trigger Paths"]
     UMM["Unsolicited Maintenance"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
@@ -120,6 +125,7 @@ graph LR
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
+
 ```
 
 Note:
