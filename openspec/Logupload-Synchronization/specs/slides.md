@@ -647,7 +647,7 @@ Note:
 ```mermaid
 graph LR
   subgraph C["Caller / Trigger Paths"]
-    DCM["DCM Scheduler"]
+    TEL["telemetry2_0"] -->|NTP sync check & grep previous logs| DCM["DCM Scheduler"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
   end
@@ -670,7 +670,7 @@ graph LR
   S1 -.gates.-> BUP
   S2 -.gates.-> BUP
   S3 -.gates.-> BUP
-
+ 
   BUP --> PREV["Source: /opt/logs/PreviousLogs/"]
   ODP --> CURR["Source: /opt/logs/ current logs"]
   PREV --> CORE["uploadstblogs core"]
@@ -678,6 +678,7 @@ graph LR
   CORE --> LOCK["/tmp/.log-upload.lock"]
   LOCK --> SERVER["Log Server"]
 
+  style TEL fill:#1b5e20,color:#fff
   style DCM fill:#2e7d32,color:#fff
   style SS fill:#ef6c00,color:#fff
   style ULN fill:#ef6c00,color:#fff
@@ -686,6 +687,7 @@ graph LR
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
+
 ```
 
 
