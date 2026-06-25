@@ -67,24 +67,16 @@ Shared behavior:
 # Log Upload Flow in RDK
 
 ```mermaid
-graph LR
-  subgraph T["DCM Triggered Path (Bootup)"]
+graph TD
+  subgraph T["Trigger Paths"]
+    direction LR
     TEL["telemetry2_0"] --> NTP_CHK["NTP sync check"]
     NTP_CHK --> GREP["grep previous logs"]
     GREP -->|RBUS event| DCM["dcm-agent"]
-  end
-
-  subgraph C["Other Trigger Paths"]
     UMM["Unsolicited Maintenance"]
     SS["SystemServices API"]
     ULN["UploadLogsNow"]
     AS["Solicited Maintenance from AS"]
-  end
-
-  subgraph P["Primary Upload Paths"]
-    BUP["Bootup upload path"]
-    ODP["On-demand upload path"]
-    ASG{"PreviousLogs has files?"}
   end
 
   subgraph S["Support Signals (Bootup only)"]
@@ -94,13 +86,14 @@ graph LR
     S4[".telemetry_prevlogs_done"]
   end
 
-  DCM --> BUP
+  DCM --> BUP["Bootup upload path"]
   UMM --> BUP
-  SS --> ODP
-  ULN --> ODP
-  AS --> ASG
+  AS --> ASG{"PreviousLogs has files?"}
   ASG -->|No| SKIP["Skip upload"]
   ASG -->|Yes| BUP
+
+  SS --> ODP["On-demand upload path"]
+  ULN --> ODP
 
   S1 -.gates.-> BUP
   S2 -.gates.-> BUP
@@ -125,6 +118,7 @@ graph LR
   style CORE fill:#1565c0,color:#fff
   style LOCK fill:#455a64,color:#fff
   style SERVER fill:#00897b,color:#fff
+
 
 ```
 
