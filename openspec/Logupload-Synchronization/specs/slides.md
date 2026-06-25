@@ -661,6 +661,52 @@ graph LR
     S1[".backup_logs_done"]
     S2["stt_received"]
     S3["Update_rebootInfo_invoked"]
+  end
+
+  DCM --> BUP
+  SS --> ODP
+  ULN --> ODP
+
+  S1 -.gates.-> BUP
+  S2 -.gates.-> BUP
+  S3 -.gates.-> BUP
+  S4 -.gates.-> BUP
+
+  BUP --> PREV["Source: /opt/logs/PreviousLogs/"]
+  ODP --> CURR["Source: /opt/logs/ current logs"]
+  PREV --> CORE["uploadstblogs core"]
+  CURR --> CORE
+  CORE --> LOCK["/tmp/.log-upload.lock"]
+  LOCK --> SERVER["Log Server"]
+
+  style DCM fill:#2e7d32,color:#fff
+  style SS fill:#ef6c00,color:#fff
+  style ULN fill:#ef6c00,color:#fff
+  style BUP fill:#43a047,color:#fff
+  style ODP fill:#fb8c00,color:#fff
+  style CORE fill:#1565c0,color:#fff
+  style LOCK fill:#455a64,color:#fff
+  style SERVER fill:#00897b,color:#fff
+```
+
+
+```mermaid
+graph LR
+  subgraph C["Caller / Trigger Paths"]
+    DCM["DCM Scheduler"]
+    SS["SystemServices API"]
+    ULN["UploadLogsNow"]
+  end
+
+  subgraph P["Primary Upload Paths"]
+    BUP["Bootup upload path"]
+    ODP["On-demand upload path"]
+  end
+
+  subgraph S["Support Signals (Bootup only)"]
+    S1[".backup_logs_done"]
+    S2["stt_received"]
+    S3["Update_rebootInfo_invoked"]
     S4[".telemetry_prevlogs_done"]
   end
 
