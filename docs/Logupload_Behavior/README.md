@@ -13,6 +13,70 @@ triggers it, what it does, what events it emits, which other components depend o
 outputs, and how boot-time ordering is (or isn't) enforced.
 
 ---
+## RDKE Log Upload Support
+
+```mermaid
+flowchart TB
+subgraph T["Trigger Layer"]
+R1["Case 1: Device Reboot"]
+R2["Case 2: ON to LIGHT_SLEEP; RFC LogUploadBeforeDeepSleep=true"]
+R3["Case 3: External UploadLogsNow Trigger (TR-181/API)"]
+end
+
+subgraph S["Source Selection"]
+P1["Source: /opt/logs/PreviousLogs"]
+P2["Source: /opt/logs"]
+P3["Source: /opt/logs"]
+end
+
+subgraph C["Common Logupload Pipeline"]
+C1["Trigger Router (DCM Agent/logupload)"]
+C2["Archive Build (collect, stage, package)"]
+C3["Upload Engine (HTTP/TFTP per config)"]
+C4["Status and Cleanup (lock, result, temp cleanup)"]
+end
+
+D["Log Server"]
+G1["Reboot readiness gates (sentinels/prerequisites)"]
+
+R1 --> P1
+R2 --> P2
+R3 --> P3
+
+P1 --> C1
+P2 --> C1
+P3 --> C1
+
+P1 -. "optional checks" .-> G1
+G1 -. "then proceed" .-> C1
+
+C1 --> C2 --> C3 --> C4 --> D
+
+classDef case1 fill:#ef5350,stroke:#b71c1c,color:#ffffff,stroke-width:2px;
+classDef case2 fill:#42a5f5,stroke:#0d47a1,color:#ffffff,stroke-width:2px;
+classDef case3 fill:#26a69a,stroke:#004d40,color:#ffffff,stroke-width:2px;
+
+classDef source1 fill:#ffccbc,stroke:#d84315,color:#4e342e,stroke-width:1.5px;
+classDef source2 fill:#bbdefb,stroke:#1565c0,color:#0d47a1,stroke-width:1.5px;
+classDef source3 fill:#b2dfdb,stroke:#00695c,color:#004d40,stroke-width:1.5px;
+
+classDef pipeline fill:#fff176,stroke:#f57f17,color:#5d4037,stroke-width:2px;
+classDef server fill:#7e57c2,stroke:#4527a0,color:#ffffff,stroke-width:2px;
+classDef gate fill:#cfd8dc,stroke:#455a64,color:#263238,stroke-dasharray:4,2;
+
+class R1 case1;
+class R2 case2;
+class R3 case3;
+
+class P1 source1;
+class P2 source2;
+class P3 source3;
+
+class C1,C2,C3,C4 pipeline;
+class D server;
+class G1 gate;
+```
+---
 
 ## High-Level Ecosystem Map
 
