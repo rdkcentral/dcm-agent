@@ -888,7 +888,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     {
         struct stat st_ntp;
         if (stat(STT_FLAG, &st_ntp) != 0) {
-            bool connected = false
+            bool connected = false;
 
             if (connected) {
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
