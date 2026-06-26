@@ -71,77 +71,7 @@ static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_s
 
 
 
-#define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
-#define INTERNET_CHECK_TIMEOUT_S  5L
 
-typedef struct {
-    char   buf[512];
-    size_t len;
-} rpc_resp_t;
-
-static size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
-{
-    rpc_resp_t *r = (rpc_resp_t *)userp;
-    size_t incoming = size * nmemb;
-    size_t space = sizeof(r->buf) - r->len - 1u;
-    if (incoming > space) { incoming = space; }
-    memcpy(r->buf + r->len, ptr, incoming);
-    r->len += incoming;
-    r->buf[r->len] = '\0';
-    return size * nmemb;
-}
-
-static bool nm_query_ipver(const char *ipversion)
-{
-    char payload[256];
-    CURL *ch;
-    rpc_resp_t resp;
-    struct curl_slist *hdrs = NULL;
-    CURLcode rc;
-    int n;
-
-    n = snprintf(payload, sizeof(payload),
-        "{\"jsonrpc\":\"2.0\",\"id\":\"42\","
-        "\"method\":\"org.rdk.NetworkManager.IsConnectedToInternet\","
-        "\"params\":{\"ipversion\":\"%s\"}}", ipversion);
-    if (n < 0 || (size_t)n >= sizeof(payload)) { return false; }
-
-    ch = curl_easy_init();
-    if (!ch) { return false; }
-
-    memset(&resp, 0, sizeof(resp));
-    hdrs = curl_slist_append(NULL, "Content-Type: application/json");
-    if (!hdrs) { curl_easy_cleanup(ch); return false; }
-
-    curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL);
-    curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload);
-    curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs);
-    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb);
-    curl_easy_setopt(ch, CURLOPT_WRITEDATA,     &resp);
-    curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S);
-    curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L);
-
-    rc = curl_easy_perform(ch);
-    curl_slist_free_all(hdrs);
-    curl_easy_cleanup(ch);
-
-    if (rc != CURLE_OK) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] NetworkManager RPC (%s) failed: %s\n",
-                __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
-        return false;
-    }
-
-    /* status != "NO_INTERNET" means connected */
-    return (strstr(resp.buf, "NO_INTERNET") == NULL);
-}
-
-static bool check_internet_connectivity(void)
-{
-    /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
-    if (nm_query_ipver("IPv4")) { return true; }
-    return nm_query_ipver("IPv6");
-}
 
 
 /**
@@ -958,7 +888,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     {
         struct stat st_ntp;
         if (stat(STT_FLAG, &st_ntp) != 0) {
-            bool connected = check_internet_connectivity();
+            bool connected = false
 
             if (connected) {
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
