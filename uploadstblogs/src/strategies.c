@@ -244,88 +244,8 @@ static int wait_for_reboot_reason(void)
         return 0;
     }
 
-    int ifd = inotify_init1(IN_CLOEXEC);
-    if (ifd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, errno);
-        goto fallback_poll;
-    }
 
-    int wd = inotify_add_watch(ifd, PATH_FLAG_INVOCATION_DIR,
-                               IN_CREATE | IN_MOVED_TO);
-    if (wd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION_DIR, errno);
-        close(ifd);
-        goto fallback_poll;
-    }
 
-    /* Re-check after watch is set — closes race between access() and add_watch */
-    if (access(PATH_FLAG_INVOCATION, F_OK) == 0) {
-        inotify_rm_watch(ifd, wd);
-        close(ifd);
-        return 0;
-    }
-
-    {
-        struct timespec deadline;
-        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
-                    __FUNCTION__, __LINE__, errno);
-            inotify_rm_watch(ifd, wd);
-            close(ifd);
-            goto fallback_poll;
-        }
-        deadline.tv_sec += (time_t)REBOOT_POLL_TIMEOUT_S;
-
-        int found = 0;
-        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
-
-        while (!found) {
-            struct timespec now;
-            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
-                now.tv_sec >= deadline.tv_sec) {
-                break; /* timeout */
-            }
-
-            struct timeval tv = {2, 0};
-            fd_set fds;
-            FD_ZERO(&fds);
-            FD_SET(ifd, &fds);
-
-            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
-            if (ret < 0) {
-                if (errno == EINTR) { continue; }
-                break;
-            }
-            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
-
-            ssize_t len = read(ifd, buf, sizeof(buf));
-            if (len <= 0) { continue; }
-
-            ssize_t offset = 0;
-            while (offset < len) {
-                struct inotify_event *ev =
-                    (struct inotify_event *)(buf + offset);
-                if (ev->len > 0 &&
-                    strcmp(ev->name, PATH_FLAG_INVOCATION_FILENAME) == 0) {
-                    found = 1;
-                    break;
-                }
-                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
-            }
-        }
-
-        inotify_rm_watch(ifd, wd);
-        close(ifd);
-        return found ? 0 : -1;
-    }
-
-fallback_poll:
-    {
         struct timespec start, now;
         clock_gettime(CLOCK_MONOTONIC, &start);
         for (;;) {
@@ -336,7 +256,7 @@ fallback_poll:
             }
             sleep(REBOOT_POLL_INTERVAL_S);
         }
-    }
+    
 }
 
 
