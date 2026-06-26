@@ -299,7 +299,6 @@ typedef struct {
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
     bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
-    time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
     
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
