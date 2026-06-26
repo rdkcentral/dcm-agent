@@ -37,6 +37,7 @@
 #include "dcm_types.h"
 #include "dcm_utils.h"
 #include "dcm_parseconf.h"
+#include "rdk_logger.h"
 
 #ifdef RDK_LOGGER_ENABLED
 INT32  g_rdk_logger_enabled = 0;
@@ -50,6 +51,31 @@ void DCMLOGInit()
     if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
         g_rdk_logger_enabled = 1;
     }
+
+        //RDK Logger Initialisation
+    
+    rdk_LogOutput_File filelog;
+    strncpy(filelog.fileName, "logupload.log", sizeof(filelog.fileName)-1);
+    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
+    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
+    filelog.fileSizeMax = 10240;
+    filelog.fileCountMax = 1; 
+    
+    rdk_logger_ext_config_t config = {
+        .pModuleName = "LOG.RDK.DCM",     /* Module name */
+        .loglevel = RDK_LOG_INFO,                 /* Default log level */
+        .output = RDKLOG_OUTPUT_FILE,          /* Output to console (stdout/stderr) */
+        //.output = RDKLOG_OUTPUT_CONSOLE,
+        .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
+        .pFilePolicy =  &filelog                  /* Not using file output, so NULL */
+        //.pFilePolicy = NULL
+    };
+    
+    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
+        printf("DCM : ERROR - Extended logger init failed\n");
+    }
+    g_rdk_logger_enabled = 1;
 #endif
 }
 
