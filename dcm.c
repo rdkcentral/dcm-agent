@@ -84,22 +84,6 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
 
         DCMInfo("\nStart log upload via library API\n");
 
-        /* Log wall-clock time and elapsed time since DCM start */
-        {
-            struct timespec now_ts;
-            clock_gettime(CLOCK_MONOTONIC, &now_ts);
-            long elapsed_sec  = (long)(now_ts.tv_sec  - pdcmHandle->start_time.tv_sec);
-            long elapsed_msec = (now_ts.tv_nsec - pdcmHandle->start_time.tv_nsec) / 1000000L;
-            if (elapsed_msec < 0) { elapsed_sec--; elapsed_msec += 1000L; }
-
-            time_t wall = time(NULL);
-            struct tm *tm_info = localtime(&wall);
-            char wall_ts[32];
-            strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
-            DCMInfo("Log upload start wall-clock time: %s  (elapsed since DCM start: %lds %ldms)\n",
-                    wall_ts, elapsed_sec, elapsed_msec);
-        }
-
         // Call uploadstblogs library API instead of shell script
         UploadSTBLogsParams params = {
             .flag = 0,
@@ -113,21 +97,6 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         };
 #ifndef GTEST_ENABLE
         int result = uploadstblogs_run(&params);
-        {
-            struct timespec done_ts;
-            clock_gettime(CLOCK_MONOTONIC, &done_ts);
-            long upload_sec  = (long)(done_ts.tv_sec  - pdcmHandle->start_time.tv_sec);
-            long upload_msec = (done_ts.tv_nsec - pdcmHandle->start_time.tv_nsec) / 1000000L;
-            if (upload_msec < 0) { upload_sec--; upload_msec += 1000L; }
-            if (result != 0) {
-                DCMError("Log upload failed with error code: %d  (elapsed since DCM start: %lds %ldms)\n",
-                         result, upload_sec, upload_msec);
-            } else {
-                DCMInfo("Log upload completed successfully  (elapsed since DCM start: %lds %ldms)\n",
-                        upload_sec, upload_msec);
-            }
-        }
-        
         if (result != 0) {
             DCMError("Log upload failed with error code: %d\n", result);
         } else {
@@ -310,15 +279,6 @@ int main(int argc, char* argv[])
     g_pdcmHandle->isDebugEnabled = true;
 
     DCMInfo("Starting DCM Process: %d\n", getpid());
-    /* Record monotonic start time for elapsed-time measurements */
-    clock_gettime(CLOCK_MONOTONIC, &g_pdcmHandle->start_time);
-    {
-        time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        char wall_ts[32];
-        strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
-        DCMInfo("DCM start wall-clock time: %s\n", wall_ts);
-    }
 
     /* Create child process */
     process_id = fork();
