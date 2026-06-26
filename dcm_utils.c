@@ -55,7 +55,7 @@ void DCMLOGInit()
         //RDK Logger Initialisation
     
     rdk_LogOutput_File filelog;
-    strncpy(filelog.fileName, "logupload.log", sizeof(filelog.fileName)-1);
+    strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
     filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
     strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
     filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
