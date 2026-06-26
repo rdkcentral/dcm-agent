@@ -50,7 +50,6 @@
 #include "system_utils.h"
 #include "rdk_debug.h"
 #include "uploadlogsnow.h"
-#include "common_device_api.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
