@@ -40,7 +40,6 @@ typedef struct _dcmdHandle
     INT8 *pExecBuff;
     INT8  logCron[16];
     INT8  difdCron[16];
-    struct timespec start_time; /* Monotonic timestamp at DCM process start */
 
 } DCMDHandle;
 
@@ -51,4 +50,3 @@ VOID   dcmDaemonMainUnInit(DCMDHandle *pdcmHandle);
 }
 #endif
 #endif //_DCM_H_
-
