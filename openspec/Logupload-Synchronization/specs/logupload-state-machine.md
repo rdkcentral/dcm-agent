@@ -30,15 +30,12 @@ stateDiagram-v2
     CheckInternet --> UseLastGoodTime: internet_ok
     CheckInternet --> Upload: internet_fail
     UseLastGoodTime --> CheckRebootInfo
-    CheckRebootInfo --> TriggerRebootInfo: rebootinfo_missing
-    CheckRebootInfo --> CheckTelemetry: rebootinfo_ok
-    TriggerRebootInfo --> CheckTelemetry: done
-    CheckTelemetry --> TriggerTelemetry: telemetry_missing
-    CheckTelemetry --> Upload: telemetry_ok
-    TriggerTelemetry --> Upload: done
+    CheckRebootInfo --> Upload: rebootinfo_ok
+    CheckRebootInfo --> Upload: rebootinfo_missing (annotate)
     Upload --> Success: upload_ok
     Upload --> Error: upload_fail
     Error --> [*]
+    Success --> [*]
 ```
 
 
