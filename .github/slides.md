@@ -276,42 +276,21 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> BackupLogs : Device boot
-
-    BackupLogs --> Abort : S1 — backup_logs fails
-    BackupLogs --> WriteBackupDone : backup_logs succeeds
-
-    state Abort {
-        [*] --> LogBackupError
-        LogBackupError --> [*]
-    }
-    Abort --> [*] : EXIT_FAILURE — no upload
-
-    WriteBackupDone --> Poll120s : create .backup_logs_done, then inotify-poll 120s
-
-    state Poll120s {
-        [*] --> PollLoop
-        PollLoop --> AllReady : both sentinels present
-        PollLoop --> TimedOut : elapsed >= 120s
-        AllReady --> [*] : bitmask = 0
-        TimedOut --> [*] : bitmask of missing
-    }
-
-    Poll120s --> HandleMissing
-
-    state HandleMissing {
-        [*] --> NTPMissing : S3 — apply systemtimemgr fallback or annotate
-        [*] --> RIMissing : S2 — annotate REBOOT_REASON_UNAVAILABLE
-        [*] --> AllPresent : no annotations needed
-    }
-
-    HandleMissing --> Upload : ALWAYS proceed (soft gates)
-
-    state Upload {
-        [*] --> Archive : generate_archive_name + add_timestamp_to_files
-        Archive --> UploadToServer
-        UploadToServer --> [*]
-    }
+    [*] --> BackupLogs
+    BackupLogs --> Error: fail
+    BackupLogs --> CheckSTT: success
+    CheckSTT --> CheckRebootInfo: stt_ok
+    CheckSTT --> CheckInternet: stt_missing
+    CheckInternet --> UseLastGoodTime: internet_ok
+    CheckInternet --> Upload: internet_fail
+    UseLastGoodTime --> CheckRebootInfo
+    CheckRebootInfo --> Upload: rebootinfo_ok
+    CheckRebootInfo --> Upload: rebootinfo_missing (annotate)
+    Upload --> Success: upload_ok
+    Upload --> Error: upload_fail
+    Error --> [*]
+    Success --> [*]
+```
 
     Upload --> [*]
 ```
