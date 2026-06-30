@@ -17,11 +17,6 @@
 
 - Log upload checks for internet connection. If NTP is not synced, uses last known good time from [systemtimemgr](https://github.com/rdkcentral/systemtimemgr). Triggers reboot reason update. Upload proceeds with telemetry updated flag if available; all missing metadata is annotated.
 
-**Scenario 4: Telemetry Update Flag Fails**
-
-- Log upload triggers telemetry marker check in PreviousLogs before upload. If still missing after timeout, upload proceeds with annotation.
-
----
 
 ## State Machine (No STT Trigger)
 
