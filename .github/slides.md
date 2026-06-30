@@ -295,22 +295,6 @@ stateDiagram-v2
     Upload --> [*]
 ```
 
----
-
-# IPC Mechanism — inotify with stat() Fallback
-
-| Mechanism | CPU during wait | Latency | POSIX portable | Crash-safe | Boot-safe |
-|-----------|:-:|:-:|:-:|:-:|:-:|
-| **`inotify` + sentinel files** | **Zero** | **<1 ms** | ❌ (Linux) | ✅ | ✅ |
-| `stat()` poll (fallback) | Low (1 Hz) | ~1 s | ✅ | ✅ | ✅ |
-| Named semaphore | Zero | <1 ms | ✅ | ❌ | ✅ |
-| RBUS events | Zero | <1 ms | ❌ | ⚠️ | ❌ early boot |
-| IARM Bus events | Zero | <1 ms | ❌ | ❌ lost-event | ⚠️ order-dep |
-
-**Decision**: `inotify` + `select()` for the wait, sentinel files in `/tmp/` for state. `stat()` fallback via `#ifdef HAVE_INOTIFY`. All current targets are embedded Linux.
-
----
-
 # NTP Timestamp Correctness & Fallback
 
 ```mermaid
