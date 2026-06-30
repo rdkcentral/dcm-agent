@@ -294,6 +294,7 @@ stateDiagram-v2
 
     Upload --> [*]
 ```
+---
 
 # Key Components
 
