@@ -286,6 +286,17 @@ Signal-file chain eliminates race conditions at boot
 | RebootInfo     | No             | Wait, annotate if missing, proceed  | Yes         |
 
 ---
+---
+
+# Open Question: Is bak1/bak2 Backup Rotation Still Needed?
+
+Previously, log upload took **~7 minutes** due to the blind `sleep(330)`. If a reboot occurred during this window, logs still pending upload would be rotated into backup directories (`bak1`, `bak2`, etc.) to prevent data loss.
+
+With the sentinel-based change, log upload completes in **~40 seconds**. The probability of a reboot occurring within this narrow window is significantly lower.
+
+### Question
+
+> Is the `bak1`/`bak2` rotation mechanism still necessary, or can it be simplified/removed?
 
 
 # Thank You
