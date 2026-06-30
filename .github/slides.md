@@ -421,35 +421,6 @@ Refer to the linked file for the scenario breakdowns and state diagram.
 
 ---
 
-# Design Principles
-
-- **No dynamic memory allocation** — memory pools where needed
-- **Platform-neutral** — portable across embedded targets
-- **Thread-safe** — safe concurrent access
-- **Fixed-point arithmetic** — no floating-point dependency
-- **Secure coding** — input validation, no buffer overflows
-- **Modular** — each subsystem independently testable
-
----
-
-# Cross-Repo Interface Contract
-
-The signal file `/tmp/.backup_logs_done` is a **3-repo interface**:
-
-| Repo | Role | Action |
-|------|------|--------|
-| **dcm-agent** | Writer | `backup_logs` creates `.backup_logs_done` on success |
-| **reboot-manager** | Consumer | Polls `.backup_logs_done` before reading PreviousLogs/ |
-| **telemetry** | Consumer | Polls `.backup_logs_done` before grep-scanning PreviousLogs/ |
-
-- All path changes must be **coordinated across all three repos**
-- Signal files reside in `/tmp/` — volatile, cleared on every reboot
-- **Atomic 3-repo release** required — no backward compatibility window
-
----
-layout: center
----
-
 # Summary
 
 Signal-file chain eliminates race conditions at boot
