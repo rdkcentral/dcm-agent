@@ -262,54 +262,6 @@ stateDiagram-v2
 
 ---
 
-# MaintenanceManager — LogUpload Task Removed
-
-MaintenanceManager triggered log upload via two paths — **both redundant**:
-
-| Path | Behaviour | Why redundant |
-|------|-----------|---------------|
-| **Unsolicited maintenance** | Triggers bootup log upload during maintenance window | DCM already triggers via `telemetry2_0` → dcm-agent RBUS event path |
-| **Solicited maintenance** | Attempts bootup log upload on explicit request | Always skips — `/opt/logs/PreviousLogs` already empty |
-
-### What changes
-
-- `MAINT_DCM_LOGUPLOAD` task removed from MaintenanceManager task table
-- `MAINT_LOGUPLOAD_COMPLETE` / `MAINT_LOGUPLOAD_ERROR` IARM events removed from `uploadstblogs`
-- IARM dependency in `uploadstblogs` removed if no other IARM usages remain
-- `dcm-agent` becomes **single owner** of log upload scheduling
-
----
-
-# Error Handling — Hard vs Soft Gates
-
-### Hard gate: `backup_logs` failure = **abort upload**
-
-- `.backup_logs_done` NOT written → all downstream services time out
-- `uploadstblogs` detects both soft-gate sentinels absent → treats as hard abort
-- **Only case where upload is cancelled entirely**
-
-### Soft gates: annotate and proceed
-
-| Component | Polls for | Timeout | Action on timeout |
-|-----------|-----------|:-------:|-------------------|
-| `update-prev-reboot-info` | `.backup_logs_done` | 60s | Exit `ERROR_GENERAL` |
-| `telemetry2_0` | `.backup_logs_done` | 60s | Skip PreviousLogs report |
-| `uploadstblogs` | `stt_received` + `Update_rebootInfo_invoked` | 120s | **Annotate** missing prerequisites and **always proceed** |
-
----
-
-# Failure Scenario Summary
-
-| # | Scenario | Upload outcome |
-|:-:|----------|----------------|
-| S1 | `backup_logs` fails | **Aborted** — EXIT_FAILURE |
-| S2 | Backup OK, reboot reason absent | Proceeds + `REBOOT_REASON_UNAVAILABLE` |
-| S3 | Backup OK, NTP + RI absent | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` |
-
-> **Invariant**: Upload always occurs if `backup_logs` succeeded. Missing metadata is annotated, never silently discarded.
-
----
-
 # Log Upload: State Machine & Fallbacks
 
 > **Fallback Method:** Log upload must always happen except when log backup fails. All missing/failed steps are annotated in the upload for diagnostics.
