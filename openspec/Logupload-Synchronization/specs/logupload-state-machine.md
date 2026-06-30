@@ -20,7 +20,6 @@
 
 ## State Machine (No STT Trigger)
 
-```mermaid
 stateDiagram-v2
     [*] --> BackupLogs
     BackupLogs --> Error: fail
@@ -39,6 +38,6 @@ stateDiagram-v2
     Upload --> Success: upload_ok
     Upload --> Error: upload_fail
     Error --> [*]
-```
+
 
 ---
