@@ -295,28 +295,6 @@ stateDiagram-v2
     Upload --> [*]
 ```
 
-# NTP Timestamp Correctness & Fallback
-
-```mermaid
-flowchart TB
-    POLL["reboot_setup() polls stt_received"]
-    POLL -->|found| NTP_OK["time(NULL) — NTP-correct ✓"]
-    POLL -->|timeout| FALLBACK["apply_ntp_fallback_time()"]
-    FALLBACK --> INET{"internet reachable?"}
-    INET -->|yes| SYSTIME["systemtimemgr last-known time<br/>/opt/secure/clock.txt"]
-    INET -->|no| RAW["time(NULL) as-is (pre-NTP)"]
-    SYSTIME --> ANNOT1["Annotate: NTP_FALLBACK_SYSTEMTIMEMGR"]
-    RAW --> ANNOT2["Annotate: NTP_UNAVAILABLE"]
-
-    style NTP_OK fill:#4CAF50,color:#fff
-    style SYSTIME fill:#FFC107,color:#000
-    style RAW fill:#F44336,color:#fff
-```
-
-`backup_logs` runs independently and pre-NTP — its `time()` calls are irrelevant. Only archive names and timestamp prefixes from `add_timestamp_to_files()` require NTP accuracy.
-
----
-
 # Key Components
 
 | Component | Language | Role |
