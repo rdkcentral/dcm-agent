@@ -262,20 +262,6 @@ stateDiagram-v2
 
 ---
 
-# Log Upload: State Machine & Fallbacks
-
-> **Fallback Method:** Log upload must always happen except when log backup fails. All missing/failed steps are annotated in the upload for diagnostics.
-
-- DCM Agent synchronizes backup, STT, reboot reason, telemetry, and upload.
-- Each module owns its state; DCM Agent coordinates as needed.
-- State machine ensures robust fallback and retry logic.
-
-👉 **[Logupload State Machine & Fallbacks](./logupload-state-machine.md)**
-
-Refer to the linked file for the scenario breakdowns and state diagram.
-
----
-
 # Summary
 
 Signal-file chain eliminates race conditions at boot
