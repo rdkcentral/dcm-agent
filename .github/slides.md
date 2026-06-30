@@ -450,30 +450,6 @@ The signal file `/tmp/.backup_logs_done` is a **3-repo interface**:
 layout: center
 ---
 
-# The Telemetry Gap
-
-**Discovery**: `telemetry2_0` reads PreviousLogs/ at boot — **needs `.backup_logs_done` gate**
-
-```mermaid
-graph LR
-  BL[backup_logs] -->|.backup_logs_done| RM[reboot-info]
-  BL -->|.backup_logs_done| T2[telemetry2_0]
-  RM -->|Update_rebootInfo_invoked| UL[uploadstblogs]
-
-  style T2 fill:#E91E63,color:#fff
-  style BL fill:#4CAF50,color:#fff
-  style RM fill:#2196F3,color:#fff
-  style UL fill:#FF9800,color:#fff
-```
-
-- `PERSIST_LOG_MON_REF` enabled on **all builds** — telemetry always scans PreviousLogs/
-- PreviousLogs grep report is **fire-and-forget** — never retried
-- **Fix (Group G)**: Telemetry polls `.backup_logs_done` before grep scan (TASK-G1)
-
----
-layout: center
----
-
 # Summary
 
 Signal-file chain eliminates race conditions at boot
