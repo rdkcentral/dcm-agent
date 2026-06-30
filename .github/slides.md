@@ -291,9 +291,6 @@ stateDiagram-v2
     Error --> [*]
     Success --> [*]
 ```
-
-    Upload --> [*]
-```
 ---
 
 # Key Components
