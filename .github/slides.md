@@ -67,8 +67,8 @@ layout: two-cols
 
 - **Sentinel-file chain** enforces strict ordering
 - **inotify-based** wait (zero CPU, sub-ms latency)
-- **Trigger-then-poll** — re-trigger lagging services
-- **Soft gates** — NTP/reboot-reason/telemetry timeouts annotate but never block upload
+- **Poll-based** — inotify wait for prerequisite sentinels
+- **Soft gates** — NTP/reboot-reason timeouts annotate but never block upload
 - **Hard gate** — only `backup_logs` failure aborts
 - MaintenanceManager log upload task **removed**
 
@@ -84,12 +84,8 @@ graph LR
   S1 -->|hard gate| T2["telemetry2_0"]
   S2 -->|soft gate| RM
   RM -->|creates| S3["Update_rebootInfo_invoked"]
-  T2 -->|creates| S4[".telemetry_prevlogs_done"]
   S2 -->|soft gate| UL["uploadstblogs"]
   S3 -->|soft gate| UL
-  S4 -->|soft gate| UL
-  UL -->|triggers| TR1[".trigger_reboot_info_update"]
-  UL -->|triggers| TR2[".trigger_telemetry_prevlogs_scan"]
   UL -->|uploads| SERVER["Log Server"]
 
   style BL fill:#4CAF50,color:#fff
@@ -100,9 +96,6 @@ graph LR
   style S1 fill:#E8F5E9,stroke:#4CAF50
   style S2 fill:#F3E5F5,stroke:#9C27B0
   style S3 fill:#E3F2FD,stroke:#2196F3
-  style S4 fill:#FCE4EC,stroke:#E91E63
-  style TR1 fill:#FFF3E0,stroke:#FF9800
-  style TR2 fill:#FFF3E0,stroke:#FF9800
 ```
 
 All sentinels reside in `/tmp/` — volatile, auto-cleared on reboot, no stale-sentinel risk.
@@ -116,13 +109,11 @@ All sentinels reside in `/tmp/` — volatile, auto-cleared on reboot, no stale-s
 | `/tmp/.backup_logs_done` | `backup_logs` | `update-prev-reboot-info`, `telemetry2_0`, `uploadstblogs` | **Hard gate** |
 | `/tmp/stt_received` | time-sync service | `uploadstblogs` | Soft gate (NTP) |
 | `/tmp/Update_rebootInfo_invoked` | `update-prev-reboot-info` | `uploadstblogs` | Soft gate |
-| `/tmp/.telemetry_prevlogs_done` | `telemetry2_0` | `uploadstblogs` | Soft gate |
-| `/tmp/.trigger_reboot_info_update` | `uploadstblogs` | `update-prev-reboot-info` (retry) | Trigger |
-| `/tmp/.trigger_telemetry_prevlogs_scan` | `uploadstblogs` | `telemetry2_0` (retry) | Trigger |
+
 
 ---
 
-# Execution Flow — Trigger-Then-Poll
+# Execution Flow — Poll-Based Synchronization
 
 - **Device Reboots**
   - `backup_logs` starts → moves logs to `/opt/logs/PreviousLogs/`
@@ -131,14 +122,11 @@ All sentinels reside in `/tmp/` — volatile, auto-cleared on reboot, no stale-s
   - `update-prev-reboot-info` inotify-waits for `.backup_logs_done` + `stt_received`
     - Derives reboot reason → creates `/tmp/Update_rebootInfo_invoked`
   - `telemetry2_0` inotify-waits for `.backup_logs_done`
-    - Grep-scans `PreviousLogs/` → creates `/tmp/.telemetry_prevlogs_done`
-  - `uploadstblogs` **triggers then polls**:
-    1. Writes `/tmp/.trigger_reboot_info_update` if `Update_rebootInfo_invoked` absent
-    2. Writes `/tmp/.trigger_telemetry_prevlogs_scan` if `.telemetry_prevlogs_done` absent
-    3. inotify-polls all three soft gates (120s timeout):
+    - Grep-scans `PreviousLogs/` for telemetry markers
+  - `uploadstblogs` **polls soft gates**:
+    - inotify-polls both soft gates (120s timeout):
        - `/tmp/stt_received` — NTP fallback via `systemtimemgr` if missing
        - `/tmp/Update_rebootInfo_invoked` — annotate if missing
-       - `/tmp/.telemetry_prevlogs_done` — annotate if missing
   - **Always proceeds to archive + upload** if backup succeeded, annotating any missing metadata
 
 ---
@@ -165,7 +153,6 @@ sequenceDiagram
     Telemetry->>Device: inotify wait .backup_logs_done
     Telemetry->>Telemetry: Grep scan PreviousLogs/
     Telemetry-->>Server: Send Previous Logs report
-    Telemetry-->>Device: Create /tmp/.telemetry_prevlogs_done
   and
     RebootMgr->>Device: inotify wait .backup_logs_done
     RebootMgr->>Device: inotify wait stt_received
@@ -173,8 +160,8 @@ sequenceDiagram
     RebootMgr-->>Device: Create /tmp/Update_rebootInfo_invoked
   end
 
-  Upload->>Upload: trigger_missing_services()
-  Upload->>Device: inotify-poll stt_received, Update_rebootInfo_invoked, .telemetry_prevlogs_done
+
+  Upload->>Device: inotify-poll stt_received, Update_rebootInfo_invoked
   alt All sentinels present
     Upload->>Upload: Proceed — no annotations
   else Timeout (soft gates)
@@ -203,19 +190,11 @@ stateDiagram-v2
     }
     Abort --> [*] : EXIT_FAILURE — no upload
 
-    WriteBackupDone --> WriteTriggers : create .backup_logs_done
-
-    state WriteTriggers {
-        [*] --> TriggerRI : write trigger if RI absent
-        TriggerRI --> TriggerTel : write trigger if Tel absent
-        TriggerTel --> [*]
-    }
-
-    WriteTriggers --> Poll120s : inotify-poll 120s
+    WriteBackupDone --> Poll120s : create .backup_logs_done, then inotify-poll 120s
 
     state Poll120s {
         [*] --> PollLoop
-        PollLoop --> AllReady : all 3 sentinels present
+        PollLoop --> AllReady : both sentinels present
         PollLoop --> TimedOut : elapsed >= 120s
         AllReady --> [*] : bitmask = 0
         TimedOut --> [*] : bitmask of missing
@@ -226,7 +205,6 @@ stateDiagram-v2
     state HandleMissing {
         [*] --> NTPMissing : S3 — apply systemtimemgr fallback or annotate
         [*] --> RIMissing : S2 — annotate REBOOT_REASON_UNAVAILABLE
-        [*] --> TelMissing : S4 — annotate TELEMETRY_UNAVAILABLE
         [*] --> AllPresent : no annotations needed
     }
 
@@ -285,8 +263,8 @@ flowchart TB
 |-----------|----------|------|
 | **backup_logs** | C | Move logs to `/opt/logs/PreviousLogs/`; write hard-gate sentinel |
 | **Reboot Manager** | C | Derive and persist reboot reason; write soft-gate sentinel |
-| **uploadstblogs** | C | Trigger-then-poll, archive & upload logs to server |
-| **telemetry2_0** | C | Grep-scan PreviousLogs/ for markers; write soft-gate sentinel |
+| **uploadstblogs** | C | Poll prerequisites, archive & upload logs to server |
+| **telemetry2_0** | C | Grep-scan PreviousLogs/ for markers (gates on `.backup_logs_done`) |
 | **Sentinel Files** | `/tmp/` | Inter-process synchronization (volatile, auto-cleared) |
 | **systemtimemgr** | C | Provides last-known-good time (`/opt/secure/clock.txt`) if NTP unavailable |
 
@@ -315,7 +293,7 @@ MaintenanceManager triggered log upload via two paths — **both redundant**:
 ### Hard gate: `backup_logs` failure = **abort upload**
 
 - `.backup_logs_done` NOT written → all downstream services time out
-- `uploadstblogs` detects all three soft-gate sentinels absent → treats as hard abort
+- `uploadstblogs` detects both soft-gate sentinels absent → treats as hard abort
 - **Only case where upload is cancelled entirely**
 
 ### Soft gates: annotate and proceed
@@ -323,8 +301,8 @@ MaintenanceManager triggered log upload via two paths — **both redundant**:
 | Component | Polls for | Timeout | Action on timeout |
 |-----------|-----------|:-------:|-------------------|
 | `update-prev-reboot-info` | `.backup_logs_done` | 60s | Exit `ERROR_GENERAL` |
-| `telemetry2_0` | `.backup_logs_done` | 60s | Skip PreviousLogs report; do NOT write completion sentinel |
-| `uploadstblogs` | `stt_received` + `Update_rebootInfo_invoked` + `.telemetry_prevlogs_done` | 120s | **Annotate** missing prerequisites and **always proceed** |
+| `telemetry2_0` | `.backup_logs_done` | 60s | Skip PreviousLogs report |
+| `uploadstblogs` | `stt_received` + `Update_rebootInfo_invoked` | 120s | **Annotate** missing prerequisites and **always proceed** |
 
 ### Upload Annotation Bitmask
 
@@ -337,12 +315,11 @@ MaintenanceManager triggered log upload via two paths — **both redundant**:
 
 # Failure Scenario Summary
 
-| # | Scenario | Trigger written? | Upload outcome |
-|:-:|----------|:----------------:|----------------|
-| S1 | `backup_logs` fails | No | **Aborted** — EXIT_FAILURE |
-| S2 | Backup OK, reboot reason absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `REBOOT_REASON_UNAVAILABLE` |
-| S3 | Backup OK, NTP + RI absent | `TRIGGER_REBOOT_INFO_UPDATE` | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` |
-| S4 | Backup OK, telemetry absent | `TRIGGER_TELEMETRY_SCAN` | Proceeds + `TELEMETRY_UNAVAILABLE` |
+| # | Scenario | Upload outcome |
+|:-:|----------|----------------|
+| S1 | `backup_logs` fails | **Aborted** — EXIT_FAILURE |
+| S2 | Backup OK, reboot reason absent | Proceeds + `REBOOT_REASON_UNAVAILABLE` |
+| S3 | Backup OK, NTP + RI absent | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` |
 
 > **Invariant**: Upload always occurs if `backup_logs` succeeded. Missing metadata is annotated, never silently discarded.
 
@@ -354,14 +331,14 @@ Three repositories must be released **simultaneously** (REQ-SYNC-010):
 
 | Repo | Change |
 |------|--------|
-| **dcm-agent** | `backup_logs` writes `.backup_logs_done`; `uploadstblogs` polls all three sentinels |
+| **dcm-agent** | `backup_logs` writes `.backup_logs_done`; `uploadstblogs` polls `stt_received` + `Update_rebootInfo_invoked` |
 | **reboot-manager** | `update-prev-reboot-info` polls `.backup_logs_done` |
-| **telemetry** | `telemetry2_0` polls `.backup_logs_done`; writes `.telemetry_prevlogs_done` |
+| **telemetry** | `telemetry2_0` polls `.backup_logs_done` before grep-scanning PreviousLogs/ |
 
 ### Partial deployment risks
 
-- **telemetry not updated** → `uploadstblogs` times out on `.telemetry_prevlogs_done` → upload proceeds with annotation
 - **reboot-manager not updated** → `Update_rebootInfo_invoked` not written in time → upload proceeds with annotation
+- **telemetry not updated** → telemetry may scan PreviousLogs/ before backup completes (existing race — not blocking upload)
 
 No backward compatibility window — all three repos must deploy together.
 
@@ -374,10 +351,10 @@ No backward compatibility window — all three repos must deploy together.
 | **A** | Sentinel infrastructure | Define `BACKUP_LOGS_DONE_FLAG`, `PATH_FLAG_BACKUP_LOGS_DONE` constants |
 | **B** | backup_logs sentinel write | Write `.backup_logs_done` on success (atomic `O_CREAT`) |
 | **C** | reboot-manager poll | `poll_for_sentinel()` helper + gate `find_previous_reboot_log()` |
-| **D** | uploadstblogs poll | Replace `sleep(330)` with triple-sentinel inotify-poll; trigger-then-poll; remove MM IARM events |
+| **D** | uploadstblogs poll | Replace `sleep(330)` with dual-sentinel inotify-poll; remove MM IARM events |
 | **E** | Documentation | Cross-repo `DEPENDENCIES.md` in all three repos |
 | **F** | Tests | Unit tests + L2 integration (sentinel chain end-to-end) |
-| **G** | Telemetry repo | Poll `.backup_logs_done`; write `.telemetry_prevlogs_done` |
+| **G** | Telemetry repo | Poll `.backup_logs_done` before grep-scanning PreviousLogs/ |
 
 ---
 
@@ -387,8 +364,8 @@ No backward compatibility window — all three repos must deploy together.
 - Partial repo deployment degrades gracefully via annotations (soft gates) rather than blocking
 - `inotify` is Linux-only — `#ifdef HAVE_INOTIFY` guard with `stat()` fallback preserves portability
 - Cross-repo sentinel paths are **interface contracts** — any change requires coordinated simultaneous release
-- The 120s `uploadstblogs` timeout exceeds telemetry's 60s internal timeout, guaranteeing the telemetry scan is complete or abandoned before `add_timestamp_to_files()` runs
-- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks and triggers.
+- Telemetry gates on `.backup_logs_done` independently — no completion sentinel needed by uploadstblogs
+- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks.
 - Timeouts must be coordinated to avoid indefinite waits.
 - All fallback uploads must clearly annotate what metadata was missing or defaulted.
 
@@ -399,7 +376,7 @@ No backward compatibility window — all three repos must deploy together.
 > **Fallback Method:** Log upload must always happen except when log backup fails. All missing/failed steps are annotated in the upload for diagnostics.
 
 - DCM Agent synchronizes backup, STT, reboot reason, telemetry, and upload.
-- Each module owns its state; DCM Agent triggers and coordinates as needed.
+- Each module owns its state; DCM Agent coordinates as needed.
 - State machine ensures robust fallback and retry logic.
 
 👉 **[Logupload State Machine & Fallbacks](./logupload-state-machine.md)**
@@ -427,13 +404,11 @@ The signal file `/tmp/.backup_logs_done` is a **3-repo interface**:
 |------|------|--------|
 | **dcm-agent** | Writer | `backup_logs` creates `.backup_logs_done` on success |
 | **reboot-manager** | Consumer | Polls `.backup_logs_done` before reading PreviousLogs/ |
-| **telemetry** | Consumer + Writer | Polls `.backup_logs_done`; writes `.telemetry_prevlogs_done` after grep scan |
-| **dcm-agent** | Consumer | `uploadstblogs` polls `.telemetry_prevlogs_done` before archive |
+| **telemetry** | Consumer | Polls `.backup_logs_done` before grep-scanning PreviousLogs/ |
 
 - All path changes must be **coordinated across all three repos**
 - Signal files reside in `/tmp/` — volatile, cleared on every reboot
 - **Atomic 3-repo release** required — no backward compatibility window
-- Telemetry changes tracked as **Group G** tasks in this change (TASK-G1 – TASK-G4)
 
 ---
 layout: center
@@ -441,14 +416,13 @@ layout: center
 
 # The Telemetry Gap
 
-**Discovery**: `telemetry2_0` reads PreviousLogs/ at boot — **outside the signal chain**
+**Discovery**: `telemetry2_0` reads PreviousLogs/ at boot — **needs `.backup_logs_done` gate**
 
 ```mermaid
 graph LR
   BL[backup_logs] -->|.backup_logs_done| RM[reboot-info]
   BL -->|.backup_logs_done| T2[telemetry2_0]
   RM -->|Update_rebootInfo_invoked| UL[uploadstblogs]
-  T2 -->|.telemetry_prevlogs_done| UL
 
   style T2 fill:#E91E63,color:#fff
   style BL fill:#4CAF50,color:#fff
@@ -458,11 +432,7 @@ graph LR
 
 - `PERSIST_LOG_MON_REF` enabled on **all builds** — telemetry always scans PreviousLogs/
 - PreviousLogs grep report is **fire-and-forget** — never retried
-- If it reads while `add_timestamp_to_files()` is renaming, markers are **permanently lost**
-- **Fix (now in scope — Group G)**:
-  - Telemetry polls `.backup_logs_done` before grep scan (TASK-G1)
-  - Telemetry writes `.telemetry_prevlogs_done` after scan (TASK-G2)
-  - `uploadstblogs` polls `.telemetry_prevlogs_done` before calling `add_timestamp_to_files()` (TASK-D2)
+- **Fix (Group G)**: Telemetry polls `.backup_logs_done` before grep scan (TASK-G1)
 
 ---
 layout: center
@@ -474,7 +444,7 @@ Signal-file chain eliminates race conditions at boot
 
 **backup_logs → { telemetry2_0, reboot-info } → uploadstblogs**
 
-4 signal files: `.backup_logs_done` · `stt_received` · `Update_rebootInfo_invoked` · `.telemetry_prevlogs_done`
+3 signal files: `.backup_logs_done` · `stt_received` · `Update_rebootInfo_invoked`
 
 3-repo atomic release: dcm-agent · reboot-manager · telemetry
 
@@ -491,15 +461,14 @@ layout: center
 |----------------|----------------|--------------------------------|-----------------|
 | BackupLogs     | Yes            | None (abort if missing)        | No              |
 | STT            | No             | Check internet, use last good time | Yes         |
-| RebootInfo     | No             | Trigger update, wait, proceed  | Yes             |
-| TelemetryFlag  | No             | Trigger scan, wait, proceed    | Yes             |
+| RebootInfo     | No             | Wait, annotate if missing, proceed  | Yes         |
 
 ---
 
 ## Risks & Notes
 
 - If both STT and internet are missing, upload proceeds but is heavily annotated as incomplete.
-- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks and triggers.
+- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks.
 - Timeouts must be coordinated to avoid indefinite waits.
 - All fallback uploads must clearly annotate what metadata was missing or defaulted.
 
