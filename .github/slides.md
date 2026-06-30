@@ -228,50 +228,6 @@ All sentinels reside in `/tmp/` — volatile, auto-cleared on reboot, no stale-s
 
 ---
 
-# Execution Sequence
-
-```mermaid
-sequenceDiagram
-  participant Device
-  participant backup_logs
-  participant NTP
-  participant Telemetry as telemetry2_0
-  participant RebootMgr as update-prev-reboot-info
-  participant Upload as uploadstblogs
-  participant Server as Log Server
-
-  Device->>backup_logs: Boot trigger
-  backup_logs->>backup_logs: Move logs to PreviousLogs/
-  backup_logs-->>Device: Create /tmp/.backup_logs_done
-
-  NTP-->>Device: Create /tmp/stt_received
-
-  par Parallel processing
-    Telemetry->>Device: inotify wait .backup_logs_done
-    Telemetry->>Telemetry: Grep scan PreviousLogs/
-    Telemetry-->>Server: Send Previous Logs report
-  and
-    RebootMgr->>Device: inotify wait .backup_logs_done
-    RebootMgr->>Device: inotify wait stt_received
-    RebootMgr->>RebootMgr: Derive reboot reason
-    RebootMgr-->>Device: Create /tmp/Update_rebootInfo_invoked
-  end
-
-
-  Upload->>Device: inotify-poll stt_received, Update_rebootInfo_invoked
-  alt All sentinels present
-    Upload->>Upload: Proceed — no annotations
-  else Timeout (soft gates)
-    Upload->>Upload: Annotate missing prerequisites
-    Upload->>Upload: apply_ntp_fallback_time() if NTP missing
-  end
-  Upload->>Upload: add_timestamp_to_files() + generate_archive_name()
-  Upload->>Server: Upload logs (annotated if needed)
-  Server-->>Upload: Acknowledge
-```
-
----
-
 # State Machine — Failure Scenarios
 
 ```mermaid
@@ -340,13 +296,6 @@ MaintenanceManager triggered log upload via two paths — **both redundant**:
 | `telemetry2_0` | `.backup_logs_done` | 60s | Skip PreviousLogs report |
 | `uploadstblogs` | `stt_received` + `Update_rebootInfo_invoked` | 120s | **Annotate** missing prerequisites and **always proceed** |
 
-### Upload Annotation Bitmask
-
-| Bit | Constant | Meaning |
-|:---:|----------|---------|
-| 0 | `ANNOTATION_REBOOT_REASON_UNAVAILABLE` | Reboot reason absent after 120s |
-| 1 | `ANNOTATION_NTP_UNAVAILABLE` | NTP absent and internet unreachable |
-
 ---
 
 # Failure Scenario Summary
@@ -358,52 +307,6 @@ MaintenanceManager triggered log upload via two paths — **both redundant**:
 | S3 | Backup OK, NTP + RI absent | Proceeds + `NTP_FALLBACK` or `NTP_UNAVAILABLE` + `REBOOT_REASON_UNAVAILABLE` |
 
 > **Invariant**: Upload always occurs if `backup_logs` succeeded. Missing metadata is annotated, never silently discarded.
-
----
-
-# Cross-Repo Release Constraint
-
-Three repositories must be released **simultaneously** (REQ-SYNC-010):
-
-| Repo | Change |
-|------|--------|
-| **dcm-agent** | `backup_logs` writes `.backup_logs_done`; `uploadstblogs` polls `stt_received` + `Update_rebootInfo_invoked` |
-| **reboot-manager** | `update-prev-reboot-info` polls `.backup_logs_done` |
-| **telemetry** | `telemetry2_0` polls `.backup_logs_done` before grep-scanning PreviousLogs/ |
-
-### Partial deployment risks
-
-- **reboot-manager not updated** → `Update_rebootInfo_invoked` not written in time → upload proceeds with annotation
-- **telemetry not updated** → telemetry may scan PreviousLogs/ before backup completes (existing race — not blocking upload)
-
-No backward compatibility window — all three repos must deploy together.
-
----
-
-# Implementation Task Groups
-
-| Group | Scope | Key Tasks |
-|:-----:|-------|-----------|
-| **A** | Sentinel infrastructure | Define `BACKUP_LOGS_DONE_FLAG`, `PATH_FLAG_BACKUP_LOGS_DONE` constants |
-| **B** | backup_logs sentinel write | Write `.backup_logs_done` on success (atomic `O_CREAT`) |
-| **C** | reboot-manager poll | `poll_for_sentinel()` helper + gate `find_previous_reboot_log()` |
-| **D** | uploadstblogs poll | Replace `sleep(330)` with dual-sentinel inotify-poll; remove MM IARM events |
-| **E** | Documentation | Cross-repo `DEPENDENCIES.md` in all three repos |
-| **F** | Tests | Unit tests + L2 integration (sentinel chain end-to-end) |
-| **G** | Telemetry repo | Poll `.backup_logs_done` before grep-scanning PreviousLogs/ |
-
----
-
-# Risks & Notes
-
-- If both STT and internet are missing, upload proceeds but is annotated (`NTP_UNAVAILABLE`)
-- Partial repo deployment degrades gracefully via annotations (soft gates) rather than blocking
-- `inotify` is Linux-only — `#ifdef HAVE_INOTIFY` guard with `stat()` fallback preserves portability
-- Cross-repo sentinel paths are **interface contracts** — any change requires coordinated simultaneous release
-- Telemetry gates on `.backup_logs_done` independently — no completion sentinel needed by uploadstblogs
-- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks.
-- Timeouts must be coordinated to avoid indefinite waits.
-- All fallback uploads must clearly annotate what metadata was missing or defaulted.
 
 ---
 
