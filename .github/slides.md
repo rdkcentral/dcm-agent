@@ -268,16 +268,14 @@ Signal-file chain eliminates race conditions at boot
 
 **backup_logs → { telemetry2_0, reboot-info } → uploadstblogs**
 
-3 signal files: `.backup_logs_done` · `stt_received` · `Update_rebootInfo_invoked`
+### Key changes
 
-3-repo atomic release: dcm-agent · reboot-manager · telemetry
-
-18 tasks across 7 groups — clean skip on any timeout
+- **`sleep(330)` removed** — replaced with inotify-based sentinel polling (zero CPU, sub-ms response)
+- **MaintenanceManager log upload trigger removed** — dcm-agent is now single owner of upload scheduling
+- **3 signal files** coordinate boot sequence: `.backup_logs_done` · `stt_received` · `Update_rebootInfo_invoked`
+- **Soft-gate semantics** — upload always proceeds if backup succeeded; missing metadata is annotated, never blocks
 
 ---
-layout: center
----
-
 
 ## Summary Table
 
