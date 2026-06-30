@@ -287,14 +287,6 @@ Signal-file chain eliminates race conditions at boot
 
 ---
 
-## Risks & Notes
-
-- If both STT and internet are missing, upload proceeds but is heavily annotated as incomplete.
-- Distributed state machine: Each module owns its state, but uploadstblogs orchestrates the checks.
-- Timeouts must be coordinated to avoid indefinite waits.
-- All fallback uploads must clearly annotate what metadata was missing or defaulted.
-
----
 
 # Thank You
 
