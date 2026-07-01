@@ -5,29 +5,14 @@ info: Boot-time log upload synchronization via sentinel files — dcm-agent, reb
 highlighter: shiki
 transition: slide-left
 mdc: true
-background: linear-gradient(135deg, #0f2027, #203a43, #2c5364)
 ---
-
-<style>
-h1 { color: #e0f7fa !important; }
-h3 { color: #b2dfdb !important; }
-p, code { color: #e0e0e0 !important; }
-</style>
-
+ 
 # Logupload Synchronization
 
 ### Boot-Time Coordination for `dcm-agent`
 `backup_logs` · `reboot-info` · `telemetry2_0` · `uploadstblogs`
 
 ---
-background: linear-gradient(135deg, #1a0000, #3d0c02, #5c1a0a)
----
-
-<style>
-h1 { color: #ffcdd2 !important; }
-h3 { color: #ef9a9a !important; }
-li, p, strong, code { color: #fce4ec !important; }
-</style>
 
 # The Problem
 
@@ -47,18 +32,6 @@ li, p, strong, code { color: #fce4ec !important; }
 - **`sleep(330)` is a blind wait** — wastes up to 330 seconds on fast devices, too short on slow ones
 
 ---
-background: linear-gradient(135deg, #1b0a2e, #2d1b4e, #1a0a3e)
----
-
-<style>
-h1 { color: #ce93d8 !important; }
-th { color: #e1bee7 !important; background: rgba(0,0,0,0.3) !important; }
-td { color: #f3e5f5 !important; }
-blockquote { border-left-color: #ab47bc !important; }
-blockquote p { color: #e1bee7 !important; }
-p { color: #e1bee7 !important; }
-strong { color: #f3e5f5 !important; }
-</style>
 
 # Known Issues — Evidence from RDK Stack
 
@@ -76,12 +49,6 @@ These defects trace directly to the boot-time race conditions described above:
 > The sentinel-file chain proposed here closes all three gaps simultaneously.
 
 ---
-background: linear-gradient(135deg, #0d1b2a, #1b2838, #253747)
----
-
-<style>
-h1 { color: #90caf9 !important; }
-</style>
 
 # Current Architecture
 
@@ -129,12 +96,6 @@ graph LR
 ```
 
 ---
-background: linear-gradient(135deg, #002a1a, #0a3d2e, #1a4d3e)
----
-
-<style>
-h1 { color: #a5d6a7 !important; }
-</style>
 
 # Proposed Architecture
 
@@ -186,14 +147,7 @@ graph LR
 
 ---
 layout: two-cols
-background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)
 ---
-
-<style>
-h1 { color: #90caf9 !important; }
-li { color: #e3f2fd !important; }
-strong { color: #bbdefb !important; }
-</style>
 
 # Current State
 
@@ -216,13 +170,6 @@ strong { color: #bbdefb !important; }
 - MaintenanceManager log upload task **removed**
 
 ---
-background: linear-gradient(135deg, #1b3a1b, #2e5a2e, #1a4a2a)
----
-
-<style>
-h1 { color: #c8e6c9 !important; }
-p { color: #e8f5e9 !important; }
-</style>
 
 # Sentinel File Protocol
 
@@ -251,15 +198,6 @@ graph LR
 All sentinels reside in `/tmp/` — volatile, auto-cleared on reboot, no stale-sentinel risk.
 
 ---
-background: linear-gradient(135deg, #1a2a1a, #1e3a1e, #2a4a2a)
----
-
-<style>
-h1 { color: #a5d6a7 !important; }
-th { color: #c8e6c9 !important; background: rgba(0,0,0,0.3) !important; }
-td { color: #e8f5e9 !important; }
-strong { color: #fff !important; }
-</style>
 
 # Sentinel Registry
 
@@ -271,15 +209,6 @@ strong { color: #fff !important; }
 
 
 ---
-background: linear-gradient(135deg, #0d2137, #162d50, #1e3a5f)
----
-
-<style>
-h1 { color: #90caf9 !important; }
-li { color: #e3f2fd !important; }
-strong { color: #bbdefb !important; }
-code { color: #80cbc4 !important; }
-</style>
 
 # Execution Flow — Poll-Based Synchronization
 
@@ -298,12 +227,6 @@ code { color: #80cbc4 !important; }
   - **Always proceeds to archive + upload** if backup succeeded, annotating any missing metadata
 
 ---
-background: linear-gradient(135deg, #2a1a0a, #3d2b1a, #4a3520)
----
-
-<style>
-h1 { color: #ffe0b2 !important; }
-</style>
 
 # State Machine — Failure Scenarios
 
@@ -325,16 +248,6 @@ stateDiagram-v2
     Success --> [*]
 ```
 ---
-background: linear-gradient(135deg, #1a1a2e, #2d2d44, #16213e)
----
-
-<style>
-h1 { color: #b39ddb !important; }
-th { color: #d1c4e9 !important; background: rgba(0,0,0,0.3) !important; }
-td { color: #ede7f6 !important; }
-strong { color: #fff !important; }
-code { color: #80cbc4 !important; }
-</style>
 
 # Key Components
 
@@ -348,17 +261,6 @@ code { color: #80cbc4 !important; }
 | **systemtimemgr** | C | Provides last-known-good time (`/opt/secure/clock.txt`) if NTP unavailable |
 
 ---
-background: linear-gradient(135deg, #0f2027, #203a43, #2c5364)
----
-
-<style>
-h1 { color: #e0f7fa !important; }
-h3 { color: #b2dfdb !important; }
-li { color: #e0f2f1 !important; }
-p { color: #e0f2f1 !important; }
-strong { color: #fff !important; }
-code { color: #80cbc4 !important; }
-</style>
 
 # Summary
 
@@ -374,14 +276,6 @@ Signal-file chain eliminates race conditions at boot
 - **Soft-gate semantics** — upload always proceeds if backup succeeded; missing metadata is annotated, never blocks
 
 ---
-background: linear-gradient(135deg, #0f2027, #203a43, #2c5364)
----
-
-<style>
-h2 { color: #e0f7fa !important; }
-th { color: #b2dfdb !important; background: rgba(0,0,0,0.3) !important; }
-td { color: #e0f2f1 !important; }
-</style>
 
 ## Summary Table
 
@@ -392,17 +286,7 @@ td { color: #e0f2f1 !important; }
 | RebootInfo     | No             | Wait, annotate if missing, proceed  | Yes         |
 
 ---
-background: linear-gradient(135deg, #1a237e, #283593, #1a2070)
 ---
-
-<style>
-h1 { color: #c5cae9 !important; }
-h3 { color: #9fa8da !important; }
-p, li { color: #e8eaf6 !important; }
-blockquote { border-left-color: #5c6bc0 !important; }
-blockquote p { color: #c5cae9 !important; }
-code { color: #80cbc4 !important; }
-</style>
 
 # Open Question: Is bak1/bak2 Backup Rotation Still Needed?
 
