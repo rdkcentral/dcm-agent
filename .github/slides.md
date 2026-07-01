@@ -28,7 +28,7 @@ mdc: true
 - Logs read before backup completion
 - Reboot reasons derived from incomplete logs
 - Uploads with incorrect timestamps or missing data
-- **Telemetry markers permanently lost** — one-shot report, never retried
+- **Telemetry markers permanently lost** 
 - **`sleep(330)` is a blind wait** — wastes up to 330 seconds on fast devices, too short on slow ones
 
 ---
