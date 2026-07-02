@@ -66,6 +66,28 @@ Shared behavior:
 ---
 # Log Upload Flow in RDK
 
+
+
+```mermaid
+stateDiagram-v2
+    [*] --> BackupLogs
+    BackupLogs --> Error: fail
+    BackupLogs --> CheckSTT: success
+    CheckSTT --> CheckRebootInfo: stt_ok
+    CheckSTT --> CheckInternet: stt_missing
+    CheckInternet --> UseLastGoodTime: internet_ok
+    CheckInternet --> Upload: internet_fail
+    UseLastGoodTime --> CheckRebootInfo
+    CheckRebootInfo --> TelemetryPrevLogGrep: rebootinfo_ok
+    CheckRebootInfo --> RetriggerRebootReasonInfo: rebootinfo_missing
+    RetriggerRebootReasonInfo --> TelemetryPrevLogGrep: rebootinfo_updated
+    TelemetryPrevLogGrep --> Upload: grep_completed
+    Upload --> Success: upload_ok
+    Upload --> Error: upload_fail
+    Error --> [*]
+    Success --> [*]
+```
+
 ```mermaid
 graph LR
   subgraph C["Caller / Trigger Paths"]
