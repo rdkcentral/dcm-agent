@@ -87,7 +87,7 @@ stateDiagram-v2
     Error --> [*]
     Success --> [*]
 ```
-
+---
 ```mermaid
 graph LR
   subgraph C["Caller / Trigger Paths"]
