@@ -155,6 +155,7 @@ bool is_codebig_blocked(int block_time)
 bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
+#ifdef RDK_LOGGER_EXT
     /* Extended initialization with programmatic configuration */
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
@@ -167,6 +168,16 @@ bool init_context(RuntimeContext* ctx)
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
         printf("UPLOADSTB : ERROR - Extended logger init failed\n");
     }
+#else
+    /* Platforms with an older rdk-logger (e.g. RDKC's 2.4.0) do not provide the
+     * extended programmatic-config API: rdk_logger_ext_config_t there is a
+     * file-rotation struct and RDKLOG_OUTPUT_CONSOLE/RDKLOG_FORMAT_WITH_TS are
+     * absent. Fall back to the standard debug.ini init, matching the guard
+     * already used in backup_logs.c and usb_log_utils.c. */
+    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+        printf("UPLOADSTB : ERROR - Logger init failed\n");
+    }
+#endif
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Context pointer is NULL\n", __FUNCTION__, __LINE__);
         return false;
