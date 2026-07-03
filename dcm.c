@@ -37,7 +37,6 @@
 #include "dcm_rbus.h"
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
-#include "uploadstblogs.h"
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -69,73 +68,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         pRDKPath = DCM_LIB_PATH;
     }
 
-    if(strcmp(profileName, DCM_LOGUPLOAD_SCHED) == 0) {
-        INT8 *pPrctl = dcmSettingsGetUploadProtocol(pdcmHandle->pDcmSetHandle);
-        INT8 *pURL   = dcmSettingsGetUploadURL(pdcmHandle->pDcmSetHandle);
-
-        if(pPrctl == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using HTTP\n");
-            pPrctl = "HTTP";
-        }
-        if(pURL == NULL) {
-            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
-            pURL = DCM_DEF_LOG_URL;
-        }
-
-        DCMInfo("\nStart log upload via library API\n");
-
-        /* Log wall-clock time and elapsed time since DCM start */
-        {
-            struct timespec now_ts;
-            clock_gettime(CLOCK_MONOTONIC, &now_ts);
-            long elapsed_sec  = (long)(now_ts.tv_sec  - pdcmHandle->start_time.tv_sec);
-            long elapsed_msec = (now_ts.tv_nsec - pdcmHandle->start_time.tv_nsec) / 1000000L;
-            if (elapsed_msec < 0) { elapsed_sec--; elapsed_msec += 1000L; }
-
-            time_t wall = time(NULL);
-            struct tm *tm_info = localtime(&wall);
-            char wall_ts[32];
-            strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
-            DCMInfo("Log upload start wall-clock time: %s  (elapsed since DCM start: %lds %ldms)\n",
-                    wall_ts, elapsed_sec, elapsed_msec);
-        }
-
-        // Call uploadstblogs library API instead of shell script
-        UploadSTBLogsParams params = {
-            .flag = 0,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pPrctl,
-            .upload_http_link = pURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        {
-            struct timespec done_ts;
-            clock_gettime(CLOCK_MONOTONIC, &done_ts);
-            long upload_sec  = (long)(done_ts.tv_sec  - pdcmHandle->start_time.tv_sec);
-            long upload_msec = (done_ts.tv_nsec - pdcmHandle->start_time.tv_nsec) / 1000000L;
-            if (upload_msec < 0) { upload_sec--; upload_msec += 1000L; }
-            if (result != 0) {
-                DCMError("Log upload failed with error code: %d  (elapsed since DCM start: %lds %ldms)\n",
-                         result, upload_sec, upload_msec);
-            } else {
-                DCMInfo("Log upload completed successfully  (elapsed since DCM start: %lds %ldms)\n",
-                        upload_sec, upload_msec);
-            }
-        }
-        
-        if (result != 0) {
-            DCMError("Log upload failed with error code: %d\n", result);
-        } else {
-            DCMInfo("Log upload completed successfully\n");
-        }
-#endif
-    }
-    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
+    if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
@@ -233,15 +166,6 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    /* Add log upload job to Schecduler */
-    pdcmHandle->pLogSchedHandle  = dcmSchedAddJob(DCM_LOGUPLOAD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
-    if(pdcmHandle->pLogSchedHandle == NULL) {
-        DCMError("Failed to Add Log Scheduler jobs\n");
-        return DCM_FAILURE;
-    }
-
     /* Add FW update job to Schecduler */
     pdcmHandle->pDifdSchedHandle = dcmSchedAddJob(DCM_DIFD_SCHED,
                                                   (DCMSchedCB)dcmRunJobs,
@@ -272,9 +196,7 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
 
     dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
     dcmRbusUnInit(pdcmHandle->pRbusHandle);
-    dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
     dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
     dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
     dcmSchedUnInit();
 
@@ -310,6 +232,7 @@ int main(int argc, char* argv[])
     g_pdcmHandle->isDebugEnabled = true;
 
     DCMInfo("Starting DCM Process: %d\n", getpid());
+
     /* Record monotonic start time for elapsed-time measurements */
     clock_gettime(CLOCK_MONOTONIC, &g_pdcmHandle->start_time);
     {
@@ -408,11 +331,11 @@ int main(int argc, char* argv[])
                 continue;
             }
 
+            INT8 unusedLogCron[16] = {0};
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
-                                      g_pdcmHandle->logCron,
+                                      unusedLogCron,
                                       g_pdcmHandle->difdCron);
             if(ret == DCM_SUCCESS) {
-                dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
                 dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
 
                 ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
