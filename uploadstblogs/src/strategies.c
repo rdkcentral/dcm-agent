@@ -1080,6 +1080,30 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         }
     }
 
+	/* Wait for telemetry previous-log grep completion sentinel (REQ-SYNC-003).
+     * Telemetry writes TELEMETRY_PREVLOGS_DONE_FLAG after it finishes grepping
+     * PreviousLogs.  Uploading before this sentinel appears could cause telemetry
+     * to lose data from the previous boot.  This is a soft gate — on timeout the
+     * upload still proceeds and the session is annotated. */
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG,
+                TELEMETRY_PREVLOGS_TIMEOUT_S);
+
+        if (wait_for_telemetry_prevlogs_done() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel not present after %us; "
+                    "proceeding without telemetry sync\n",
+                    __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
+            session->upload_annotations |= (1 << ANNOTATION_TELEMETRY_PREVLOGS_UNAVAILABLE);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
     // Check if PREV_LOG_PATH exists and has .txt or .log files
     if (!dir_exists(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
