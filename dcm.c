@@ -233,16 +233,6 @@ int main(int argc, char* argv[])
 
     DCMInfo("Starting DCM Process: %d\n", getpid());
 
-    /* Record monotonic start time for elapsed-time measurements */
-    clock_gettime(CLOCK_MONOTONIC, &g_pdcmHandle->start_time);
-    {
-        time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        char wall_ts[32];
-        strftime(wall_ts, sizeof(wall_ts), "%Y-%m-%dT%H:%M:%S", tm_info);
-        DCMInfo("DCM start wall-clock time: %s\n", wall_ts);
-    }
-
     /* Create child process */
     process_id = fork();
     if (process_id < 0) {
