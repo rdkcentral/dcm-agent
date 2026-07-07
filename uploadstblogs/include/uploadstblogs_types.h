@@ -98,7 +98,21 @@
 /** Telemetry PreviousLogs scan completion sentinel — written by telemetry after it
  *  finishes grepping PreviousLogs.  Consumed by uploadstblogs as an optional gate.
  *  Cross-repo interface: any path change MUST be coordinated with telemetry. */
+#define TELEMETRY_PREVLOGS_DONE_DIR       "/tmp"
+#define TELEMETRY_PREVLOGS_DONE_FILENAME  ".telemetry_prevlogs_done"
 #define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
+
+/** Total wait timeout (seconds) for the telemetry previous-logs grep sentinel.
+ *  For unit tests (GTEST_ENABLE) a shorter value avoids multi-minute waits. */
+#ifdef GTEST_ENABLE
+#define TELEMETRY_PREVLOGS_TIMEOUT_S      2u
+#else
+#define TELEMETRY_PREVLOGS_TIMEOUT_S      120u
+#endif
+
+/** Annotation code set in SessionState when telemetry prevlogs grep did not
+ *  complete within the timeout.  Upload always proceeds. */
+#define ANNOTATION_TELEMETRY_PREVLOGS_UNAVAILABLE 3
 
 /** Annotation code set in SessionState when NTP was not synced at upload time and
  *  internet connectivity was absent, so the last-known-good time fallback could not
