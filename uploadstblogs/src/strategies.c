@@ -249,7 +249,6 @@ static int wait_for_reboot_reason(void)
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                 "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
                 __FUNCTION__, __LINE__, errno);
-        goto fallback_poll;
     }
 
     int wd = inotify_add_watch(ifd, PATH_FLAG_INVOCATION_DIR,
@@ -259,7 +258,6 @@ static int wait_for_reboot_reason(void)
                 "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
                 __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION_DIR, errno);
         close(ifd);
-        goto fallback_poll;
     }
 
     /* Re-check after watch is set — closes race between access() and add_watch */
@@ -277,7 +275,6 @@ static int wait_for_reboot_reason(void)
                     __FUNCTION__, __LINE__, errno);
             inotify_rm_watch(ifd, wd);
             close(ifd);
-            goto fallback_poll;
         }
         deadline.tv_sec += (time_t)REBOOT_POLL_TIMEOUT_S;
 
@@ -323,22 +320,108 @@ static int wait_for_reboot_reason(void)
         close(ifd);
         return found ? 0 : -1;
     }
-
-fallback_poll:
-    {
-        struct timespec start, now;
-        clock_gettime(CLOCK_MONOTONIC, &start);
-        for (;;) {
-            if (access(PATH_FLAG_INVOCATION, F_OK) == 0) { return 0; }
-            clock_gettime(CLOCK_MONOTONIC, &now);
-            if ((now.tv_sec - start.tv_sec) >= (time_t)REBOOT_POLL_TIMEOUT_S) {
-                return -1;
-            }
-            sleep(REBOOT_POLL_INTERVAL_S);
-        }
-    }
 }
 
+
+/**
+ * wait_for_telemetry_prevlogs_done - Wait for telemetry previous-log grep sentinel.
+ *
+ * Uses inotify to watch TELEMETRY_PREVLOGS_DONE_DIR for creation of
+ * TELEMETRY_PREVLOGS_DONE_FILENAME.  A select() loop with a 2-second heartbeat
+ * drives the wait; the total window is bounded by TELEMETRY_PREVLOGS_TIMEOUT_S
+ * measured on CLOCK_MONOTONIC.
+ *
+ * Falls back to polling if inotify_init1 or inotify_add_watch fails.
+ *
+ * Returns  0 when the sentinel is present (telemetry grep complete).
+ * Returns -1 on timeout.  A timeout does NOT abort the upload; the caller
+ * annotates the session and proceeds.
+ */
+static int wait_for_telemetry_prevlogs_done(void)
+{
+    /* Fast path: sentinel already present */
+    if (access(TELEMETRY_PREVLOGS_DONE_FLAG, F_OK) == 0) {
+        return 0;
+    }
+
+    int ifd = inotify_init1(IN_CLOEXEC);
+    if (ifd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
+                __FUNCTION__, __LINE__, errno);
+    }
+
+    int wd = inotify_add_watch(ifd, TELEMETRY_PREVLOGS_DONE_DIR,
+                               IN_CREATE | IN_MOVED_TO);
+    if (wd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
+                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_DIR, errno);
+        close(ifd);
+    }
+
+    /* Re-check after watch is set — closes race between access() and add_watch */
+    if (access(TELEMETRY_PREVLOGS_DONE_FLAG, F_OK) == 0) {
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return 0;
+    }
+
+    {
+        struct timespec deadline;
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
+                    __FUNCTION__, __LINE__, errno);
+            inotify_rm_watch(ifd, wd);
+            close(ifd);
+        }
+        deadline.tv_sec += (time_t)TELEMETRY_PREVLOGS_TIMEOUT_S;
+
+        int found = 0;
+        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+        while (!found) {
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+                now.tv_sec >= deadline.tv_sec) {
+                break; /* timeout */
+            }
+
+            struct timeval tv = {2, 0};
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(ifd, &fds);
+
+            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
+            if (ret < 0) {
+                if (errno == EINTR) { continue; }
+                break;
+            }
+            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
+
+            ssize_t len = read(ifd, buf, sizeof(buf));
+            if (len <= 0) { continue; }
+
+            ssize_t offset = 0;
+            while (offset < len) {
+                struct inotify_event *ev =
+                    (struct inotify_event *)(buf + offset);
+                if (ev->len > 0 &&
+                    strcmp(ev->name, TELEMETRY_PREVLOGS_DONE_FILENAME) == 0) {
+                    found = 1;
+                    break;
+                }
+                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
+            }
+        }
+
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return found ? 0 : -1;
+    }
+
+}
 
 /**
  * set_upload_annotation - Record a prerequisite-failure annotation in the session.
