@@ -26,7 +26,6 @@ extern "C"
 {
 #endif
 
-#include <time.h>
 
 #define DCM_DIFD_SCHED         "DCM_FW_UPDATE"
 
@@ -39,7 +38,6 @@ typedef struct _dcmdHandle
     VOID *pDifdSchedHandle;
     INT8 *pExecBuff;
     INT8  difdCron[16];
-    struct timespec start_time; /* Monotonic timestamp at DCM process start */
 
 } DCMDHandle;
 
