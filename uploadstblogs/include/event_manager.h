@@ -68,6 +68,11 @@ void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
 void emit_upload_aborted(void);
 
 /**
+ * @brief Emit upload start event
+ */
+void emit_upload_start(void);
+
+/**
  * @brief Emit fallback event
  * @param from_path Original path
  * @param to_path Fallback path
@@ -81,6 +86,11 @@ void emit_fallback(UploadPath from_path, UploadPath to_path);
  */
 void send_iarm_event(const char* event_name, int event_code);
 
+/**
+ * @brief Send maintenance manager IARM event
+ * @param maint_event_code Maintenance event code
+ */
+void send_iarm_event_maintenance(int maint_event_code);
 
 /**
  * @brief Cleanup IARM connection resources
