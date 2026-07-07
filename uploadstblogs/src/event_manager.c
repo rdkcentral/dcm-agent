@@ -36,7 +36,9 @@
 #if defined(IARM_ENABLED)
 #include "libIBus.h"
 #include "sysMgr.h"
-
+#ifdef EN_MAINTENANCE_MANAGER
+#include "maintenanceMGR.h"
+#endif
 static bool iarm_initialized = false;
 #define IARM_UPLOADSTB_EVENT "UploadSTBLogsEvent"
 
@@ -51,12 +53,37 @@ static bool iarm_initialized = false;
 #define LOG_UPLOAD_FAILED 1 
 #define LOG_UPLOAD_ABORTED 2
 
+#define MAINT_LOGUPLOAD_COMPLETE 4
+#define MAINT_LOGUPLOAD_ERROR 5
+#define MAINT_LOGUPLOAD_INPROGRESS 16
+
+// Check maintenance mode (matches script ENABLE_MAINTENANCE check)
+static bool is_maintenance_enabled(void)
+{
+    char buffer[32] = {0};
+    if (getDevicePropertyData("ENABLE_MAINTENANCE", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
+        return (strcasecmp(buffer, "true") == 0);
+    }
+    return false;
+}
+
+// Check device type (matches script DEVICE_TYPE check)
+static bool is_device_broadband(const RuntimeContext* ctx)
+{
+    if (!ctx) {
+        return false;
+    }
+    return (strcmp(ctx->device_type, "broadband") == 0);
+}
 
 void emit_privacy_abort(void)
 {
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Upload aborted due to privacy mode\n", __FUNCTION__, __LINE__);
     
+    // Send maintenance complete event (matches script behavior)
+    // Script sends MAINT_LOGUPLOAD_COMPLETE=4 for privacy mode, not ERROR
+    send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
 }
 
 void emit_no_logs_reboot(const RuntimeContext* ctx)
@@ -71,12 +98,23 @@ void emit_no_logs_reboot(const RuntimeContext* ctx)
         return;
     }
     
+    // Send maintenance complete event only if device is not broadband and maintenance enabled
+    // Matches script uploadLogOnReboot line 810: if [ "$DEVICE_TYPE" != "broadband" ] && [ "x$ENABLE_MAINTENANCE" == "xtrue" ]
+    if (!is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
+        send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
+    }
 }
 
 void emit_no_logs_ondemand(void)
 {
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Log directory empty, skipping log upload\n", __FUNCTION__, __LINE__);
+    
+    // Send maintenance complete event only if maintenance enabled (no device type check)
+    // Matches script uploadLogOnDemand line 746: if [ "x$ENABLE_MAINTENANCE" == "xtrue" ]
+    if (is_maintenance_enabled()) {
+        send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
+    }
 }
 
 void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
@@ -105,6 +143,11 @@ void emit_upload_success(const RuntimeContext* ctx, const SessionState* session)
     
     // Send success events (matches script behavior)
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_SUCCESS);
+    
+    // Send maintenance event only if device is not broadband and maintenance enabled
+    if (ctx && !is_device_broadband(ctx) && is_maintenance_enabled() && ctx->rrd_flag == 0) {
+        send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
+    }
 }
 
 void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
@@ -132,6 +175,10 @@ void emit_upload_failure(const RuntimeContext* ctx, const SessionState* session)
     // Send failure events (matches script behavior)  
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);
     
+    // Send maintenance event only if device is not broadband and maintenance enabled
+    if (!is_device_broadband(ctx) && is_maintenance_enabled()) {
+        send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
+    }
 }
 
 void emit_upload_aborted(void)
@@ -140,6 +187,30 @@ void emit_upload_aborted(void)
             "[%s:%d] Not Uploading Logs with DCM \n", __FUNCTION__, __LINE__);
     
     send_iarm_event("LogUploadEvent", LOG_UPLOAD_FAILED);
+    send_iarm_event_maintenance(MAINT_LOGUPLOAD_ERROR);
+}
+
+void emit_fallback(UploadPath from_path, UploadPath to_path)
+{
+    const char* from_str = (from_path == PATH_DIRECT) ? "Direct" : "CodeBig";
+    const char* to_str = (to_path == PATH_DIRECT) ? "Direct" : "CodeBig";
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Upload fallback: switching from %s to %s path\n", 
+            __FUNCTION__, __LINE__, from_str, to_str);
+    
+    // Note: Script doesn't send specific fallback events, just logs the switch
+}
+
+void emit_upload_start(void)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Starting upload operation\n", __FUNCTION__, __LINE__);
+    
+    // Note: MAINT_LOGUPLOAD_INPROGRESS is sent in different contexts:
+    // 1. When lock acquisition fails (handled in main())
+    // 2. During normal upload start (here) - but script doesn't send this here
+    // Script only sends MAINT_LOGUPLOAD_INPROGRESS on lock failure, not normal start
 }
 
 #ifndef GTEST_ENABLE
@@ -274,6 +345,50 @@ void send_iarm_event(const char* event_name, int event_code)
 }
 
 /**
+ * @brief Send maintenance manager IARM event
+ * Based on rdkfwupdater iarmInterface.c eventManager() MaintenanceMGR section
+ */
+void send_iarm_event_maintenance(int maint_event_code)
+{
+#ifdef EN_MAINTENANCE_MANAGER
+    if (!init_iarm_connection()) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] IARM not initialized, skipping maintenance event\n", __FUNCTION__, __LINE__);
+        return;
+    }
+    
+    IARM_Bus_MaintMGR_EventData_t infoStatus;
+    IARM_Result_t ret_code;
+    
+    memset(&infoStatus, 0, sizeof(IARM_Bus_MaintMGR_EventData_t));
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Sending MaintenanceMGR event with code: %d\n", 
+            __FUNCTION__, __LINE__, maint_event_code);
+    
+    infoStatus.data.maintenance_module_status.status = (IARM_Maint_module_status_t)maint_event_code;
+    
+    ret_code = IARM_Bus_BroadcastEvent(IARM_BUS_MAINTENANCE_MGR_NAME, 
+                                      (IARM_EventId_t)IARM_BUS_MAINTENANCEMGR_EVENT_UPDATE, 
+                                      (void*)&infoStatus, sizeof(infoStatus));
+    
+    if (ret_code == IARM_RESULT_SUCCESS) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] MaintenanceMGR event sent successfully: %d\n", 
+                __FUNCTION__, __LINE__, maint_event_code);
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] MaintenanceMGR event failed: %d (result: %d)\n", 
+                __FUNCTION__, __LINE__, maint_event_code, ret_code);
+    }
+#else
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+            "[%s:%d] Maintenance Manager not enabled, skipping event: %d\n", 
+            __FUNCTION__, __LINE__, maint_event_code);
+#endif
+}
+
+/**
  * @brief Cleanup IARM connection
  * Based on rdkfwupdater iarmrInterface.c term_event_handler()
  */
@@ -297,6 +412,13 @@ void send_iarm_event(const char* event_name, int event_code)
             __FUNCTION__, __LINE__, event_name ? event_name : "NULL", event_code);
 }
 
+void send_iarm_event_maintenance(int maint_event_code)
+{
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+            "[%s:%d] IARM disabled - would send maintenance event: %d\n", 
+            __FUNCTION__, __LINE__, maint_event_code);
+}
+
 void cleanup_iarm_connection(void)
 {
     // No-op when IARM disabled
@@ -308,5 +430,8 @@ void emit_folder_missing_error(void)
 {
     RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
             "[%s:%d] Required folder missing for log upload\n", __FUNCTION__, __LINE__);
+    
+    // Send maintenance complete event (matches script behavior)
+    send_iarm_event_maintenance(MAINT_LOGUPLOAD_COMPLETE);
 }
 
