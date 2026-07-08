@@ -69,6 +69,26 @@ Shared behavior:
 ```mermaid
 stateDiagram-v2
     [*] --> Temporary BackupLogs(previousLogs)
+    Temporary BackupLogs(previousLogs) --> Error: fail
+    Temporary BackupLogs(previousLogs) --> CheckSTT: success
+    CheckSTT --> CheckRebootInfo: stt_ok
+    CheckSTT --> CheckInternet: stt_missing
+    CheckInternet --> UseLastGoodTime: internet_ok
+    CheckInternet --> Upload: internet_fail
+    UseLastGoodTime --> CheckRebootInfo
+    CheckRebootInfo --> TelemetryPrevLogGrep: rebootinfo_ok
+    CheckRebootInfo --> RetriggerRebootReasonInfo: rebootinfo_missing
+    RetriggerRebootReasonInfo --> TelemetryPrevLogGrep: rebootinfo_updated
+    TelemetryPrevLogGrep --> Upload: grep_completed
+    Upload --> Success: upload_ok
+    Upload --> Error: upload_fail
+    Error --> [*]
+    Success --> [*]
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Temporary BackupLogs(previousLogs)
     BackupLogs --> Error: fail
     BackupLogs --> CheckSTT: success
     CheckSTT --> CheckRebootInfo: stt_ok
