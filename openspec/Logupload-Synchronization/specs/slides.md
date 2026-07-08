@@ -69,28 +69,18 @@ Shared behavior:
 
 ```mermaid
 flowchart LR
-  START([update-prev-reboot-info starts]) --> LOCK{"Acquire lock\n/tmp/rebootInfo.lock"}
-  LOCK -->|acquired| CHECK_STT{"Check flags\nstt_received?\nrebootInfo_Updated?"}
-  CHECK_STT -->|both present| CHECK_RI{"reboot.info\nexists?"}
-  CHECK_STT -->|either missing| EXIT_SKIP["Unlock, exit 0\nsilent skip"]
-  CHECK_RI -->|yes| RENAME["mv reboot.info →\npreviousreboot.info"]
-  CHECK_RI -->|no| PARSE["Parse rebootInfo.log\n+ kernel panic check\n+ HW register read"]
-  PARSE --> CLASSIFY["Classify reason:\nAPP / OPS / MAINT\n/ FW_FAILURE / KERNEL_PANIC"]
-  CLASSIFY --> WRITE["Write previousreboot.info"]
-  RENAME --> SENTINEL
-  WRITE --> SENTINEL[/"Create sentinel\n/tmp/Update_rebootInfo_invoked"/]
+  START([update-prev-reboot-info starts]) --> LOCK["Acquire lock"]
+  LOCK --> CHECK_STT{"stt_received &\nrebootInfo_Updated\nexist?"}
+  CHECK_STT -->|yes| DERIVE["Derive reboot reason\nWrite previousreboot.info"]
+  CHECK_STT -->|no| SKIP["Skip, exit 0"]
+  DERIVE --> SENTINEL[/"Create sentinel\n/tmp/Update_rebootInfo_invoked"/]
   SENTINEL --> UNLOCK["Unlock, exit 0"]
 
   style START fill:#2196F3,color:#fff
-  style LOCK fill:#E3F2FD,stroke:#2196F3
   style CHECK_STT fill:#F3E5F5,stroke:#9C27B0
-  style CHECK_RI fill:#FFF3E0,stroke:#FF9800
-  style RENAME fill:#2196F3,color:#fff
-  style PARSE fill:#2196F3,color:#fff
-  style CLASSIFY fill:#2196F3,color:#fff
-  style WRITE fill:#2196F3,color:#fff
+  style DERIVE fill:#2196F3,color:#fff
   style SENTINEL fill:#4CAF50,color:#fff
-  style EXIT_SKIP fill:#FF9800,color:#fff
+  style SKIP fill:#FF9800,color:#fff
   style UNLOCK fill:#4CAF50,color:#fff
 ```
 
