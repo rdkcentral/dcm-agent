@@ -67,6 +67,51 @@ Shared behavior:
 # Log Upload Flow in RDK
 
 
+## Reboot Reason — Sentinel Flow
+
+```mermaid
+flowchart LR
+  START([update-prev-reboot-info starts]) --> INOTIFY_BL{"inotify wait\n.backup_logs_done"}
+  INOTIFY_BL -->|found| CHECK_STT{"stat check\nstt_received?"}
+  INOTIFY_BL -->|timeout 60s| ABORT["Exit ERROR_GENERAL"]
+  CHECK_STT -->|present| READ["Read PreviousLogs/\nDerive reboot reason"]
+  CHECK_STT -->|absent| WAIT_STT["Poll/wait for\nstt_received"]
+  WAIT_STT -->|found| READ
+  WAIT_STT -->|timeout| ABORT
+  READ --> WRITE["Write previousreboot.info"]
+  WRITE --> SENTINEL[/"Create sentinel\n/tmp/Update_rebootInfo_invoked"/]
+
+  style START fill:#2196F3,color:#fff
+  style INOTIFY_BL fill:#E3F2FD,stroke:#2196F3
+  style CHECK_STT fill:#F3E5F5,stroke:#9C27B0
+  style WAIT_STT fill:#F3E5F5,stroke:#9C27B0
+  style READ fill:#2196F3,color:#fff
+  style WRITE fill:#2196F3,color:#fff
+  style SENTINEL fill:#4CAF50,color:#fff
+  style ABORT fill:#F44336,color:#fff
+```
+
+---
+
+## Telemetry — Sentinel Flow
+
+```mermaid
+flowchart LR
+  START([telemetry2_0 starts]) --> INOTIFY{"inotify wait\n.backup_logs_done"}
+  INOTIFY -->|found| GREP["Grep-scan PreviousLogs/\nfor telemetry markers"]
+  INOTIFY -->|timeout 60s| SKIP["Skip PreviousLogs report"]
+  GREP --> REPORT["Send Previous Logs\ntelemetry report"]
+  REPORT --> SENTINEL[/"Create sentinel\n/tmp/.telemetry_prevlogs_done"/]
+
+  style START fill:#E91E63,color:#fff
+  style INOTIFY fill:#FCE4EC,stroke:#E91E63
+  style GREP fill:#E91E63,color:#fff
+  style REPORT fill:#E91E63,color:#fff
+  style SENTINEL fill:#4CAF50,color:#fff
+  style SKIP fill:#F44336,color:#fff
+```
+
+
 
 ```mermaid
 graph LR
