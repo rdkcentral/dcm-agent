@@ -67,6 +67,24 @@ Shared behavior:
 # Log Upload Flow in RDK
 
 
+
+
+```mermaid
+flowchart LR
+  START([telemetry2_0 starts]) --> INOTIFY{"inotify wait\n.backup_logs_done"}
+  INOTIFY -->|found| GREP["Grep PreviousLogs/\nfor telemetry markers"]
+  INOTIFY -->|timeout| WARN["Log warning:\nincomplete data"] --> GREP
+  GREP --> REPORT["Send telemetry report"]
+  REPORT --> SENTINEL[/"Create sentinel\n/tmp/.telemetry_prevlogs_done"/]
+
+  style START fill:#E91E63,color:#fff
+  style INOTIFY fill:#FCE4EC,stroke:#E91E63
+  style WARN fill:#FF9800,color:#fff
+  style GREP fill:#E91E63,color:#fff
+  style REPORT fill:#E91E63,color:#fff
+  style SENTINEL fill:#4CAF50,color:#fff
+```
+
 ```mermaid
 flowchart LR
   START([update-prev-reboot-info starts]) --> LOCK["Acquire lock"]
