@@ -279,7 +279,7 @@ typedef struct {
 /**
  * @struct RuntimeContext
  * @brief Complete runtime context with all configuration fields flattened
- * 
+ *
  * Design: Completely flat structure - all fields are direct members.
  * Access pattern: ctx->field_name (e.g., ctx->rrd_flag, ctx->log_path)
  */
@@ -290,7 +290,7 @@ typedef struct {
     int flag;                       /**< General upload flag */
     int upload_on_reboot;           /**< Upload on reboot flag */
     int trigger_type;               /**< Type of upload trigger */
-    
+
     // Upload behavior settings
     bool privacy_do_not_share;      /**< Privacy mode enabled */
     bool ocsp_enabled;              /**< OCSP validation enabled */
@@ -303,7 +303,8 @@ typedef struct {
     bool maintenance_enabled;       /**< Maintenance mode enabled */
     bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
     time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
-    
+    bool collect_scheduled_logs;    /**< RDK-C: stage current logs into DCM_LOG_PATH before the scheduled DCM upload (DCM_SCHEDULED_LOG_COLLECT) */
+
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
     char prev_log_path[MAX_PATH_LENGTH];      /**< Previous logs directory */
@@ -315,23 +316,23 @@ typedef struct {
     char dcm_log_file[MAX_PATH_LENGTH];       /**< DCM log file path */
     char dcm_log_path[MAX_PATH_LENGTH];       /**< DCM log directory */
     char iarm_event_binary[MAX_PATH_LENGTH];  /**< IARM event sender location */
-    
+
     // Upload endpoints
     char endpoint_url[MAX_URL_LENGTH];        /**< Upload endpoint URL */
     char upload_http_link[MAX_URL_LENGTH];    /**< HTTP upload link */
     char presign_url[MAX_URL_LENGTH];         /**< Pre-signed URL */
     char proxy_bucket[MAX_URL_LENGTH];        /**< Proxy bucket for fallback uploads */
-    
+
     // Device information
     char mac_address[MAX_MAC_LENGTH];         /**< Device MAC address */
     char device_type[32];                     /**< Device type (mediaclient, etc.) */
     char build_type[32];                      /**< Build type */
-    
+
     // Certificate paths
     char cert_path[MAX_CERT_PATH_LENGTH];     /**< Client certificate path */
     char key_path[MAX_CERT_PATH_LENGTH];      /**< Private key path */
     char ca_cert_path[MAX_CERT_PATH_LENGTH];  /**< CA certificate path */
-    
+
     // Retry configuration
     int direct_max_attempts;        /**< Max attempts for direct path */
     int codebig_max_attempts;       /**< Max attempts for CodeBig path */
