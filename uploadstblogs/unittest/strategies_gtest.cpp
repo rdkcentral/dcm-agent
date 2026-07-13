@@ -942,6 +942,262 @@ TEST_F(WaitForSentinelTest, Detection_SentinelAppearsNearTimeout) {
     EXPECT_EQ(0, result);
 }
 
+// ==================== HELPER FUNCTION TESTS ====================
+
+/**
+ * Test fixture for internet_write_cb, nm_query_ipver, check_internet_connectivity,
+ * apply_ntp_fallback_time, and trigger_reboot_info_update.
+ */
+class HelperFunctionsTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mock_file_ops = nullptr;
+    }
+
+    void TearDown() override {
+        g_mock_file_ops = nullptr;
+    }
+
+    void CreateFile(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
+};
+
+// ---- internet_write_cb tests ----
+
+/**
+ * @test Normal write: data fits entirely in buffer.
+ * Covers: memcpy path, len update, null terminator.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_NormalWrite) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char* data = "Hello, World!";
+    size_t ret = internet_write_cb((void*)data, 1, strlen(data), &resp);
+
+    EXPECT_EQ(ret, strlen(data));
+    EXPECT_EQ(resp.len, strlen(data));
+    EXPECT_STREQ(resp.buf, "Hello, World!");
+}
+
+/**
+ * @test Multiple sequential writes accumulate in buffer.
+ * Covers: Appending to existing content via r->len offset.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_MultipleWrites) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char* part1 = "Hello";
+    const char* part2 = ", World!";
+    internet_write_cb((void*)part1, 1, strlen(part1), &resp);
+    internet_write_cb((void*)part2, 1, strlen(part2), &resp);
+
+    EXPECT_EQ(resp.len, strlen("Hello, World!"));
+    EXPECT_STREQ(resp.buf, "Hello, World!");
+}
+
+/**
+ * @test Buffer overflow protection: data larger than remaining space is truncated.
+ * Covers: incoming > space clamp, return value still reports full size*nmemb.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_BufferOverflowProtection) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    // Fill buffer almost to capacity (leave 5 bytes + null)
+    resp.len = sizeof(resp.buf) - 6;
+    memset(resp.buf, 'A', resp.len);
+
+    const char* overflow_data = "OVERFLOW_DATA_THAT_IS_TOO_LONG";
+    size_t ret = internet_write_cb((void*)overflow_data, 1, strlen(overflow_data), &resp);
+
+    // Return value is always size*nmemb (curl convention)
+    EXPECT_EQ(ret, strlen(overflow_data));
+    // Buffer should only contain what fits (5 chars + null)
+    EXPECT_EQ(resp.len, sizeof(resp.buf) - 1);
+    // Null terminated
+    EXPECT_EQ(resp.buf[resp.len], '\0');
+}
+
+/**
+ * @test Zero-length write returns 0.
+ * Covers: size*nmemb == 0 edge case.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_ZeroLength) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    size_t ret = internet_write_cb((void*)"data", 0, 0, &resp);
+
+    EXPECT_EQ(ret, 0u);
+    EXPECT_EQ(resp.len, 0u);
+    EXPECT_EQ(resp.buf[0], '\0');
+}
+
+/**
+ * @test size != 1: verifies size*nmemb calculation.
+ * Covers: Curl may pass size=sizeof(element), nmemb=count.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_SizeTimesNmemb) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char data[] = "ABCDEF";
+    // size=2, nmemb=3 → total 6 bytes
+    size_t ret = internet_write_cb((void*)data, 2, 3, &resp);
+
+    EXPECT_EQ(ret, 6u);
+    EXPECT_EQ(resp.len, 6u);
+    EXPECT_EQ(memcmp(resp.buf, "ABCDEF", 6), 0);
+}
+
+// ---- check_internet_connectivity / nm_query_ipver tests ----
+
+/**
+ * @test check_internet_connectivity returns false when Thunder is unreachable.
+ * Covers: curl_easy_perform failure path (CURLE_COULDNT_CONNECT in CI).
+ * Note: In Docker CI, nothing listens on 127.0.0.1:9998.
+ */
+TEST_F(HelperFunctionsTest, CheckInternetConnectivity_NoThunder) {
+    // In CI/test environment, Thunder JSON-RPC is not running
+    bool result = check_internet_connectivity();
+    EXPECT_FALSE(result);
+}
+
+/**
+ * @test nm_query_ipver returns false when Thunder is unreachable (IPv4).
+ * Covers: curl_easy_perform → CURLE_COULDNT_CONNECT → returns false.
+ */
+TEST_F(HelperFunctionsTest, NmQueryIpver_IPv4_NoThunder) {
+    bool result = nm_query_ipver("IPv4");
+    EXPECT_FALSE(result);
+}
+
+/**
+ * @test nm_query_ipver returns false when Thunder is unreachable (IPv6).
+ * Covers: Same failure path for IPv6 variant.
+ */
+TEST_F(HelperFunctionsTest, NmQueryIpver_IPv6_NoThunder) {
+    bool result = nm_query_ipver("IPv6");
+    EXPECT_FALSE(result);
+}
+
+// ---- apply_ntp_fallback_time tests ----
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when clock file is unreadable.
+ * Covers: fopen returns NULL path (mocked fopen returns nullptr when g_mock_file_ops is NULL).
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_FileNotReadable) {
+    // With g_mock_file_ops = nullptr, fopen always returns nullptr
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+}
+
+// ---- trigger_reboot_info_update tests ----
+
+/**
+ * @test trigger_reboot_info_update does nothing when PATH_FLAG_INVOCATION exists.
+ * Covers: stat(PATH_FLAG_INVOCATION) succeeds → no STT_FLAG touch.
+ */
+TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_FlagAlreadyPresent) {
+    // Create PATH_FLAG_INVOCATION so stat() succeeds
+    CreateFile(PATH_FLAG_INVOCATION);
+    // Remove STT_FLAG to verify it's NOT created
+    unlink(STT_FLAG);
+
+    trigger_reboot_info_update();
+
+    // STT_FLAG should NOT be created since PATH_FLAG_INVOCATION exists
+    struct stat st;
+    EXPECT_NE(stat(STT_FLAG, &st), 0);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test trigger_reboot_info_update creates STT_FLAG when PATH_FLAG_INVOCATION absent.
+ * Covers: stat(PATH_FLAG_INVOCATION) fails → open(STT_FLAG) path.
+ */
+TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_CreatesSTTFlag) {
+    // Ensure PATH_FLAG_INVOCATION does NOT exist
+    unlink(PATH_FLAG_INVOCATION);
+    // Ensure STT_FLAG does NOT exist
+    unlink(STT_FLAG);
+
+    trigger_reboot_info_update();
+
+    // STT_FLAG should now exist
+    struct stat st;
+    EXPECT_EQ(stat(STT_FLAG, &st), 0);
+
+    // Cleanup
+    unlink(STT_FLAG);
+}
+
+// ---- wait_for_reboot_reason / wait_for_telemetry_prevlogs_done ----
+// (Additional tests beyond WaitForSentinelTest fixture)
+
+/**
+ * @test wait_for_reboot_reason uses correct constants.
+ * Covers: Verifies PATH_FLAG_INVOCATION constant by creating it and checking return.
+ */
+TEST_F(HelperFunctionsTest, WaitForRebootReason_UsesCorrectPath) {
+    CreateFile(PATH_FLAG_INVOCATION);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(0, result);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done uses correct constants.
+ * Covers: Verifies TELEMETRY_PREVLOGS_DONE_FLAG constant.
+ */
+TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_UsesCorrectPath) {
+    CreateFile(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(0, result);
+
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+}
+
+/**
+ * @test wait_for_reboot_reason timeout is short in GTEST_ENABLE mode.
+ * Covers: REBOOT_POLL_TIMEOUT_S == 2 when GTEST_ENABLE defined.
+ */
+TEST_F(HelperFunctionsTest, WaitForRebootReason_ShortTimeoutInTest) {
+    unlink(PATH_FLAG_INVOCATION);
+
+    auto start = std::chrono::steady_clock::now();
+    int result = wait_for_reboot_reason();
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_EQ(-1, result);
+    // Should complete within ~3s (2s timeout + select heartbeat)
+    EXPECT_LT(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count(), 5);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done timeout is short in GTEST_ENABLE mode.
+ * Covers: TELEMETRY_PREVLOGS_TIMEOUT_S == 2 when GTEST_ENABLE defined.
+ */
+TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_ShortTimeoutInTest) {
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    auto start = std::chrono::steady_clock::now();
+    int result = wait_for_telemetry_prevlogs_done();
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_EQ(-1, result);
+    EXPECT_LT(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count(), 5);
+}
+
 // Entry point for the test executable
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
