@@ -560,9 +560,25 @@ protected:
         memset(&session, 0, sizeof(session));
         strcpy(session.archive_file, "reboot_logs.tar.gz");
         session.success = false;
+
+        // Create sentinel files required by reboot_setup prerequisites
+        CreateSentinel(BACKUP_LOGS_DONE_FLAG);
+        CreateSentinel(STT_FLAG);
+        CreateSentinel(PATH_FLAG_INVOCATION);
+        CreateSentinel(TELEMETRY_PREVLOGS_DONE_FLAG);
     }
     
-    void TearDown() override {}
+    void TearDown() override {
+        unlink(BACKUP_LOGS_DONE_FLAG);
+        unlink(STT_FLAG);
+        unlink(PATH_FLAG_INVOCATION);
+        unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+    }
+
+    void CreateSentinel(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
     
     RuntimeContext ctx;
     SessionState session;
@@ -630,9 +646,25 @@ protected:
         // Initialize common session
         memset(&session, 0, sizeof(session));
         session.success = false;
+
+        // Create sentinel files required by reboot_setup prerequisites
+        CreateSentinel(BACKUP_LOGS_DONE_FLAG);
+        CreateSentinel(STT_FLAG);
+        CreateSentinel(PATH_FLAG_INVOCATION);
+        CreateSentinel(TELEMETRY_PREVLOGS_DONE_FLAG);
     }
     
-    void TearDown() override {}
+    void TearDown() override {
+        unlink(BACKUP_LOGS_DONE_FLAG);
+        unlink(STT_FLAG);
+        unlink(PATH_FLAG_INVOCATION);
+        unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+    }
+
+    void CreateSentinel(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
     
     RuntimeContext ctx;
     SessionState session;
