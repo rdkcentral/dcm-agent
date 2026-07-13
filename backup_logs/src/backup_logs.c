@@ -296,7 +296,6 @@ int backup_logs_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    
     /* Cleanup and exit */
     RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Starting cleanup and shutdown\n");
     result = backup_logs_cleanup(&config);
