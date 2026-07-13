@@ -279,7 +279,6 @@ int backup_logs_main(int argc, char *argv[]) {
     static backup_config_t config;
     memset(&config, 0, sizeof(config));
 
-
     /* Initialize backup system */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Initializing backup system\n");
     result = backup_logs_init(&config);
