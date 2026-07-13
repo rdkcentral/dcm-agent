@@ -910,6 +910,243 @@ TEST_F(WaitForSentinelTest, Detection_SentinelAppearsNearTimeout) {
     EXPECT_EQ(0, result);
 }
 
+// ==================== WAIT FOR SENTINEL TESTS ====================
+
+class WaitForSentinelTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Ensure g_mock_file_ops is NULL so we use real system calls
+        g_mock_file_ops = nullptr;
+
+        // Create unique temp directory using PID for test isolation
+        snprintf(test_dir_, sizeof(test_dir_), "/tmp/sentinel_test_%d", getpid());
+        mkdir(test_dir_, 0755);
+
+        // Setup sentinel file path
+        snprintf(sentinel_path_, sizeof(sentinel_path_), "%s/%s", test_dir_, kSentinelName);
+    }
+
+    void TearDown() override {
+        unlink(sentinel_path_);
+        rmdir(test_dir_);
+    }
+
+    void CreateSentinelFile() {
+        int fd = open(sentinel_path_, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+        }
+    }
+
+    void CreateFileInDir(const char* dir, const char* name) {
+        char path[MAX_PATH_LENGTH];
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+        }
+    }
+
+    char test_dir_[256];
+    char sentinel_path_[256];
+    static constexpr const char* kSentinelName = "test_sentinel";
+};
+
+/**
+ * @test Fast path: sentinel file already exists before wait_for_sentinel is called.
+ * Covers: Fast-path access() check at function entry.
+ */
+TEST_F(WaitForSentinelTest, FastPath_SentinelAlreadyExists) {
+    CreateSentinelFile();
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Timeout: sentinel never appears within the specified timeout.
+ * Covers: Full inotify loop with clock_gettime deadline expiry.
+ */
+TEST_F(WaitForSentinelTest, Timeout_SentinelNeverAppears) {
+    // Sentinel not created - should timeout after 1 second
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Inotify detection: sentinel appears after a short delay via IN_CREATE event.
+ * Covers: select() wakeup, read() of inotify_event, filename match.
+ */
+TEST_F(WaitForSentinelTest, Detection_SentinelAppearsAfterDelay) {
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Race condition: sentinel appears between first access() and watch re-check.
+ * Covers: Re-check after inotify_add_watch to close the race window.
+ */
+TEST_F(WaitForSentinelTest, RaceCondition_SentinelAppearsDuringSetup) {
+    // Create sentinel with very short delay - may be caught by the re-check
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Zero timeout: should enter loop but immediately break on deadline check.
+ * Covers: deadline.tv_sec += 0, immediate expiry in while loop.
+ */
+TEST_F(WaitForSentinelTest, ZeroTimeout_ReturnsNegativeOne) {
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 0);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Invalid watch directory: inotify_add_watch fails on non-existent directory.
+ * Covers: inotify_add_watch failure path and close(ifd).
+ */
+TEST_F(WaitForSentinelTest, InvalidWatchDir_Timeout) {
+    const char* bad_dir = "/nonexistent_sentinel_test_dir_xyz";
+    const char* bad_path = "/nonexistent_sentinel_test_dir_xyz/sentinel";
+
+    int result = wait_for_sentinel(bad_path, bad_dir, "sentinel", 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Wrong filename created in watched directory - should not trigger detection.
+ * Covers: inotify event filename comparison (strcmp != 0 path).
+ */
+TEST_F(WaitForSentinelTest, WrongFilename_DoesNotMatch) {
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        // Create a file with a DIFFERENT name
+        CreateFileInDir(test_dir_, "not_the_sentinel");
+    });
+
+    // Wait for "test_sentinel" which will never appear
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 2);
+    creator.join();
+    EXPECT_EQ(-1, result);
+
+    // Clean up the wrong file
+    char wrong_path[256];
+    snprintf(wrong_path, sizeof(wrong_path), "%s/not_the_sentinel", test_dir_);
+    unlink(wrong_path);
+}
+
+/**
+ * @test Multiple sequential calls with sentinel present - consistent behavior.
+ * Covers: Function is idempotent and has no lingering state.
+ */
+TEST_F(WaitForSentinelTest, MultipleCalls_ConsistentBehavior) {
+    CreateSentinelFile();
+
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+}
+
+/**
+ * @test Sentinel removed then re-checked - absence detected after removal.
+ * Covers: Ensures no caching of previous access() results.
+ */
+TEST_F(WaitForSentinelTest, SentinelRemovedThenRechecked) {
+    CreateSentinelFile();
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+
+    // Remove sentinel
+    unlink(sentinel_path_);
+
+    // Now should timeout since sentinel is gone
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test wait_for_reboot_reason wrapper: sentinel present -> returns 0.
+ * Covers: PATH_FLAG_INVOCATION sentinel with production constants.
+ */
+TEST_F(WaitForSentinelTest, WaitForRebootReason_SentinelPresent) {
+    int fd = open(PATH_FLAG_INVOCATION, O_CREAT | O_WRONLY, 0644);
+    if (fd < 0) {
+        GTEST_SKIP() << "Cannot create " << PATH_FLAG_INVOCATION;
+    }
+    close(fd);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(0, result);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test wait_for_reboot_reason wrapper: sentinel absent -> returns -1 after timeout.
+ * Covers: REBOOT_POLL_TIMEOUT_S timeout (2s in GTEST_ENABLE mode).
+ */
+TEST_F(WaitForSentinelTest, WaitForRebootReason_Timeout) {
+    unlink(PATH_FLAG_INVOCATION);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done wrapper: sentinel present -> returns 0.
+ * Covers: TELEMETRY_PREVLOGS_DONE_FLAG with production constants.
+ */
+TEST_F(WaitForSentinelTest, WaitForTelemetryPrevlogsDone_SentinelPresent) {
+    int fd = open(TELEMETRY_PREVLOGS_DONE_FLAG, O_CREAT | O_WRONLY, 0644);
+    if (fd < 0) {
+        GTEST_SKIP() << "Cannot create " << TELEMETRY_PREVLOGS_DONE_FLAG;
+    }
+    close(fd);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(0, result);
+
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done wrapper: sentinel absent -> timeout.
+ * Covers: TELEMETRY_PREVLOGS_TIMEOUT_S timeout (2s in GTEST_ENABLE mode).
+ */
+TEST_F(WaitForSentinelTest, WaitForTelemetryPrevlogsDone_Timeout) {
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Sentinel appears just before timeout deadline.
+ * Covers: select() heartbeat re-checks and event delivery near deadline.
+ */
+TEST_F(WaitForSentinelTest, Detection_SentinelAppearsNearTimeout) {
+    // Create sentinel close to the 3s timeout (at ~2.5s)
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 4);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
 // Entry point for the test executable
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
