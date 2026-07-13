@@ -35,7 +35,6 @@
 #include <secure_wrapper.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <time.h>
 
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
@@ -287,7 +286,7 @@ int backup_logs_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-     /* Execute backup process */
+    /* Execute backup process */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Starting backup execution\n");
     result = backup_logs_execute(&config);
     if (result != BACKUP_SUCCESS) {
