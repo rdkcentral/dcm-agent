@@ -79,7 +79,7 @@ typedef struct {
     size_t len;
 } rpc_resp_t;
 
-static size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
+size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
 {
     rpc_resp_t *r = (rpc_resp_t *)userp;
     size_t incoming = size * nmemb;
@@ -91,7 +91,7 @@ static size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *user
     return size * nmemb;
 }
 
-static bool nm_query_ipver(const char *ipversion)
+bool nm_query_ipver(const char *ipversion)
 {
     char payload[256];
     CURL *ch;
@@ -136,7 +136,7 @@ static bool nm_query_ipver(const char *ipversion)
     return (strstr(resp.buf, "NO_INTERNET") == NULL);
 }
 
-static bool check_internet_connectivity(void)
+bool check_internet_connectivity(void)
 {
     /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
     if (nm_query_ipver("IPv4")) { return true; }
@@ -154,7 +154,7 @@ static bool check_internet_connectivity(void)
  *
  * Returns the epoch (> 0) on success, 0 on any failure.
  */
-static time_t apply_ntp_fallback_time(void)
+time_t apply_ntp_fallback_time(void)
 {
     char time_buf[32] = {0};
     long epoch;
@@ -202,7 +202,7 @@ static time_t apply_ntp_fallback_time(void)
  *
  * Cross-repo interface: STT_FLAG is watched by reboot-manager.
  */
-static void trigger_reboot_info_update(void)
+void trigger_reboot_info_update(void)
 {
     struct stat st;
 
@@ -218,50 +218,48 @@ static void trigger_reboot_info_update(void)
 }
 
 /**
- * wait_for_reboot_reason - Wait for the reboot-reason completion sentinel.
+ * wait_for_sentinel - Generic inotify-based wait for a sentinel file.
  *
- * Uses inotify to watch /tmp for creation of PATH_FLAG_INVOCATION_FILENAME
- * ("Update_rebootInfo_invoked").  A select() loop with a 2-second heartbeat
- * drives the wait; the total window is bounded by REBOOT_POLL_TIMEOUT_S
- * measured on CLOCK_MONOTONIC so EINTR-interrupted sleeps cannot inflate the
- * deadline.
+ * @param flag_path   Full path to the sentinel file (e.g. "/tmp/.backup_logs_done")
+ * @param watch_dir   Directory to watch (e.g. "/tmp")
+ * @param filename    Basename of the sentinel (e.g. ".backup_logs_done")
+ * @param timeout_s   Maximum wait in seconds (CLOCK_MONOTONIC)
  *
- * A post-watch re-check closes the race window between the initial access()
- * call and inotify_add_watch().
+ * Strategy:
+ * 1. Fast path: sentinel already present → return 0 immediately.
+ * 2. Set up inotify on watch_dir for IN_CREATE | IN_MOVED_TO.
+ * 3. Re-check after watch is established to close the creation race window.
+ * 4. select() loop with 2 s heartbeat; exit when sentinel appears or
+ *    timeout_s total seconds have elapsed.
+ * 5. Fallback: if inotify_init1 or inotify_add_watch fails, poll with 1 s sleep.
  *
- * If inotify_init1 or inotify_add_watch fails the function falls back to the
- * simple polling path so the upload is never silently blocked by a missing
- * kernel feature.
- *
- * Returns  0 when the sentinel is present (previousreboot.info is ready).
- * Returns -1 on timeout.  A timeout does NOT abort the upload; the caller
- * annotates the session and proceeds.
+ * Returns  0 when the sentinel is detected within the timeout.
+ * Returns -1 on timeout or inotify fallback timeout.
  */
-static int wait_for_reboot_reason(void)
+int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s)
 {
     /* Fast path: sentinel already present */
-    if (access(PATH_FLAG_INVOCATION, F_OK) == 0) {
+    if (access(flag_path, F_OK) == 0) {
         return 0;
     }
 
     int ifd = inotify_init1(IN_CLOEXEC);
     if (ifd < 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, errno);
+                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling for %s\n",
+                __FUNCTION__, __LINE__, errno, flag_path);
     }
 
-    int wd = inotify_add_watch(ifd, PATH_FLAG_INVOCATION_DIR,
-                               IN_CREATE | IN_MOVED_TO);
+    int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
     if (wd < 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION_DIR, errno);
+                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling for %s\n",
+                __FUNCTION__, __LINE__, watch_dir, errno, flag_path);
         close(ifd);
     }
 
     /* Re-check after watch is set — closes race between access() and add_watch */
-    if (access(PATH_FLAG_INVOCATION, F_OK) == 0) {
+    if (access(flag_path, F_OK) == 0) {
         inotify_rm_watch(ifd, wd);
         close(ifd);
         return 0;
@@ -271,12 +269,12 @@ static int wait_for_reboot_reason(void)
         struct timespec deadline;
         if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
-                    __FUNCTION__, __LINE__, errno);
+                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling for %s\n",
+                    __FUNCTION__, __LINE__, errno, flag_path);
             inotify_rm_watch(ifd, wd);
             close(ifd);
         }
-        deadline.tv_sec += (time_t)REBOOT_POLL_TIMEOUT_S;
+        deadline.tv_sec += (time_t)timeout_s;
 
         int found = 0;
         char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
@@ -307,8 +305,7 @@ static int wait_for_reboot_reason(void)
             while (offset < len) {
                 struct inotify_event *ev =
                     (struct inotify_event *)(buf + offset);
-                if (ev->len > 0 &&
-                    strcmp(ev->name, PATH_FLAG_INVOCATION_FILENAME) == 0) {
+                if (ev->len > 0 && strcmp(ev->name, filename) == 0) {
                     found = 1;
                     break;
                 }
@@ -322,105 +319,19 @@ static int wait_for_reboot_reason(void)
     }
 }
 
-
-/**
- * wait_for_telemetry_prevlogs_done - Wait for telemetry previous-log grep sentinel.
- *
- * Uses inotify to watch TELEMETRY_PREVLOGS_DONE_DIR for creation of
- * TELEMETRY_PREVLOGS_DONE_FILENAME.  A select() loop with a 2-second heartbeat
- * drives the wait; the total window is bounded by TELEMETRY_PREVLOGS_TIMEOUT_S
- * measured on CLOCK_MONOTONIC.
- *
- * Falls back to polling if inotify_init1 or inotify_add_watch fails.
- *
- * Returns  0 when the sentinel is present (telemetry grep complete).
- * Returns -1 on timeout.  A timeout does NOT abort the upload; the caller
- * annotates the session and proceeds.
- */
-static int wait_for_telemetry_prevlogs_done(void)
+int wait_for_reboot_reason(void)
 {
-    /* Fast path: sentinel already present */
-    if (access(TELEMETRY_PREVLOGS_DONE_FLAG, F_OK) == 0) {
-        return 0;
-    }
+    return wait_for_sentinel(PATH_FLAG_INVOCATION, PATH_FLAG_INVOCATION_DIR, PATH_FLAG_INVOCATION_FILENAME, REBOOT_POLL_TIMEOUT_S);
+}
 
-    int ifd = inotify_init1(IN_CLOEXEC);
-    if (ifd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, errno);
-    }
+int wait_for_ntp_sync(void)
+{
+    return wait_for_sentinel(STT_FLAG, STT_FLAG_DIR, STT_FLAG_FILENAME, NTP_SYNC_TIMEOUT_S);
+}
 
-    int wd = inotify_add_watch(ifd, TELEMETRY_PREVLOGS_DONE_DIR,
-                               IN_CREATE | IN_MOVED_TO);
-    if (wd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling\n",
-                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_DIR, errno);
-        close(ifd);
-    }
-
-    /* Re-check after watch is set — closes race between access() and add_watch */
-    if (access(TELEMETRY_PREVLOGS_DONE_FLAG, F_OK) == 0) {
-        inotify_rm_watch(ifd, wd);
-        close(ifd);
-        return 0;
-    }
-
-    {
-        struct timespec deadline;
-        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling\n",
-                    __FUNCTION__, __LINE__, errno);
-            inotify_rm_watch(ifd, wd);
-            close(ifd);
-        }
-        deadline.tv_sec += (time_t)TELEMETRY_PREVLOGS_TIMEOUT_S;
-
-        int found = 0;
-        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
-
-        while (!found) {
-            struct timespec now;
-            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
-                now.tv_sec >= deadline.tv_sec) {
-                break; /* timeout */
-            }
-
-            struct timeval tv = {2, 0};
-            fd_set fds;
-            FD_ZERO(&fds);
-            FD_SET(ifd, &fds);
-
-            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
-            if (ret < 0) {
-                if (errno == EINTR) { continue; }
-                break;
-            }
-            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
-
-            ssize_t len = read(ifd, buf, sizeof(buf));
-            if (len <= 0) { continue; }
-
-            ssize_t offset = 0;
-            while (offset < len) {
-                struct inotify_event *ev =
-                    (struct inotify_event *)(buf + offset);
-                if (ev->len > 0 &&
-                    strcmp(ev->name, TELEMETRY_PREVLOGS_DONE_FILENAME) == 0) {
-                    found = 1;
-                    break;
-                }
-                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
-            }
-        }
-
-        inotify_rm_watch(ifd, wd);
-        close(ifd);
-        return found ? 0 : -1;
-    }
-
+int wait_for_telemetry_prevlogs_done(void)
+{
+    return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
 }
 
 /**
@@ -1044,16 +955,15 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             bool connected = check_internet_connectivity();
 
             if (connected) {
-                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                        "[%s:%d] NTP absent but internet available; applying last-known-good time\n",
-                        __FUNCTION__, __LINE__);
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP absent but internet available; applying last-known-good time\n", __FUNCTION__, __LINE__);
                 ctx->archive_ref_time = apply_ntp_fallback_time();
             } else {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] NTP absent and no internet; proceeding with current system time\n",
-                        __FUNCTION__, __LINE__);
-                session->upload_annotations |= (1 << ANNOTATION_NTP_UNAVAILABLE);
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__); 
+				session->upload_annotations |= (1 << ANNOTATION_NTP_UNAVAILABLE);
             }
+        }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
         }
     }
 
@@ -1062,11 +972,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     // be done by now.  Only if the sentinel is still absent after the full timeout
     // do we write the trigger file to nudge reboot-manager into a retry.
     {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n",
-                __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
 
-        if (wait_for_reboot_reason() != 0) {
+		if (wait_for_reboot_reason() != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                     "[%s:%d] Reboot reason sentinel not present after %us. "
                     "Writing trigger to request immediate update.\n",
