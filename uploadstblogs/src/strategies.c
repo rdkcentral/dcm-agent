@@ -315,11 +315,6 @@ int wait_for_reboot_reason(void)
     return wait_for_sentinel(PATH_FLAG_INVOCATION, PATH_FLAG_INVOCATION_DIR, PATH_FLAG_INVOCATION_FILENAME, REBOOT_POLL_TIMEOUT_S);
 }
 
-int wait_for_ntp_sync(void)
-{
-    return wait_for_sentinel(STT_FLAG, STT_FLAG_DIR, STT_FLAG_FILENAME, NTP_SYNC_TIMEOUT_S);
-}
-
 int wait_for_telemetry_prevlogs_done(void)
 {
     return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
