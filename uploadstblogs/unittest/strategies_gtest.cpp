@@ -1089,12 +1089,200 @@ TEST_F(HelperFunctionsTest, NmQueryIpver_IPv6_NoThunder) {
 
 /**
  * @test apply_ntp_fallback_time returns 0 when clock file is unreadable.
- * Covers: fopen returns NULL path (mocked fopen returns nullptr when g_mock_file_ops is NULL).
+ * Covers: fopen returns NULL → early return 0.
  */
 TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_FileNotReadable) {
     // With g_mock_file_ops = nullptr, fopen always returns nullptr
     time_t result = apply_ntp_fallback_time();
     EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when clock file is empty.
+ * Covers: fopen succeeds, fgets returns NULL → fclose + return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_EmptyFile) {
+    // Create an empty temp file
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_empty_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    close(fd);
+
+    // Open for reading via fdopen (NOT mocked) to get a valid FILE*
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    // Temporarily set mock to return our real FILE*
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    // Close the real fd (mocked fclose didn't actually close it)
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains invalid epoch (non-numeric).
+ * Covers: fopen succeeds, fgets succeeds, strtol returns 0 → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_InvalidEpochString) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_invalid_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "not_a_number\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains negative epoch.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns < 0 → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_NegativeEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_neg_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "-100\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains zero.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns 0 (epoch <= 0) → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_ZeroEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_zero_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "0\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns valid epoch on success.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns > 0 → return epoch.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_ValidEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_valid_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "1700000000\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, (time_t)1700000000);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time handles epoch with leading whitespace.
+ * Covers: strtol skips leading whitespace per C standard → returns valid epoch.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_EpochWithWhitespace) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_ws_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "  1642780800\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, (time_t)1642780800);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
 }
 
 // ---- trigger_reboot_info_update tests ----
