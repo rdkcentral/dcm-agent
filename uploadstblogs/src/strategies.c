@@ -70,15 +70,6 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
 
-
-#define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
-#define INTERNET_CHECK_TIMEOUT_S  5L
-
-typedef struct {
-    char   buf[512];
-    size_t len;
-} rpc_resp_t;
-
 size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
 {
     rpc_resp_t *r = (rpc_resp_t *)userp;
