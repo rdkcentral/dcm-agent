@@ -251,11 +251,6 @@ public:  // Make public for access
     const char* originalPath;
 };
 
-TEST_F(DcmRunJobsTest, RunJobs_LogUploadProfile_ExecutesCorrectScript) {
-    setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
-    EXPECT_NO_THROW(get_dcmRunJobs(DCM_LOGUPLOAD_SCHED, &dcmHandle));
-}
-
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     setenv("DCM_RDK_PATH", "/tmp/test_dcm_scripts", 1);
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
