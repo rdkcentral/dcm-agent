@@ -91,9 +91,6 @@ protected:
         if (dcmHandle.pRbusHandle) {
             dcmRbusUnInit(dcmHandle.pRbusHandle);
         }
-        if (dcmHandle.pLogSchedHandle) {
-            dcmSchedRemoveJob(dcmHandle.pLogSchedHandle);
-        }
         if (dcmHandle.pDifdSchedHandle) {
             dcmSchedRemoveJob(dcmHandle.pDifdSchedHandle);
         }
@@ -146,7 +143,6 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
     EXPECT_NE(dcmHandle.pRbusHandle, nullptr);
     EXPECT_NE(dcmHandle.pExecBuff, nullptr);
-    EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
     EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
 }
 
@@ -308,7 +304,6 @@ protected:
         }
         
         if (dcmSchedInit() == DCM_SUCCESS) {
-            testHandle.pLogSchedHandle = dcmSchedAddJob("test_log", nullptr, nullptr);
             testHandle.pDifdSchedHandle = dcmSchedAddJob("test_difd", nullptr, nullptr);
         }
         
@@ -318,7 +313,7 @@ protected:
     }
     
     void cleanupTestComponents() {
-        if (testHandle.pLogSchedHandle || testHandle.pDifdSchedHandle) {
+        if (testHandle.pDifdSchedHandle) {
             dcmSchedUnInit();
         }
     }
@@ -347,7 +342,6 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
     EXPECT_EQ(testHandle.pExecBuff, nullptr);
     EXPECT_EQ(testHandle.pDcmSetHandle, nullptr);
     EXPECT_EQ(testHandle.pRbusHandle, nullptr);
-    EXPECT_EQ(testHandle.pLogSchedHandle, nullptr);
     EXPECT_EQ(testHandle.pDifdSchedHandle, nullptr);
 }
 
