@@ -26,7 +26,6 @@ extern "C"
 {
 #endif
 
-
 #define DCM_DIFD_SCHED         "DCM_FW_UPDATE"
 
 typedef struct _dcmdHandle
