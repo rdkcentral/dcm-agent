@@ -286,7 +286,8 @@ int backup_logs_main(int argc, char *argv[]) {
         RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to initialize backup system with result: %d\n", result);
         return EXIT_FAILURE;
     }
-    
+
+     /* Execute backup process */
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Starting backup execution\n");
     result = backup_logs_execute(&config);
     if (result != BACKUP_SUCCESS) {
