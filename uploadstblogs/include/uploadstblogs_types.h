@@ -374,6 +374,14 @@ typedef struct {
     int upload_annotations;         /**< Bitmask of ANNOTATION_* codes set during prerequisite fallback */
 } SessionState;
 
+#define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
+#define INTERNET_CHECK_TIMEOUT_S  5L
+
+typedef struct {
+    char   buf[512];
+    size_t len;
+} rpc_resp_t;
+
 /* ==========================
    Telemetry Helper Functions
    ========================== */
