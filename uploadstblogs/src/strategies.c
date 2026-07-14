@@ -1248,7 +1248,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     return ret;
 }
 
-
 /**
  * @brief Cleanup phase for REBOOT/NON_DCM strategy
  * 
