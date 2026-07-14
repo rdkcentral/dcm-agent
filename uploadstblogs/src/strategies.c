@@ -208,7 +208,7 @@ void trigger_reboot_info_update(void)
         if (fd >= 0) {
             close(fd);
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Touched STT_FLAG to trigger reboot reason update: %s\n",
+                    "[%s:%d] Trigger reboot reason update: %s\n",
                     __FUNCTION__, __LINE__, STT_FLAG);
         }
     }
