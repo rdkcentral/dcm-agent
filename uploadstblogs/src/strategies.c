@@ -321,7 +321,6 @@ static bool read_dcm_upload_flag(void)
             break;
         }
     }
-
     
     fclose(fp);
     return upload_enabled;
