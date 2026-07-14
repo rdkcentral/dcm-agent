@@ -897,8 +897,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                 RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP absent but internet available; applying last-known-good time\n", __FUNCTION__, __LINE__);
                 ctx->archive_ref_time = apply_ntp_fallback_time();
             } else {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__); 
-				session->upload_annotations |= (1 << ANNOTATION_NTP_UNAVAILABLE);
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__);
             }
         }
 		else {
