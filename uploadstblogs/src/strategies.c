@@ -232,7 +232,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
             struct timeval tv = {2, 0};
             fd_set fds;
             FD_ZERO(&fds);
-            FD_SET(ifd, &fds);
+            FD_SET((unsigned)ifd, &fds);
 
             int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
             if (ret < 0) {
