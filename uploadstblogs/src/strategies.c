@@ -36,8 +36,16 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+#include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/inotify.h>
+#include <curl/curl.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
@@ -60,6 +68,223 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session);
 static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+
+size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
+{
+    rpc_resp_t *r = (rpc_resp_t *)userp;
+    size_t incoming = size * nmemb;
+
+    if (r->len >= (sizeof(r->buf) - 1u)) {
+        return size * nmemb; /* discard extra data but keep curl happy */
+    }
+
+    size_t space = (sizeof(r->buf) - 1u) - r->len;
+    if (incoming > space) { incoming = space; }
+
+    memcpy(r->buf + r->len, ptr, incoming);
+    r->len += incoming;
+    r->buf[r->len] = '\0';
+    return size * nmemb;
+}
+
+bool nm_query_ipver(const char *ipversion)
+{
+    char payload[256];
+    CURL *ch;
+    rpc_resp_t resp;
+    struct curl_slist *hdrs = NULL;
+    CURLcode rc;
+    int n;
+
+    n = snprintf(payload, sizeof(payload),
+        "{\"jsonrpc\":\"2.0\",\"id\":\"42\","
+        "\"method\":\"org.rdk.NetworkManager.IsConnectedToInternet\","
+        "\"params\":{\"ipversion\":\"%s\"}}", ipversion);
+    if (n < 0 || (size_t)n >= sizeof(payload)) { return false; }
+
+    ch = curl_easy_init();
+    if (!ch) { return false; }
+
+    memset(&resp, 0, sizeof(resp));
+    hdrs = curl_slist_append(NULL, "Content-Type: application/json");
+    if (!hdrs) { curl_easy_cleanup(ch); return false; }
+
+    curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL);
+    curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload);
+    curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs);
+    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb);
+    curl_easy_setopt(ch, CURLOPT_WRITEDATA,     &resp);
+    curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S);
+    curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L);
+
+    rc = curl_easy_perform(ch);
+    curl_slist_free_all(hdrs);
+    curl_easy_cleanup(ch);
+
+    if (rc != CURLE_OK) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] NetworkManager RPC (%s) failed: %s\n",
+                __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
+        return false;
+    }
+
+    /* status != "NO_INTERNET" means connected */
+    return (strstr(resp.buf, "NO_INTERNET") == NULL);
+}
+
+bool check_internet_connectivity(void)
+{
+    /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
+    if (nm_query_ipver("IPv4")) { return true; }
+    return nm_query_ipver("IPv6");
+}
+
+time_t apply_ntp_fallback_time(void)
+{
+    char time_buf[32] = {0};
+    long epoch;
+    FILE *fp;
+
+    fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
+    if (!fp) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n",
+                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
+        return 0;
+    }
+    if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr clock file %s is empty\n",
+                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
+        fclose(fp);
+        return 0;
+    }
+    fclose(fp);
+
+    epoch = strtol(time_buf, NULL, 10);
+    if (epoch <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] systimemgr returned invalid epoch string: '%s'\n",
+                __FUNCTION__, __LINE__, time_buf);
+        return 0;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n",
+            __FUNCTION__, __LINE__, epoch);
+    return (time_t)epoch;
+}
+
+void trigger_reboot_info_update(void)
+{
+    struct stat st;
+
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Trigger reboot reason update: %s\n",
+                    __FUNCTION__, __LINE__, STT_FLAG);
+        }
+    }
+}
+
+int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s)
+{
+    /* Fast path: sentinel already present */
+    if (access(flag_path, F_OK) == 0) {
+        return 0;
+    }
+
+    int ifd = inotify_init1(IN_CLOEXEC);
+    if (ifd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling for %s\n",
+                __FUNCTION__, __LINE__, errno, flag_path);
+    }
+
+    int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
+    if (wd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling for %s\n",
+                __FUNCTION__, __LINE__, watch_dir, errno, flag_path);
+        close(ifd);
+		return -1;
+    }
+
+    /* Re-check after watch is set — closes race between access() and add_watch */
+    if (access(flag_path, F_OK) == 0) {
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return 0;
+    }
+
+    {
+        struct timespec deadline;
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] clock_gettime failed (errno=%d) \n",
+                    __FUNCTION__, __LINE__, errno);
+            inotify_rm_watch(ifd, wd);
+            close(ifd);
+			return -1
+        }
+        deadline.tv_sec += (time_t)timeout_s;
+
+        int found = 0;
+        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+        while (!found) {
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+                now.tv_sec >= deadline.tv_sec) {
+                break; /* timeout */
+            }
+
+            struct timeval tv = {2, 0};
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(ifd, &fds);
+
+            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
+            if (ret < 0) {
+                if (errno == EINTR) { continue; }
+                break;
+            }
+            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
+
+            ssize_t len = read(ifd, buf, sizeof(buf));
+            if (len <= 0) { continue; }
+
+            ssize_t offset = 0;
+            while (offset < len) {
+                struct inotify_event *ev =
+                    (struct inotify_event *)(buf + offset);
+                if (ev->len > 0 && strcmp(ev->name, filename) == 0) {
+                    found = 1;
+                    break;
+                }
+                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
+            }
+        }
+
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return found ? 0 : -1;
+    }
+}
+
+int wait_for_reboot_reason(void)
+{
+    return wait_for_sentinel(PATH_FLAG_INVOCATION, PATH_FLAG_INVOCATION_DIR, PATH_FLAG_INVOCATION_FILENAME, REBOOT_POLL_TIMEOUT_S);
+}
+
+int wait_for_telemetry_prevlogs_done(void)
+{
+    return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
+}
 
 /**
  * @brief Read upload_flag from DCMSettings.conf
@@ -110,6 +335,7 @@ static bool read_dcm_upload_flag(void)
             break;
         }
     }
+
     
     fclose(fp);
     return upload_enabled;
@@ -215,13 +441,11 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
 #ifndef L2_TEST_ENABLED
     sleep(60);
 #endif
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
-
     return 0;
 }
 
@@ -641,10 +865,91 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
+	/* backup_logs gate (REQ-SYNC-001).
+     * backup_logs writes BACKUP_LOGS_DONE_FLAG when PreviousLogs are fully assembled.
+     * telemetry already waited for this sentinel before grepping PreviousLogs, so it
+     * should be present by now.  If absent, the log set is incomplete — abort and let
+     * the next scheduled upload attempt pick it up once backup_logs finishes. */
+    {
+        struct stat st_bl;
+        if (stat(BACKUP_LOGS_DONE_FLAG, &st_bl) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] backup_logs not done (%s absent); aborting upload\n",
+                    __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
+            return -1;
+        }
+    }
+
+	/* NTP sync check (REQ-SYNC-002).
+     * If STT_FLAG is absent the system clock was not set from NTP this boot.
+     * In that case query the network stack: if internet is reachable the clock
+     * is probably ahead of epoch so we retrieve the last-known-good time from
+     * systimemgr (via RBUS) and apply it with settimeofday().  This ensures
+     * archive timestamps are meaningful even without NTP.
+     * If internet is not reachable we annotate the session and continue — the
+     * upload must not be blocked by a missing time source. */
+    {
+        struct stat st_ntp;
+        if (stat(STT_FLAG, &st_ntp) != 0) {
+            bool connected = check_internet_connectivity();
+
+            if (connected) {
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP absent but internet available; applying last-known-good time\n", __FUNCTION__, __LINE__);
+                ctx->archive_ref_time = apply_ntp_fallback_time();
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__); 
+				session->upload_annotations |= (1 << ANNOTATION_NTP_UNAVAILABLE);
+            }
+        }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+	// Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+
+		if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel not present after %us. "
+                    "trigger to request immediate update.\n",
+                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
+	/* Wait for telemetry previous-log grep completion sentinel (REQ-SYNC-003).
+     * Telemetry writes TELEMETRY_PREVLOGS_DONE_FLAG after it finishes grepping
+     * PreviousLogs.  Uploading before this sentinel appears could cause telemetry
+     * to lose data from the previous boot.  This is a soft gate — on timeout the
+     * upload still proceeds and the session is annotated. */
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG,
+                TELEMETRY_PREVLOGS_TIMEOUT_S);
+
+        if (wait_for_telemetry_prevlogs_done() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel not present after %us; "
+                    "proceeding without telemetry sync\n",
+                    __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
     // Check if PREV_LOG_PATH exists and has .txt or .log files
-    // Script uploadLogOnReboot lines 805-816:
-    // ret=`ls $PREV_LOG_PATH/*.txt`
-    // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
     if (!dir_exists(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
@@ -658,35 +963,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         emit_no_logs_reboot(ctx);
         return -1;
     }
-
-    // Check system uptime and sleep if needed
-    // Script lines 818-836: if uptime < 900s, sleep 330s
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        if (uptime_seconds < 900.0) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] System uptime %.0f seconds < 900s, sleeping for 330s\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
-            
-            // Script checks ENABLE_MAINTENANCE but both paths result in 330s sleep
-            // For simplicity, just sleep (background job with wait has same effect)
-#ifndef L2_TEST_ENABLED
-            sleep(330);
-#endif
-            
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
-        } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Device uptime %.0f seconds >= 900s, skipping sleep\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
-        }
-    } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to get system uptime, skipping sleep\n", 
-                __FUNCTION__, __LINE__);
-    }
-
+	
     // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
     int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
@@ -812,13 +1089,9 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-#ifndef L2_TEST_ENABLED
-    sleep(60);
-#endif
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
-
     return 0;
 }
 
@@ -833,7 +1106,8 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
  */
 static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 {
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+
+	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
 
@@ -843,7 +1117,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
     bool should_upload = false;
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
-    
+
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
     if (ctx->dcm_flag == 0) {
         should_upload = true;
@@ -869,7 +1143,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         } else {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
-        
+
         // Get RFC setting for unscheduled reboot upload via RBUS
         bool disable_unscheduled_upload = false;
         if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
@@ -879,9 +1153,9 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                     __FUNCTION__, __LINE__);
             disable_unscheduled_upload = false;
         }
-        
+
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
-        
+
         // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
         // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
         // Script logic for the unscheduled reboot path:
@@ -900,8 +1174,8 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    
-    if (!should_upload) {
+
+	if (!should_upload) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
@@ -910,7 +1184,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         emit_upload_aborted();
         return 0;
     }
-
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Uploading main logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
@@ -948,9 +1221,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-#ifndef L2_TEST_ENABLED
-                sleep(60);
-#endif
             
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
@@ -1056,7 +1326,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
                 "[%s:%d] Failed to move some files to permanent backup\n", 
                 __FUNCTION__, __LINE__);
     }
-
+	
     // Clean PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);

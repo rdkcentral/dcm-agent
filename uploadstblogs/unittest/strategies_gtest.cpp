@@ -24,6 +24,8 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <thread>
+#include <chrono>
 
 extern "C" {
 #include "uploadstblogs_types.h"
@@ -558,9 +560,25 @@ protected:
         memset(&session, 0, sizeof(session));
         strcpy(session.archive_file, "reboot_logs.tar.gz");
         session.success = false;
+
+        // Create sentinel files required by reboot_setup prerequisites
+        CreateSentinel(BACKUP_LOGS_DONE_FLAG);
+        CreateSentinel(STT_FLAG);
+        CreateSentinel(PATH_FLAG_INVOCATION);
+        CreateSentinel(TELEMETRY_PREVLOGS_DONE_FLAG);
     }
     
-    void TearDown() override {}
+    void TearDown() override {
+        unlink(BACKUP_LOGS_DONE_FLAG);
+        unlink(STT_FLAG);
+        unlink(PATH_FLAG_INVOCATION);
+        unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+    }
+
+    void CreateSentinel(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
     
     RuntimeContext ctx;
     SessionState session;
@@ -628,9 +646,25 @@ protected:
         // Initialize common session
         memset(&session, 0, sizeof(session));
         session.success = false;
+
+        // Create sentinel files required by reboot_setup prerequisites
+        CreateSentinel(BACKUP_LOGS_DONE_FLAG);
+        CreateSentinel(STT_FLAG);
+        CreateSentinel(PATH_FLAG_INVOCATION);
+        CreateSentinel(TELEMETRY_PREVLOGS_DONE_FLAG);
     }
     
-    void TearDown() override {}
+    void TearDown() override {
+        unlink(BACKUP_LOGS_DONE_FLAG);
+        unlink(STT_FLAG);
+        unlink(PATH_FLAG_INVOCATION);
+        unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+    }
+
+    void CreateSentinel(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
     
     RuntimeContext ctx;
     SessionState session;
@@ -669,6 +703,687 @@ TEST_F(StrategiesIntegrationTest, ErrorHandling_UploadFailure) {
     EXPECT_EQ(dcm_strategy_handler.archive_phase(&ctx, &session), 0);
     EXPECT_NE(dcm_strategy_handler.upload_phase(&ctx, &session), 0); // Should fail
     EXPECT_FALSE(session.success); // Should remain false
+}
+
+// ==================== WAIT FOR SENTINEL TESTS ====================
+
+class WaitForSentinelTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Ensure g_mock_file_ops is NULL so we use real system calls
+        g_mock_file_ops = nullptr;
+
+        // Create unique temp directory using PID for test isolation
+        snprintf(test_dir_, sizeof(test_dir_), "/tmp/sentinel_test_%d", getpid());
+        mkdir(test_dir_, 0755);
+
+        // Setup sentinel file path
+        snprintf(sentinel_path_, sizeof(sentinel_path_), "%s/%s", test_dir_, kSentinelName);
+    }
+
+    void TearDown() override {
+        unlink(sentinel_path_);
+        rmdir(test_dir_);
+    }
+
+    void CreateSentinelFile() {
+        int fd = open(sentinel_path_, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+        }
+    }
+
+    void CreateFileInDir(const char* dir, const char* name) {
+        char path[MAX_PATH_LENGTH];
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+        }
+    }
+
+    char test_dir_[256];
+    char sentinel_path_[256];
+    static constexpr const char* kSentinelName = "test_sentinel";
+};
+
+/**
+ * @test Fast path: sentinel file already exists before wait_for_sentinel is called.
+ * Covers: Fast-path access() check at function entry.
+ */
+TEST_F(WaitForSentinelTest, FastPath_SentinelAlreadyExists) {
+    CreateSentinelFile();
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Timeout: sentinel never appears within the specified timeout.
+ * Covers: Full inotify loop with clock_gettime deadline expiry.
+ */
+TEST_F(WaitForSentinelTest, Timeout_SentinelNeverAppears) {
+    // Sentinel not created - should timeout after 1 second
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Inotify detection: sentinel appears after a short delay via IN_CREATE event.
+ * Covers: select() wakeup, read() of inotify_event, filename match.
+ */
+TEST_F(WaitForSentinelTest, Detection_SentinelAppearsAfterDelay) {
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Race condition: sentinel appears between first access() and watch re-check.
+ * Covers: Re-check after inotify_add_watch to close the race window.
+ */
+TEST_F(WaitForSentinelTest, RaceCondition_SentinelAppearsDuringSetup) {
+    // Create sentinel with very short delay - may be caught by the re-check
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 5);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test Zero timeout: should enter loop but immediately break on deadline check.
+ * Covers: deadline.tv_sec += 0, immediate expiry in while loop.
+ */
+TEST_F(WaitForSentinelTest, ZeroTimeout_ReturnsNegativeOne) {
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 0);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Invalid watch directory: inotify_add_watch fails on non-existent directory.
+ * Covers: inotify_add_watch failure path and close(ifd).
+ */
+TEST_F(WaitForSentinelTest, InvalidWatchDir_Timeout) {
+    const char* bad_dir = "/nonexistent_sentinel_test_dir_xyz";
+    const char* bad_path = "/nonexistent_sentinel_test_dir_xyz/sentinel";
+
+    int result = wait_for_sentinel(bad_path, bad_dir, "sentinel", 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Wrong filename created in watched directory - should not trigger detection.
+ * Covers: inotify event filename comparison (strcmp != 0 path).
+ */
+TEST_F(WaitForSentinelTest, WrongFilename_DoesNotMatch) {
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        // Create a file with a DIFFERENT name
+        CreateFileInDir(test_dir_, "not_the_sentinel");
+    });
+
+    // Wait for "test_sentinel" which will never appear
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 2);
+    creator.join();
+    EXPECT_EQ(-1, result);
+
+    // Clean up the wrong file
+    char wrong_path[256];
+    snprintf(wrong_path, sizeof(wrong_path), "%s/not_the_sentinel", test_dir_);
+    unlink(wrong_path);
+}
+
+/**
+ * @test Multiple sequential calls with sentinel present - consistent behavior.
+ * Covers: Function is idempotent and has no lingering state.
+ */
+TEST_F(WaitForSentinelTest, MultipleCalls_ConsistentBehavior) {
+    CreateSentinelFile();
+
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+}
+
+/**
+ * @test Sentinel removed then re-checked - absence detected after removal.
+ * Covers: Ensures no caching of previous access() results.
+ */
+TEST_F(WaitForSentinelTest, SentinelRemovedThenRechecked) {
+    CreateSentinelFile();
+    EXPECT_EQ(0, wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1));
+
+    // Remove sentinel
+    unlink(sentinel_path_);
+
+    // Now should timeout since sentinel is gone
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 1);
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test wait_for_reboot_reason wrapper: sentinel present -> returns 0.
+ * Covers: PATH_FLAG_INVOCATION sentinel with production constants.
+ */
+TEST_F(WaitForSentinelTest, WaitForRebootReason_SentinelPresent) {
+    int fd = open(PATH_FLAG_INVOCATION, O_CREAT | O_WRONLY, 0644);
+    if (fd < 0) {
+        GTEST_SKIP() << "Cannot create " << PATH_FLAG_INVOCATION;
+    }
+    close(fd);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(0, result);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test wait_for_reboot_reason wrapper: sentinel absent -> returns -1 after timeout.
+ * Covers: REBOOT_POLL_TIMEOUT_S timeout (2s in GTEST_ENABLE mode).
+ */
+TEST_F(WaitForSentinelTest, WaitForRebootReason_Timeout) {
+    unlink(PATH_FLAG_INVOCATION);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done wrapper: sentinel present -> returns 0.
+ * Covers: TELEMETRY_PREVLOGS_DONE_FLAG with production constants.
+ */
+TEST_F(WaitForSentinelTest, WaitForTelemetryPrevlogsDone_SentinelPresent) {
+    int fd = open(TELEMETRY_PREVLOGS_DONE_FLAG, O_CREAT | O_WRONLY, 0644);
+    if (fd < 0) {
+        GTEST_SKIP() << "Cannot create " << TELEMETRY_PREVLOGS_DONE_FLAG;
+    }
+    close(fd);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(0, result);
+
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done wrapper: sentinel absent -> timeout.
+ * Covers: TELEMETRY_PREVLOGS_TIMEOUT_S timeout (2s in GTEST_ENABLE mode).
+ */
+TEST_F(WaitForSentinelTest, WaitForTelemetryPrevlogsDone_Timeout) {
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(-1, result);
+}
+
+/**
+ * @test Sentinel appears just before timeout deadline.
+ * Covers: select() heartbeat re-checks and event delivery near deadline.
+ */
+TEST_F(WaitForSentinelTest, Detection_SentinelAppearsNearTimeout) {
+    // Create sentinel close to the 3s timeout (at ~2.5s)
+    std::thread creator([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+        CreateSentinelFile();
+    });
+
+    int result = wait_for_sentinel(sentinel_path_, test_dir_, kSentinelName, 4);
+    creator.join();
+    EXPECT_EQ(0, result);
+}
+
+// ==================== HELPER FUNCTION TESTS ====================
+
+/**
+ * Test fixture for internet_write_cb, nm_query_ipver, check_internet_connectivity,
+ * apply_ntp_fallback_time, and trigger_reboot_info_update.
+ */
+class HelperFunctionsTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mock_file_ops = nullptr;
+    }
+
+    void TearDown() override {
+        g_mock_file_ops = nullptr;
+    }
+
+    void CreateFile(const char* path) {
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
+};
+
+// ---- internet_write_cb tests ----
+
+/**
+ * @test Normal write: data fits entirely in buffer.
+ * Covers: memcpy path, len update, null terminator.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_NormalWrite) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char* data = "Hello, World!";
+    size_t ret = internet_write_cb((void*)data, 1, strlen(data), &resp);
+
+    EXPECT_EQ(ret, strlen(data));
+    EXPECT_EQ(resp.len, strlen(data));
+    EXPECT_STREQ(resp.buf, "Hello, World!");
+}
+
+/**
+ * @test Multiple sequential writes accumulate in buffer.
+ * Covers: Appending to existing content via r->len offset.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_MultipleWrites) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char* part1 = "Hello";
+    const char* part2 = ", World!";
+    internet_write_cb((void*)part1, 1, strlen(part1), &resp);
+    internet_write_cb((void*)part2, 1, strlen(part2), &resp);
+
+    EXPECT_EQ(resp.len, strlen("Hello, World!"));
+    EXPECT_STREQ(resp.buf, "Hello, World!");
+}
+
+/**
+ * @test Buffer overflow protection: data larger than remaining space is truncated.
+ * Covers: incoming > space clamp, return value still reports full size*nmemb.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_BufferOverflowProtection) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    // Fill buffer almost to capacity (leave 5 bytes + null)
+    resp.len = sizeof(resp.buf) - 6;
+    memset(resp.buf, 'A', resp.len);
+
+    const char* overflow_data = "OVERFLOW_DATA_THAT_IS_TOO_LONG";
+    size_t ret = internet_write_cb((void*)overflow_data, 1, strlen(overflow_data), &resp);
+
+    // Return value is always size*nmemb (curl convention)
+    EXPECT_EQ(ret, strlen(overflow_data));
+    // Buffer should only contain what fits (5 chars + null)
+    EXPECT_EQ(resp.len, sizeof(resp.buf) - 1);
+    // Null terminated
+    EXPECT_EQ(resp.buf[resp.len], '\0');
+}
+
+/**
+ * @test Zero-length write returns 0.
+ * Covers: size*nmemb == 0 edge case.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_ZeroLength) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    size_t ret = internet_write_cb((void*)"data", 0, 0, &resp);
+
+    EXPECT_EQ(ret, 0u);
+    EXPECT_EQ(resp.len, 0u);
+    EXPECT_EQ(resp.buf[0], '\0');
+}
+
+/**
+ * @test size != 1: verifies size*nmemb calculation.
+ * Covers: Curl may pass size=sizeof(element), nmemb=count.
+ */
+TEST_F(HelperFunctionsTest, InternetWriteCb_SizeTimesNmemb) {
+    rpc_resp_t resp;
+    memset(&resp, 0, sizeof(resp));
+
+    const char data[] = "ABCDEF";
+    // size=2, nmemb=3 → total 6 bytes
+    size_t ret = internet_write_cb((void*)data, 2, 3, &resp);
+
+    EXPECT_EQ(ret, 6u);
+    EXPECT_EQ(resp.len, 6u);
+    EXPECT_EQ(memcmp(resp.buf, "ABCDEF", 6), 0);
+}
+
+// ---- check_internet_connectivity / nm_query_ipver tests ----
+
+/**
+ * @test check_internet_connectivity returns false when Thunder is unreachable.
+ * Covers: curl_easy_perform failure path (CURLE_COULDNT_CONNECT in CI).
+ * Note: In Docker CI, nothing listens on 127.0.0.1:9998.
+ */
+TEST_F(HelperFunctionsTest, CheckInternetConnectivity_NoThunder) {
+    // In CI/test environment, Thunder JSON-RPC is not running
+    bool result = check_internet_connectivity();
+    EXPECT_FALSE(result);
+}
+
+/**
+ * @test nm_query_ipver returns false when Thunder is unreachable (IPv4).
+ * Covers: curl_easy_perform → CURLE_COULDNT_CONNECT → returns false.
+ */
+TEST_F(HelperFunctionsTest, NmQueryIpver_IPv4_NoThunder) {
+    bool result = nm_query_ipver("IPv4");
+    EXPECT_FALSE(result);
+}
+
+/**
+ * @test nm_query_ipver returns false when Thunder is unreachable (IPv6).
+ * Covers: Same failure path for IPv6 variant.
+ */
+TEST_F(HelperFunctionsTest, NmQueryIpver_IPv6_NoThunder) {
+    bool result = nm_query_ipver("IPv6");
+    EXPECT_FALSE(result);
+}
+
+// ---- apply_ntp_fallback_time tests ----
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when clock file is unreadable.
+ * Covers: fopen returns NULL → early return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_FileNotReadable) {
+    // With g_mock_file_ops = nullptr, fopen always returns nullptr
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when clock file is empty.
+ * Covers: fopen succeeds, fgets returns NULL → fclose + return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_EmptyFile) {
+    // Create an empty temp file
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_empty_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    close(fd);
+
+    // Open for reading via fdopen (NOT mocked) to get a valid FILE*
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    // Temporarily set mock to return our real FILE*
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    // Close the real fd (mocked fclose didn't actually close it)
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains invalid epoch (non-numeric).
+ * Covers: fopen succeeds, fgets succeeds, strtol returns 0 → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_InvalidEpochString) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_invalid_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "not_a_number\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains negative epoch.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns < 0 → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_NegativeEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_neg_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "-100\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns 0 when file contains zero.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns 0 (epoch <= 0) → return 0.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_ZeroEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_zero_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "0\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time returns valid epoch on success.
+ * Covers: fopen succeeds, fgets succeeds, strtol returns > 0 → return epoch.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_ValidEpoch) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_valid_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "1700000000\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, (time_t)1700000000);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test apply_ntp_fallback_time handles epoch with leading whitespace.
+ * Covers: strtol skips leading whitespace per C standard → returns valid epoch.
+ */
+TEST_F(HelperFunctionsTest, ApplyNtpFallbackTime_EpochWithWhitespace) {
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/ntp_test_ws_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "  1642780800\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    fd = open(temp_file, O_RDONLY);
+    ASSERT_GE(fd, 0);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    time_t result = apply_ntp_fallback_time();
+    EXPECT_EQ(result, (time_t)1642780800);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+// ---- trigger_reboot_info_update tests ----
+
+/**
+ * @test trigger_reboot_info_update does nothing when PATH_FLAG_INVOCATION exists.
+ * Covers: stat(PATH_FLAG_INVOCATION) succeeds → no STT_FLAG touch.
+ */
+TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_FlagAlreadyPresent) {
+    // Create PATH_FLAG_INVOCATION so stat() succeeds
+    CreateFile(PATH_FLAG_INVOCATION);
+    // Remove STT_FLAG to verify it's NOT created
+    unlink(STT_FLAG);
+
+    trigger_reboot_info_update();
+
+    // STT_FLAG should NOT be created since PATH_FLAG_INVOCATION exists
+    struct stat st;
+    EXPECT_NE(stat(STT_FLAG, &st), 0);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test trigger_reboot_info_update creates STT_FLAG when PATH_FLAG_INVOCATION absent.
+ * Covers: stat(PATH_FLAG_INVOCATION) fails → open(STT_FLAG) path.
+ */
+TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_CreatesSTTFlag) {
+    // Ensure PATH_FLAG_INVOCATION does NOT exist
+    unlink(PATH_FLAG_INVOCATION);
+    // Ensure STT_FLAG does NOT exist
+    unlink(STT_FLAG);
+
+    trigger_reboot_info_update();
+
+    // STT_FLAG should now exist
+    struct stat st;
+    EXPECT_EQ(stat(STT_FLAG, &st), 0);
+
+    // Cleanup
+    unlink(STT_FLAG);
+}
+
+// ---- wait_for_reboot_reason / wait_for_telemetry_prevlogs_done ----
+// (Additional tests beyond WaitForSentinelTest fixture)
+
+/**
+ * @test wait_for_reboot_reason uses correct constants.
+ * Covers: Verifies PATH_FLAG_INVOCATION constant by creating it and checking return.
+ */
+TEST_F(HelperFunctionsTest, WaitForRebootReason_UsesCorrectPath) {
+    CreateFile(PATH_FLAG_INVOCATION);
+
+    int result = wait_for_reboot_reason();
+    EXPECT_EQ(0, result);
+
+    unlink(PATH_FLAG_INVOCATION);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done uses correct constants.
+ * Covers: Verifies TELEMETRY_PREVLOGS_DONE_FLAG constant.
+ */
+TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_UsesCorrectPath) {
+    CreateFile(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    int result = wait_for_telemetry_prevlogs_done();
+    EXPECT_EQ(0, result);
+
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+}
+
+/**
+ * @test wait_for_reboot_reason timeout is short in GTEST_ENABLE mode.
+ * Covers: REBOOT_POLL_TIMEOUT_S == 2 when GTEST_ENABLE defined.
+ */
+TEST_F(HelperFunctionsTest, WaitForRebootReason_ShortTimeoutInTest) {
+    unlink(PATH_FLAG_INVOCATION);
+
+    auto start = std::chrono::steady_clock::now();
+    int result = wait_for_reboot_reason();
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_EQ(-1, result);
+    // Should complete within ~3s (2s timeout + select heartbeat)
+    EXPECT_LT(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count(), 5);
+}
+
+/**
+ * @test wait_for_telemetry_prevlogs_done timeout is short in GTEST_ENABLE mode.
+ * Covers: TELEMETRY_PREVLOGS_TIMEOUT_S == 2 when GTEST_ENABLE defined.
+ */
+TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_ShortTimeoutInTest) {
+    unlink(TELEMETRY_PREVLOGS_DONE_FLAG);
+
+    auto start = std::chrono::steady_clock::now();
+    int result = wait_for_telemetry_prevlogs_done();
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_EQ(-1, result);
+    EXPECT_LT(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count(), 5);
 }
 
 // Entry point for the test executable
