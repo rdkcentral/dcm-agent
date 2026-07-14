@@ -156,12 +156,20 @@ bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
     /* Extended initialization with programmatic configuration */
+
+    rdk_LogOutput_File filelog;
+    strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
+    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
+    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
+    filelog.fileSizeMax = 10240;
+    filelog.fileCountMax = 1;
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
-        .output = RDKLOG_OUTPUT_CONSOLE,          /* Output to console (stdout/stderr) */
+        .output = RDKLOG_OUTPUT_FILE,           /* Output to console (stdout/stderr) */
         .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
-        .pFilePolicy = NULL                       /* Not using file output, so NULL */
+        .pFilePolicy =  &filelog                  /* Not using file output, so NULL */
     };
     
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
