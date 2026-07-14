@@ -229,7 +229,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
                     __FUNCTION__, __LINE__, errno);
             inotify_rm_watch(ifd, wd);
             close(ifd);
-			return -1
+			return -1;
         }
         deadline.tv_sec += (time_t)timeout_s;
 
