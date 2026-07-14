@@ -949,7 +949,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         emit_no_logs_reboot(ctx);
         return -1;
     }
-	
     // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
     int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
@@ -1207,7 +1206,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-				
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
                 dri_session.direct_attempts = 0;       // Reset attempt counters
