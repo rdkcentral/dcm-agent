@@ -110,13 +110,17 @@ bool nm_query_ipver(const char *ipversion)
     hdrs = curl_slist_append(NULL, "Content-Type: application/json");
     if (!hdrs) { curl_easy_cleanup(ch); return false; }
 
-    curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL);
-    curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload);
-    curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs);
-    curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb);
-    curl_easy_setopt(ch, CURLOPT_WRITEDATA,     &resp);
-    curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S);
-    curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L);
+    if (curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL) != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload)            != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs)               != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb)  != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_WRITEDATA,     (void *)&resp)      != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S) != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L)                 != CURLE_OK) {
+        curl_slist_free_all(hdrs);
+        curl_easy_cleanup(ch);
+        return false;
+    }
 
     rc = curl_easy_perform(ch);
     curl_slist_free_all(hdrs);
@@ -187,7 +191,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
     }
 
     int ifd = inotify_init1(IN_CLOEXEC);
-    if (ifd < 0) {
+    if (ifd < 0 || ifd >= FD_SETSIZE) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_init1 failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
     }
 
