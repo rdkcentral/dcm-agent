@@ -1,3 +1,4 @@
+
 /*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
@@ -18,824 +19,1350 @@
  */
 
 /**
- * @file archive_manager.c
- * @brief Archive management and log collection implementation
+ * @file strategies.c
+ * @brief Upload strategy implementations
  * 
- * Combines archive_manager and log_collector functionality:
- * - Log file collection and filtering
- * - TAR.GZ archive creation
- * - Archive naming and timestamp management
+ * Combines strategy_dcm, strategy_ondemand, and strategy_reboot functionality.
+ * Each strategy has its own setup, archive, upload, and cleanup phases.
+ * 
+ * Strategy Summary:
+ * - DCM: Batched uploads from DCM_LOG_PATH, entire directory deleted after upload
+ * - ONDEMAND: Immediate upload from temp directory, original logs preserved
+ * - REBOOT: Previous boot logs with timestamp manipulation and permanent backup
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <strings.h>
+#include <ctype.h>
 #include <errno.h>
-#include <zlib.h>
-#include "archive_manager.h"
-#include "file_operations.h"
-#ifndef GTEST_ENABLE
-#include "system_utils.h"
-#endif
+#include <unistd.h>
+#include <time.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/inotify.h>
+#include <curl/curl.h>
 #include "strategy_handler.h"
+#include "archive_manager.h"
+#include "upload_engine.h"
+#include "file_operations.h"
+#include "common_device_api.h"
+#include "system_utils.h"
+#include "rbus_interface.h"
 #include "rdk_debug.h"
+#include "event_manager.h"
+#include "cleanup_handler.h"
+
+#define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
 /* ==========================
-   Log Collection Functions
+   DCM Strategy Implementation
    ========================== */
-
-/**
- * @brief Check if filename has a valid log extension
- * @param filename File name to check
- * @return true if file should be collected
- */
-bool should_collect_file(const char* filename)
-{
-    if (!filename || filename[0] == '\0') {
-        return false;
-    }
-
-    // Skip . and .. directories
-    if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) {
-        return false;
-    }
-
-    // Collect files with .log or .txt extensions (including rotated logs like .log.0, .txt.1)
-    // Shell script uses: *.txt* and *.log* patterns
-    if (strstr(filename, ".log") != NULL || strstr(filename, ".txt") != NULL) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * @brief Copy a single file to destination directory
- * @param src_path Source file path
- * @param dest_dir Destination directory
- * @return true on success, false on failure
- */
-static bool copy_log_file(const char* src_path, const char* dest_dir)
-{
-    if (!src_path || !dest_dir) {
-        return false;
-    }
-
-    // Extract filename from source path
-    const char* filename = strrchr(src_path, '/');
-    if (filename) {
-        filename++; // Skip the '/'
-    } else {
-        filename = src_path;
-    }
-
-    // Construct destination path with larger buffer to avoid truncation
-    char dest_path[2048];
-    int ret = snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, filename);
-    
-    if (ret < 0 || ret >= (int)sizeof(dest_path)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Destination path too long: %s/%s\n", 
-                __FUNCTION__, __LINE__, dest_dir, filename);
-        return false;
-    }
-
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copying %s to %s\n", 
-            __FUNCTION__, __LINE__, src_path, dest_path);
-
-    return copy_file(src_path, dest_path);
-}
-
-/**
- * @brief Collect files from a directory matching filter
- * @param src_dir Source directory
- * @param dest_dir Destination directory
- * @param filter_func Filter function (NULL = collect all)
- * @return Number of files collected, or -1 on error
- */
-static int collect_files_from_dir(const char* src_dir, const char* dest_dir, 
-                                   bool (*filter_func)(const char*))
-{
-    if (!src_dir || !dest_dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!dir_exists(src_dir)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Source directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, src_dir);
-        return 0;
-    }
-
-    DIR* dir = opendir(src_dir);
-    if (!dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to open directory: %s\n", 
-                __FUNCTION__, __LINE__, src_dir);
-        return -1;
-    }
-
-    int count = 0;
-    struct dirent* entry;
-
-    while ((entry = readdir(dir)) != NULL) {
-        // Skip directories
-        if (entry->d_type == DT_DIR) {
-            continue;
-        }
-
-        // Apply filter if provided
-        if (filter_func && !filter_func(entry->d_name)) {
-            continue;
-        }
-
-        // Construct full source path with larger buffer
-        char src_path[2048];
-        int ret = snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
-        
-        if (ret < 0 || ret >= (int)sizeof(src_path)) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Source path too long, skipping: %s/%s\n", 
-                    __FUNCTION__, __LINE__, src_dir, entry->d_name);
-            continue;
-        }
-
-        // Copy file to destination
-        if (copy_log_file(src_path, dest_dir)) {
-            count++;
-            RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Collected: %s\n", 
-                    __FUNCTION__, __LINE__, entry->d_name);
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy: %s\n", 
-                    __FUNCTION__, __LINE__, entry->d_name);
-        }
-    }
-
-    closedir(dir);
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d files from %s\n", 
-            __FUNCTION__, __LINE__, count, src_dir);
-
-    return count;
-}
-
-int collect_logs(const RuntimeContext* ctx, const SessionState* session, const char* dest_dir)
-{
-    if (!ctx || !session || !dest_dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // This function is used ONLY by ONDEMAND strategy to copy files from LOG_PATH to temp directory
-    // Other strategies (REBOOT/DCM) work directly in their source directories and don't call this
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting log files from LOG_PATH to: %s\n", 
-            __FUNCTION__, __LINE__, dest_dir);
-
-    if (strlen(ctx->log_path) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH is not set\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // Collect *.txt* and *.log* files from LOG_PATH
-    int count = collect_files_from_dir(ctx->log_path, dest_dir, should_collect_file);
-    
-    if (count <= 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] No log files collected\n", __FUNCTION__, __LINE__);
-    } else {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d log files\n", 
-                __FUNCTION__, __LINE__, count);
-    }
-
-    return count;
-}
-
-int collect_previous_logs(const char* src_dir, const char* dest_dir)
-{
-    if (!src_dir || !dest_dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!dir_exists(src_dir)) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Previous logs directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, src_dir);
-        return 0;
-    }
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting previous logs from: %s\n", 
-            __FUNCTION__, __LINE__, src_dir);
-
-    // Collect .log and .txt files from previous logs directory
-    int count = collect_files_from_dir(src_dir, dest_dir, should_collect_file);
-
-    if (count > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d previous log files\n", 
-                __FUNCTION__, __LINE__, count);
-    }
-
-    return count;
-}
-
-int collect_pcap_logs(const RuntimeContext* ctx, const char* dest_dir)
-{
-    if (!ctx || !dest_dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!ctx->include_pcap) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] PCAP collection not enabled\n", __FUNCTION__, __LINE__);
-        return 0;
-    }
-
-    // Shell script behavior: Only collect LAST (most recent) pcap file if device is mediaclient
-    // Script: lastPcapCapture=`ls -lst $LOG_PATH/*.pcap | head -n 1`
-    
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting most recent PCAP file from: %s\n", 
-            __FUNCTION__, __LINE__, ctx->log_path);
-
-    DIR* dir = opendir(ctx->log_path);
-    if (!dir) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to open LOG_PATH: %s\n", 
-                __FUNCTION__, __LINE__, ctx->log_path);
-        return 0;
-    }
-
-    struct dirent* entry;
-    time_t newest_time = 0;
-    char newest_pcap[1024] = {0};
-    
-    // Find the most recent .pcap file (specifically looking for -moca.pcap pattern)
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_DIR) {
-            continue;
-        }
-
-        // Check for .pcap extension
-        if (!strstr(entry->d_name, ".pcap")) {
-            continue;
-        }
-
-        char full_path[2048];
-        int ret = snprintf(full_path, sizeof(full_path), "%s/%s", ctx->log_path, entry->d_name);
-        
-        if (ret < 0 || ret >= (int)sizeof(full_path)) {
-            continue;
-        }
-
-        struct stat st;
-        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode)) {
-            if (st.st_mtime > newest_time) {
-                newest_time = st.st_mtime;
-                strncpy(newest_pcap, full_path, sizeof(newest_pcap) - 1);
-                newest_pcap[sizeof(newest_pcap) - 1] = '\0';
-            }
-        }
-    }
-
-    closedir(dir);
-
-    // Copy the most recent PCAP file if found
-    if (newest_time > 0 && strlen(newest_pcap) > 0) {
-        if (copy_log_file(newest_pcap, dest_dir)) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected most recent PCAP file: %s\n", 
-                    __FUNCTION__, __LINE__, newest_pcap);
-            return 1;
-        } else {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy PCAP file: %s\n", 
-                    __FUNCTION__, __LINE__, newest_pcap);
-        }
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No PCAP files found\n", __FUNCTION__, __LINE__);
-    }
-
-    return 0;
-}
-
-int collect_dri_logs(const RuntimeContext* ctx, const char* dest_dir)
-{
-    if (!ctx || !dest_dir) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!ctx->include_dri) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] DRI log collection not enabled\n", __FUNCTION__, __LINE__);
-        return 0;
-    }
-
-    if (strlen(ctx->dri_log_path) == 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log path not configured\n", __FUNCTION__, __LINE__);
-        return 0;
-    }
-
-    if (!dir_exists(ctx->dri_log_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] DRI log directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->dri_log_path);
-        return 0;
-    }
-
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collecting DRI logs from: %s\n", 
-            __FUNCTION__, __LINE__, ctx->dri_log_path);
-
-    // Collect all files from DRI log directory (no filter)
-    int count = collect_files_from_dir(ctx->dri_log_path, dest_dir, NULL);
-
-    if (count > 0) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Collected %d DRI log files\n", 
-                __FUNCTION__, __LINE__, count);
-    } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No DRI log files found\n", __FUNCTION__, __LINE__);
-    }
-
-    return count;
-}
-
-/* ==========================
-   Archive Creation Functions
-   ========================== */
-
-/* TAR header structure (POSIX ustar format) */
-struct tar_header {
-    char name[100];
-    char mode[8];
-    char uid[8];
-    char gid[8];
-    char size[12];
-    char mtime[12];
-    char checksum[8];
-    char typeflag;
-    char linkname[100];
-    char magic[6];
-    char version[2];
-    char uname[32];
-    char gname[32];
-    char devmajor[8];
-    char devminor[8];
-    char prefix[155];
-    char pad[12];
-};
-
-#define TAR_BLOCK_SIZE 512
 
 /* Forward declarations */
-static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
-                                       const char* source_dir, const char* output_dir,
-                                       const char* prefix);
-static bool generate_archive_name_at(char* buffer, size_t buffer_size,
-                                     const char* mac_address, const char* prefix,
-                                     time_t ref_time);
+static int dcm_setup(RuntimeContext* ctx, SessionState* session);
+static int dcm_archive(RuntimeContext* ctx, SessionState* session);
+static int dcm_upload(RuntimeContext* ctx, SessionState* session);
+static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
-/**
- * @brief Generate archive filename with MAC and timestamp (script format)
- * @param buffer Buffer to store filename
- * @param buffer_size Size of buffer
- * @param mac_address Device MAC address
- * @param prefix Filename prefix ("Logs" or "DRI_Logs")
- * @return true on success, false on failure
- * 
- * Format: <MAC>_<prefix>_<MM-DD-YY-HH-MMAM/PM>.tgz
- * Example: AA-BB-CC-DD-EE-FF_Logs_11-25-25-02-30PM.tgz
- *          AA-BB-CC-DD-EE-FF_DRI_Logs_11-25-25-02-30PM.tgz
- */
-bool generate_archive_name(char* buffer, size_t buffer_size, 
-                          const char* mac_address, const char* prefix)
+
+size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
 {
-    if (!buffer || !prefix || buffer_size < 64) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Invalid parameters: buffer=%p, prefix=%p, buffer_size=%zu\n",
-                __FUNCTION__, __LINE__, (void*)buffer, (void*)prefix, buffer_size);
+    rpc_resp_t *r = (rpc_resp_t *)userp;
+    size_t incoming = size * nmemb;
+
+    if (r->len >= (sizeof(r->buf) - 1u)) {
+        return size * nmemb; /* discard extra data but keep curl happy */
+    }
+
+    size_t space = (sizeof(r->buf) - 1u) - r->len;
+    if (incoming > space) { incoming = space; }
+
+    memcpy(r->buf + r->len, ptr, incoming);
+    r->len += incoming;
+    r->buf[r->len] = '\0';
+    return size * nmemb;
+}
+
+bool nm_query_ipver(const char *ipversion)
+{
+    char payload[256];
+    CURL *ch;
+    rpc_resp_t resp;
+    struct curl_slist *hdrs = NULL;
+    CURLcode rc;
+    int n;
+
+    n = snprintf(payload, sizeof(payload),
+        "{\"jsonrpc\":\"2.0\",\"id\":\"42\","
+        "\"method\":\"org.rdk.NetworkManager.IsConnectedToInternet\","
+        "\"params\":{\"ipversion\":\"%s\"}}", ipversion);
+    if (n < 0 || (size_t)n >= sizeof(payload)) { return false; }
+
+    ch = curl_easy_init();
+    if (!ch) { return false; }
+
+    memset(&resp, 0, sizeof(resp));
+    hdrs = curl_slist_append(NULL, "Content-Type: application/json");
+    if (!hdrs) { curl_easy_cleanup(ch); return false; }
+
+    if (curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL) != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload)            != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs)               != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb)  != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_WRITEDATA,     (void *)&resp)      != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S) != CURLE_OK ||
+        curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L)                 != CURLE_OK) {
+        curl_slist_free_all(hdrs);
+        curl_easy_cleanup(ch);
         return false;
     }
 
-    if (!mac_address || strlen(mac_address) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] MAC address is NULL or empty\n", __FUNCTION__, __LINE__);
+    rc = curl_easy_perform(ch);
+    curl_slist_free_all(hdrs);
+    curl_easy_cleanup(ch);
+
+    if (rc != CURLE_OK) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NetworkManager RPC (%s) failed: %s\n", __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
         return false;
     }
 
-    return generate_archive_name_at(buffer, buffer_size, mac_address, prefix, time(NULL));
+    /* status != "NO_INTERNET" means connected */
+    return (strstr(resp.buf, "NO_INTERNET") == NULL);
 }
 
-static bool generate_archive_name_at(char* buffer, size_t buffer_size,
-                                     const char* mac_address, const char* prefix,
-                                     time_t ref_time)
+bool check_internet_connectivity(void)
 {
-    struct tm tm_utc;
-    if (gmtime_r(&ref_time, &tm_utc) == NULL) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
-        return false;
-    }
-
-    char timestamp[32];
-    if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
-        return false;
-    }
-    // Remove colons from MAC address for filename (A8:4A:63 -> A84A63)
-    char mac_clean[32];
-    const char* src = mac_address;
-    char* dst = mac_clean;
-    while (*src && (dst - mac_clean) < sizeof(mac_clean) - 1) {
-        if (*src != ':') {
-            *dst++ = *src;
-        }
-        src++;
-    }
-    *dst = '\0';
-    
-    // Format: <MAC>_<prefix>_<timestamp>.tgz (matches script format)
-    snprintf(buffer, buffer_size, "%s_%s_%s.tgz", mac_clean, prefix, timestamp);
-    
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-            "[%s:%d] Generated archive name: %s (MAC=%s, prefix=%s)\n",
-            __FUNCTION__, __LINE__, buffer, mac_address, prefix);
-    
-    return true;
+    /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
+    if (nm_query_ipver("IPv4")) { return true; }
+    return nm_query_ipver("IPv6");
 }
 
-/**
- * @brief Calculate TAR checksum
- */
-static unsigned int calculate_tar_checksum(struct tar_header* header)
+time_t apply_ntp_fallback_time(void)
 {
-    unsigned int sum = 0;
-    unsigned char* ptr = (unsigned char*)header;
-    
-    // Initialize checksum field with spaces
-    memset(header->checksum, ' ', 8);
-    
-    // Calculate checksum
-    for (int i = 0; i < TAR_BLOCK_SIZE; i++) {
-        sum += ptr[i];
-    }
-    
-    return sum;
-}
+    char time_buf[32] = {0};
+    long epoch;
+    FILE *fp;
 
-/**
- * @brief Write TAR header for a file
- */
-static int write_tar_header(gzFile gz, const char* filename, struct stat* st)
-{
-    struct tar_header header;
-    memset(&header, 0, sizeof(header));
-    
-    // Filename (strip leading path for archive)
-    strncpy(header.name, filename, sizeof(header.name) - 1);
-    
-    // File mode
-    snprintf(header.mode, sizeof(header.mode), "%07o", (unsigned int)st->st_mode & 0777);
-    
-    // UID and GID
-    snprintf(header.uid, sizeof(header.uid), "%07o", 0);
-    snprintf(header.gid, sizeof(header.gid), "%07o", 0);
-    
-    // File size
-    snprintf(header.size, sizeof(header.size), "%011lo", (unsigned long)st->st_size);
-    
-    // Modification time
-    snprintf(header.mtime, sizeof(header.mtime), "%011lo", (unsigned long)st->st_mtime);
-    
-    // Type flag (regular file)
-    header.typeflag = '0';
-    
-    // Magic and version (ustar)
-    memcpy(header.magic, "ustar", 5);
-    header.magic[5] = '\0';
-    memcpy(header.version, "00", 2);
-    
-    // Calculate and write checksum
-    unsigned int checksum = calculate_tar_checksum(&header);
-    snprintf(header.checksum, sizeof(header.checksum), "%06o", checksum);
-    
-    // Write header to gzip file
-    if (gzwrite(gz, &header, sizeof(header)) != sizeof(header)) {
-        return -1;
-    }
-    
-    return 0;
-}
-
-/**
- * @brief Add file content to TAR archive
- */
-static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
-{
-    struct stat st;
-    
-    // Open file first with O_NOFOLLOW to prevent symlink attacks (TOCTOU fix)
-    int fd = open(filepath, O_RDONLY | O_NOFOLLOW);
-    if (fd < 0) {
-        if (errno != ELOOP) {  // ELOOP = symlink detected
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to open file: %s (errno=%d)\n", 
-                    __FUNCTION__, __LINE__, filepath, errno);
-        }
-        return -1;
-    }
-    
-    // Use fstat on the open file descriptor to avoid TOCTOU race condition
-    if (fstat(fd, &st) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to fstat file: %s\n", __FUNCTION__, __LINE__, filepath);
-        close(fd);
-        return -1;
-    }
-    
-    // Skip non-regular files
-    if (!S_ISREG(st.st_mode)) {
-        close(fd);
+    fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
+    if (!fp) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
         return 0;
     }
-    
-    // Write TAR header
-    if (write_tar_header(gz, arcname, &st) != 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to write TAR header\n", __FUNCTION__, __LINE__);
-        close(fd);
-        return -1;
+    if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s is empty\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
+        fclose(fp);
+        return 0;
     }
-    
-    // Convert file descriptor to FILE* for reading
-    FILE* fp = fdopen(fd, "rb");
-    if (!fp) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] Failed to fdopen file: %s\n", __FUNCTION__, __LINE__, filepath);
-        close(fd);
-        return -1;
+    fclose(fp);
+
+    epoch = strtol(time_buf, NULL, 10);
+    if (epoch <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr returned invalid epoch string: '%s'\n", __FUNCTION__, __LINE__, time_buf);
+        return 0;
     }
-    
-    char buffer[8192];
-    size_t bytes_read;
-    size_t total_written = 0;
-    
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-        if (gzwrite(gz, buffer, bytes_read) != (int)bytes_read) {
-            fclose(fp);
-            return -1;
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n", __FUNCTION__, __LINE__, epoch);
+    return (time_t)epoch;
+}
+
+void trigger_reboot_info_update(void)
+{
+    struct stat st;
+
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: %s\n", __FUNCTION__, __LINE__, STT_FLAG);
         }
-        total_written += bytes_read;
     }
+}
+
+int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s)
+{
+    /* Fast path: sentinel already present */
+    if (access(flag_path, F_OK) == 0) {
+        return 0;
+    }
+
+    int ifd = inotify_init1(IN_CLOEXEC);
+    if (ifd < 0 || ifd >= FD_SETSIZE) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_init1 failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
+    }
+
+    int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
+    if (wd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_add_watch on %s failed (errno=%d) \n", __FUNCTION__, __LINE__, watch_dir, errno);
+        close(ifd);
+		return -1;
+    }
+
+    /* Re-check after watch is set — closes race between access() and add_watch */
+    if (access(flag_path, F_OK) == 0) {
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return 0;
+    }
+
+    {
+        struct timespec deadline;
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] clock_gettime failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
+            inotify_rm_watch(ifd, wd);
+            close(ifd);
+			return -1;
+        }
+        deadline.tv_sec += (time_t)timeout_s;
+
+        int found = 0;
+        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+        while (!found) {
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+                now.tv_sec >= deadline.tv_sec) {
+                break; /* timeout */
+            }
+
+            struct timeval tv = {2, 0};
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(ifd, &fds);
+
+            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
+            if (ret < 0) {
+                if (errno == EINTR) { continue; }
+                break;
+            }
+            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
+
+            ssize_t len = read(ifd, buf, sizeof(buf));
+            if (len <= 0) { continue; }
+
+            ssize_t offset = 0;
+            while (offset < len) {
+                struct inotify_event *ev =
+                    (struct inotify_event *)(buf + offset);
+                if (ev->len > 0 && strcmp(ev->name, filename) == 0) {
+                    found = 1;
+                    break;
+                }
+                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
+            }
+        }
+
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return found ? 0 : -1;
+    }
+}
+
+int wait_for_reboot_reason(void)
+{
+    return wait_for_sentinel(PATH_FLAG_INVOCATION, PATH_FLAG_INVOCATION_DIR, PATH_FLAG_INVOCATION_FILENAME, REBOOT_POLL_TIMEOUT_S);
+}
+
+int wait_for_telemetry_prevlogs_done(void)
+{
+    return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
+}
+
+/**
+ * @brief Read upload_flag from DCMSettings.conf
+ * @return true if upload is enabled, false otherwise
+ * 
+ * Shell script equivalent:
+ * if [ -f "/tmp/DCMSettings.conf" ]; then
+ *     upload_flag=`cat /tmp/DCMSettings.conf | grep 'urn:settings:LogUploadSettings:upload' | cut -d '=' -f2 | sed 's/^"//' | sed 's/"$//'`
+ * fi
+ */
+static bool read_dcm_upload_flag(void)
+{
+    const char* dcm_settings_file = "/tmp/DCMSettings.conf";
+    FILE* fp = fopen(dcm_settings_file, "r");
+    
+    if (!fp) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                "[%s:%d] DCMSettings.conf not found, assuming upload enabled\n",
+                __FUNCTION__, __LINE__);
+        return true;  // Default to enabled if file doesn't exist
+    }
+    
+    bool upload_enabled = false;
+    char line[512];
+    
+    // Search for "urn:settings:LogUploadSettings:upload" line
+    while (fgets(line, sizeof(line), fp)) {
+        if (strstr(line, "urn:settings:LogUploadSettings:upload")) {
+            // Extract value after '='
+            char* equals = strchr(line, '=');
+            if (equals) {
+                equals++; // Move past '='
+                
+                // Skip whitespace and quotes
+                while (*equals && (isspace(*equals) || *equals == '"')) {
+                    equals++;
+                }
+                
+                // Check if value is "true"
+                if (strncasecmp(equals, "true", 4) == 0) {
+                    upload_enabled = true;
+                }
+                
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                        "[%s:%d] DCM upload_flag from DCMSettings.conf: %s\n",
+                        __FUNCTION__, __LINE__, upload_enabled ? "true" : "false");
+            }
+            break;
+        }
+    }
+
     
     fclose(fp);
-    
-    // Pad to 512-byte boundary
-    size_t padding = (TAR_BLOCK_SIZE - (total_written % TAR_BLOCK_SIZE)) % TAR_BLOCK_SIZE;
-    if (padding > 0) {
-        char pad[TAR_BLOCK_SIZE] = {0};
-        if (gzwrite(gz, pad, padding) != (int)padding) {
-            return -1;
-        }
-    }
-    
-    return 0;
+    return upload_enabled;
 }
+
+/* Handler definition */
+const StrategyHandler dcm_strategy_handler = {
+    .setup_phase = dcm_setup,
+    .archive_phase = dcm_archive,
+    .upload_phase = dcm_upload,
+    .cleanup_phase = dcm_cleanup
+};
 
 /**
- * @brief Recursively add directory to TAR archive
+ * @brief Setup phase for DCM strategy
+ * 
+ * Shell script equivalent (uploadDCMLogs lines 698-705):
+ * 1. Change to DCM_LOG_PATH (files already there from batching)
+ * 2. Check upload_flag
+ * 3. Add timestamps to files in DCM_LOG_PATH
  */
-static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base_path, const char* exclude_file)
+static int dcm_setup(RuntimeContext* ctx, SessionState* session)
 {
-    DIR* dir = opendir(dirpath);
-    if (!dir) {
-        return -1;
-    }
-    
-    struct dirent* entry;
-    int base_len = strlen(base_path);
-    
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        
-        char fullpath[MAX_PATH_LENGTH];
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, entry->d_name);
-        
-        // Skip excluded file
-        if (exclude_file && strcmp(fullpath, exclude_file) == 0) {
-            continue;
-        }
-        
-        struct stat st;
-        if (stat(fullpath, &st) != 0) {
-            continue;
-        }
-        
-        // Calculate archive path (relative path)
-        const char* arcname = fullpath + base_len;
-        if (arcname[0] == '/') {
-            arcname++;
-        }
-        
-        if (S_ISDIR(st.st_mode)) {
-            // Recursively process subdirectory
-            if (add_directory_to_tar(gz, fullpath, base_path, exclude_file) != 0) {
-                closedir(dir);
-                return -1;
-            }
-        } else if (S_ISREG(st.st_mode)) {
-            // Add file
-            if (add_file_to_tar(gz, fullpath, arcname) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
-            }
-        }
-    }
-    
-    closedir(dir);
-    return 0;
-}
-
-long get_archive_size(const char* archive_path)
-{
-    if (!archive_path) {
-        return -1;
-    }
-
-    struct stat st;
-    if (stat(archive_path, &st) == 0) {
-        return st.st_size;
-    }
-
-    return -1;
-}
-
-/**
- * @brief Create tar.gz archive from directory using zlib
- * @param ctx Runtime context
- * @param session Session state (optional, can be NULL for DRI archives)
- * @param source_dir Source directory to archive
- * @param output_dir Output directory for archive (NULL = use source_dir)
- * @param prefix Archive name prefix ("Logs" or "DRI_Logs")
- * @return 0 on success, -1 on failure
- */
-int create_archive(RuntimeContext* ctx, SessionState* session, const char* source_dir)
-{
-    if (!ctx || !session || !source_dir) {
+    if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    return create_archive_with_options(ctx, session, source_dir, NULL, "Logs");
-}
-
-/**
- * @brief Create archive with custom options
- */
-static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
-                                       const char* source_dir, const char* output_dir,
-                                       const char* prefix)
-{
-    if (!ctx || !session || !source_dir || !prefix) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!dir_exists(source_dir)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Source directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, source_dir);
-        return -1;
-    }
-
-    // Generate archive filename with MAC and timestamp (script format)
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
-            "[%s:%d] Creating archive with MAC='%s', prefix='%s'\n",
-            __FUNCTION__, __LINE__, 
-            (ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL)", 
-            prefix);
-    
-    char archive_filename[MAX_FILENAME_LENGTH];
-    time_t ref_time = (ctx->archive_ref_time != 0) ? ctx->archive_ref_time : time(NULL);
-    if (!generate_archive_name_at(archive_filename, sizeof(archive_filename),
-                                   ctx->mac_address, prefix, ref_time)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // Determine output directory
-    const char* target_dir = output_dir ? output_dir : source_dir;
-    
-    // Archive path
-    char archive_path[MAX_PATH_LENGTH];
-    snprintf(archive_path, sizeof(archive_path), "%s/%s", target_dir, archive_filename);
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Creating archive: %s from %s\n", 
-            __FUNCTION__, __LINE__, archive_path, source_dir);
+            "[%s:%d] DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
-    // Create gzip file
-    gzFile gz = gzopen(archive_path, "wb9");
-    if (!gz) {
+    // Check if DCM_LOG_PATH exists and has files
+    if (!dir_exists(ctx->dcm_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create gzip file\n", __FUNCTION__, __LINE__);
+                "[%s:%d] DCM_LOG_PATH does not exist: %s\n", 
+                __FUNCTION__, __LINE__, ctx->dcm_log_path);
         return -1;
     }
 
-    // Add all files from directory
-    int ret = add_directory_to_tar(gz, source_dir, source_dir, archive_path);
-    
-    // Write two 512-byte blocks of zeros (TAR EOF marker)
-    char eof_blocks[TAR_BLOCK_SIZE * 2];
-    memset(eof_blocks, 0, sizeof(eof_blocks));
-    if (gzwrite(gz, eof_blocks, sizeof(eof_blocks)) != sizeof(eof_blocks)) {
-        int zerr = Z_OK;
-        const char* zmsg = gzerror(gz, &zerr);
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                "[%s:%d] gzwrite failed to write EOF blocks (zerr=%d, msg=%s)\n",
-                __FUNCTION__, __LINE__, zerr, zmsg ? zmsg : "(null)");
-        ret = -1;
-    }
-    
-    // Close gzip file
-    int gzclose_ret = gzclose(gz);
-    if (gzclose_ret != Z_OK) {
-        const char* zmsg = zError(gzclose_ret);
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-            "[%s:%d] gzclose failed (zret=%d, msg=%s)\n",
-            __FUNCTION__, __LINE__, gzclose_ret, zmsg ? zmsg : "(null)");
-        ret = -1;
+    // Check upload_flag from DCMSettings.conf (matches script behavior)
+    if (!read_dcm_upload_flag()) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] DCM upload_flag is false, skipping DCM upload\n", 
+                __FUNCTION__, __LINE__);
+        return -1;  // Signal to skip upload
     }
 
-    if (ret != 0 && file_exists(archive_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] Removing incomplete archive: %s\n",
-                __FUNCTION__, __LINE__, archive_path);
-        errno = 0;
-        if (!remove_file(archive_path)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to remove incomplete archive: %s (errno=%d, %s)\n",
-                    __FUNCTION__, __LINE__, archive_path, errno, strerror(errno));
+    // Add timestamps to all files in DCM_LOG_PATH
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Adding timestamps to files in DCM_LOG_PATH\n", 
+            __FUNCTION__, __LINE__);
+    
+    int ret = add_timestamp_to_files(ctx->dcm_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to add timestamps to some files\n", 
+                __FUNCTION__, __LINE__);
+        // Continue anyway, not critical
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Setup phase complete\n", __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
+/**
+ * @brief Archive phase for DCM strategy
+ * 
+ * Shell script equivalent (uploadDCMLogs lines 706-717):
+ * - Collect PCAP files to DCM_LOG_PATH if mediaclient
+ * - Create tar.gz archive from all files in DCM_LOG_PATH
+ * - Sleep 60 seconds
+ */
+static int dcm_archive(RuntimeContext* ctx, SessionState* session)
+{
+    if (!ctx || !session) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid parameters (ctx=%p, session=%p)\n", 
+                __FUNCTION__, __LINE__, (void*)ctx, (void*)session);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
+
+    // Collect PCAP files directly to DCM_LOG_PATH if mediaclient
+    if (ctx->include_pcap) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Collecting PCAP file to DCM_LOG_PATH\n", __FUNCTION__, __LINE__);
+        int count = collect_pcap_logs(ctx, ctx->dcm_log_path);
+        if (count > 0) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
         }
     }
 
-    if (ret == 0 && file_exists(archive_path)) {
-        long size = get_archive_size(archive_path);
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] Archive created successfully, size: %ld bytes\n", 
-                __FUNCTION__, __LINE__, size);
-        
-        // Store archive filename in session
-        strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
-        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-        
-        return 0;
-    } else {
+    // Create archive from DCM_LOG_PATH (files already have timestamps)
+    int ret = create_archive(ctx, session, ctx->dcm_log_path);
+    if (ret != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
+#ifndef L2_TEST_ENABLED
+    sleep(60);
+#endif
+    return 0;
 }
 
 /**
- * @brief Create DRI logs archive
- * @param ctx Runtime context
- * @param archive_path Output archive file path (directory portion used)
- * @return 0 on success, -1 on failure
+ * @brief Upload phase for DCM strategy
+ * 
+ * Shell script equivalent (uploadDCMLogs lines 718-732):
+ * - Upload archive via HTTP
+ * - Clear old packet captures
  */
-int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
+static int dcm_upload(RuntimeContext* ctx, SessionState* session)
 {
-    if (!ctx || !archive_path) {
+    if (!ctx || !session) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
+                "[%s:%d] Invalid parameters (ctx=%p, session=%p)\n", 
+                __FUNCTION__, __LINE__, (void*)ctx, (void*)session);
         return -1;
-    }
-
-    if (strlen(ctx->dri_log_path) == 0) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] DRI log path not configured\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    if (!dir_exists(ctx->dri_log_path)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] DRI log directory does not exist: %s\n", 
-                __FUNCTION__, __LINE__, ctx->dri_log_path);
-        return -1;
-    }
-
-    // Extract output directory from archive_path
-    char output_dir[MAX_PATH_LENGTH];
-    const char* last_slash = strrchr(archive_path, '/');
-    if (last_slash) {
-        size_t dir_len = last_slash - archive_path;
-        snprintf(output_dir, sizeof(output_dir), "%.*s", (int)dir_len, archive_path);
-    } else {
-        strcpy(output_dir, "/tmp");
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-            "[%s:%d] Creating DRI archive from %s to %s\n", 
-            __FUNCTION__, __LINE__, ctx->dri_log_path, output_dir);
+            "[%s:%d] DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
 
-    // Use the common archive creation with DRI_Logs prefix
-    return create_archive_with_options(ctx, NULL, ctx->dri_log_path, output_dir, "DRI_Logs");
+    // Construct full archive path using session archive filename
+    char archive_path[MAX_PATH_LENGTH];
+    if (!join_path(archive_path, sizeof(archive_path), 
+                   ctx->dcm_log_path, session->archive_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Uploading DCM logs: %s\n", 
+            __FUNCTION__, __LINE__, archive_path);
+
+    // Upload the archive (session->success is set by execute_upload_cycle)
+    int ret = upload_archive(ctx, session, archive_path);
+
+    // Clear old packet captures
+    if (ctx->include_pcap) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Clearing old packet captures\n", __FUNCTION__, __LINE__);
+        clear_old_packet_captures(ctx->log_path);
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Upload phase complete\n", __FUNCTION__, __LINE__);
+
+    return ret;
+}
+
+/**
+ * @brief Cleanup phase for DCM strategy
+ * 
+ * Shell script equivalent (uploadDCMLogs lines 735-737):
+ * - Delete entire DCM_LOG_PATH directory
+ * - No permanent backup created
+ * - No timestamp removal (directory deleted anyway)
+ */
+static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success)
+{
+    if (!ctx) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Invalid context parameter\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Starting cleanup phase (upload_success=%d)\n", 
+            __FUNCTION__, __LINE__, upload_success);
+
+    // Delete entire DCM_LOG_PATH directory
+    if (dir_exists(ctx->dcm_log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Removing DCM_LOG_PATH: %s\n", 
+                __FUNCTION__, __LINE__, ctx->dcm_log_path);
+        
+        if (!remove_directory(ctx->dcm_log_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove DCM_LOG_PATH\n", 
+                    __FUNCTION__, __LINE__);
+            return -1;
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] DCM: Cleanup phase complete. DCM_LOG_PATH removed.\n", 
+            __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
+
+
+/* ==========================
+   ONDEMAND Strategy Implementation
+   ========================== */
+
+
+/* Forward declarations */
+static int ondemand_setup(RuntimeContext* ctx, SessionState* session);
+static int ondemand_archive(RuntimeContext* ctx, SessionState* session);
+static int ondemand_upload(RuntimeContext* ctx, SessionState* session);
+static int ondemand_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+/* Handler definition */
+const StrategyHandler ondemand_strategy_handler = {
+    .setup_phase = ondemand_setup,
+    .archive_phase = ondemand_archive,
+    .upload_phase = ondemand_upload,
+    .cleanup_phase = ondemand_cleanup
+};
+
+/**
+ * @brief Setup phase for ONDEMAND strategy
+ * 
+ * Shell script equivalent (uploadLogOnDemand lines 747-763):
+ * 1. Check if logs exist in LOG_PATH
+ * 2. Create /tmp/log_on_demand
+ * 3. Copy *.txt* and *.log* to temp directory
+ * 4. Create PERM_LOG_PATH timestamp
+ * 5. Log to lastlog_path
+ * 6. Delete old tar file if exists
+ */
+static int ondemand_setup(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Starting setup phase\n", __FUNCTION__, __LINE__);
+    
+    // Verify context
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Context in setup: ctx=%p, MAC='%s', device_type='%s'\n",
+            __FUNCTION__, __LINE__, (void*)ctx,
+            ctx ? ctx->mac_address : "(NULL CTX)",
+            (ctx && strlen(ctx->device_type) > 0) ? ctx->device_type : "(empty/NULL)");
+
+    // Check if LOG_PATH has .txt or .log files
+    // Script uploadLogOnDemand lines 741-752:
+    // ret=`ls $LOG_PATH/*.txt`
+    // if [ ! $ret ]; then ret=`ls $LOG_PATH/*.log`
+    if (!dir_exists(ctx->log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] LOG_PATH does not exist: %s\n", __FUNCTION__, __LINE__, ctx->log_path);
+        return -1;
+    }
+
+    if (!has_log_files(ctx->log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] No .txt or .log files in LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
+        emit_no_logs_ondemand();
+        return -1;
+    }
+
+    // Create temp directory: /tmp/log_on_demand
+    if (dir_exists(ONDEMAND_TEMP_DIR)) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Temp directory already exists, cleaning: %s\n", 
+                __FUNCTION__, __LINE__, ONDEMAND_TEMP_DIR);
+        remove_directory(ONDEMAND_TEMP_DIR);
+    }
+
+    if (!create_directory(ONDEMAND_TEMP_DIR)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create temp directory: %s\n", 
+                __FUNCTION__, __LINE__, ONDEMAND_TEMP_DIR);
+        return -1;
+    }
+
+    // Copy log files from LOG_PATH to temp directory
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Copying logs from %s to %s\n", 
+            __FUNCTION__, __LINE__, ctx->log_path, ONDEMAND_TEMP_DIR);
+
+    int count = collect_logs(ctx, session, ONDEMAND_TEMP_DIR);
+    if (count <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] No log files collected\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Collected %d log files\n", __FUNCTION__, __LINE__, count);
+
+    // Create timestamp for permanent log path (for logging purposes only)
+    char timestamp[64];
+    time_t now = time(NULL);
+    struct tm tm_utc;
+    size_t timestamp_len;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
+    if (timestamp_len == 0U) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to format timestamp for permanent log path\n",
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    char perm_log_path[MAX_PATH_LENGTH];
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s",
+                          ctx->log_path, timestamp);
+    
+    if (written >= (int)sizeof(perm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Permanent log path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // Log to lastlog_path file
+    char lastlog_path_file[MAX_PATH_LENGTH];
+    written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
+                      ctx->telemetry_path);
+    
+    if (written >= (int)sizeof(lastlog_path_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Lastlog path file too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    FILE* fp = fopen(lastlog_path_file, "a");
+    if (fp) {
+        fprintf(fp, "%s\n", perm_log_path);
+        fclose(fp);
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Logged to lastlog_path: %s\n", 
+                __FUNCTION__, __LINE__, perm_log_path);
+    }
+
+    // Delete old tar file if exists
+    char old_tar[MAX_PATH_LENGTH];
+    snprintf(old_tar, sizeof(old_tar), "%s/%s", 
+             ONDEMAND_TEMP_DIR, session->archive_file);
+    
+    if (file_exists(old_tar)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removing old tar file: %s\n", 
+                __FUNCTION__, __LINE__, old_tar);
+        remove_file(old_tar);
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Setup phase complete\n", __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
+/**
+ * @brief Archive phase for ONDEMAND strategy
+ * 
+ * Shell script equivalent (uploadLogOnDemand lines 769-771):
+ * - NO timestamp modification (files keep original names)
+ * - Create tar.gz from all files in temp directory
+ * - Sleep 2 seconds after tar creation
+ */
+static int ondemand_archive(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Starting archive phase\n", __FUNCTION__, __LINE__);
+
+    // Debug: verify context is valid
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] Context before create_archive: ctx=%p, MAC='%s', device_type='%s'\n",
+            __FUNCTION__, __LINE__, 
+            (void*)ctx,
+            (ctx && ctx->mac_address[0] != '\0') ? ctx->mac_address : "(NULL/INVALID)",
+            (ctx && ctx->device_type[0] != '\0') ? ctx->device_type : "(empty/NULL)");
+
+    // Create archive from temp directory (NO timestamp modification)
+    int ret = create_archive(ctx, session, ONDEMAND_TEMP_DIR);
+    
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] After create_archive: ret=%d, session->archive_file='%s'\n",
+            __FUNCTION__, __LINE__, ret, session ? session->archive_file : "(NULL SESSION)");
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    sleep(2);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Archive phase complete\n", __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
+/**
+ * @brief Upload phase for ONDEMAND strategy
+ * 
+ * Shell script equivalent (uploadLogOnDemand lines 772-784):
+ * - Upload via HTTP if uploadLog is true
+ * - Handle upload result and set maintenance_error_flag
+ */
+static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Starting upload phase\n", __FUNCTION__, __LINE__);
+
+    // Check if upload is enabled
+    if (!ctx->flag) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload flag is false, skipping upload\n", 
+                __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    // Construct full archive path
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+            "[%s:%d] session->archive_file='%s'\n",
+            __FUNCTION__, __LINE__, session->archive_file);
+    
+    char archive_path[MAX_PATH_LENGTH];
+    snprintf(archive_path, sizeof(archive_path), "%s/%s", 
+             ONDEMAND_TEMP_DIR, session->archive_file);
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Uploading archive: %s\n", 
+            __FUNCTION__, __LINE__, archive_path);
+
+    // Upload the archive (session->success is set by execute_upload_cycle)
+    int ret = upload_archive(ctx, session, archive_path);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Upload phase complete (result=%d)\n", 
+            __FUNCTION__, __LINE__, ret);
+
+    return ret;
+}
+
+/**
+ * @brief Cleanup phase for ONDEMAND strategy
+ * 
+ * Shell script equivalent (uploadLogOnDemand lines 789-795):
+ * - Delete tar file from temp directory
+ * - Delete entire temp directory
+ * - Original logs in LOG_PATH remain untouched
+ */
+static int ondemand_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Starting cleanup phase (upload_success=%d)\n", 
+            __FUNCTION__, __LINE__, upload_success);
+
+    // Delete tar file
+    char tar_path[MAX_PATH_LENGTH];
+    snprintf(tar_path, sizeof(tar_path), "%s/%s", 
+             ONDEMAND_TEMP_DIR, session->archive_file);
+
+    if (file_exists(tar_path)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removing tar file: %s\n", 
+                __FUNCTION__, __LINE__, tar_path);
+        remove_file(tar_path);
+    }
+
+    // Delete entire temp directory
+    if (dir_exists(ONDEMAND_TEMP_DIR)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Removing temp directory: %s\n", 
+                __FUNCTION__, __LINE__, ONDEMAND_TEMP_DIR);
+        
+        if (!remove_directory(ONDEMAND_TEMP_DIR)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to remove temp directory\n", 
+                    __FUNCTION__, __LINE__);
+            return -1;
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] ONDEMAND: Cleanup phase complete. Original logs preserved in %s\n", 
+            __FUNCTION__, __LINE__, ctx->log_path);
+
+    return 0;
+}
+
+
+
+/* ==========================
+   REBOOT Strategy Implementation
+   ========================== */
+
+
+/* Forward declarations */
+static int reboot_setup(RuntimeContext* ctx, SessionState* session);
+static int reboot_archive(RuntimeContext* ctx, SessionState* session);
+static int reboot_upload(RuntimeContext* ctx, SessionState* session);
+static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+/* Static storage for permanent log path (used across phases) */
+static char perm_log_path_storage[MAX_PATH_LENGTH] = {0};
+
+/* Handler definition */
+const StrategyHandler reboot_strategy_handler = {
+    .setup_phase = reboot_setup,
+    .archive_phase = reboot_archive,
+    .upload_phase = reboot_upload,
+    .cleanup_phase = reboot_cleanup
+};
+
+/**
+ * @brief Setup phase for REBOOT/NON_DCM strategy
+ * 
+ * Shell script equivalent (uploadLogOnReboot lines 820-848):
+ * 1. Check system uptime, sleep 330s if < 900s
+ * 2. Delete old backups (3+ days old)
+ * 3. Create PERM_LOG_PATH timestamp
+ * 4. Log to lastlog_path
+ * 5. Delete old tar file
+ * 6. Add timestamps to all files in PREV_LOG_PATH
+ */
+static int reboot_setup(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
+
+	/* backup_logs gate (REQ-SYNC-001).
+     * backup_logs writes BACKUP_LOGS_DONE_FLAG when PreviousLogs are fully assembled.
+     * telemetry already waited for this sentinel before grepping PreviousLogs, so it
+     * should be present by now.  If absent, the log set is incomplete — abort and let
+     * the next scheduled upload attempt pick it up once backup_logs finishes. */
+    {
+        struct stat st_bl;
+        if (stat(BACKUP_LOGS_DONE_FLAG, &st_bl) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] backup_logs not done (%s absent); aborting upload\n",
+                    __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
+            return -1;
+        }
+    }
+
+	/* NTP sync check (REQ-SYNC-002).
+     * If STT_FLAG is absent the system clock was not set from NTP this boot.
+     * In that case query the network stack: if internet is reachable, read the
+     * last-known-good time from systimemgr's clock file and store it in
+     * ctx->archive_ref_time so archive filenames use a meaningful timestamp.
+     * If internet is not reachable we annotate the session and continue — the
+     * upload must not be blocked by a missing time source. */
+    {
+        struct stat st_ntp;
+        if (stat(STT_FLAG, &st_ntp) != 0) {
+            bool connected = check_internet_connectivity();
+
+            if (connected) {
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP absent but internet available; applying last-known-good time\n", __FUNCTION__, __LINE__);
+                ctx->archive_ref_time = apply_ntp_fallback_time();
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__);
+            }
+        }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+	// Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+
+		if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel not present after %us. "
+                    "trigger to request immediate update.\n",
+                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
+	/* Wait for telemetry previous-log grep completion sentinel (REQ-SYNC-003).
+     * Telemetry writes TELEMETRY_PREVLOGS_DONE_FLAG after it finishes grepping
+     * PreviousLogs.  Uploading before this sentinel appears could cause telemetry
+     * to lose data from the previous boot.  This is a soft gate — on timeout the
+     * upload still proceeds and the session is annotated. */
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n",
+                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG,
+                TELEMETRY_PREVLOGS_TIMEOUT_S);
+
+        if (wait_for_telemetry_prevlogs_done() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel not present after %us; "
+                    "proceeding without telemetry sync\n",
+                    __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
+    // Check if PREV_LOG_PATH exists and has .txt or .log files
+    if (!dir_exists(ctx->prev_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
+                __FUNCTION__, __LINE__, ctx->prev_log_path);
+        return -1;
+    }
+
+    if (!has_log_files(ctx->prev_log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] No .txt or .log files in PREV_LOG_PATH, aborting\n", __FUNCTION__, __LINE__);
+        emit_no_logs_reboot(ctx);
+        return -1;
+    }
+	
+    // Clean up old log backup directories (older than 3 days)
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
+    int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
+    if (removed_dirs > 0) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Removed %d old log backup directories\n", __FUNCTION__, __LINE__, removed_dirs);
+    } else {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] No old log backup directories removed\n", __FUNCTION__, __LINE__);
+    }
+    
+    // Create timestamp for permanent log path
+    char timestamp[64];
+    time_t now = time(NULL);
+    struct tm tm_utc;
+    size_t timestamp_len;
+    if (gmtime_r(&now, &tm_utc) == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    timestamp_len = strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-logbackup", &tm_utc);
+    if (timestamp_len == 0U) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to format timestamp for permanent log path\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    char perm_log_path[MAX_PATH_LENGTH];
+    int written = snprintf(perm_log_path, sizeof(perm_log_path), "%s/%s", 
+                          ctx->log_path, timestamp);
+    
+    if (written >= (int)sizeof(perm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Permanent log path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // Store for use in cleanup phase
+    strncpy(perm_log_path_storage, perm_log_path, sizeof(perm_log_path_storage) - 1);
+    perm_log_path_storage[sizeof(perm_log_path_storage) - 1] = '\0';
+
+    // Log to lastlog_path
+    char lastlog_path_file[MAX_PATH_LENGTH];
+    written = snprintf(lastlog_path_file, sizeof(lastlog_path_file), "%s/lastlog_path", 
+                      ctx->telemetry_path);
+    
+    if (written >= (int)sizeof(lastlog_path_file)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Lastlog path file too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    FILE* fp = fopen(lastlog_path_file, "a");
+    if (fp) {
+        fprintf(fp, "%s\n", perm_log_path);
+        fclose(fp);
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Logged to lastlog_path: %s\n", 
+                __FUNCTION__, __LINE__, perm_log_path);
+    }
+
+    // Delete old tar file if exists
+    char old_tar[MAX_PATH_LENGTH];
+    written = snprintf(old_tar, sizeof(old_tar), "%s/logs.tar.gz", ctx->prev_log_path);
+    
+    if (written >= (int)sizeof(old_tar)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Old tar path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+    
+    if (file_exists(old_tar)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removing old tar file: %s\n", 
+                __FUNCTION__, __LINE__, old_tar);
+        remove_file(old_tar);
+    }
+
+    // Add timestamps to all files in PREV_LOG_PATH
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Adding timestamps to files in PREV_LOG_PATH\n", 
+            __FUNCTION__, __LINE__);
+    
+    int ret = add_timestamp_to_files(ctx->prev_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to add timestamps to some files\n", 
+                __FUNCTION__, __LINE__);
+        // Continue anyway, not critical
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Setup phase complete\n", __FUNCTION__, __LINE__);
+
+    return 0;
+}
+
+/**
+ * @brief Archive phase for REBOOT/NON_DCM strategy
+ * 
+ * Shell script equivalent (uploadLogOnReboot lines 853-869):
+ * - Collect PCAP files to PREV_LOG_PATH if mediaclient
+ * - Create tar.gz archive from PREV_LOG_PATH
+ * - Sleep 60 seconds
+ */
+static int reboot_archive(RuntimeContext* ctx, SessionState* session)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Starting archive phase\n", __FUNCTION__, __LINE__);
+
+    // Collect PCAP files directly to PREV_LOG_PATH if mediaclient
+    if (ctx->include_pcap) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Collecting PCAP file to PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
+        int count = collect_pcap_logs(ctx, ctx->prev_log_path);
+        if (count > 0) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                    "[%s:%d] Collected %d PCAP file\n", __FUNCTION__, __LINE__, count);
+        }
+    }
+    
+    // Create archive from PREV_LOG_PATH (files already have timestamps)
+    int ret = create_archive(ctx, session, ctx->prev_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
+    return 0;
+}
+
+/**
+ * @brief Upload phase for REBOOT/NON_DCM strategy
+ * 
+ * Shell script equivalent (uploadLogOnReboot lines 853-890):
+ * - Check reboot reason and RFC settings
+ * - Upload main logs if allowed
+ * - Upload DRI logs if directory exists
+ * - Clear old packet captures
+ */
+static int reboot_upload(RuntimeContext* ctx, SessionState* session)
+{
+
+	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
+
+    // Check reboot reason and RFC settings (matches script logic)
+    // Script: if [ "$uploadLog" == "true" ] || [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+    // Note: When DCM_FLAG=0 (Non-DCM), script ALWAYS passes "true" regardless of UploadOnReboot value
+    //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
+    bool should_upload = false;
+    const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
+
+    // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
+    if (ctx->dcm_flag == 0) {
+        should_upload = true;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Non-DCM mode (dcm_flag=0), will always upload logs\n", 
+                __FUNCTION__, __LINE__);
+    }
+    else {
+        // Check reboot reason file for scheduled reboot (grep -i "Scheduled Reboot\|MAINTENANCE_REBOOT")
+        bool is_scheduled_reboot = false;
+        FILE* reboot_file = fopen(reboot_info_path, "r");
+        if (reboot_file) {
+            char line[512];
+            while (fgets(line, sizeof(line), reboot_file)) {
+                // Look for "Scheduled Reboot" or "MAINTENANCE_REBOOT" (case insensitive)
+                if (strcasestr(line, "Scheduled Reboot") || strcasestr(line, "MAINTENANCE_REBOOT")) {
+		            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] reboot_reason: %s \n", __FUNCTION__, __LINE__,line);
+                    is_scheduled_reboot = true;
+                    break;
+                }
+            }
+            fclose(reboot_file);
+        } else {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
+        }
+
+        // Get RFC setting for unscheduled reboot upload via RBUS
+        bool disable_unscheduled_upload = false;
+        if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
+                                &disable_unscheduled_upload)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to get UploadLogsOnUnscheduledReboot.Disable RFC, assuming false\n", 
+                    __FUNCTION__, __LINE__);
+            disable_unscheduled_upload = false;
+        }
+
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
+
+        // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
+        // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
+        // Script logic for the unscheduled reboot path:
+        // [ -z "$reboot_reason" -a "$DISABLE_UPLOAD_LOGS_UNSHEDULED_REBOOT" == "false" ]
+        if ( ctx->upload_on_reboot==1 || (!is_scheduled_reboot && !disable_unscheduled_upload)) {
+            should_upload = true;
+        }
+    }
+
+	// Construct full archive path using session archive filename
+    char archive_path[MAX_PATH_LENGTH];
+    int written = snprintf(archive_path, sizeof(archive_path), "%s/%s", ctx->prev_log_path, session->archive_file);
+    
+    if (written >= (int)sizeof(archive_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+	if (!should_upload) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
+                __FUNCTION__, __LINE__);
+		strncpy(session->archive_file, archive_path, sizeof(session->archive_file) - 1);
+		session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        emit_upload_aborted();
+        return 0;
+    }
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Uploading main logs: %s\n", 
+            __FUNCTION__, __LINE__, archive_path);
+
+    // Upload main logs (session->success is set by execute_upload_cycle)
+    int ret = upload_archive(ctx, session, archive_path);
+    
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Main log upload complete (result=%d)\n", 
+            __FUNCTION__, __LINE__, ret);
+
+    // Upload DRI logs if directory exists (using separate session to avoid state corruption)
+    if (ctx->include_dri && dir_exists(ctx->dri_log_path)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
+                __FUNCTION__, __LINE__);
+
+        // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
+        char dri_filename[MAX_FILENAME_LENGTH];
+        if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
+                                   ctx->mac_address, "DRI_Logs")) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] Failed to generate DRI archive filename\n", 
+                    __FUNCTION__, __LINE__);
+        } else {
+            char dri_archive[MAX_PATH_LENGTH];
+            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
+                                  ctx->prev_log_path, dri_filename);
+        
+        if (written >= (int)sizeof(dri_archive)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
+        } else {
+            // Create DRI archive
+            int dri_ret = create_dri_archive(ctx, dri_archive);
+        
+            if (dri_ret == 0) {
+            
+                // Upload DRI logs using separate session state
+                SessionState dri_session = *session;  // Copy current session config
+                dri_session.direct_attempts = 0;       // Reset attempt counters
+                dri_session.codebig_attempts = 0;
+                dri_ret = upload_archive(ctx, &dri_session, dri_archive);
+            
+                // Send telemetry for DRI upload (matches script lines 883, 886)
+                // Script sends SYST_INFO_PDRILogUpload for both success and failure
+                t2_count_notify("SYST_INFO_PDRILogUpload");
+                
+                if (dri_ret == 0) {
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                            "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
+                            __FUNCTION__, __LINE__);
+                    remove_directory(ctx->dri_log_path);
+                } else {
+                    RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                            "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
+                }
+            
+                // Clean up DRI archive
+                remove_file(dri_archive);
+            }
+        }
+        }
+    }
+
+    // Clear old packet captures
+    if (ctx->include_pcap) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Clearing old packet captures\n", __FUNCTION__, __LINE__);
+        clear_old_packet_captures(ctx->log_path);
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Upload phase complete\n", __FUNCTION__, __LINE__);
+
+    return ret;
+}
+
+/**
+ * @brief Cleanup phase for REBOOT/NON_DCM strategy
+ * 
+ * Shell script equivalent (uploadLogOnReboot lines 893-906):
+ * - Always runs (regardless of upload success)
+ * - Delete tar file
+ * - Remove timestamps from filenames (restore original names)
+ * - Create permanent backup directory
+ * - Move all files to permanent backup
+ * - Clean PREV_LOG_PATH
+ */
+static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success)
+{
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Starting cleanup phase (upload_success=%d)\n", 
+            __FUNCTION__, __LINE__, upload_success);
+
+    sleep(5);
+
+    // Delete tar file
+    if (file_exists(session->archive_file)) {
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+                "[%s:%d] Removing tar file: %s\n", 
+                __FUNCTION__, __LINE__, session->archive_file);
+        remove_file(session->archive_file);
+    }
+
+    // Remove timestamps from filenames (restore original names)
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Removing timestamps from filenames\n", __FUNCTION__, __LINE__);
+    
+    int ret = remove_timestamp_from_files(ctx->prev_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to remove timestamps from some files\n", 
+                __FUNCTION__, __LINE__);
+        // Continue anyway
+    }
+
+    // Get permanent backup path (stored in setup phase)
+    const char* perm_log_path = perm_log_path_storage;
+
+    // Create permanent backup directory
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Creating permanent backup directory: %s\n", 
+            __FUNCTION__, __LINE__, perm_log_path);
+    
+    if (!create_directory(perm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to create permanent backup directory\n", 
+                __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // Move all files from PREV_LOG_PATH to permanent backup
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Moving files to permanent backup\n", __FUNCTION__, __LINE__);
+    
+    ret = move_directory_contents(ctx->prev_log_path, perm_log_path);
+    if (ret != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                "[%s:%d] Failed to move some files to permanent backup\n", 
+                __FUNCTION__, __LINE__);
+    }
+	
+    // Clean PREV_LOG_PATH
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
+    
+    clean_directory(ctx->prev_log_path);
+
+    // Recreate PREV_LOG_BACKUP_PATH for next boot cycle
+    // Script lines 900-902: rm -rf + mkdir -p PREV_LOG_BACKUP_PATH
+    // PREV_LOG_BACKUP_PATH = $LOG_PATH/PreviousLogs_backup/
+    char prev_log_backup_path[MAX_PATH_LENGTH];
+    int written = snprintf(prev_log_backup_path, sizeof(prev_log_backup_path), "%s/PreviousLogs_backup", 
+                      ctx->log_path);
+    
+    if (written >= (int)sizeof(prev_log_backup_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                "[%s:%d] PREV_LOG_BACKUP_PATH too long\n", __FUNCTION__, __LINE__);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] Recreating PREV_LOG_BACKUP_PATH for next boot: %s\n", 
+                __FUNCTION__, __LINE__, prev_log_backup_path);
+        
+        if (dir_exists(prev_log_backup_path)) {
+            remove_directory(prev_log_backup_path);
+        }
+        
+        if (!create_directory(prev_log_backup_path)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
+                    "[%s:%d] Failed to create PREV_LOG_BACKUP_PATH\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+    // If DCM mode with upload_on_reboot=false, add permanent path to DCM batch list
+    // Script line 1019: echo $PERM_LOG_PATH >> $DCM_UPLOAD_LIST
+    if (ctx->dcm_flag == 1 && ctx->upload_on_reboot == 0) {
+        char dcm_upload_list[MAX_PATH_LENGTH];
+        int written = snprintf(dcm_upload_list, sizeof(dcm_upload_list), "%s/dcm_upload", ctx->log_path);
+        
+        if (written >= (int)sizeof(dcm_upload_list)) {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
+                    "[%s:%d] DCM upload list path too long\n", __FUNCTION__, __LINE__);
+        } else {
+            FILE* fp = fopen(dcm_upload_list, "a");
+            if (fp) {
+                fprintf(fp, "%s\n", perm_log_path);
+                fclose(fp);
+            }
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+            "[%s:%d] REBOOT/NON_DCM: Cleanup phase complete. Logs backed up to: %s\n", 
+            __FUNCTION__, __LINE__, perm_log_path);
+
+    return 0;
 }
