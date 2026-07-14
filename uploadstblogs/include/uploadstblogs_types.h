@@ -84,10 +84,6 @@
 #endif
 #define REBOOT_POLL_INTERVAL_S        1u  /* fallback polling interval */
 
-/** Annotation code set in SessionState when the reboot-reason sentinel times out.
- *  Upload always proceeds; this records that previousreboot.info was unavailable. */
-#define ANNOTATION_REBOOT_REASON_UNAVAILABLE 1
-
 /** NTP sync completion sentinel — written by systimemgr when NTP is synchronised.
  *  Presence at upload time means the system clock is accurate; absence means the
  *  device rebooted without receiving NTP, and an internet check + last-known-good
@@ -110,14 +106,6 @@
 #define TELEMETRY_PREVLOGS_TIMEOUT_S      120u
 #endif
 
-/** Annotation code set in SessionState when telemetry prevlogs grep did not
- *  complete within the timeout.  Upload always proceeds. */
-#define ANNOTATION_TELEMETRY_PREVLOGS_UNAVAILABLE 3
-
-/** Annotation code set in SessionState when NTP was not synced at upload time and
- *  internet connectivity was absent, so the last-known-good time fallback could not
- *  be applied.  Upload always proceeds. */
-#define ANNOTATION_NTP_UNAVAILABLE   2
 
 /** Path to the last-known-good clock file maintained by systimemgr (RdkDefaultTimeSync).
  *  Contains a plain epoch-seconds integer written by systimemgr on every successful
@@ -371,7 +359,6 @@ typedef struct {
     bool used_fallback;             /**< Whether fallback was used */
     bool success;                   /**< Overall success status */
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
-    int upload_annotations;         /**< Bitmask of ANNOTATION_* codes set during prerequisite fallback */
 } SessionState;
 
 #define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
