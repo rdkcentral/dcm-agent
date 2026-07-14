@@ -1090,8 +1090,7 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
  */
 static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 {
-
-	RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting upload phase\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] UploadOnReboot set to %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false");
 
@@ -1101,7 +1100,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
     //       When DCM_FLAG=1 (DCM mode), upload_on_reboot determines the behavior
     bool should_upload = false;
     const char* reboot_info_path = "/opt/secure/reboot/previousreboot.info";
-
+    
     // Non-DCM mode (DCM_FLAG=0): Always upload (script line 999: uploadLogOnReboot true)
     if (ctx->dcm_flag == 0) {
         should_upload = true;
@@ -1127,7 +1126,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         } else {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Could not open reboot reason file: %s\n", __FUNCTION__, __LINE__, reboot_info_path);
         }
-
+        
         // Get RFC setting for unscheduled reboot upload via RBUS
         bool disable_unscheduled_upload = false;
         if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.UploadLogsOnUnscheduledReboot.Disable",
@@ -1137,9 +1136,9 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                     __FUNCTION__, __LINE__);
             disable_unscheduled_upload = false;
         }
-
+        
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] uploadLog:%s and UploadLogsOnUnscheduledReboot.Disable RFC: %s\n", __FUNCTION__, __LINE__, ctx->upload_on_reboot ? "true" : "false", disable_unscheduled_upload ? "true" : "false");
-
+        
         // Upload if upload_on_reboot is enabled, OR if the reboot is unscheduled
         // and the UploadLogsOnUnscheduledReboot.Disable RFC does not disable it.
         // Script logic for the unscheduled reboot path:
@@ -1158,8 +1157,8 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Archive path too long\n", __FUNCTION__, __LINE__);
         return -1;
     }
-
-	if (!should_upload) {
+    
+    if (!should_upload) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Upload not allowed based on reboot reason and RFC settings\n", 
                 __FUNCTION__, __LINE__);
@@ -1168,6 +1167,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         emit_upload_aborted();
         return 0;
     }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Uploading main logs: %s\n", 
             __FUNCTION__, __LINE__, archive_path);
@@ -1205,7 +1205,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-            
+				
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
                 dri_session.direct_attempts = 0;       // Reset attempt counters
@@ -1245,6 +1245,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     return ret;
 }
+
 
 /**
  * @brief Cleanup phase for REBOOT/NON_DCM strategy
