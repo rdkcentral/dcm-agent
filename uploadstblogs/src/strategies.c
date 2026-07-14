@@ -228,7 +228,6 @@ void trigger_reboot_info_update(void)
  * 3. Re-check after watch is established to close the creation race window.
  * 4. select() loop with 2 s heartbeat; exit when sentinel appears or
  *    timeout_s total seconds have elapsed.
- * 5. Fallback: if inotify_init1 or inotify_add_watch fails, poll with 1 s sleep.
  *
  * Returns  0 when the sentinel is detected within the timeout.
  * Returns -1 on timeout or inotify fallback timeout.
@@ -253,6 +252,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
                 "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling for %s\n",
                 __FUNCTION__, __LINE__, watch_dir, errno, flag_path);
         close(ifd);
+		return -1;
     }
 
     /* Re-check after watch is set — closes race between access() and add_watch */
@@ -266,10 +266,11 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
         struct timespec deadline;
         if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] clock_gettime failed (errno=%d); falling back to polling for %s\n",
-                    __FUNCTION__, __LINE__, errno, flag_path);
+                    "[%s:%d] clock_gettime failed (errno=%d) \n",
+                    __FUNCTION__, __LINE__, errno);
             inotify_rm_watch(ifd, wd);
             close(ifd);
+			return -1
         }
         deadline.tv_sec += (time_t)timeout_s;
 
