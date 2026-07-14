@@ -123,9 +123,7 @@ bool nm_query_ipver(const char *ipversion)
     curl_easy_cleanup(ch);
 
     if (rc != CURLE_OK) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] NetworkManager RPC (%s) failed: %s\n",
-                __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NetworkManager RPC (%s) failed: %s\n", __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
         return false;
     }
 
@@ -148,15 +146,11 @@ time_t apply_ntp_fallback_time(void)
 
     fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
     if (!fp) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n",
-                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
         return 0;
     }
     if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] systimemgr clock file %s is empty\n",
-                __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s is empty\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
         fclose(fp);
         return 0;
     }
@@ -164,15 +158,11 @@ time_t apply_ntp_fallback_time(void)
 
     epoch = strtol(time_buf, NULL, 10);
     if (epoch <= 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] systimemgr returned invalid epoch string: '%s'\n",
-                __FUNCTION__, __LINE__, time_buf);
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr returned invalid epoch string: '%s'\n", __FUNCTION__, __LINE__, time_buf);
         return 0;
     }
 
-    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-            "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n",
-            __FUNCTION__, __LINE__, epoch);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n", __FUNCTION__, __LINE__, epoch);
     return (time_t)epoch;
 }
 
@@ -184,9 +174,7 @@ void trigger_reboot_info_update(void)
         int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
         if (fd >= 0) {
             close(fd);
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Trigger reboot reason update: %s\n",
-                    __FUNCTION__, __LINE__, STT_FLAG);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: %s\n", __FUNCTION__, __LINE__, STT_FLAG);
         }
     }
 }
@@ -200,16 +188,12 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
 
     int ifd = inotify_init1(IN_CLOEXEC);
     if (ifd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_init1 failed (errno=%d); falling back to polling for %s\n",
-                __FUNCTION__, __LINE__, errno, flag_path);
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_init1 failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
     }
 
     int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
     if (wd < 0) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                "[%s:%d] inotify_add_watch on %s failed (errno=%d); falling back to polling for %s\n",
-                __FUNCTION__, __LINE__, watch_dir, errno, flag_path);
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_add_watch on %s failed (errno=%d) \n", __FUNCTION__, __LINE__, watch_dir, errno);
         close(ifd);
 		return -1;
     }
@@ -224,9 +208,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
     {
         struct timespec deadline;
         if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] clock_gettime failed (errno=%d) \n",
-                    __FUNCTION__, __LINE__, errno);
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] clock_gettime failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
             inotify_rm_watch(ifd, wd);
             close(ifd);
 			return -1;
