@@ -1312,7 +1312,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
                 "[%s:%d] Failed to move some files to permanent backup\n", 
                 __FUNCTION__, __LINE__);
     }
-	
+
     // Clean PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Cleaning PREV_LOG_PATH\n", __FUNCTION__, __LINE__);
