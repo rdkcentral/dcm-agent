@@ -921,6 +921,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     }
 
     // Check if PREV_LOG_PATH exists and has .txt or .log files
+	// Script uploadLogOnReboot lines 805-816:
+    // ret=`ls $PREV_LOG_PATH/*.txt`
+    // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
     if (!dir_exists(ctx->prev_log_path)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] PREV_LOG_PATH does not exist: %s\n", 
