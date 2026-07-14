@@ -140,17 +140,6 @@ bool check_internet_connectivity(void)
     return nm_query_ipver("IPv6");
 }
 
-
-/**
- * apply_ntp_fallback_time - Read last-known-good epoch from systimemgr clock file.
- *
- * Called when STT_FLAG is absent but internet connectivity is available.
- * Returns the epoch seconds read from SYSTIMEMGR_CLOCK_FILE so the caller can
- * embed it directly in the archive filename via ctx->archive_ref_time.
- * Does NOT modify the system clock.
- *
- * Returns the epoch (> 0) on success, 0 on any failure.
- */
 time_t apply_ntp_fallback_time(void)
 {
     char time_buf[32] = {0};
@@ -187,18 +176,6 @@ time_t apply_ntp_fallback_time(void)
     return (time_t)epoch;
 }
 
-/* ---- Prerequisite sentinel helpers ---- */
-
-/**
- * trigger_reboot_info_update - Touch STT_FLAG to trigger reboot-reason update.
- *
- * Called only after wait_for_reboot_reason() times out.
- * Touching STT_FLAG (/tmp/stt_received) signals update-prev-reboot-info
- * (reboot-manager) to perform an immediate reboot-reason update; reboot-manager
- * watches STT_FLAG as its primary gate to run update_reboot_info().
- *
- * Cross-repo interface: STT_FLAG is watched by reboot-manager.
- */
 void trigger_reboot_info_update(void)
 {
     struct stat st;
@@ -214,24 +191,6 @@ void trigger_reboot_info_update(void)
     }
 }
 
-/**
- * wait_for_sentinel - Generic inotify-based wait for a sentinel file.
- *
- * @param flag_path   Full path to the sentinel file (e.g. "/tmp/.backup_logs_done")
- * @param watch_dir   Directory to watch (e.g. "/tmp")
- * @param filename    Basename of the sentinel (e.g. ".backup_logs_done")
- * @param timeout_s   Maximum wait in seconds (CLOCK_MONOTONIC)
- *
- * Strategy:
- * 1. Fast path: sentinel already present → return 0 immediately.
- * 2. Set up inotify on watch_dir for IN_CREATE | IN_MOVED_TO.
- * 3. Re-check after watch is established to close the creation race window.
- * 4. select() loop with 2 s heartbeat; exit when sentinel appears or
- *    timeout_s total seconds have elapsed.
- *
- * Returns  0 when the sentinel is detected within the timeout.
- * Returns -1 on timeout or inotify fallback timeout.
- */
 int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s)
 {
     /* Fast path: sentinel already present */
@@ -325,19 +284,6 @@ int wait_for_reboot_reason(void)
 int wait_for_telemetry_prevlogs_done(void)
 {
     return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
-}
-
-/**
- * set_upload_annotation - Record a prerequisite-failure annotation in the session.
- *
- * @param session     Active session.
- * @param annotation  One of ANNOTATION_* codes defined in uploadstblogs_types.h.
- */
-static void set_upload_annotation(SessionState *session, int annotation)
-{
-    if (session) {
-        session->upload_annotations |= (1 << annotation);
-    }
 }
 
 /**
@@ -970,10 +916,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 		if (wait_for_reboot_reason() != 0) {
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                     "[%s:%d] Reboot reason sentinel not present after %us. "
-                    "Writing trigger to request immediate update.\n",
+                    "trigger to request immediate update.\n",
                     __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
             trigger_reboot_info_update();
-			set_upload_annotation(session, ANNOTATION_REBOOT_REASON_UNAVAILABLE);
         } else {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
@@ -997,7 +942,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                     "[%s:%d] Telemetry prevlogs sentinel not present after %us; "
                     "proceeding without telemetry sync\n",
                     __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
-            session->upload_annotations |= (1 << ANNOTATION_TELEMETRY_PREVLOGS_UNAVAILABLE);
         } else {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n",
