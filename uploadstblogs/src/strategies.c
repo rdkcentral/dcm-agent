@@ -864,10 +864,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
 
 	/* NTP sync check (REQ-SYNC-002).
      * If STT_FLAG is absent the system clock was not set from NTP this boot.
-     * In that case query the network stack: if internet is reachable the clock
-     * is probably ahead of epoch so we retrieve the last-known-good time from
-     * systimemgr (via RBUS) and apply it with settimeofday().  This ensures
-     * archive timestamps are meaningful even without NTP.
+     * In that case query the network stack: if internet is reachable, read the
+     * last-known-good time from systimemgr's clock file and store it in
+     * ctx->archive_ref_time so archive filenames use a meaningful timestamp.
      * If internet is not reachable we annotate the session and continue — the
      * upload must not be blocked by a missing time source. */
     {
