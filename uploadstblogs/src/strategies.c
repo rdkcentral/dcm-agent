@@ -861,9 +861,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     {
         struct stat st_bl;
         if (stat(BACKUP_LOGS_DONE_FLAG, &st_bl) != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] backup_logs not done (%s absent); aborting upload\n",
-                    __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] backup_logs not done (%s absent); aborting upload\n", __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
             return -1;
         }
     }
@@ -900,15 +898,10 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
 
 		if (wait_for_reboot_reason() != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel not present after %us. "
-                    "trigger to request immediate update.\n",
-                    __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Reboot reason sentinel not present after %us. trigger to request immediate update.\n", __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
             trigger_reboot_info_update();
         } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Reboot reason sentinel detected. Proceeding.\n",
-                    __FUNCTION__, __LINE__);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Reboot reason sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
         }
     }
 
@@ -918,20 +911,12 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
      * to lose data from the previous boot.  This is a soft gate — on timeout the
      * upload still proceeds and the session is annotated. */
     {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n",
-                __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG,
-                TELEMETRY_PREVLOGS_TIMEOUT_S);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_TIMEOUT_S);
 
         if (wait_for_telemetry_prevlogs_done() != 0) {
-            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                    "[%s:%d] Telemetry prevlogs sentinel not present after %us; "
-                    "proceeding without telemetry sync\n",
-                    __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Telemetry prevlogs sentinel not present after %us , proceeding without telemetry sync\n", __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
         } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n",
-                    __FUNCTION__, __LINE__);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
         }
     }
 
