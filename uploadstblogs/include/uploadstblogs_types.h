@@ -90,6 +90,7 @@
  *  time fallback should be attempted.
  *  Cross-repo interface: path matches STT_FLAG in systimemgr and reboot-manager. */
 #define STT_FLAG                "/tmp/stt_received"
+#define NTP_SYNC_INDICATOR "/tmp/systimemgr/ntp"
 
 /** Telemetry PreviousLogs scan completion sentinel — written by telemetry after it
  *  finishes grepping PreviousLogs.  Consumed by uploadstblogs as an optional gate.
