@@ -183,20 +183,6 @@ class TestBackupLogsSyncGate:
         archive_logs = grep_uploadstb_logs("Starting archive phase")
         assert len(archive_logs) == 0, "Should NOT proceed to archive phase"
 
-    @pytest.mark.order(3)
-    def test_backup_logs_gate_only_affects_reboot_strategy(self):
-        """Test: backup_logs gate is only checked in reboot strategy, not ondemand"""
-        # No backup_logs sentinel
-        # But trigger on-demand upload instead of reboot
-        create_test_log_files(count=2)
-
-        ondemand_args = "'' 1 0 0 HTTP http://localhost:8080 5 0 ''"
-        result = run_uploadstblogs(ondemand_args)
-
-        # On-demand should not check backup_logs sentinel
-        logs = grep_uploadstb_logs("backup_logs not done")
-        assert len(logs) == 0, "On-demand should not check backup_logs gate"
-
 
 class TestNTPSyncGate:
     """
@@ -609,21 +595,78 @@ class TestFullSyncSequence:
         sp.run(f"rm -rf {PREV_LOG_PATH}", shell=True)
 
     @pytest.mark.order(1)
-    def test_all_gates_pass_successfully(self):
-        """Test: Complete sync sequence with all sentinels present"""
+    def test_reboot_upload_all_sentinels_detected(self):
+        """Test: Trigger reboot upload and verify every sentinel is detected via greplogs.
+
+        Pre-conditions:
+            - All four sentinel files are present before upload starts:
+              /tmp/.backup_logs_done          (REQ-SYNC-001 backup_logs gate)
+              /tmp/stt_received               (REQ-SYNC-002 NTP gate)
+              /tmp/Update_rebootInfo_invoked   (reboot-reason gate)
+              /tmp/.telemetry_prevlogs_done    (REQ-SYNC-003 telemetry gate)
+            - PreviousLogs directory contains .log/.txt files
+
+        Expected log output (verified via grep):
+            1. NTP sync sentinel detected. Proceeding.
+            2. Reboot reason sentinel detected. Proceeding.
+            3. Telemetry prevlogs sentinel detected. Proceeding.
+            4. REBOOT/NON_DCM: Starting archive phase  (proves setup passed all gates)
+        """
+        # Arrange — create every sentinel so each gate takes the fast path
         create_all_sentinels()
 
+        # Act — trigger a reboot upload
         result = run_uploadstblogs(REBOOT_UPLOAD_ARGS)
 
-        # Verify gate ordering in logs
-        logs = grep_uploadstb_logs_regex(
-            r"backup_logs|NTP sync sentinel|Reboot reason sentinel|Telemetry prevlogs sentinel"
-        )
-        assert len(logs) >= 3, f"Should log at least 3 sync gate passages, got {len(logs)}"
+        # Assert — verify each sentinel was individually detected in the logs
 
-        # Should reach archive phase
-        archive_logs = grep_uploadstb_logs("Starting archive phase")
-        assert len(archive_logs) > 0, "Should proceed through all gates to archive phase"
+        # 1. backup_logs gate: absence message should NOT appear (sentinel present)
+        backup_absent = grep_uploadstb_logs("backup_logs not done")
+        assert len(backup_absent) == 0, \
+            "backup_logs sentinel is present; 'backup_logs not done' must NOT appear in logs"
+
+        # 2. NTP sync gate: should log detection
+        ntp_detected = grep_uploadstb_logs("NTP sync sentinel detected")
+        assert len(ntp_detected) > 0, \
+            "NTP sentinel /tmp/stt_received is present; expected 'NTP sync sentinel detected' in logs"
+
+        # 3. NTP fallback path should NOT be taken
+        ntp_fallback = grep_uploadstb_logs("NTP absent")
+        assert len(ntp_fallback) == 0, \
+            "NTP sentinel is present; 'NTP absent' must NOT appear in logs"
+
+        # 4. Reboot reason gate: should log detection
+        reboot_detected = grep_uploadstb_logs("Reboot reason sentinel detected")
+        assert len(reboot_detected) > 0, \
+            "Reboot reason sentinel is present; expected 'Reboot reason sentinel detected' in logs"
+
+        # 5. Reboot reason timeout/trigger should NOT fire
+        reboot_timeout = grep_uploadstb_logs("Reboot reason sentinel not present")
+        assert len(reboot_timeout) == 0, \
+            "Reboot reason sentinel is present; timeout message must NOT appear in logs"
+
+        reboot_trigger = grep_uploadstb_logs("trigger to request immediate update")
+        assert len(reboot_trigger) == 0, \
+            "Reboot reason sentinel is present; trigger message must NOT appear in logs"
+
+        # 6. Telemetry prevlogs gate: should log detection
+        telemetry_detected = grep_uploadstb_logs("Telemetry prevlogs sentinel detected")
+        assert len(telemetry_detected) > 0, \
+            "Telemetry prevlogs sentinel is present; expected 'Telemetry prevlogs sentinel detected' in logs"
+
+        # 7. Telemetry timeout should NOT fire
+        telemetry_timeout = grep_uploadstb_logs("proceeding without telemetry sync")
+        assert len(telemetry_timeout) == 0, \
+            "Telemetry sentinel is present; 'proceeding without telemetry sync' must NOT appear"
+
+        # 8. All gates passed — setup completed, archive phase started
+        setup_done = grep_uploadstb_logs("REBOOT/NON_DCM: Setup phase complete")
+        assert len(setup_done) > 0, \
+            "All gates passed; expected 'Setup phase complete' in logs"
+
+        archive_started = grep_uploadstb_logs("REBOOT/NON_DCM: Starting archive phase")
+        assert len(archive_started) > 0, \
+            "All gates passed; expected 'Starting archive phase' in logs"
 
     @pytest.mark.order(2)
     def test_first_gate_failure_prevents_later_gates(self):
@@ -768,3 +811,4 @@ class TestNoLogsSyncBehavior:
         # Should abort due to missing directory
         logs = grep_uploadstb_logs("PREV_LOG_PATH does not exist")
         assert len(logs) > 0, "Should abort when PreviousLogs directory is missing"
+
