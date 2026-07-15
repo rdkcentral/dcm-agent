@@ -874,7 +874,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
      * upload must not be blocked by a missing time source. */
     {
         struct stat st_ntp;
-        if (stat(STT_FLAG, &st_ntp) != 0) {
+        if (stat(NTP_SYNC_INDICATOR, &st_ntp) != 0) {
             bool connected = check_internet_connectivity();
 
             if (connected) {
