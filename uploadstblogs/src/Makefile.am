@@ -19,7 +19,7 @@ libuploadstblogs_la_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_
 
 libuploadstblogs_la_LDFLAGS = -version-info 0:0:0 -L$(PKG_CONFIG_SYSROOT_DIR)/$(libdir)
 libuploadstblogs_la_LIBADD = $(curl_LIBS) -lcurl -lrdkloggers -ldwnlutil -lrbus \
-                              -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus \
+                              -lcjson -lsecure_wrapper -lfwutils -lcrypto -lrfcapi -lz -lIARMBus  -lparsejson \
                               -lt2utils -ltelemetry_msgsender -L$(PKG_CONFIG_SYSROOT_DIR)/usr/lib -luploadutil
 
 # Binary
