@@ -1,4 +1,3 @@
-root@50c3a5974e05:~/dcm-agent# cat test/functional-tests/tests/test.py
 ####################################################################################
 # If not stated otherwise in this file or this component's LICENSE file the
 # following copyright and licenses apply:
