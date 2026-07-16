@@ -91,6 +91,7 @@ class TestNormalUpload:
     def test_normal_upload_initialization(self):
         """Test: uploadSTBLogs service initialization"""
         # Create test log files
+        _create_all_sentinels
         create_test_log_files(count=3, size_kb=50)
         set_include_property("LOG_PATH", "/opt/logs")
 
