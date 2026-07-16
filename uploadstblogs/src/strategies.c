@@ -76,11 +76,11 @@ size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
     rpc_resp_t *r = (rpc_resp_t *)userp;
     size_t incoming = size * nmemb;
 
-    if (r->len >= (sizeof(r->buf) - 1u)) {
+    if (r->len >= (RPC_RESP_BUF_SIZE - 1u)) {
         return size * nmemb; /* discard extra data but keep curl happy */
     }
 
-    size_t space = (sizeof(r->buf) - 1u) - r->len;
+    size_t space = (RPC_RESP_BUF_SIZE - 1u) - r->len;
     if (incoming > space) { incoming = space; }
 
     memcpy(r->buf + r->len, ptr, incoming);
