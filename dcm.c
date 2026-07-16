@@ -37,7 +37,6 @@
 #include "dcm_rbus.h"
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
-#include "uploadstblogs.h"
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -69,42 +68,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
         pRDKPath = DCM_LIB_PATH;
     }
 
-    if(strcmp(profileName, DCM_LOGUPLOAD_SCHED) == 0) {
-        INT8 *pPrctl = dcmSettingsGetUploadProtocol(pdcmHandle->pDcmSetHandle);
-        INT8 *pURL   = dcmSettingsGetUploadURL(pdcmHandle->pDcmSetHandle);
-
-        if(pPrctl == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using HTTP\n");
-            pPrctl = "HTTP";
-        }
-        if(pURL == NULL) {
-            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
-            pURL = DCM_DEF_LOG_URL;
-        }
-
-        DCMInfo("\nStart log upload via library API\n");
-
-        // Call uploadstblogs library API instead of shell script
-        UploadSTBLogsParams params = {
-            .flag = 0,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pPrctl,
-            .upload_http_link = pURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload failed with error code: %d\n", result);
-        } else {
-            DCMInfo("Log upload completed successfully\n");
-        }
-#endif
-    }
-    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
+    if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
@@ -202,15 +166,6 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    /* Add log upload job to Schecduler */
-    pdcmHandle->pLogSchedHandle  = dcmSchedAddJob(DCM_LOGUPLOAD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
-    if(pdcmHandle->pLogSchedHandle == NULL) {
-        DCMError("Failed to Add Log Scheduler jobs\n");
-        return DCM_FAILURE;
-    }
-
     /* Add FW update job to Schecduler */
     pdcmHandle->pDifdSchedHandle = dcmSchedAddJob(DCM_DIFD_SCHED,
                                                   (DCMSchedCB)dcmRunJobs,
@@ -241,9 +196,7 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
 
     dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
     dcmRbusUnInit(pdcmHandle->pRbusHandle);
-    dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
     dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
     dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
     dcmSchedUnInit();
 
@@ -368,11 +321,11 @@ int main(int argc, char* argv[])
                 continue;
             }
 
+            INT8 unusedLogCron[16] = {0};
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
-                                      g_pdcmHandle->logCron,
+                                      unusedLogCron,
                                       g_pdcmHandle->difdCron);
             if(ret == DCM_SUCCESS) {
-                dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
                 dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
 
                 ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
