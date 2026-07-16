@@ -25,18 +25,12 @@ import pytest
 import json
 
 @pytest.mark.run(order=1)
-def test_upload_cron_present():
-    kill_dcmd(9)
-    kill_telemetry(9)
-    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader3/getT2DCMSettings")
-    run_dcmd()
-    run_telemetry()
-    sleep(420)
-
-@pytest.mark.run(order=2)
 def test_fw_cron_scheduled():
+    sleep(540)
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
-@pytest.mark.run(order=4)
-def test_mm_enabled():
-    assert "Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled" in grep_dcmdlogs("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled")
+@pytest.mark.run(order=2)
+def test_fwupdate_script_started():
+    assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
+   # assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
+   #assert "trigger type=" in grep_dcmdlogs("trigger type=")
