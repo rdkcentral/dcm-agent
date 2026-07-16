@@ -33,6 +33,8 @@
 #include "special_files.h"
 #include "system_utils.h"
 #include <secure_wrapper.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
@@ -302,6 +304,22 @@ int backup_logs_main(int argc, char *argv[]) {
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
+    /* Write completion sentinel for downstream consumers (reboot-manager, telemetry).
+     * /tmp/ is volatile — no stale-sentinel risk across reboots.
+     * Non-fatal: if open() fails, downstream services will time out and annotate gracefully. */
+    {
+        int sentinel_fd = open(BACKUP_LOGS_DONE_FLAG, O_CREAT | O_WRONLY, 0644);
+        if (sentinel_fd < 0) 
+        {
+            RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to create sentinel %s: %s\n", BACKUP_LOGS_DONE_FLAG, strerror(errno));
+        } 
+        else 
+        {
+            close(sentinel_fd);
+            RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Sentinel written: %s\n", BACKUP_LOGS_DONE_FLAG);
+        }
+    }
+
     return EXIT_SUCCESS;
 }
 #ifndef GTEST_ENABLE
