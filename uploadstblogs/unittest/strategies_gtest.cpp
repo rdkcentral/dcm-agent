@@ -89,6 +89,15 @@ extern const StrategyHandler dcm_strategy_handler;
 extern const StrategyHandler ondemand_strategy_handler;
 extern const StrategyHandler reboot_strategy_handler;
 
+static bool g_copy_file_should_fail = false;
+static int g_copy_files_return_count = 3;
+static int g_copy_files_to_dcm_path_call_count = 0;
+static int g_execute_upload_cycle_call_count = 0;
+// Mock implementations for uploadlogsnow module dependencies
+bool copy_file(const char* src, const char* dest) {
+    return g_copy_file_should_fail ? false : true;
+}
+
 // Constants
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 }
