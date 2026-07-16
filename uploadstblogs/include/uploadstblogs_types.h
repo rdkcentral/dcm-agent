@@ -371,6 +371,9 @@ typedef struct {
     size_t len;
 } rpc_resp_t;
 
+/** Capacity of rpc_resp_t::buf (excludes the null terminator). */
+#define RPC_RESP_BUF_SIZE  (sizeof(((rpc_resp_t *)0)->buf))
+
 /* ==========================
    Telemetry Helper Functions
    ========================== */
