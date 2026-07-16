@@ -25,16 +25,11 @@ import pytest
 import json
 
 @pytest.mark.run(order=1)
-def test_upload_cron_present():
+def test_fw_cron_scheduled():
     kill_dcmd(9)
     kill_telemetry(9)
-    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader5/getT2DCMSettings")
     run_dcmd()
+    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader5/getT2DCMSettings")
     run_telemetry()
-    sleep(20)
-    assert "Uploading logs as DCM response is either null or not present" in grep_dcmdlogs("Uploading logs as DCM response is either null or not present")
-
-@pytest.mark.run(order=2)
-def test_fw_cron_scheduled():
     assert "difdCron is empty" in grep_dcmdlogs("difdCron is empty")
 

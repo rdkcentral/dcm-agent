@@ -127,8 +127,14 @@ pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
 
 echo ""
+echo "9. Running Sync Gates Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/sync_gates.json test/functional-tests/tests/test_uploadstblogs_sync_gates.py
+
+echo ""
 echo "====================================="
 echo "Test Execution Complete"
 echo "====================================="
 echo "Results saved to: $RESULT_DIR"
 echo ""
+
