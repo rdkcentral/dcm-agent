@@ -1014,6 +1014,33 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         remove_file(old_tar);
     }
 
+	// Copy backup_logs log file to PREV_LOG_PATH and LOG_PATH for inclusion in upload
+    if (file_exists(BACKUP_LOGS_LOG_FILE)) {
+        char dest_prev[MAX_PATH_LENGTH];
+        char dest_log[MAX_PATH_LENGTH];
+        int w1 = snprintf(dest_prev, sizeof(dest_prev), "%s/backup_logs.log.0",ctx->prev_log_path);
+        int w2 = snprintf(dest_log, sizeof(dest_log), "%s/backup_logs.log.0", ctx->log_path);
+
+        if (w1 < (int)sizeof(dest_prev)) {
+            if (copy_file(BACKUP_LOGS_LOG_FILE, dest_prev)) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copied %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_prev);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_prev);
+            }
+        }
+
+        if (w2 < (int)sizeof(dest_log)) {
+            if (copy_file(BACKUP_LOGS_LOG_FILE, dest_log)) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copied %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_log);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_log);
+            }
+        }
+
+        // Remove original after copies
+        remove_file(BACKUP_LOGS_LOG_FILE);
+    }
+
     // Add timestamps to all files in PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Adding timestamps to files in PREV_LOG_PATH\n", 
