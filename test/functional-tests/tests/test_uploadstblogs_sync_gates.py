@@ -1,3 +1,4 @@
+root@50c3a5974e05:~/dcm-agent# cat test/functional-tests/tests/test.py
 ####################################################################################
 # If not stated otherwise in this file or this component's LICENSE file the
 # following copyright and licenses apply:
@@ -24,7 +25,7 @@ Covers: Normal upload, large file handling, MD5 verification
 
 import os
 import pytest
-import subprocess
+import subprocess as sp
 import time
 from uploadstblogs_helper import *
 from helper_functions import *
@@ -37,7 +38,7 @@ STT_FLAG                    = "/tmp/stt_received"
 PATH_FLAG_INVOCATION        = "/tmp/Update_rebootInfo_invoked"
 TELEMETRY_PREVLOGS_DONE_FLAG = "/tmp/.telemetry_prevlogs_done"
 NTP_SYNC_INDICATOR = "/tmp/systimemgr/ntp"
-
+PREV_LOG_PATH      = "/opt/logs/PreviousLogs"
 
 def _create_sentinel(path):
     """Touch a sentinel file, creating parent directories if needed."""
@@ -64,14 +65,20 @@ def _create_all_sentinels():
     _create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
     _create_sentinel(NTP_SYNC_INDICATOR)
 
-
 def _remove_all_sentinels():
     """Remove all reboot-flow synchronization sentinels."""
     _remove_sentinel(BACKUP_LOGS_DONE_FLAG)
     _remove_sentinel(STT_FLAG)
     _remove_sentinel(PATH_FLAG_INVOCATION)
     _remove_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
-    
+
+def setup_previous_logs():
+    """Create PreviousLogs directory with sample log files."""
+    sp.run(f"mkdir -p {PREV_LOG_PATH}", shell=True)
+    sp.run(f"echo 'sample log content' > {PREV_LOG_PATH}/messages.log", shell=True)
+    sp.run(f"echo 'wifi log content'   > {PREV_LOG_PATH}/wifi.log",     shell=True)
+    sp.run(f"echo 'system log'         > {PREV_LOG_PATH}/system.txt",   shell=True)
+
 class TestNormalUpload:
     """Test suite for normal upload operations"""
 
@@ -93,14 +100,15 @@ class TestNormalUpload:
     def test_normal_upload_initialization(self):
         """Test: uploadSTBLogs service initialization"""
         # Create test log files
-        _create_all_sentinels
+        _create_all_sentinels()
+        setup_previous_logs()
         create_test_log_files(count=3, size_kb=50)
         set_include_property("LOG_PATH", "/opt/logs")
 
         # Run uploadSTBLogs
         #result = run_uploadstblogs()
         result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
-       
+
         # Verify initialization
         assert result.returncode == 0 or result.returncode == 1, "Upload process should complete"
 
@@ -135,5 +143,3 @@ class TestNormalUpload:
         upload_logs = grep_uploadstb_logs_regex(r"upload.*success|uploading|HTTP")
         # Telemetry should be attempted
         assert len(archive_logs) > 0, "Upload Process should complete and succeed"
-
-
