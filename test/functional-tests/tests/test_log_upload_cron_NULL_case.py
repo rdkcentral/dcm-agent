@@ -26,5 +26,10 @@ import json
 
 @pytest.mark.run(order=1)
 def test_fw_cron_scheduled():
+    kill_dcmd(9)
+    kill_telemetry(9)
+    run_dcmd()
+    run_telemetry()
+    sleep(20)
     assert "difdCron is empty" in grep_dcmdlogs("difdCron is empty")
 
