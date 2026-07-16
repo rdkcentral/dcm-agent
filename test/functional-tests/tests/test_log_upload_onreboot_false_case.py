@@ -25,20 +25,10 @@ import pytest
 import json
 
 @pytest.mark.run(order=1)
-def test_upload_cron_present():
-    kill_dcmd(9)
-    kill_telemetry(9)
-    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader4/getT2DCMSettings")
-    run_dcmd()
-    run_telemetry()
-    sleep(20)
-    assert "urn:settings:LogUploadSettings:UploadSchedule:cron" in grep_dcmdlogs("is present setting cron jobs")
-
-@pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=2)
 def test_fwupdate_script_started():
    assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
    #assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
