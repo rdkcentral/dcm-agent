@@ -36,6 +36,14 @@ extern "C" {
 #endif
 
 // External function declarations needed by strategies.c
+static bool g_copy_file_should_fail = false;
+static int g_copy_files_return_count = 3;
+static int g_copy_files_to_dcm_path_call_count = 0;
+static int g_execute_upload_cycle_call_count = 0;
+// Mock implementations for uploadlogsnow module dependencies
+bool copy_file(const char* src, const char* dest) {
+    return g_copy_file_should_fail ? false : true;
+}
 bool dir_exists(const char* dirpath);
 int add_timestamp_to_files(const char* dirpath);
 int collect_pcap_logs(RuntimeContext* ctx, const char* target_dir);
