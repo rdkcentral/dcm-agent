@@ -22,7 +22,9 @@ Test cases for uploadSTBLogs normal upload operations
 Covers: Normal upload, large file handling, MD5 verification
 """
 
+import os
 import pytest
+import subprocess
 import time
 from uploadstblogs_helper import *
 from helper_functions import *
@@ -102,10 +104,10 @@ class TestNormalUpload:
         # Check initialization logs
         init_logs = grep_uploadstb_logs("Context initialization successful")
         assert len(init_logs) > 0, "Context should be initialized successfully"
-        
-                # Gate 1: backup_logs sentinel must NOT cause abort
-        abort_logs = grep_uploadstb_logs("backup_logs not done")
-        assert len(abort_logs) == 0, "backup_logs sentinel present — abort message should not appear"
+
+        # Gate 1: backup_logs sentinel must NOT cause abort and must log detection
+        backup_detected_logs = grep_uploadstb_logs("bacukup_logs sentinel detected. Proceeding.")
+        assert len(backup_detected_logs) > 0, "Expected log: 'bacukup_logs sentinel detected. Proceeding.'"
 
         # Gate 2: NTP sync sentinel must be detected
         ntp_logs = grep_uploadstb_logs("NTP sync sentinel detected")
