@@ -863,6 +863,9 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] backup_logs not done (%s absent); aborting upload\n", __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
             return -1;
         }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
     }
 
 	/* NTP sync check (REQ-SYNC-002).
