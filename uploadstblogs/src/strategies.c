@@ -56,6 +56,9 @@
 #include "rdk_debug.h"
 #include "event_manager.h"
 #include "cleanup_handler.h"
+#include "downloadUtil.h"
+#include "json_parse.h"
+#include "urlHelper.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 
@@ -69,77 +72,136 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
+#define DEFAULT_DL_ALLOC        1024
+#define WPEFRAMEWORK_SECURITY_UTILITY "/usr/bin/WPEFrameworkSecurityUtility"
 
-size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp)
+static int getJRPCTokenData(char *token, char *pJsonStr, unsigned int token_size)
 {
-    rpc_resp_t *r = (rpc_resp_t *)userp;
-    size_t incoming = size * nmemb;
+    JSON *pJson = NULL;
+    JSON *pItem = NULL;
 
-    if (r->len >= (sizeof(r->buf) - 1u)) {
-        return size * nmemb; /* discard extra data but keep curl happy */
+    if (token == NULL || pJsonStr == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Parameter is NULL\n", __FUNCTION__, __LINE__);
+        return -1;
     }
 
-    size_t space = (sizeof(r->buf) - 1u) - r->len;
-    if (incoming > space) { incoming = space; }
-
-    memcpy(r->buf + r->len, ptr, incoming);
-    r->len += incoming;
-    r->buf[r->len] = '\0';
-    return size * nmemb;
+    pJson = ParseJsonStr(pJsonStr);
+    if (pJson != NULL) {
+        pItem = GetJsonItem(pJson, "token");
+        if (pItem != NULL && pItem->valuestring != NULL) {
+            strncpy(token, pItem->valuestring, token_size - 1);
+            token[token_size - 1] = '\0';
+        }
+        FreeJson(pJson);
+        return 0;
+    }
+    return -1;
 }
 
-bool nm_query_ipver(const char *ipversion)
+static int getJsonRpc(char *post_data, DownloadData *pJsonRpc)
 {
-    char payload[256];
-    CURL *ch;
-    rpc_resp_t resp;
-    struct curl_slist *hdrs = NULL;
-    CURLcode rc;
-    int n;
+    void *Curl_req = NULL;
+    char token[256] = {0};
+    char jsondata[256] = {0};
+    int httpCode = 0;
+    FileDwnl_t req_data;
+    int curl_ret_code = -1;
+    char header[] = "Content-Type: application/json";
+    char token_header[300] = {0};
 
-    n = snprintf(payload, sizeof(payload),
-        "{\"jsonrpc\":\"2.0\",\"id\":\"42\","
-        "\"method\":\"org.rdk.NetworkManager.IsConnectedToInternet\","
-        "\"params\":{\"ipversion\":\"%s\"}}", ipversion);
-    if (n < 0 || (size_t)n >= sizeof(payload)) { return false; }
+    cmdExec(WPEFRAMEWORK_SECURITY_UTILITY, jsondata, sizeof(jsondata));
+    getJRPCTokenData(token, jsondata, sizeof(token));
 
-    ch = curl_easy_init();
-    if (!ch) { return false; }
+    if (pJsonRpc->pvOut != NULL) {
+        memset(&req_data, 0, sizeof(req_data));
+        req_data.pHeaderData = header;
+        req_data.pDlHeaderData = NULL;
+        snprintf(token_header, sizeof(token_header), "Authorization: Bearer %s", token);
+        req_data.pPostFields = post_data;
+        req_data.pDlData = pJsonRpc;
+        snprintf(req_data.url, sizeof(req_data.url), "%s", THUNDER_JSONRPC_URL);
 
-    memset(&resp, 0, sizeof(resp));
-    hdrs = curl_slist_append(NULL, "Content-Type: application/json");
-    if (!hdrs) { curl_easy_cleanup(ch); return false; }
-
-    if (curl_easy_setopt(ch, CURLOPT_URL,           THUNDER_JSONRPC_URL) != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_POSTFIELDS,    payload)            != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_HTTPHEADER,    hdrs)               != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, internet_write_cb)  != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_WRITEDATA,     (void *)&resp)      != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_TIMEOUT,       INTERNET_CHECK_TIMEOUT_S) != CURLE_OK ||
-        curl_easy_setopt(ch, CURLOPT_NOSIGNAL,      1L)                 != CURLE_OK) {
-        curl_slist_free_all(hdrs);
-        curl_easy_cleanup(ch);
-        return false;
+        Curl_req = doCurlInit();
+        if (Curl_req != NULL) {
+            curl_ret_code = getJsonRpcData(Curl_req, &req_data, token_header, &httpCode);
+            doStopDownload(Curl_req);
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] doCurlInit failed\n", __FUNCTION__, __LINE__);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to allocate memory\n", __FUNCTION__, __LINE__);
     }
-
-    rc = curl_easy_perform(ch);
-    curl_slist_free_all(hdrs);
-    curl_easy_cleanup(ch);
-
-    if (rc != CURLE_OK) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NetworkManager RPC (%s) failed: %s\n", __FUNCTION__, __LINE__, ipversion, curl_easy_strerror(rc));
-        return false;
-    }
-
-    /* status != "NO_INTERNET" means connected */
-    return (strstr(resp.buf, "NO_INTERNET") == NULL);
+    return curl_ret_code;
 }
 
 bool check_internet_connectivity(void)
 {
-    /* Try IPv4 first; fall back to IPv6 — mirrors iarmInterface.c */
-    if (nm_query_ipver("IPv4")) { return true; }
-    return nm_query_ipver("IPv6");
+    bool isconnected = false;
+    DownloadData DwnLoc;
+    JSON *pJson = NULL;
+    JSON *pItem = NULL;
+    JSON *res_val = NULL;
+    char status[20] = {0};
+
+    char post_data4[] = "{\"jsonrpc\":\"2.0\",\"id\":\"42\",\"method\": \"org.rdk.NetworkManager.IsConnectedToInternet\", \"params\" : { \"ipversion\" : \"IPv4\"}}";
+    char post_data6[] = "{\"jsonrpc\":\"2.0\",\"id\":\"42\",\"method\": \"org.rdk.NetworkManager.IsConnectedToInternet\", \"params\" : { \"ipversion\" : \"IPv6\"}}";
+
+    if (allocDowndLoadDataMem(&DwnLoc, DEFAULT_DL_ALLOC) == 0) {
+        if (0 != getJsonRpc(post_data4, &DwnLoc)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] isconnected JsonRpc call failed\n", __FUNCTION__, __LINE__);
+            if (DwnLoc.pvOut != NULL) { free(DwnLoc.pvOut); }
+            return isconnected;
+        }
+
+        pJson = ParseJsonStr((char *)DwnLoc.pvOut);
+        if (pJson != NULL) {
+            pItem = GetJsonItem(pJson, "result");
+            if (pItem != NULL) {
+                res_val = GetJsonItem(pItem, "status");
+                if (res_val != NULL && res_val->valuestring != NULL) {
+                    strncpy(status, res_val->valuestring, sizeof(status) - 1);
+                    status[sizeof(status) - 1] = '\0';
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] status = %s\n", __FUNCTION__, __LINE__, status);
+
+                    if (strcmp(status, "NO_INTERNET") != 0) {
+                        isconnected = true;
+                    } else {
+                        /* IPv4 has no internet, try IPv6 */
+                        if (0 != getJsonRpc(post_data6, &DwnLoc)) {
+                            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] isconnected IPv6 JsonRpc call failed\n", __FUNCTION__, __LINE__);
+                            FreeJson(pJson);
+                            if (DwnLoc.pvOut != NULL) { free(DwnLoc.pvOut); }
+                            return isconnected;
+                        }
+                        FreeJson(pJson);
+                        pJson = ParseJsonStr((char *)DwnLoc.pvOut);
+                        if (pJson != NULL) {
+                            pItem = GetJsonItem(pJson, "result");
+                            if (pItem != NULL) {
+                                res_val = GetJsonItem(pItem, "status");
+                                if (res_val != NULL && res_val->valuestring != NULL) {
+                                    strncpy(status, res_val->valuestring, sizeof(status) - 1);
+                                    status[sizeof(status) - 1] = '\0';
+                                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] IPv6 status = %s\n", __FUNCTION__, __LINE__, status);
+                                    if (strcmp(status, "NO_INTERNET") != 0) {
+                                        isconnected = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            FreeJson(pJson);
+        }
+
+        if (DwnLoc.pvOut != NULL) {
+            free(DwnLoc.pvOut);
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] isconnected status = %d\n", __FUNCTION__, __LINE__, isconnected);
+    return isconnected;
 }
 
 time_t apply_ntp_fallback_time(void)
