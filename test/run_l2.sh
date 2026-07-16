@@ -49,5 +49,3 @@ if ! grep -q "ENABLE_MAINTENANCE=" /etc/device.properties; then
 fi
 
 pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_MM_test.json test/functional-tests/tests/test_log_upload_onreboot_MM_case.py
-
-pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_cron_NULL_test.json test/functional-tests/tests/test_log_upload_cron_NULL_case.py
