@@ -58,6 +58,7 @@
 #include "cleanup_handler.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
+#define BACKUP_LOGS_LOG_FILE          "/tmp/backup_logs.log.0"
 
 /* ==========================
    DCM Strategy Implementation
