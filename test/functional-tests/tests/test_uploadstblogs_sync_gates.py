@@ -36,6 +36,7 @@ BACKUP_LOGS_DONE_FLAG       = "/tmp/.backup_logs_done"
 STT_FLAG                    = "/tmp/stt_received"
 PATH_FLAG_INVOCATION        = "/tmp/Update_rebootInfo_invoked"
 TELEMETRY_PREVLOGS_DONE_FLAG = "/tmp/.telemetry_prevlogs_done"
+NTP_SYNC_INDICATOR = "/tmp/systimemgr/ntp"
 
 
 def _create_sentinel(path):
@@ -61,6 +62,7 @@ def _create_all_sentinels():
     _create_sentinel(STT_FLAG)
     _create_sentinel(PATH_FLAG_INVOCATION)
     _create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
+    _create_sentinel(NTP_SYNC_INDICATOR)
 
 
 def _remove_all_sentinels():
