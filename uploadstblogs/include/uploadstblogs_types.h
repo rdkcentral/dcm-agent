@@ -363,12 +363,6 @@ typedef struct {
 } SessionState;
 
 #define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
-#define INTERNET_CHECK_TIMEOUT_S  5L
-
-typedef struct {
-    char   buf[512];
-    size_t len;
-} rpc_resp_t;
 
 /* ==========================
    Telemetry Helper Functions
@@ -387,8 +381,6 @@ void t2_count_notify(char *marker);
  */
 void t2_val_notify(char *marker, char *val);
 
-size_t internet_write_cb(void *ptr, size_t size, size_t nmemb, void *userp);
-bool nm_query_ipver(const char *ipversion);
 bool check_internet_connectivity(void);
 time_t apply_ntp_fallback_time(void);
 void trigger_reboot_info_update(void);
