@@ -29,6 +29,7 @@ def test_fw_cron_scheduled():
     kill_dcmd(9)
     kill_telemetry(9)
     run_dcmd()
+    rbus_set_data("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL", "string", "https://mockxconf:50050/loguploader5/getT2DCMSettings")
     run_telemetry()
     assert "difdCron is empty" in grep_dcmdlogs("difdCron is empty")
 
