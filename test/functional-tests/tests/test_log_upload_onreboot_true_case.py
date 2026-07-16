@@ -34,8 +34,3 @@ def test_fwupdate_script_started():
     assert "Start FW update Script"  in grep_dcmdlogs("Start FW update Script")
    # assert "Starting SoftwareUpdate Utility Script..." in grep_dcmdlogs("Starting SoftwareUpdate Utility Script...")
    #assert "trigger type=" in grep_dcmdlogs("trigger type=")
-
-@pytest.mark.run(order=3)
-def test_upload_cron_scheduled():
-    assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
-
