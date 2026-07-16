@@ -44,6 +44,14 @@ int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archi
 int clear_old_packet_captures(const char* log_path);
 bool remove_directory(const char* dirpath);
 bool join_path(char* buffer, size_t buffer_size, const char* dir, const char* filename);
+static bool g_copy_file_should_fail = false;
+static int g_copy_files_return_count = 3;
+static int g_copy_files_to_dcm_path_call_count = 0;
+static int g_execute_upload_cycle_call_count = 0;
+// Mock implementations for uploadlogsnow module dependencies
+bool copy_file(const char* src, const char* dest) {
+    return g_copy_file_should_fail ? false : true;
+}
 
 // Additional external functions needed by strategies.c
 bool has_log_files(const char* dirpath);
