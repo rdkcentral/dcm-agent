@@ -36,8 +36,16 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+#include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/inotify.h>
+#include <curl/curl.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
 #include "upload_engine.h"
@@ -48,8 +56,12 @@
 #include "rdk_debug.h"
 #include "event_manager.h"
 #include "cleanup_handler.h"
+#include "downloadUtil.h"
+#include "json_parse.h"
+#include "urlHelper.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
+#define BACKUP_LOGS_LOG_FILE          "/tmp/backup_logs.log.0"
 
 /* ==========================
    DCM Strategy Implementation
@@ -60,6 +72,269 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session);
 static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
+
+
+#define DEFAULT_DL_ALLOC        1024
+#define WPEFRAMEWORK_SECURITY_UTILITY "/usr/bin/WPEFrameworkSecurityUtility"
+
+static int getJRPCTokenData(char *token, char *pJsonStr, unsigned int token_size)
+{
+    JSON *pJson = NULL;
+    JSON *pItem = NULL;
+
+    if (token == NULL || pJsonStr == NULL) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Parameter is NULL\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    pJson = ParseJsonStr(pJsonStr);
+    if (pJson != NULL) {
+        pItem = GetJsonItem(pJson, "token");
+        if (pItem != NULL && pItem->valuestring != NULL) {
+            strncpy(token, pItem->valuestring, token_size - 1);
+            token[token_size - 1] = '\0';
+        }
+        FreeJson(pJson);
+        return 0;
+    }
+    return -1;
+}
+
+static int getJsonRpc(char *post_data, DownloadData *pJsonRpc)
+{
+    void *Curl_req = NULL;
+    char token[256] = {0};
+    char jsondata[256] = {0};
+    int httpCode = 0;
+    FileDwnl_t req_data;
+    int curl_ret_code = -1;
+    char header[] = "Content-Type: application/json";
+    char token_header[300] = {0};
+
+    cmdExec(WPEFRAMEWORK_SECURITY_UTILITY, jsondata, sizeof(jsondata));
+    getJRPCTokenData(token, jsondata, sizeof(token));
+
+    if (pJsonRpc->pvOut != NULL) {
+        memset(&req_data, 0, sizeof(req_data));
+        req_data.pHeaderData = header;
+        req_data.pDlHeaderData = NULL;
+        snprintf(token_header, sizeof(token_header), "Authorization: Bearer %s", token);
+        req_data.pPostFields = post_data;
+        req_data.pDlData = pJsonRpc;
+        snprintf(req_data.url, sizeof(req_data.url), "%s", THUNDER_JSONRPC_URL);
+
+        Curl_req = doCurlInit();
+        if (Curl_req != NULL) {
+            curl_ret_code = getJsonRpcData(Curl_req, &req_data, token_header, &httpCode);
+            doStopDownload(Curl_req);
+        } else {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] doCurlInit failed\n", __FUNCTION__, __LINE__);
+        }
+    } else {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to allocate memory\n", __FUNCTION__, __LINE__);
+    }
+    return curl_ret_code;
+}
+
+bool check_internet_connectivity(void)
+{
+    bool isconnected = false;
+    DownloadData DwnLoc;
+    JSON *pJson = NULL;
+    JSON *pItem = NULL;
+    JSON *res_val = NULL;
+    char status[20] = {0};
+
+    char post_data4[] = "{\"jsonrpc\":\"2.0\",\"id\":\"42\",\"method\": \"org.rdk.NetworkManager.IsConnectedToInternet\", \"params\" : { \"ipversion\" : \"IPv4\"}}";
+    char post_data6[] = "{\"jsonrpc\":\"2.0\",\"id\":\"42\",\"method\": \"org.rdk.NetworkManager.IsConnectedToInternet\", \"params\" : { \"ipversion\" : \"IPv6\"}}";
+
+    if (allocDowndLoadDataMem(&DwnLoc, DEFAULT_DL_ALLOC) == 0) {
+        if (0 != getJsonRpc(post_data4, &DwnLoc)) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] isconnected JsonRpc call failed\n", __FUNCTION__, __LINE__);
+            if (DwnLoc.pvOut != NULL) { free(DwnLoc.pvOut); }
+            return isconnected;
+        }
+
+        pJson = ParseJsonStr((char *)DwnLoc.pvOut);
+        if (pJson != NULL) {
+            pItem = GetJsonItem(pJson, "result");
+            if (pItem != NULL) {
+                res_val = GetJsonItem(pItem, "status");
+                if (res_val != NULL && res_val->valuestring != NULL) {
+                    strncpy(status, res_val->valuestring, sizeof(status) - 1);
+                    status[sizeof(status) - 1] = '\0';
+                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] status = %s\n", __FUNCTION__, __LINE__, status);
+
+                    if (strcmp(status, "NO_INTERNET") != 0) {
+                        isconnected = true;
+                    } else {
+                        /* IPv4 has no internet, try IPv6 */
+                        if (0 != getJsonRpc(post_data6, &DwnLoc)) {
+                            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] isconnected IPv6 JsonRpc call failed\n", __FUNCTION__, __LINE__);
+                            FreeJson(pJson);
+                            if (DwnLoc.pvOut != NULL) { free(DwnLoc.pvOut); }
+                            return isconnected;
+                        }
+                        FreeJson(pJson);
+                        pJson = ParseJsonStr((char *)DwnLoc.pvOut);
+                        if (pJson != NULL) {
+                            pItem = GetJsonItem(pJson, "result");
+                            if (pItem != NULL) {
+                                res_val = GetJsonItem(pItem, "status");
+                                if (res_val != NULL && res_val->valuestring != NULL) {
+                                    strncpy(status, res_val->valuestring, sizeof(status) - 1);
+                                    status[sizeof(status) - 1] = '\0';
+                                    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] IPv6 status = %s\n", __FUNCTION__, __LINE__, status);
+                                    if (strcmp(status, "NO_INTERNET") != 0) {
+                                        isconnected = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            FreeJson(pJson);
+        }
+
+        if (DwnLoc.pvOut != NULL) {
+            free(DwnLoc.pvOut);
+        }
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] isconnected status = %d\n", __FUNCTION__, __LINE__, isconnected);
+    return isconnected;
+}
+
+time_t apply_ntp_fallback_time(void)
+{
+    char time_buf[32] = {0};
+    long epoch;
+    FILE *fp;
+
+    fp = fopen(SYSTIMEMGR_CLOCK_FILE, "r");
+    if (!fp) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s not readable (errno=%d)\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE, errno);
+        return 0;
+    }
+    if (fgets(time_buf, (int)sizeof(time_buf), fp) == NULL) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr clock file %s is empty\n", __FUNCTION__, __LINE__, SYSTIMEMGR_CLOCK_FILE);
+        fclose(fp);
+        return 0;
+    }
+    fclose(fp);
+
+    epoch = strtol(time_buf, NULL, 10);
+    if (epoch <= 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] systimemgr returned invalid epoch string: '%s'\n", __FUNCTION__, __LINE__, time_buf);
+        return 0;
+    }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Using last-known-good time epoch=%ld from systimemgr for archive name\n", __FUNCTION__, __LINE__, epoch);
+    return (time_t)epoch;
+}
+
+void trigger_reboot_info_update(void)
+{
+    struct stat st;
+
+    if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
+        int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: %s\n", __FUNCTION__, __LINE__, STT_FLAG);
+        }
+    }
+}
+
+int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s)
+{
+    /* Fast path: sentinel already present */
+    if (access(flag_path, F_OK) == 0) {
+        return 0;
+    }
+
+    int ifd = inotify_init1(IN_CLOEXEC);
+    if (ifd < 0 || ifd >= FD_SETSIZE) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_init1 failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
+    }
+
+    int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
+    if (wd < 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_add_watch on %s failed (errno=%d) \n", __FUNCTION__, __LINE__, watch_dir, errno);
+        close(ifd);
+		return -1;
+    }
+
+    /* Re-check after watch is set — closes race between access() and add_watch */
+    if (access(flag_path, F_OK) == 0) {
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return 0;
+    }
+
+    {
+        struct timespec deadline;
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] clock_gettime failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
+            inotify_rm_watch(ifd, wd);
+            close(ifd);
+			return -1;
+        }
+        deadline.tv_sec += (time_t)timeout_s;
+
+        int found = 0;
+        char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+        while (!found) {
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) == 0 &&
+                now.tv_sec >= deadline.tv_sec) {
+                break; /* timeout */
+            }
+
+            struct timeval tv = {2, 0};
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET((unsigned)ifd, &fds);
+
+            int ret = select(ifd + 1, &fds, NULL, NULL, &tv);
+            if (ret < 0) {
+                if (errno == EINTR) { continue; }
+                break;
+            }
+            if (ret == 0) { continue; } /* heartbeat — re-check deadline */
+
+            ssize_t len = read(ifd, buf, sizeof(buf));
+            if (len <= 0) { continue; }
+
+            ssize_t offset = 0;
+            while (offset < len) {
+                struct inotify_event *ev =
+                    (struct inotify_event *)(buf + offset);
+                if (ev->len > 0 && strcmp(ev->name, filename) == 0) {
+                    found = 1;
+                    break;
+                }
+                offset += (ssize_t)(sizeof(struct inotify_event) + ev->len);
+            }
+        }
+
+        inotify_rm_watch(ifd, wd);
+        close(ifd);
+        return found ? 0 : -1;
+    }
+}
+
+int wait_for_reboot_reason(void)
+{
+    return wait_for_sentinel(PATH_FLAG_INVOCATION, PATH_FLAG_INVOCATION_DIR, PATH_FLAG_INVOCATION_FILENAME, REBOOT_POLL_TIMEOUT_S);
+}
+
+int wait_for_telemetry_prevlogs_done(void)
+{
+    return wait_for_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_DONE_DIR, TELEMETRY_PREVLOGS_DONE_FILENAME, TELEMETRY_PREVLOGS_TIMEOUT_S);
+}
 
 /**
  * @brief Read upload_flag from DCMSettings.conf
@@ -641,8 +916,78 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
+	/* backup_logs gate (REQ-SYNC-001).
+     * backup_logs writes BACKUP_LOGS_DONE_FLAG when PreviousLogs are fully assembled.
+     * telemetry already waited for this sentinel before grepping PreviousLogs, so it
+     * should be present by now.  If absent, the log set is incomplete — abort and let
+     * the next scheduled upload attempt pick it up once backup_logs finishes. */
+    {
+        struct stat st_bl;
+        if (stat(BACKUP_LOGS_DONE_FLAG, &st_bl) != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] backup_logs not done (%s absent); aborting upload\n", __FUNCTION__, __LINE__, BACKUP_LOGS_DONE_FLAG);
+            return -1;
+        }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] bacukup_logs sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+	/* NTP sync check (REQ-SYNC-002).
+     * If STT_FLAG is absent the system clock was not set from NTP this boot.
+     * In that case query the network stack: if internet is reachable, read the
+     * last-known-good time from systimemgr's clock file and store it in
+     * ctx->archive_ref_time so archive filenames use a meaningful timestamp.
+     * If internet is not reachable we annotate the session and continue — the
+     * upload must not be blocked by a missing time source. */
+    {
+        struct stat st_ntp;
+        if (stat(NTP_SYNC_INDICATOR, &st_ntp) != 0) {
+            bool connected = check_internet_connectivity();
+
+            if (connected) {
+                RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP absent but internet available; applying last-known-good time\n", __FUNCTION__, __LINE__);
+                ctx->archive_ref_time = apply_ntp_fallback_time();
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] NTP absent and no internet; proceeding with current system time\n", __FUNCTION__, __LINE__);
+            }
+        }
+		else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+	// Wait for reboot reason sentinel.
+    // Poll first — update-prev-reboot-info normally runs at boot and should already
+    // be done by now.  Only if the sentinel is still absent after the full timeout
+    // do we write the trigger file to nudge reboot-manager into a retry.
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for reboot reason sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, PATH_FLAG_INVOCATION, REBOOT_POLL_TIMEOUT_S);
+
+		if (wait_for_reboot_reason() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Reboot reason sentinel not present after %us. trigger to request immediate update.\n", __FUNCTION__, __LINE__, REBOOT_POLL_TIMEOUT_S);
+            trigger_reboot_info_update();
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Reboot reason sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
+	/* Wait for telemetry previous-log grep completion sentinel (REQ-SYNC-003).
+     * Telemetry writes TELEMETRY_PREVLOGS_DONE_FLAG after it finishes grepping
+     * PreviousLogs.  Uploading before this sentinel appears could cause telemetry
+     * to lose data from the previous boot.  This is a soft gate — on timeout the
+     * upload still proceeds and the session is annotated. */
+    {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Waiting for telemetry prevlogs sentinel %s (timeout %us)\n", __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_DONE_FLAG, TELEMETRY_PREVLOGS_TIMEOUT_S);
+
+        if (wait_for_telemetry_prevlogs_done() != 0) {
+            RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Telemetry prevlogs sentinel not present after %us , proceeding without telemetry sync\n", __FUNCTION__, __LINE__, TELEMETRY_PREVLOGS_TIMEOUT_S);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Telemetry prevlogs sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+        }
+    }
+
     // Check if PREV_LOG_PATH exists and has .txt or .log files
-    // Script uploadLogOnReboot lines 805-816:
+	// Script uploadLogOnReboot lines 805-816:
     // ret=`ls $PREV_LOG_PATH/*.txt`
     // if [ ! $ret ]; then ret=`ls $PREV_LOG_PATH/*.log`
     if (!dir_exists(ctx->prev_log_path)) {
@@ -658,35 +1003,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         emit_no_logs_reboot(ctx);
         return -1;
     }
-
-    // Check system uptime and sleep if needed
-    // Script lines 818-836: if uptime < 900s, sleep 330s
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        if (uptime_seconds < 900.0) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] System uptime %.0f seconds < 900s, sleeping for 330s\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
-            
-            // Script checks ENABLE_MAINTENANCE but both paths result in 330s sleep
-            // For simplicity, just sleep (background job with wait has same effect)
-#ifndef L2_TEST_ENABLED
-            sleep(330);
-#endif
-            
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Done sleeping\n", __FUNCTION__, __LINE__);
-        } else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                    "[%s:%d] Device uptime %.0f seconds >= 900s, skipping sleep\n", 
-                    __FUNCTION__, __LINE__, uptime_seconds);
-        }
-    } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to get system uptime, skipping sleep\n", 
-                __FUNCTION__, __LINE__);
-    }
-
     // Clean up old log backup directories (older than 3 days)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Cleaning old log backup directories (3+ days)\n", __FUNCTION__, __LINE__);
     int removed_dirs = cleanup_old_log_backups(ctx->log_path, 3);
@@ -754,6 +1070,34 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Old tar path too long\n", __FUNCTION__, __LINE__);
         return -1;
     }
+
+	// Copy backup_logs log file to PREV_LOG_PATH and LOG_PATH for inclusion in upload
+    if (file_exists(BACKUP_LOGS_LOG_FILE)) {
+        char dest_prev[MAX_PATH_LENGTH];
+        char dest_log[MAX_PATH_LENGTH];
+        int w1 = snprintf(dest_prev, sizeof(dest_prev), "%s/backup_logs.log.0",ctx->prev_log_path);
+        int w2 = snprintf(dest_log, sizeof(dest_log), "%s/backup_logs.log.0", ctx->log_path);
+
+        if (w1 < (int)sizeof(dest_prev)) {
+            if (copy_file(BACKUP_LOGS_LOG_FILE, dest_prev)) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copied %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_prev);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_prev);
+            }
+        }
+
+        if (w2 < (int)sizeof(dest_log)) {
+            if (copy_file(BACKUP_LOGS_LOG_FILE, dest_log)) {
+                RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] Copied %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_log);
+            } else {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to copy %s to %s\n", __FUNCTION__, __LINE__, BACKUP_LOGS_LOG_FILE, dest_log);
+            }
+        }
+
+        // Remove original after copies
+        remove_file(BACKUP_LOGS_LOG_FILE);
+    }
+
     
     if (file_exists(old_tar)) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -812,13 +1156,9 @@ static int reboot_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-#ifndef L2_TEST_ENABLED
-    sleep(60);
-#endif
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] REBOOT/NON_DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
-
     return 0;
 }
 
@@ -948,10 +1288,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             int dri_ret = create_dri_archive(ctx, dri_archive);
         
             if (dri_ret == 0) {
-#ifndef L2_TEST_ENABLED
-                sleep(60);
-#endif
-            
                 // Upload DRI logs using separate session state
                 SessionState dri_session = *session;  // Copy current session config
                 dri_session.direct_attempts = 0;       // Reset attempt counters
