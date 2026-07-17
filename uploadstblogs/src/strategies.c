@@ -1,4 +1,3 @@
-
 /*
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
@@ -61,6 +60,7 @@
 #include "urlHelper.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
+#define DEFAULT_DL_ALLOC        1024
 
 /* ==========================
    DCM Strategy Implementation
@@ -72,58 +72,25 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session);
 static int dcm_upload(RuntimeContext* ctx, SessionState* session);
 static int dcm_cleanup(RuntimeContext* ctx, SessionState* session, bool upload_success);
 
-#define DEFAULT_DL_ALLOC        1024
-#define WPEFRAMEWORK_SECURITY_UTILITY "/usr/bin/WPEFrameworkSecurityUtility"
-
-static int getJRPCTokenData(char *token, char *pJsonStr, unsigned int token_size)
-{
-    JSON *pJson = NULL;
-    JSON *pItem = NULL;
-
-    if (token == NULL || pJsonStr == NULL) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Parameter is NULL\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    pJson = ParseJsonStr(pJsonStr);
-    if (pJson != NULL) {
-        pItem = GetJsonItem(pJson, "token");
-        if (pItem != NULL && pItem->valuestring != NULL) {
-            strncpy(token, pItem->valuestring, token_size - 1);
-            token[token_size - 1] = '\0';
-        }
-        FreeJson(pJson);
-        return 0;
-    }
-    return -1;
-}
-
 static int getJsonRpc(char *post_data, DownloadData *pJsonRpc)
 {
     void *Curl_req = NULL;
-    char token[256] = {0};
-    char jsondata[256] = {0};
     int httpCode = 0;
     FileDwnl_t req_data;
     int curl_ret_code = -1;
     char header[] = "Content-Type: application/json";
-    char token_header[300] = {0};
-
-    cmdExec(WPEFRAMEWORK_SECURITY_UTILITY, jsondata, sizeof(jsondata));
-    getJRPCTokenData(token, jsondata, sizeof(token));
 
     if (pJsonRpc->pvOut != NULL) {
         memset(&req_data, 0, sizeof(req_data));
         req_data.pHeaderData = header;
         req_data.pDlHeaderData = NULL;
-        snprintf(token_header, sizeof(token_header), "Authorization: Bearer %s", token);
         req_data.pPostFields = post_data;
         req_data.pDlData = pJsonRpc;
         snprintf(req_data.url, sizeof(req_data.url), "%s", THUNDER_JSONRPC_URL);
 
         Curl_req = doCurlInit();
         if (Curl_req != NULL) {
-            curl_ret_code = getJsonRpcData(Curl_req, &req_data, token_header, &httpCode);
+            curl_ret_code = getJsonRpcData(Curl_req, &req_data, NULL, &httpCode);
             doStopDownload(Curl_req);
         } else {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] doCurlInit failed\n", __FUNCTION__, __LINE__);
