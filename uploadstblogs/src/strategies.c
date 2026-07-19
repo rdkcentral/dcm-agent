@@ -222,6 +222,7 @@ int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *
     int ifd = inotify_init1(IN_CLOEXEC);
     if (ifd < 0 || ifd >= FD_SETSIZE) {
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] inotify_init1 failed (errno=%d) \n", __FUNCTION__, __LINE__, errno);
+		return -1;
     }
 
     int wd = inotify_add_watch(ifd, watch_dir, IN_CREATE | IN_MOVED_TO);
