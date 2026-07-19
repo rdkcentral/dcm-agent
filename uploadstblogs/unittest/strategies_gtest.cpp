@@ -1039,14 +1039,13 @@ TEST_F(WaitForSentinelTest, Detection_SentinelAppearsNearTimeout) {
 // ==================== HELPER FUNCTION TESTS ====================
 
 /**
- * Test fixture for getJRPCTokenData, getJsonRpc, check_internet_connectivity,
+ * Test fixture for getJsonRpc, check_internet_connectivity,
  * apply_ntp_fallback_time, and trigger_reboot_info_update.
  */
 class HelperFunctionsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         g_mock_file_ops = nullptr;
-        // Reset JSON-RPC / download mock state for getJRPCTokenData tests
         g_mock_allocDowndLoadDataMem_result = 0;
         g_mock_doCurlInit_result = (void *)0xCAFE;
         g_mock_getJsonRpcData_result = 0;
@@ -1070,77 +1069,6 @@ protected:
         if (fd >= 0) close(fd);
     }
 };
-
-// ---- getJRPCTokenData tests ----
-
-/**
- * @test getJRPCTokenData returns 0 and extracts token from valid JSON.
- * Covers: ParseJsonStr succeeds, GetJsonItem("token") succeeds, strncpy path.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_ValidJson) {
-    char token[256] = {0};
-    char json[] = "{\"token\":\"abc123xyz\"}";
-
-    int ret = getJRPCTokenData(token, json, sizeof(token));
-    EXPECT_EQ(ret, 0);
-    EXPECT_STREQ(token, "abc123xyz");
-}
-
-/**
- * @test getJRPCTokenData returns -1 when token is NULL.
- * Covers: NULL parameter check.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_NullToken) {
-    char json[] = "{\"token\":\"abc\"}";
-    int ret = getJRPCTokenData(NULL, json, 256);
-    EXPECT_EQ(ret, -1);
-}
-
-/**
- * @test getJRPCTokenData returns -1 when pJsonStr is NULL.
- * Covers: NULL parameter check.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_NullJsonStr) {
-    char token[256] = {0};
-    int ret = getJRPCTokenData(token, NULL, sizeof(token));
-    EXPECT_EQ(ret, -1);
-}
-
-/**
- * @test getJRPCTokenData returns -1 when JSON is invalid.
- * Covers: ParseJsonStr returns NULL path.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_InvalidJson) {
-    char token[256] = {0};
-    char json[] = "not valid json";
-    int ret = getJRPCTokenData(token, json, sizeof(token));
-    EXPECT_EQ(ret, -1);
-}
-
-/**
- * @test getJRPCTokenData returns 0 but empty token when key is missing.
- * Covers: GetJsonItem("token") returns NULL.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_MissingTokenKey) {
-    char token[256] = {0};
-    char json[] = "{\"other\":\"value\"}";
-    int ret = getJRPCTokenData(token, json, sizeof(token));
-    EXPECT_EQ(ret, 0);
-    EXPECT_STREQ(token, ""); // token not written
-}
-
-/**
- * @test getJRPCTokenData truncates token when buffer is small.
- * Covers: strncpy with token_size - 1, null termination.
- */
-TEST_F(HelperFunctionsTest, GetJRPCTokenData_TokenTruncated) {
-    char token[8] = {0};
-    char json[] = "{\"token\":\"abcdefghijklmnop\"}";
-    int ret = getJRPCTokenData(token, json, sizeof(token));
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(strlen(token), 7u);
-    EXPECT_STREQ(token, "abcdefg");
-}
 
 // ---- getJsonRpc tests ----
 
@@ -1171,7 +1099,7 @@ protected:
 
 /**
  * @test getJsonRpc succeeds with valid curl init and JSON-RPC response.
- * Covers: cmdExec → getJRPCTokenData → doCurlInit → getJsonRpcData → doStopDownload.
+ * Covers: cmdExec → doCurlInit → getJsonRpcData → doStopDownload.
  */
 TEST_F(JsonRpcTest, GetJsonRpc_Success) {
     DownloadData dwnloc;
