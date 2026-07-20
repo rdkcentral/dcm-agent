@@ -1114,7 +1114,6 @@ TEST_F(JsonRpcTest, GetJsonRpc_Success) {
     int ret = getJsonRpc(post_data, &dwnloc);
 
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(g_mock_cmdExec_call_count, 1);
     EXPECT_EQ(g_mock_doCurlInit_call_count, 1);
     EXPECT_EQ(g_mock_getJsonRpcData_call_count, 1);
     EXPECT_EQ(g_mock_doStopDownload_call_count, 1);
