@@ -58,6 +58,7 @@
 #include "downloadUtil.h"
 #include "json_parse.h"
 #include "urlHelper.h"
+#include "secure_wrapper.h"
 
 #define ONDEMAND_TEMP_DIR "/tmp/log_on_demand"
 #define DEFAULT_DL_ALLOC        1024
@@ -204,10 +205,11 @@ void trigger_reboot_info_update(void)
     struct stat st;
 
     if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
-        int fd = open(STT_FLAG, O_CREAT | O_WRONLY, 0644);
-        if (fd >= 0) {
-            close(fd);
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: %s\n", __FUNCTION__, __LINE__, STT_FLAG);
+        int rc = v_secure_system("sh /lib/rdk/update_previous_reboot_info.sh");
+        if (rc == 0) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: update_previous_reboot_info.sh\n", __FUNCTION__, __LINE__);
+        } else {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Failed to trigger update_previous_reboot_info.sh (rc=%d)\n", __FUNCTION__, __LINE__, rc);
         }
     }
 }
