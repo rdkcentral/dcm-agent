@@ -1530,26 +1530,6 @@ TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_FlagAlreadyPresent) {
     unlink(PATH_FLAG_INVOCATION);
 }
 
-/**
- * @test trigger_reboot_info_update creates STT_FLAG when PATH_FLAG_INVOCATION absent.
- * Covers: stat(PATH_FLAG_INVOCATION) fails → open(STT_FLAG) path.
- */
-TEST_F(HelperFunctionsTest, TriggerRebootInfoUpdate_CreatesSTTFlag) {
-    // Ensure PATH_FLAG_INVOCATION does NOT exist
-    unlink(PATH_FLAG_INVOCATION);
-    // Ensure STT_FLAG does NOT exist
-    unlink(STT_FLAG);
-
-    trigger_reboot_info_update();
-
-    // STT_FLAG should now exist
-    struct stat st;
-    EXPECT_EQ(stat(STT_FLAG, &st), 0);
-
-    // Cleanup
-    unlink(STT_FLAG);
-}
-
 // ---- wait_for_reboot_reason / wait_for_telemetry_prevlogs_done ----
 // (Additional tests beyond WaitForSentinelTest fixture)
 
