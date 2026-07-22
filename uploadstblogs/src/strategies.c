@@ -205,7 +205,7 @@ void trigger_reboot_info_update(void)
     struct stat st;
 
     if (stat(PATH_FLAG_INVOCATION, &st) != 0) {
-        int rc = v_secure_system("/usr/bin/update-prev-reboot-info");
+        int rc = v_secure_system("/usr/bin/update-prev-reboot-info >> /opt/logs/rebootreason.log 2>&1");
         if (rc == 0) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Trigger reboot reason update: update_previous_reboot_info.sh\n", __FUNCTION__, __LINE__);
         } else {
