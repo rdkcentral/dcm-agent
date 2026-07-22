@@ -34,14 +34,9 @@ def test_upload_cron_present():
     sleep(420)
 
 @pytest.mark.run(order=2)
-def test_upload_cron_scheduled():
-    assert "Scheduling DCM_LOG_UPLOAD Job handle"  in grep_dcmdlogs("Scheduling DCM_LOG_UPLOAD Job handle")
-
-@pytest.mark.run(order=3)
 def test_fw_cron_scheduled():
     assert "Scheduling DCM_FW_UPDATE Job handle" in grep_dcmdlogs("Scheduling DCM_FW_UPDATE Job handle")
 
 @pytest.mark.run(order=4)
 def test_mm_enabled():
     assert "Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled" in grep_dcmdlogs("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled")
-

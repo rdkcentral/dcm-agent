@@ -30,6 +30,7 @@
 #define UPLOADSTBLOGS_TYPES_H
 
 #include <stdbool.h>
+#include <time.h>
 
 
 /* ==========================
@@ -44,6 +45,74 @@
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
 #define STATUS_FILE "/opt/loguploadstatus.txt"
 #define DCM_TEMP_DIR "/tmp/DCM"
+#define BACKUP_LOGS_LOG_FILE          "/tmp/backup_logs.log.0"
+
+
+/* ==========================
+   Boot Synchronisation Sentinels (REQ-SYNC-001, REQ-SYNC-003)
+   All sentinels are volatile /tmp files; cleared automatically on every reboot.
+   ========================== */
+
+/** backup_logs completion sentinel — written by backup_logs (dcm-agent) after
+ *  PreviousLogs have been fully assembled.  Presence guarantees the log set is
+ *  stable and ready for upload.  Absence means backup_logs has not finished;
+ *  reboot_setup() must abort so the upload is not attempted on an incomplete set.
+ *  Cross-repo interface: path is also defined in dcm-agent/backup_logs.
+ *  Any change MUST be coordinated with the backup_logs module. */
+#define BACKUP_LOGS_DONE_FLAG         "/tmp/.backup_logs_done"
+
+/** Reboot reason completion sentinel — written by update-prev-reboot-info (reboot-manager).
+ *  Presence guarantees /opt/secure/reboot/previousreboot.info is written and complete.
+ *  Cross-repo interface: path is also defined in reboot-manager.
+ *  Any change MUST be coordinated with the reboot-manager repository. */
+#define PATH_FLAG_INVOCATION          "/tmp/Update_rebootInfo_invoked"
+/** Directory and filename split used by inotify_add_watch() in strategies.c. */
+#define PATH_FLAG_INVOCATION_DIR      "/tmp"
+#define PATH_FLAG_INVOCATION_FILENAME "Update_rebootInfo_invoked"
+
+/** Trigger file written by uploadstblogs when PATH_FLAG_INVOCATION is absent at upload
+ *  time, signalling reboot-manager to perform an immediate reboot-reason update.
+ *  Cross-repo interface: consumed by reboot-manager/update-prev-reboot-info.
+ *  Any path change MUST be coordinated with reboot-manager. */
+#define TRIGGER_REBOOT_INFO_UPDATE    "/tmp/.trigger_reboot_info_update"
+
+/** Total wait timeout (seconds) for the reboot-reason prerequisite sentinel.
+ *  For unit tests (GTEST_ENABLE) a shorter value avoids multi-minute waits. */
+#ifdef GTEST_ENABLE
+#define REBOOT_POLL_TIMEOUT_S         2u
+#else
+#define REBOOT_POLL_TIMEOUT_S         120u
+#endif
+#define REBOOT_POLL_INTERVAL_S        1u  /* fallback polling interval */
+
+/** NTP sync completion sentinel — written by systimemgr when NTP is synchronised.
+ *  Presence at upload time means the system clock is accurate; absence means the
+ *  device rebooted without receiving NTP, and an internet check + last-known-good
+ *  time fallback should be attempted.
+ *  Cross-repo interface: path matches STT_FLAG in systimemgr and reboot-manager. */
+#define STT_FLAG                "/tmp/stt_received"
+
+/** Telemetry PreviousLogs scan completion sentinel — written by telemetry after it
+ *  finishes grepping PreviousLogs.  Consumed by uploadstblogs as an optional gate.
+ *  Cross-repo interface: any path change MUST be coordinated with telemetry. */
+#define TELEMETRY_PREVLOGS_DONE_DIR       "/tmp"
+#define TELEMETRY_PREVLOGS_DONE_FILENAME  ".telemetry_prevlogs_done"
+#define TELEMETRY_PREVLOGS_DONE_FLAG  "/tmp/.telemetry_prevlogs_done"
+
+/** Total wait timeout (seconds) for the telemetry previous-logs grep sentinel.
+ *  For unit tests (GTEST_ENABLE) a shorter value avoids multi-minute waits. */
+#ifdef GTEST_ENABLE
+#define TELEMETRY_PREVLOGS_TIMEOUT_S      2u
+#else
+#define TELEMETRY_PREVLOGS_TIMEOUT_S      120u
+#endif
+
+
+/** Path to the last-known-good clock file maintained by systimemgr (RdkDefaultTimeSync).
+ *  Contains a plain epoch-seconds integer written by systimemgr on every successful
+ *  time update.  Read directly in strategies.c when NTP is absent but internet is up.
+ *  Cross-repo interface: path matches RdkDefaultTimeSync default in systimemgr. */
+#define SYSTIMEMGR_CLOCK_FILE        "/opt/secure/clock.txt"
 
 /* ==========================
    Enumerations
@@ -233,6 +302,7 @@ typedef struct {
     bool tls_enabled;               /**< TLS 1.2 support enabled */
     bool maintenance_enabled;       /**< Maintenance mode enabled */
     bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
+    time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
     
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
@@ -292,6 +362,8 @@ typedef struct {
     char archive_file[MAX_FILENAME_LENGTH];  /**< Generated archive filename */
 } SessionState;
 
+#define THUNDER_JSONRPC_URL       "http://127.0.0.1:9998/jsonrpc"
+
 /* ==========================
    Telemetry Helper Functions
    ========================== */
@@ -308,5 +380,12 @@ void t2_count_notify(char *marker);
  * @param val Telemetry value
  */
 void t2_val_notify(char *marker, char *val);
+
+bool check_internet_connectivity(void);
+time_t apply_ntp_fallback_time(void);
+void trigger_reboot_info_update(void);
+int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s);
+int wait_for_reboot_reason(void);
+int wait_for_telemetry_prevlogs_done(void); 
 
 #endif /* UPLOADSTBLOGS_TYPES_H */

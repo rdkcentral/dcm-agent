@@ -26,6 +26,13 @@
 extern "C" {
 #endif
 
+/** Sentinel written by backup_logs after successful completion.
+ *  Cross-repo interface: also referenced by reboot-manager's update-prev-reboot-info
+ *  and telemetry's telemetry2_0.
+ *  Any path change MUST be coordinated with the reboot-manager and telemetry repositories. */
+
+#define BACKUP_LOGS_DONE_FLAG  "/tmp/.backup_logs_done"
+
 /**
  * @brief Main entry point for backup_logs system
  * 

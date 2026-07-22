@@ -127,6 +127,27 @@ pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
 
 echo ""
+echo "10. Running Sync Gate - backup_logs Sentinel Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/sync_gate_backup_logs.json test/functional-tests/tests/test_uploadstblogs_sync_gate_backup_logs.py
+
+echo ""
+echo "11. Running Sync Gate - NTP Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/sync_gate_ntp.json test/functional-tests/tests/test_uploadstblogs_sync_gate_ntp.py
+
+echo ""
+echo "12. Running Sync Gate - Reboot Reason Sentinel Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/sync_gate_reboot_reason.json test/functional-tests/tests/test_uploadstblogs_sync_gate_reboot_reason.py
+
+echo ""
+echo "13. Running Sync Gate - Telemetry Prevlogs Sentinel Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/sync_gate_telemetry_prevlogs.json test/functional-tests/tests/test_uploadstblogs_sync_gate_telemetry_prevlogs.py
+
+
+echo ""
 echo "====================================="
 echo "Test Execution Complete"
 echo "====================================="

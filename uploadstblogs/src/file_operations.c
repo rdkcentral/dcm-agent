@@ -363,8 +363,10 @@ int add_timestamp_to_files(const char* dir_path)
         return -1;
     }
 
-    // Store timestamp prefix globally for removal later (matches script behavior)
-    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+    // Store timestamp prefix globally for removal later (matches script behavior)
+
+    strncpy(g_timestamp_prefix, timestamp, sizeof(g_timestamp_prefix) - 1);
+
     g_timestamp_prefix[sizeof(g_timestamp_prefix) - 1] = '\0';
 
     DIR* dir = opendir(dir_path);
@@ -386,7 +388,12 @@ int add_timestamp_to_files(const char* dir_path)
             strncmp(entry->d_name, timestamp, strlen(timestamp)) == 0) {
             continue;
         }
-
+        // Skip backup files (bak1_, bak2_, bak3_)
+        if (strncmp(entry->d_name, "bak1_", 5) == 0 ||
+            strncmp(entry->d_name, "bak2_", 5) == 0 ||
+            strncmp(entry->d_name, "bak3_", 5) == 0) {
+            continue;
+        }
         char old_path[MAX_PATH_LENGTH] = "\0";
         char new_path[MAX_PATH_LENGTH] = "\0";
         
