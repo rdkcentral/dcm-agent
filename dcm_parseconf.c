@@ -37,7 +37,6 @@
 #include "dcm_utils.h"
 #include "dcm_rbus.h"
 #include "dcm_parseconf.h"
-#include "uploadstblogs.h"
 
 static INT32 g_bMMEnable = 0;
 
@@ -577,72 +576,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     }
 
     DCMInfo("DCM_DIFD_CRON: %s\n", pDifdCron);
-
-    if(uploadCheck == 1 && pdcmSetHandle->bRebootFlag == 0) {
-        DCMInfo("Triggering log upload with reboot flag via library API\n");
-        UploadSTBLogsParams params = {
-            .flag = 1,
-            .dcm_flag = 1,
-            .upload_on_reboot = true,
-            .upload_protocol = pUploadprtl,
-            .upload_http_link = pUploadURL,
-            .trigger_type = TRIGGER_REBOOT,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload (reboot=true) failed: %d\n", result);
-        }
-#endif
-    }
-    else if (uploadCheck == 0 && pdcmSetHandle->bRebootFlag == 0) {
-        DCMInfo("Triggering log upload without reboot flag via library API\n");
-        UploadSTBLogsParams params = {
-            .flag = 1,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pUploadprtl,
-            .upload_http_link = pUploadURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload (reboot=false) failed: %d\n", result);
-        }
-#endif
-    }
-    else {
-        DCMWarn ("Nothing to do here for uploadCheck value = %d\n", uploadCheck);
-    }
-
-    if(strlen(pLogCron) == 0) {
-        DCMWarn ("Uploading logs as DCM response is either null or not present\n");
-        
-        UploadSTBLogsParams params = {
-            .flag = 1,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pUploadprtl,
-            .upload_http_link = pUploadURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload (empty cron) failed: %d\n", result);
-        }
-#endif
-    }
-    else {
-        DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
-    }
 
     if(strlen(pDifdCron) == 0) {
         DCMWarn ("difdCron is empty\n");
