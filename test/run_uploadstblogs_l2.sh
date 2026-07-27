@@ -127,6 +127,11 @@ pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
 
 echo ""
+echo "9. Running Upload Strategy Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/uploadstblogs_sync_gates.json test/functional-tests/tests/test_uploadstblogs_sync_gates.py
+
+echo ""
 echo "10. Running Sync Gate - backup_logs Sentinel Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/sync_gate_backup_logs.json test/functional-tests/tests/test_uploadstblogs_sync_gate_backup_logs.py
