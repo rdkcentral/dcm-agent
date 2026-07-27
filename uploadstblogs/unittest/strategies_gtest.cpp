@@ -1594,22 +1594,21 @@ TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_ShortTimeoutInTest) {
 // Tests for static functions exposed via #ifdef GTEST_ENABLE accessor pattern
 // (same approach as dcm_parseconf.c)
 
-extern "C" {
-    int (*getGetJsonRpc(void))(char *, DownloadData *);
-    bool (*getReadDcmUploadFlag(void))(void);
-    int (*getDcmSetup(void))(RuntimeContext*, SessionState*);
-    int (*getDcmArchive(void))(RuntimeContext*, SessionState*);
-    int (*getDcmUpload(void))(RuntimeContext*, SessionState*);
-    int (*getDcmCleanup(void))(RuntimeContext*, SessionState*, bool);
-    int (*getOndemandSetup(void))(RuntimeContext*, SessionState*);
-    int (*getOndemandArchive(void))(RuntimeContext*, SessionState*);
-    int (*getOndemandUpload(void))(RuntimeContext*, SessionState*);
-    int (*getOndemandCleanup(void))(RuntimeContext*, SessionState*, bool);
-    int (*getRebootSetup(void))(RuntimeContext*, SessionState*);
-    int (*getRebootArchive(void))(RuntimeContext*, SessionState*);
-    int (*getRebootUpload(void))(RuntimeContext*, SessionState*);
-    int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool);
-}
+int (*getGetJsonRpc(void))(char *, DownloadData *);
+bool (*getReadDcmUploadFlag(void))(void);
+int (*getDcmSetup(void))(RuntimeContext*, SessionState*);
+int (*getDcmArchive(void))(RuntimeContext*, SessionState*);
+int (*getDcmUpload(void))(RuntimeContext*, SessionState*);
+int (*getDcmCleanup(void))(RuntimeContext*, SessionState*, bool);
+int (*getOndemandSetup(void))(RuntimeContext*, SessionState*);
+int (*getOndemandArchive(void))(RuntimeContext*, SessionState*);
+int (*getOndemandUpload(void))(RuntimeContext*, SessionState*);
+int (*getOndemandCleanup(void))(RuntimeContext*, SessionState*, bool);
+int (*getRebootSetup(void))(RuntimeContext*, SessionState*);
+int (*getRebootArchive(void))(RuntimeContext*, SessionState*);
+int (*getRebootUpload(void))(RuntimeContext*, SessionState*);
+int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool);
+
 
 // ---- read_dcm_upload_flag tests ----
 
