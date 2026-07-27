@@ -1594,20 +1594,21 @@ TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_ShortTimeoutInTest) {
 // Tests for static functions exposed via #ifdef GTEST_ENABLE accessor pattern
 // (same approach as dcm_parseconf.c)
 
-int (*getGetJsonRpc(void))(char *, DownloadData *);
-bool (*getReadDcmUploadFlag(void))(void);
-int (*getDcmSetup(void))(RuntimeContext*, SessionState*);
-int (*getDcmArchive(void))(RuntimeContext*, SessionState*);
-int (*getDcmUpload(void))(RuntimeContext*, SessionState*);
-int (*getDcmCleanup(void))(RuntimeContext*, SessionState*, bool);
-int (*getOndemandSetup(void))(RuntimeContext*, SessionState*);
-int (*getOndemandArchive(void))(RuntimeContext*, SessionState*);
-int (*getOndemandUpload(void))(RuntimeContext*, SessionState*);
-int (*getOndemandCleanup(void))(RuntimeContext*, SessionState*, bool);
-int (*getRebootSetup(void))(RuntimeContext*, SessionState*);
-int (*getRebootArchive(void))(RuntimeContext*, SessionState*);
-int (*getRebootUpload(void))(RuntimeContext*, SessionState*);
-int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool);
+
+    int (*getGetJsonRpc(void))(char *, DownloadData *);
+    bool (*getReadDcmUploadFlag(void))(void);
+    int (*getDcmSetup(void))(RuntimeContext*, SessionState*);
+    int (*getDcmArchive(void))(RuntimeContext*, SessionState*);
+    int (*getDcmUpload(void))(RuntimeContext*, SessionState*);
+    int (*getDcmCleanup(void))(RuntimeContext*, SessionState*, bool);
+    int (*getOndemandSetup(void))(RuntimeContext*, SessionState*);
+    int (*getOndemandArchive(void))(RuntimeContext*, SessionState*);
+    int (*getOndemandUpload(void))(RuntimeContext*, SessionState*);
+    int (*getOndemandCleanup(void))(RuntimeContext*, SessionState*, bool);
+    int (*getRebootSetup(void))(RuntimeContext*, SessionState*);
+    int (*getRebootArchive(void))(RuntimeContext*, SessionState*);
+    int (*getRebootUpload(void))(RuntimeContext*, SessionState*);
+    int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool);
 
 
 // ---- read_dcm_upload_flag tests ----
@@ -1682,6 +1683,7 @@ TEST_F(ReadDcmUploadFlagTest, UploadTrue_ReturnsTrue) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_TRUE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1702,6 +1704,7 @@ TEST_F(ReadDcmUploadFlagTest, UploadFalse_ReturnsFalse) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_FALSE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1722,6 +1725,7 @@ TEST_F(ReadDcmUploadFlagTest, UploadTRUE_CaseInsensitive_ReturnsTrue) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_TRUE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1742,6 +1746,7 @@ TEST_F(ReadDcmUploadFlagTest, UploadQuotedTrue_ReturnsTrue) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_TRUE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1762,6 +1767,7 @@ TEST_F(ReadDcmUploadFlagTest, KeyNotFound_ReturnsFalse) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_FALSE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1782,6 +1788,7 @@ TEST_F(ReadDcmUploadFlagTest, EmptyValue_ReturnsFalse) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_FALSE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1802,6 +1809,7 @@ TEST_F(ReadDcmUploadFlagTest, NoEqualsDelimiter_ReturnsFalse) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_FALSE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1825,6 +1833,7 @@ TEST_F(ReadDcmUploadFlagTest, KeyFoundAmongMultipleLines_ReturnsTrue) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_TRUE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
@@ -1845,6 +1854,7 @@ TEST_F(ReadDcmUploadFlagTest, ValueWithLeadingWhitespace_ReturnsTrue) {
     bool result = fnReadDcmUploadFlag();
     EXPECT_TRUE(result);
 
+    g_mock_file_ops = nullptr;
     fclose(real_fp);
 }
 
