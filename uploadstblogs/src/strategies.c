@@ -1415,3 +1415,75 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
 
     return 0;
 }
+
+#ifdef GTEST_ENABLE
+int (*getGetJsonRpc(void))(char *, DownloadData *)
+{
+    return &getJsonRpc;
+}
+
+bool (*getReadDcmUploadFlag(void))(void)
+{
+    return &read_dcm_upload_flag;
+}
+
+int (*getDcmSetup(void))(RuntimeContext*, SessionState*)
+{
+    return &dcm_setup;
+}
+
+int (*getDcmArchive(void))(RuntimeContext*, SessionState*)
+{
+    return &dcm_archive;
+}
+
+int (*getDcmUpload(void))(RuntimeContext*, SessionState*)
+{
+    return &dcm_upload;
+}
+
+int (*getDcmCleanup(void))(RuntimeContext*, SessionState*, bool)
+{
+    return &dcm_cleanup;
+}
+
+int (*getOndemandSetup(void))(RuntimeContext*, SessionState*)
+{
+    return &ondemand_setup;
+}
+
+int (*getOndemandArchive(void))(RuntimeContext*, SessionState*)
+{
+    return &ondemand_archive;
+}
+
+int (*getOndemandUpload(void))(RuntimeContext*, SessionState*)
+{
+    return &ondemand_upload;
+}
+
+int (*getOndemandCleanup(void))(RuntimeContext*, SessionState*, bool)
+{
+    return &ondemand_cleanup;
+}
+
+int (*getRebootSetup(void))(RuntimeContext*, SessionState*)
+{
+    return &reboot_setup;
+}
+
+int (*getRebootArchive(void))(RuntimeContext*, SessionState*)
+{
+    return &reboot_archive;
+}
+
+int (*getRebootUpload(void))(RuntimeContext*, SessionState*)
+{
+    return &reboot_upload;
+}
+
+int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool)
+{
+    return &reboot_cleanup;
+}
+#endif
