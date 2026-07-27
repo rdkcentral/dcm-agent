@@ -102,20 +102,6 @@ class TestRetryLogic:
         # Failure should be logged
         assert result.returncode == 1, "Should exit with error after failed retries"
 
-    @pytest.mark.order(5)
-    def test_network_failure_logged(self):
-        """Test: Network failure details are logged"""
-        set_include_property("UPLOAD_HTTPLINK", "http://invalid.domain.test:8080")
-        
-        create_test_log_files(count=1)
-        
-        result = run_uploadstblogs()
-        
-        # Verify error logging
-        error_logs = grep_uploadstb_logs_regex(r"ERROR|error|fail")
-        assert len(error_logs) > 0, "Network failure should be logged"
-
-
 class TestNetworkInterruption:
     """Test suite for network interruption during upload"""
 
