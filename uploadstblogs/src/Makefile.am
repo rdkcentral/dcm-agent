@@ -40,6 +40,10 @@ logupload_CFLAGS = -Wall -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED -DT2_EVENT_ENAB
 
 
 logupload_LDADD = libuploadstblogs.la -lrdkloggers -lfwutils -lt2utils -ltelemetry_msgsender
-
+# Install public headers for external consumers (e.g. tr69hostif)
+uploadstblogsincludedir = $(includedir)/uploadstblogs
+uploadstblogsinclude_HEADERS = \
+    $(top_srcdir)/uploadstblogs/include/uploadstblogs.h \
+    $(top_srcdir)/uploadstblogs/include/uploadstblogs_types.h
 
 
