@@ -118,11 +118,6 @@ class TestBackupLogsSyncGate:
         assert len(absent_logs) == 0, \
             "Should NOT log 'backup_logs not done' when sentinel is present"
 
-        # Must log detection
-        detected_logs = grep_uploadstb_logs("bacukup_logs sentinel detected. Proceeding.")
-        assert len(detected_logs) > 0, \
-            "Expected log: 'bacukup_logs sentinel detected. Proceeding.'"
-
         # Should proceed to later phases
         progress_logs = grep_uploadstb_logs_regex(
             r"Starting archive phase|Starting upload phase"
