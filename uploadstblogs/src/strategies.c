@@ -896,7 +896,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
             return -1;
         }
 		else {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] NTP sync sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d]  backup_logs sentinel detected. Proceeding.\n", __FUNCTION__, __LINE__);
         }
     }
 
