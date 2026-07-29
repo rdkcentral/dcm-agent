@@ -1,7 +1,7 @@
 # Log Upload Behavior in the RDKE Stack
 
 > **Explore mode document** — Researched from codebase and GitHub (rdkcentral/dcm-agent,
-> rdkcentral/rdkservices, rdkcentral/reboot-manager, rdkcentral/telemetry, rdkcentral/iarmmgrs).  
+> rdkcentral/rdkservices, rdkcentral/reboot-manager, rdkcentral/telemetry, rdkcentral/iarmmgrs).
 > Date: 2026-05-20.
 
 ---
@@ -11,6 +11,20 @@
 This folder documents the full behavioral picture of log upload across the RDKE device stack: who
 triggers it, what it does, what events it emits, which other components depend on its
 outputs, and how boot-time ordering is (or isn't) enforced.
+
+---
+
+## RDK-C (Camera) Additions
+
+On RDK-C camera platforms (sysvinit; e.g. XHC1), the DCM Agent runs as the native `dcmd`
+daemon with an RDK-C-specific behavior layered onto the pipeline below:
+
+- **Scheduled log collection** (`DCM_SCHEDULED_LOG_COLLECT`) — RDK-C cameras have no external
+  batcher / Maintenance Manager, so with `DCM_SCHEDULED_LOG_COLLECT=true` in
+  `/etc/device.properties` the DCM strategy's `dcm_setup` stages the current `/opt/logs` tree
+  into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) before the scheduled upload, so the daily
+  archive carries current logs. Default **off** on STB/broadband (sources below supply the logs
+  externally).
 
 ---
 ## RDKE Log Upload Support

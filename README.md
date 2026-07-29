@@ -374,6 +374,10 @@ Sub-components within `uploadstblogs/`:
 | validation | `validation.h` | Parameter and path validation |
 | verification | `verification.h` | Post-upload result verification |
 
+**RDK-C behaviors:**
+
+- **Scheduled log collection** — when `DCM_SCHEDULED_LOG_COLLECT=true` (`/etc/device.properties`, RDK-C only), `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) so the daily scheduled DCM upload carries current logs. Default **off** on STB/broadband (external batcher / Maintenance Manager supplies the logs).
+
 ---
 
 ### backup\_logs — Log Backup
@@ -525,6 +529,8 @@ make install
 | Flag | Effect |
 |------|--------|
 | `-DRDK_LOGGER_ENABLED` | Use RDK logger instead of stderr |
+| `-DRDK_LOGGER_EXT` | Use the **extended** RDK logger init API (`rdk_logger_ext_config_t`, `RDKLOG_OUTPUT_CONSOLE`, `RDKLOG_FORMAT_WITH_TS`). Its **absence** makes `context_manager.c` fall back to the standard `rdk_logger_init(debug.ini)` — required for RDK-C, whose rdk-logger 2.4.0 predates the extended API. |
+| `-DRDKC` | RDK-C (camera) platform marker. |
 | `-DHAS_MAINTENANCE_MANAGER` | Enable Maintenance Manager integration via IARM |
 | `-DGTEST_ENABLE` | Stub out RBUS/IARM for unit testing |
 | `-DDCM_DEF_LOG_URL=<url>` | Override default fallback upload URL |
@@ -607,6 +613,15 @@ if (ret != DCM_SUCCESS) {
 - RBUS IPC (`librbus`) must be available at runtime.
 - Optional IARM bus integration for Maintenance Manager notifications.
 - RDK logger (`librdkloggers`) replaces `fprintf(stderr)` when available.
+
+### RDK-C / Sysvinit (Camera)
+
+RDK-C camera platforms (e.g. XHC1) run **sysvinit**, not systemd, and ship an older rdk-logger. Key differences:
+
+- **No systemd** — the `sys_integration` systemd READY notification is inactive and `dcmd.service` is not installed; `dcmd` is started from the sysvinit `dcm-log-service` init script.
+- **DCM–T2 handshake retry** — sysvinit start order is variable (telemetry can start well before `dcmd`), so the reload-config event publish is retried up to `DCM_RELOAD_EVENT_MAX_RETRY` (30 attempts, 1 s apart) so the handshake completes regardless of order.
+- **Logger fallback** — built **without** `-DRDK_LOGGER_EXT` (see Conditional Compile Flags), so `context_manager.c` initialises logging via the standard `rdk_logger_init(debug.ini)` path.
+- **Scheduled log collection** — `DCM_SCHEDULED_LOG_COLLECT=true` in `/etc/device.properties` stages the current `/opt/logs` tree into `DCM_LOG_PATH` before the scheduled DCM upload (RDK-C cameras have no external batcher). Default **off** on STB/broadband.
 
 ### Resource Constraints
 
