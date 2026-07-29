@@ -475,7 +475,7 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
-        // Log total time from boot to upload completion
+    // Log total time from boot to upload completion
     double uptime_seconds = 0.0;
     if (get_system_uptime(&uptime_seconds)) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] log upload completed at system uptime %.0f seconds\n", __FUNCTION__, __LINE__, uptime_seconds);
