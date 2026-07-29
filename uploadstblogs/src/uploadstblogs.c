@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <time.h>
 #include <dirent.h>
+#include "common_device_api.h"
 
 #include "uploadstblogs.h"
 #include "uploadstblogs_types.h"
@@ -474,7 +475,13 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
-
+        // Log total time from boot to upload completion
+    double uptime_seconds = 0.0;
+    if (get_system_uptime(&uptime_seconds)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] log upload completed at system uptime %.0f seconds\n", 
+                __FUNCTION__, __LINE__, uptime_seconds);
+    }
     /* Release lock and exit */
     release_lock();
     return ret;
