@@ -1224,7 +1224,15 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     // Upload main logs (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-    
+
+    // Log total time from boot to upload completion
+    double uptime_seconds = 0.0;
+    if (get_system_uptime(&uptime_seconds)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+                "[%s:%d] REBOOT log upload completed at system uptime %.0f seconds\n", 
+                __FUNCTION__, __LINE__, uptime_seconds);
+    }
+
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Main log upload complete (result=%d)\n", 
             __FUNCTION__, __LINE__, ret);
@@ -1251,14 +1259,15 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                     "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
         } else {
+            // Upload DRI logs using separate session state
+            SessionState dri_session = *session;  // Copy current session config
+            dri_session.direct_attempts = 0;       // Reset attempt counters
+            dri_session.codebig_attempts = 0;
+
             // Create DRI archive
-            int dri_ret = create_dri_archive(ctx, dri_archive);
+            int dri_ret = create_dri_archive(ctx, &dri_session, dri_archive);
         
             if (dri_ret == 0) {
-                // Upload DRI logs using separate session state
-                SessionState dri_session = *session;  // Copy current session config
-                dri_session.direct_attempts = 0;       // Reset attempt counters
-                dri_session.codebig_attempts = 0;
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
             
                 // Send telemetry for DRI upload (matches script lines 883, 886)
@@ -1294,6 +1303,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     return ret;
 }
+
 
 /**
  * @brief Cleanup phase for REBOOT/NON_DCM strategy
