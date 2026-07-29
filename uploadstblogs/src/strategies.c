@@ -1272,7 +1272,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
             }
         }
     }
-        
     // Clear old packet captures
     if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
