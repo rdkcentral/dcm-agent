@@ -822,19 +822,9 @@ int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* a
         return -1;
     }
 
-    // Extract output directory from archive_path
-    char output_dir[MAX_PATH_LENGTH];
-    const char* last_slash = strrchr(archive_path, '/');
-    if (last_slash) {
-        size_t dir_len = last_slash - archive_path;
-        snprintf(output_dir, sizeof(output_dir), "%.*s", (int)dir_len, archive_path);
-    } else {
-        strcpy(output_dir, "/tmp");
-    }
-
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Creating DRI archive from %s to %s\n", 
-            __FUNCTION__, __LINE__, ctx->dri_log_path, output_dir);
+            __FUNCTION__, __LINE__, ctx->dri_log_path, ctx->dri_log_path);
 
-    return create_archive_with_options(ctx, session, ctx->dri_log_path, output_dir, "DRI_Logs");
+    return create_archive_with_options(ctx, session, ctx->dri_log_path, ctx->dri_log_path, "DRI_Logs");
 }
