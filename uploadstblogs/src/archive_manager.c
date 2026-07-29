@@ -801,9 +801,9 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
  * @param archive_path Output archive file path (directory portion used)
  * @return 0 on success, -1 on failure
  */
-int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
+int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path)
 {
-    if (!ctx || !archive_path) {
+    if (!ctx || !session || !archive_path) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Invalid parameters\n", __FUNCTION__, __LINE__);
         return -1;
@@ -836,6 +836,5 @@ int create_dri_archive(RuntimeContext* ctx, const char* archive_path)
             "[%s:%d] Creating DRI archive from %s to %s\n", 
             __FUNCTION__, __LINE__, ctx->dri_log_path, output_dir);
 
-    // Use the common archive creation with DRI_Logs prefix
-    return create_archive_with_options(ctx, NULL, ctx->dri_log_path, output_dir, "DRI_Logs");
+    return create_archive_with_options(ctx, session, ctx->dri_log_path, output_dir, "DRI_Logs");
 }
