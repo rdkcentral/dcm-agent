@@ -1224,7 +1224,7 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
 
     // Upload main logs (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-
+    
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Main log upload complete (result=%d)\n", 
             __FUNCTION__, __LINE__, ret);
@@ -1246,12 +1246,10 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
         if (dri_ret == 0) {
             // Construct full archive path from dri_log_path + generated filename
             char dri_archive[MAX_PATH_LENGTH];
-            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s",
-                                  ctx->dri_log_path, dri_session.archive_file);
+            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", ctx->dri_log_path, dri_session.archive_file);
 
             if (written >= (int)sizeof(dri_archive)) {
-                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                        "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
             } else {
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
             
