@@ -789,7 +789,7 @@ static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
 
     // Upload the archive (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-
+    
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Upload phase complete (result=%d)\n", 
             __FUNCTION__, __LINE__, ret);
@@ -1254,11 +1254,11 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                         "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
             } else {
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
-
+            
                 // Send telemetry for DRI upload (matches script lines 883, 886)
                 // Script sends SYST_INFO_PDRILogUpload for both success and failure
                 t2_count_notify("SYST_INFO_PDRILogUpload");
-
+                
                 if (dri_ret == 0) {
                     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload succeeded, removing DRI directory\n", 
@@ -1268,13 +1268,13 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                     RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                             "[%s:%d] DRI log upload failed\n", __FUNCTION__, __LINE__);
                 }
-
+            
                 // Clean up DRI archive
                 remove_file(dri_archive);
             }
         }
     }
-
+    
     // Clear old packet captures
     if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
