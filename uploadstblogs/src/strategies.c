@@ -503,14 +503,6 @@ static int dcm_upload(RuntimeContext* ctx, SessionState* session)
     // Upload the archive (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
 
-    // Log total time from boot to upload completion
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] DCM log upload completed at system uptime %.0f seconds\n", 
-                __FUNCTION__, __LINE__, uptime_seconds);
-    }
-
     // Clear old packet captures
     if (ctx->include_pcap) {
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
@@ -797,14 +789,6 @@ static int ondemand_upload(RuntimeContext* ctx, SessionState* session)
 
     // Upload the archive (session->success is set by execute_upload_cycle)
     int ret = upload_archive(ctx, session, archive_path);
-
-    // Log total time from boot to upload completion
-    double uptime_seconds = 0.0;
-    if (get_system_uptime(&uptime_seconds)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
-                "[%s:%d] ONDEMAND log upload completed at system uptime %.0f seconds\n", 
-                __FUNCTION__, __LINE__, uptime_seconds);
-    }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] ONDEMAND: Upload phase complete (result=%d)\n", 
