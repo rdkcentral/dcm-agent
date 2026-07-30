@@ -928,34 +928,22 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] DRI log directory exists, uploading DRI logs\n", 
                 __FUNCTION__, __LINE__);
 
-        // Generate DRI archive filename: {MAC}_DRI_Logs_{timestamp}.tgz
-        char dri_filename[MAX_FILENAME_LENGTH];
-        if (!generate_archive_name(dri_filename, sizeof(dri_filename), 
-                                   ctx->mac_address, "DRI_Logs")) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to generate DRI archive filename\n", 
-                    __FUNCTION__, __LINE__);
-        } else {
+        // Upload DRI logs using separate session state
+        SessionState dri_session = *session;  // Copy current session config
+        dri_session.direct_attempts = 0;       // Reset attempt counters
+        dri_session.codebig_attempts = 0;
+
+        // Create DRI archive (output goes to ctx->dri_log_path)
+        int dri_ret = create_dri_archive(ctx, &dri_session, ctx->dri_log_path);
+
+        if (dri_ret == 0) {
+            // Construct full archive path from dri_log_path + generated filename
             char dri_archive[MAX_PATH_LENGTH];
-            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", 
-                                  ctx->prev_log_path, dri_filename);
-        
-        if (written >= (int)sizeof(dri_archive)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                    "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
-        } else {
-            // Create DRI archive
-            int dri_ret = create_dri_archive(ctx, dri_archive);
-        
-            if (dri_ret == 0) {
-#ifndef L2_TEST_ENABLED
-                sleep(60);
-#endif
-            
-                // Upload DRI logs using separate session state
-                SessionState dri_session = *session;  // Copy current session config
-                dri_session.direct_attempts = 0;       // Reset attempt counters
-                dri_session.codebig_attempts = 0;
+            int written = snprintf(dri_archive, sizeof(dri_archive), "%s/%s", ctx->dri_log_path, dri_session.archive_file);
+
+            if (written >= (int)sizeof(dri_archive)) {
+                RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] DRI archive path too long\n", __FUNCTION__, __LINE__);
+            } else {
                 dri_ret = upload_archive(ctx, &dri_session, dri_archive);
             
                 // Send telemetry for DRI upload (matches script lines 883, 886)
@@ -975,7 +963,6 @@ static int reboot_upload(RuntimeContext* ctx, SessionState* session)
                 // Clean up DRI archive
                 remove_file(dri_archive);
             }
-        }
         }
     }
 
