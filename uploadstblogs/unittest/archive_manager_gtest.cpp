@@ -396,10 +396,13 @@ TEST_F(ArchiveManagerTest, CreateArchive_SystemCommandFailure) {
 
 // Test create_dri_archive function
 TEST_F(ArchiveManagerTest, CreateDriArchive_NullParams) {
-    int result = create_dri_archive(nullptr, "/tmp/dri.tar.gz");
+    int result = create_dri_archive(nullptr, &session, "/tmp/dri.tar.gz");
     EXPECT_EQ(-1, result);
     
-    result = create_dri_archive(&ctx, nullptr);
+    result = create_dri_archive(&ctx, nullptr, "/tmp/dri.tar.gz");
+    EXPECT_EQ(-1, result);
+
+    result = create_dri_archive(&ctx, &session, nullptr);
     EXPECT_EQ(-1, result);
 }
 
@@ -416,7 +419,7 @@ TEST_F(ArchiveManagerTest, CreateDriArchive_Success) {
     
     // The real implementation may still fail due to system dependencies
     // So accept both success and failure as valid outcomes
-    int result = create_dri_archive(&ctx, "/tmp/dri_archive.tar.gz");
+    int result = create_dri_archive(&ctx, &session, "/tmp/dri_archive.tar.gz");
     EXPECT_TRUE(result == 0 || result == -1);
 }
 
@@ -469,7 +472,7 @@ TEST_F(ArchiveManagerTest, ArchiveTypes_DriLogs) {
     EXPECT_CALL(*g_mockFileOperations, file_exists(_))
         .WillRepeatedly(Return(true));
     
-    int result = create_dri_archive(&ctx, "/tmp/dri_test.tgz");
+    int result = create_dri_archive(&ctx, &session, "/tmp/dri_test.tgz");
     EXPECT_TRUE(result == 0 || result == -1);
 }
 
