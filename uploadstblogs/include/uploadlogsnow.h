@@ -33,7 +33,7 @@ extern "C" {
 
 /**
  * @brief Execute UploadLogsNow workflow
- * 
+ *
  * This function replicates the behavior of the original UploadLogsNow.sh script:
  * 1. Creates DCM_LOG_PATH directory
  * 2. Copies all files from LOG_PATH to DCM_LOG_PATH (excluding certain directories)
@@ -41,11 +41,26 @@ extern "C" {
  * 4. Creates tar archive
  * 5. Uploads using ONDEMAND strategy
  * 6. Cleans up temporary files
- * 
+ *
  * @param ctx Runtime context with configuration and paths
  * @return 0 on success, negative value on failure
  */
 int execute_uploadlogsnow_workflow(RuntimeContext* ctx);
+
+/**
+ * @brief Copy top-level files from a source directory into DCM_LOG_PATH
+ *
+ * Copies each regular file from @p src_path into @p dest_path, excluding the
+ * `dcm/`, `PreviousLogs/`, and `PreviousLogs_backup/` sub-directories (so it never
+ * recurses into its own staging/backup dirs). Used by the on-demand UploadLogsNow
+ * workflow and by the scheduled DCM strategy on platforms that opt into current-log
+ * collection (RDK-C, DCM_SCHEDULED_LOG_COLLECT).
+ *
+ * @param src_path Source directory (e.g. LOG_PATH)
+ * @param dest_path Destination directory (DCM_LOG_PATH)
+ * @return Number of files copied (>= 0), or -1 on source open failure
+ */
+int copy_files_to_dcm_path(const char* src_path, const char* dest_path);
 
 #ifdef __cplusplus
 }

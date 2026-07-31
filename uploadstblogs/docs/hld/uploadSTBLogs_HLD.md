@@ -246,4 +246,10 @@ int main(int argc, char** argv) {
 ## 18. Non-Extended Design Choices
 Excluded any unrelated enhancements (alternate compression, multi-protocol expansion, scheduler integration) to preserve diagram fidelity.
 
+## 19. RDK-C Additions (Camera)
+
+One RDK-C-specific behavior extends the base design on camera (sysvinit) platforms; it is inert on STB/broadband:
+
+- **Scheduled log collection** — gated by the `DCM_SCHEDULED_LOG_COLLECT` device property. When enabled, the DCM strategy's `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) before archiving, so the scheduled upload carries current logs. Default off ⇒ STB/broadband batch-drain behavior is unchanged.
+
 ```
