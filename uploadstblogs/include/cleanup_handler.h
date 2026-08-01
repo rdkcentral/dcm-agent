@@ -135,7 +135,6 @@ bool is_timestamped_backup(const char *filename);
  * 
  * Removes regular files matching timestamp pattern but excludes
  * logbackup directories and moca.pcap files.
- * Matches script: ls $LOG_PATH/*-*-*-*-*M-* | grep -v "logbackup" | grep -v "moca.pcap"
  * 
  * @param log_path Log directory path
  * @return Number of files removed
