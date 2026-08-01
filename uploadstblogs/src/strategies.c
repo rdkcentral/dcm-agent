@@ -625,10 +625,7 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-
-#ifndef L2_TEST_ENABLED
-    sleep(60);
-#endif
+	
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
 
