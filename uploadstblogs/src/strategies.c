@@ -484,7 +484,7 @@ static int copy_all_files_to_dcm(const char* src_dir, const char* dest_dir)
  * Equivalent to script lines 1026-1032. */
 static int process_dcm_upload_list(RuntimeContext* ctx)
 {
-    char list_path[MAX_PATH_LENGTH];
+    char list_path[MAX_PATH_LENGTH + sizeof("/dcm_upload")];
     snprintf(list_path, sizeof(list_path), "%s/dcm_upload", ctx->log_path);
 
     FILE* fp = fopen(list_path, "r");
