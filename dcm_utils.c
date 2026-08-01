@@ -57,13 +57,11 @@ void DCMLOGInit()
 
     /* Extended initialization with programmatic configuration */
     rdk_logger_ext_config_t config = {
-        .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
-        .loglevel = RDK_LOG_INFO,                 /* Default log level */
-        .output = RDKLOG_OUTPUT_CONSOLE,          /* Output to console (stdout/stderr) */
+        .pModuleName = "LOG.RDK.DCM",     /* Module name */
+        .loglevel = RDK_LOG_INFO,         /* Default log level */
         .output = RDKLOG_OUTPUT_FILE,
-        .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
-        .pFilePolicy = NULL                       /* Not using file output, so NULL */
-        .pFilePolicy =  &filelog                  /* using file output */
+        .format = RDKLOG_FORMAT_WITH_TS,  /* Timestamped format */
+        .pFilePolicy =  &filelog          /* using file output */
     };
 
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
