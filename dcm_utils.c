@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <errno.h>
+#include "rdk_logger.h"
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
