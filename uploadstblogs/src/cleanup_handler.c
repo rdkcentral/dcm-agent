@@ -309,10 +309,15 @@ int remove_stale_timestamped_files(const char *log_path)
 
     int removed_count = 0;
     struct dirent *entry;
-    char filepath[512];
+    int dfd = dirfd(dir);
 
     while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_DIR) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        struct stat st;
+        if (fstatat(dfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0 || !S_ISREG(st.st_mode)) {
             continue;
         }
         if (!is_timestamped_backup(entry->d_name)) {
@@ -322,11 +327,10 @@ int remove_stale_timestamped_files(const char *log_path)
             continue;
         }
 
-        snprintf(filepath, sizeof(filepath), "%s/%s", log_path, entry->d_name);
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
                 "[%s:%d] Removing stale timestamped file: %s\n",
-                __FUNCTION__, __LINE__, filepath);
-        if (remove(filepath) == 0) {
+                __FUNCTION__, __LINE__, entry->d_name);
+        if (unlinkat(dfd, entry->d_name, 0) == 0) {
             removed_count++;
         }
     }
