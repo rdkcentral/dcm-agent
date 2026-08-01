@@ -366,13 +366,167 @@ const StrategyHandler dcm_strategy_handler = {
     .cleanup_phase = dcm_cleanup
 };
 
+/* Copy regular files (not directories) from LOG_PATH to DCM_LOG_PATH.
+ * Equivalent to script copyOptLogsFiles(). */
+static int copy_opt_logs_files(const char* src_dir, const char* dest_dir)
+{
+    DIR* dir = opendir(src_dir);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open source dir: %s\n", __FUNCTION__, __LINE__, src_dir);
+        return -1;
+    }
+
+    struct dirent* entry;
+    int count = 0;
+    char src_path[MAX_PATH_LENGTH];
+    char dest_path[MAX_PATH_LENGTH];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+        if (entry->d_type == DT_DIR)
+            continue;
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+        if (copy_file(src_path, dest_path))
+            count++;
+    }
+    closedir(dir);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Copied %d files from %s to %s\n",
+            __FUNCTION__, __LINE__, count, src_dir, dest_dir);
+    return count;
+}
+
+/* Recursively copy directory contents from src to dest. */
+static int copy_dir_recursive(const char* src_dir, const char* dest_dir)
+{
+    DIR* dir = opendir(src_dir);
+    if (!dir) return -1;
+
+    struct dirent* entry;
+    int count = 0;
+    char src_path[MAX_PATH_LENGTH];
+    char dest_path[MAX_PATH_LENGTH];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+
+        if (entry->d_type == DT_DIR) {
+            create_directory(dest_path);
+            count += copy_dir_recursive(src_path, dest_path);
+        } else {
+            if (copy_file(src_path, dest_path))
+                count++;
+        }
+    }
+    closedir(dir);
+    return count;
+}
+
+/* Copy all files/directories from LOG_PATH to DCM_LOG_PATH, excluding
+ * dcm, PreviousLogs, PreviousLogs_backup.
+ * Equivalent to script copyAllFiles(). */
+static int copy_all_files_to_dcm(const char* src_dir, const char* dest_dir)
+{
+    static const char* exclude[] = {"dcm", "PreviousLogs_backup", "PreviousLogs", NULL};
+
+    DIR* dir = opendir(src_dir);
+    if (!dir) {
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open source dir: %s\n", __FUNCTION__, __LINE__, src_dir);
+        return -1;
+    }
+
+    struct dirent* entry;
+    int count = 0;
+    char src_path[MAX_PATH_LENGTH];
+    char dest_path[MAX_PATH_LENGTH];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        bool skip = false;
+        for (int i = 0; exclude[i]; i++) {
+            if (strcmp(entry->d_name, exclude[i]) == 0) {
+                skip = true;
+                break;
+            }
+        }
+        if (skip) continue;
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+
+        if (entry->d_type == DT_DIR) {
+            create_directory(dest_path);
+            count += copy_dir_recursive(src_path, dest_path);
+        } else {
+            if (copy_file(src_path, dest_path))
+                count++;
+        }
+    }
+    closedir(dir);
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Copied %d items from %s to %s (with exclusions)\n",
+            __FUNCTION__, __LINE__, count, src_dir, dest_dir);
+    return count;
+}
+
+/* Read DCM_UPLOAD_LIST, copy listed directories to DCM_LOG_PATH, clear list.
+ * Equivalent to script lines 1026-1032. */
+static int process_dcm_upload_list(RuntimeContext* ctx)
+{
+    char list_path[MAX_PATH_LENGTH];
+    snprintf(list_path, sizeof(list_path), "%s/dcm_upload", ctx->log_path);
+
+    FILE* fp = fopen(list_path, "r");
+    if (!fp) return 0;
+
+    char line[MAX_PATH_LENGTH];
+    int count = 0;
+
+    while (fgets(line, sizeof(line), fp)) {
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
+        if (strlen(line) == 0) continue;
+
+        if (dir_exists(line)) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "[%s:%d] Copying batched logs from %s\n", __FUNCTION__, __LINE__, line);
+            copy_dir_recursive(line, ctx->dcm_log_path);
+            count++;
+        }
+    }
+    fclose(fp);
+
+    // Clear the upload list after processing
+    if (count > 0) {
+        fp = fopen(list_path, "w");
+        if (fp) fclose(fp);
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] Processed %d entries from DCM upload list\n",
+                __FUNCTION__, __LINE__, count);
+    }
+
+    return count;
+}
+
 /**
  * @brief Setup phase for DCM strategy
  * 
- * Shell script equivalent (uploadDCMLogs lines 698-705):
- * 1. Change to DCM_LOG_PATH (files already there from batching)
- * 2. Check upload_flag
- * 3. Add timestamps to files in DCM_LOG_PATH
+ * Shell script equivalent (main flow lines 1022-1041 + uploadDCMLogs lines 698-705):
+ * 1. Clean and recreate DCM_LOG_PATH
+ * 2. Populate DCM_LOG_PATH: process DCM_UPLOAD_LIST + copy log files, or copy all files
+ * 3. Check upload_flag
+ * 4. Add timestamps to files in DCM_LOG_PATH
  */
 static int dcm_setup(RuntimeContext* ctx, SessionState* session)
 {
@@ -385,12 +539,25 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Starting setup phase\n", __FUNCTION__, __LINE__);
 
-    // Check if DCM_LOG_PATH exists and has files
-    if (!dir_exists(ctx->dcm_log_path)) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] DCM_LOG_PATH does not exist: %s\n", 
+    // Clean and recreate DCM_LOG_PATH (script lines 961-965, 1023)
+    if (dir_exists(ctx->dcm_log_path)) {
+        remove_directory(ctx->dcm_log_path);
+    }
+    if (!create_directory(ctx->dcm_log_path)) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to create DCM_LOG_PATH: %s\n",
                 __FUNCTION__, __LINE__, ctx->dcm_log_path);
         return -1;
+    }
+
+    // Populate DCM_LOG_PATH with log files (script main flow lines 1022-1041)
+    if (ctx->upload_on_reboot == 1) {
+        // copyAllFiles: copy LOG_PATH/* excluding dcm, PreviousLogs, PreviousLogs_backup
+        copy_all_files_to_dcm(ctx->log_path, ctx->dcm_log_path);
+    } else {
+        // Process DCM_UPLOAD_LIST: copy batched directories, then copy current opt logs
+        process_dcm_upload_list(ctx);
+        copy_opt_logs_files(ctx->log_path, ctx->dcm_log_path);
     }
 
     // Check upload_flag from DCMSettings.conf (matches script behavior)
