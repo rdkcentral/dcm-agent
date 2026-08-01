@@ -47,9 +47,31 @@ INT32  g_rdk_logger_enabled = 0;
 void DCMLOGInit()
 {
 #ifdef RDK_LOGGER_ENABLED
-    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
+     // Initialize RDK Logger
+    rdk_LogOutput_File filelog;
+    strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
+    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
+    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
+
+    /* Extended initialization with programmatic configuration */
+    rdk_logger_ext_config_t config = {
+        .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
+        .loglevel = RDK_LOG_INFO,                 /* Default log level */
+        .output = RDKLOG_OUTPUT_CONSOLE,          /* Output to console (stdout/stderr) */
+        .output = RDKLOG_OUTPUT_FILE,
+        .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
+        .pFilePolicy = NULL                       /* Not using file output, so NULL */
+        .pFilePolicy =  &filelog                  /* using file output */
+    };
+
+    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
+        printf("UPLOADSTB : ERROR - Extended logger init failed\n");
+    }
+    else {
         g_rdk_logger_enabled = 1;
     }
+    
 #endif
 }
 
