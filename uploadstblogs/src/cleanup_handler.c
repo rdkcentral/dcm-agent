@@ -296,6 +296,45 @@ int cleanup_old_archives(const char *log_path)
     return removed_count;
 }
 
+int remove_stale_timestamped_files(const char *log_path)
+{
+    if (!log_path) {
+        return -1;
+    }
+
+    DIR *dir = opendir(log_path);
+    if (!dir) {
+        return -1;
+    }
+
+    int removed_count = 0;
+    struct dirent *entry;
+    char filepath[512];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            continue;
+        }
+        if (!is_timestamped_backup(entry->d_name)) {
+            continue;
+        }
+        if (strstr(entry->d_name, "logbackup") || strstr(entry->d_name, "moca.pcap")) {
+            continue;
+        }
+
+        snprintf(filepath, sizeof(filepath), "%s/%s", log_path, entry->d_name);
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
+                "[%s:%d] Removing stale timestamped file: %s\n",
+                __FUNCTION__, __LINE__, filepath);
+        if (remove(filepath) == 0) {
+            removed_count++;
+        }
+    }
+
+    closedir(dir);
+    return removed_count;
+}
+
 /* ==========================
    Upload Finalization Functions
    ========================== */
