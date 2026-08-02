@@ -568,8 +568,7 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
         // copyAllFiles: copy LOG_PATH/* excluding dcm, PreviousLogs, PreviousLogs_backup
         copy_all_files_to_dcm(ctx->log_path, ctx->dcm_log_path);
     } else {
-        // Process DCM_UPLOAD_LIST: copy batched directories, then copy current opt logs
-        process_dcm_upload_list(ctx);
+        // Copy current opt logs first, then batched directories
         copy_opt_logs_files(ctx->log_path, ctx->dcm_log_path);
     }
 
@@ -581,7 +580,7 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
         return -1;  // Signal to skip upload
     }
 
-    // Add timestamps to all files in DCM_LOG_PATH
+    // Add timestamps to files already in DCM_LOG_PATH (before adding batched dirs)
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Adding timestamps to files in DCM_LOG_PATH\n", 
             __FUNCTION__, __LINE__);
@@ -591,7 +590,11 @@ static int dcm_setup(RuntimeContext* ctx, SessionState* session)
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to add timestamps to some files\n", 
                 __FUNCTION__, __LINE__);
-        // Continue anyway, not critical
+    }
+
+    // Copy batched directories AFTER timestamping (they already have timestamps)
+    if (ctx->upload_on_reboot == 0) {
+        process_dcm_upload_list(ctx);
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
