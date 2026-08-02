@@ -422,6 +422,14 @@ int uploadstblogs_execute(int argc, char** argv)
         return ret;
     }
     
+    /* Limit attempts to 1 when called from plugin (deepsleep) */
+    if (ctx.trigger_type == TRIGGER_MANUAL) {
+        ctx.direct_max_attempts = 1;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called from Plugin with 1 attempt\n");
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called with %d attempts\n", ctx.direct_max_attempts);
+    }
+    
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
