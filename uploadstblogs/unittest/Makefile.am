@@ -154,4 +154,3 @@ file_operations_gtest_LDADD = $(COMMON_LDADD)
 file_operations_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 file_operations_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-
