@@ -25,7 +25,7 @@ bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_s
                cleanup_handler_gtest verification_gtest \
                rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
                retry_logic_gtest strategies_gtest \
-               strategy_handler_gtest uploadlogsnow_gtest
+               strategy_handler_gtest uploadlogsnow_gtest file_operations_gtest
 
 # Common include directories
 COMMON_CPPFLAGS = -std=c++11 -I. -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks \
@@ -147,4 +147,10 @@ uploadlogsnow_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 uploadlogsnow_gtest_LDADD = $(COMMON_LDADD)
 uploadlogsnow_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 uploadlogsnow_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+file_operations_gtest_SOURCES = file_operations_gtest.cpp
+file_operations_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+file_operations_gtest_LDADD = $(COMMON_LDADD)
+file_operations_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+file_operations_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
