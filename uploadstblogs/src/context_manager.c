@@ -444,14 +444,9 @@ bool load_tr181_params(RuntimeContext* ctx)
         return false;
     }
 
-    // Load LogUploadEndpoint URL
-    // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL
-    if (!rbus_get_string_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL",
-                               ctx->endpoint_url, 
-                               sizeof(ctx->endpoint_url))) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n", 
-                __FUNCTION__, __LINE__);
-    }
+    // LogUploadEndpoint.URL is fetched lazily at upload time (path_handler.c)
+    // to avoid blocking init when the rbus provider isn't ready yet.
+    ctx->endpoint_url[0] = '\0';
 
     // Load EncryptCloudUpload Enable flag (boolean parameter)
     // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable
