@@ -595,6 +595,78 @@ TEST_F(ArchiveManagerTest, ShouldCollectFile_EdgeCases) {
     EXPECT_FALSE(should_collect_file("txt"));  // No extension
 }
 
+/* ==========================
+   generate_archive_name Tests
+   ========================== */
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_NullBuffer) {
+    EXPECT_FALSE(generate_archive_name(nullptr, 256, "AA:BB:CC:DD:EE:FF", "Logs"));
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_NullPrefix) {
+    char buffer[256];
+    EXPECT_FALSE(generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", nullptr));
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_BufferTooSmall) {
+    char buffer[32];
+    EXPECT_FALSE(generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", "Logs"));
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_NullMAC) {
+    char buffer[256];
+    EXPECT_FALSE(generate_archive_name(buffer, sizeof(buffer), nullptr, "Logs"));
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_EmptyMAC) {
+    char buffer[256];
+    EXPECT_FALSE(generate_archive_name(buffer, sizeof(buffer), "", "Logs"));
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_Success_ContainsTgz) {
+    char buffer[256];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", "Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, ".tgz") != nullptr);
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_Success_ContainsPrefix) {
+    char buffer[256];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", "Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "_Logs_") != nullptr);
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_Success_RemovesColons) {
+    char buffer[256];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "A8:4A:63:1E:37:A5", "Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "A84A631E37A5") != nullptr);
+    EXPECT_TRUE(strstr(buffer, ":") == nullptr);
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_DRI_Prefix) {
+    char buffer[256];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", "DRI_Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "_DRI_Logs_") != nullptr);
+    EXPECT_TRUE(strstr(buffer, ".tgz") != nullptr);
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_MACWithoutColons) {
+    char buffer[256];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "AABBCCDDEEFF", "Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "AABBCCDDEEFF") != nullptr);
+}
+
+TEST_F(ArchiveManagerTest, GenerateArchiveName_ExactMinBufferSize) {
+    char buffer[64];
+    bool result = generate_archive_name(buffer, sizeof(buffer), "AA:BB:CC:DD:EE:FF", "Logs");
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, ".tgz") != nullptr);
+}
+
 // Test collect_logs function
 TEST_F(ArchiveManagerTest, CollectLogs_NullParameters) {
     EXPECT_EQ(collect_logs(nullptr, &session, "/tmp/dest"), -1);
