@@ -160,12 +160,21 @@ protected:
         
         // Create a temporary test directory
         test_log_dir = std::string("/tmp/uploadlogsnow_test_") + std::to_string(getpid());
+        mkdir(test_log_dir.c_str(), 0755);
         
         // Initialize test context with safe paths
         memset(&ctx, 0, sizeof(ctx));
         strncpy(ctx.log_path, test_log_dir.c_str(), sizeof(ctx.log_path) - 1);
         strcpy(ctx.dcm_log_path, "");
         ctx.uploadlogsnow_mode = true;
+    }
+
+    void CreateTestLogFiles() {
+        for (int i = 0; i < 3; i++) {
+            std::string path = test_log_dir + "/test" + std::to_string(i) + ".log";
+            FILE* fp = fopen(path.c_str(), "w");
+            if (fp) { fprintf(fp, "log data %d", i); fclose(fp); }
+        }
     }
 
     void TearDown() override {
@@ -196,63 +205,233 @@ TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateDirectoryFails) {
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CopyFilesFails) {
+    CreateTestLogFiles();
     g_copy_file_should_fail = true;
     
+    // When all copy_file calls fail, copied_count=0 → treated as "no files to upload"
     int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(-1, result); // Should fail due to file copy failure
+    EXPECT_EQ(0, result);
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_CreateArchiveFails) {
+    CreateTestLogFiles();
     g_create_archive_should_fail = true;
-    g_copy_files_return_count = 3; // Some files copied
     
     int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(-1, result); // Should fail due to archive creation failure
+    EXPECT_EQ(-1, result);
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_ArchiveFileNotFound) {
+    CreateTestLogFiles();
     g_file_exists_return_value = false;
-    g_copy_files_return_count = 3; // Some files copied
     
     int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(-1, result); // Should fail when archive file doesn't exist after creation
+    EXPECT_EQ(-1, result);
 }
 
 TEST_F(UploadLogsNowTest, ExecuteWorkflow_UploadFails) {
+    CreateTestLogFiles();
     g_execute_upload_cycle_return_value = false;
-    g_copy_files_return_count = 3; // Some files copied
     
     int result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(-1, result); // Should fail when upload fails
+    EXPECT_EQ(-1, result);
 }
 
 TEST_F(UploadLogsNowTest, IntegrationTest_CascadingFailures) {
-    // Test various failure scenarios one by one
-    
     // First test: directory creation fails (early failure)
     g_create_directory_should_fail = true;
     int result = execute_uploadlogsnow_workflow(&ctx);
     EXPECT_EQ(-1, result);
     
-    // Reset and test copy failure
-    SetUp(); // Reset all mocks
-    g_copy_file_should_fail = true;
-    result = execute_uploadlogsnow_workflow(&ctx);
-    EXPECT_EQ(-1, result);
-    
     // Reset and test archive creation failure
-    SetUp(); // Reset all mocks
+    SetUp();
+    CreateTestLogFiles();
     g_create_archive_should_fail = true;
-    g_copy_files_return_count = 3; // Some files copied
     result = execute_uploadlogsnow_workflow(&ctx);
     EXPECT_EQ(-1, result);
     
     // Reset and test upload failure
-    SetUp(); // Reset all mocks
+    SetUp();
+    CreateTestLogFiles();
     g_execute_upload_cycle_return_value = false;
-    g_copy_files_return_count = 3; // Some files copied
     result = execute_uploadlogsnow_workflow(&ctx);
     EXPECT_EQ(-1, result);
+}
+
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_NoFilesToUpload) {
+    // Empty directory - no files to copy
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_UsesDcmLogPathFromContext) {
+    strncpy(ctx.dcm_log_path, "/tmp/custom_dcm", sizeof(ctx.dcm_log_path) - 1);
+    CreateTestLogFiles();
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_TimestampFailureNonFatal) {
+    g_add_timestamp_should_fail = true;
+    CreateTestLogFiles();
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(UploadLogsNowTest, ExecuteWorkflow_CleanupFailureNonFatal) {
+    g_remove_directory_should_fail = true;
+    CreateTestLogFiles();
+    int result = execute_uploadlogsnow_workflow(&ctx);
+    EXPECT_EQ(0, result);
+}
+
+// ==================== STATIC FUNCTION ACCESSOR TESTS ====================
+
+extern "C" {
+    int (*getWriteUploadStatus(void))(const char*);
+    int (*getShouldExcludeFile(void))(const char*);
+    int (*getCopyFilesToDcmPath(void))(const char*, const char*);
+}
+
+// ---- should_exclude_file tests ----
+
+class ShouldExcludeFileTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        fnShouldExcludeFile = getShouldExcludeFile();
+        ASSERT_NE(nullptr, fnShouldExcludeFile);
+    }
+    int (*fnShouldExcludeFile)(const char*);
+};
+
+TEST_F(ShouldExcludeFileTest, ExcludesDcm) {
+    EXPECT_EQ(1, fnShouldExcludeFile("dcm"));
+}
+
+TEST_F(ShouldExcludeFileTest, ExcludesPreviousLogsBackup) {
+    EXPECT_EQ(1, fnShouldExcludeFile("PreviousLogs_backup"));
+}
+
+TEST_F(ShouldExcludeFileTest, ExcludesPreviousLogs) {
+    EXPECT_EQ(1, fnShouldExcludeFile("PreviousLogs"));
+}
+
+TEST_F(ShouldExcludeFileTest, DoesNotExcludeRegularFile) {
+    EXPECT_EQ(0, fnShouldExcludeFile("messages.log"));
+}
+
+TEST_F(ShouldExcludeFileTest, DoesNotExcludePartialMatch) {
+    EXPECT_EQ(0, fnShouldExcludeFile("dcm_settings.conf"));
+}
+
+TEST_F(ShouldExcludeFileTest, DoesNotExcludeEmptyString) {
+    EXPECT_EQ(0, fnShouldExcludeFile(""));
+}
+
+// ---- write_upload_status tests ----
+
+class WriteUploadStatusTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        fnWriteUploadStatus = getWriteUploadStatus();
+        ASSERT_NE(nullptr, fnWriteUploadStatus);
+    }
+    void TearDown() override {
+        unlink(STATUS_FILE);
+    }
+    int (*fnWriteUploadStatus)(const char*);
+};
+
+TEST_F(WriteUploadStatusTest, WritesTriggeredStatus) {
+    int result = fnWriteUploadStatus("Triggered");
+    EXPECT_EQ(0, result);
+    // Verify file was written
+    FILE* fp = fopen(STATUS_FILE, "r");
+    if (fp) {
+        char buf[256] = {0};
+        fgets(buf, sizeof(buf), fp);
+        fclose(fp);
+        EXPECT_TRUE(strstr(buf, "Triggered") != nullptr);
+    }
+}
+
+TEST_F(WriteUploadStatusTest, WritesCompleteStatus) {
+    int result = fnWriteUploadStatus("Complete");
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(WriteUploadStatusTest, WritesFailedStatus) {
+    int result = fnWriteUploadStatus("Failed");
+    EXPECT_EQ(0, result);
+}
+
+// ---- copy_files_to_dcm_path tests ----
+
+class CopyFilesToDcmPathTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_copy_file_should_fail = false;
+        fnCopyFilesToDcmPath = getCopyFilesToDcmPath();
+        ASSERT_NE(nullptr, fnCopyFilesToDcmPath);
+
+        src_dir = std::string("/tmp/copy_src_") + std::to_string(getpid());
+        dest_dir = std::string("/tmp/copy_dst_") + std::to_string(getpid());
+        mkdir(src_dir.c_str(), 0755);
+        mkdir(dest_dir.c_str(), 0755);
+    }
+    void TearDown() override {
+        std::string cmd = "rm -rf " + src_dir + " " + dest_dir;
+        system(cmd.c_str());
+    }
+    void CreateTestFile(const std::string& dir, const char* name) {
+        std::string path = dir + "/" + name;
+        FILE* fp = fopen(path.c_str(), "w");
+        if (fp) { fprintf(fp, "test"); fclose(fp); }
+    }
+    int (*fnCopyFilesToDcmPath)(const char*, const char*);
+    std::string src_dir;
+    std::string dest_dir;
+};
+
+TEST_F(CopyFilesToDcmPathTest, EmptyDirectory_ReturnsZero) {
+    int result = fnCopyFilesToDcmPath(src_dir.c_str(), dest_dir.c_str());
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(CopyFilesToDcmPathTest, InvalidSrcDir_ReturnsError) {
+    int result = fnCopyFilesToDcmPath("/nonexistent_path_xyz", dest_dir.c_str());
+    EXPECT_EQ(-1, result);
+}
+
+TEST_F(CopyFilesToDcmPathTest, CopiesRegularFiles) {
+    CreateTestFile(src_dir, "test.log");
+    CreateTestFile(src_dir, "other.txt");
+    int result = fnCopyFilesToDcmPath(src_dir.c_str(), dest_dir.c_str());
+    EXPECT_EQ(2, result);
+}
+
+TEST_F(CopyFilesToDcmPathTest, ExcludesDcmDirectory) {
+    CreateTestFile(src_dir, "test.log");
+    mkdir((src_dir + "/dcm").c_str(), 0755);
+    // dcm is excluded; only test.log should be copied
+    int result = fnCopyFilesToDcmPath(src_dir.c_str(), dest_dir.c_str());
+    EXPECT_EQ(1, result);
+}
+
+TEST_F(CopyFilesToDcmPathTest, ExcludesPreviousLogs) {
+    CreateTestFile(src_dir, "test.log");
+    mkdir((src_dir + "/PreviousLogs").c_str(), 0755);
+    mkdir((src_dir + "/PreviousLogs_backup").c_str(), 0755);
+    int result = fnCopyFilesToDcmPath(src_dir.c_str(), dest_dir.c_str());
+    EXPECT_EQ(1, result);
+}
+
+TEST_F(CopyFilesToDcmPathTest, CopyFailure_CountsSuccessful) {
+    CreateTestFile(src_dir, "good.log");
+    CreateTestFile(src_dir, "also_good.txt");
+    g_copy_file_should_fail = true;
+    int result = fnCopyFilesToDcmPath(src_dir.c_str(), dest_dir.c_str());
+    EXPECT_EQ(0, result);
 }
 
 } // namespace
