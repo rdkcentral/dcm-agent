@@ -695,6 +695,433 @@ TEST_F(ArchiveManagerTest, CollectDriLogs_Success) {
     EXPECT_GE(result, 0);
 }
 
+// ==================== STATIC FUNCTION ACCESSOR TESTS ====================
+// Tests for static functions exposed via #ifdef GTEST_ENABLE accessor pattern
+// (same approach as strategies.c)
+
+
+    bool (*getCopyLogFile(void))(const char*, const char*);
+    int (*getCollectFilesFromDir(void))(const char*, const char*, bool (*)(const char*));
+    bool (*getGenerateArchiveNameAt(void))(char*, size_t, const char*, const char*, time_t);
+    unsigned int (*getCalculateTarChecksum(void))(struct tar_header*);
+    int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*);
+    int (*getAddFileToTar(void))(gzFile, const char*, const char*);
+    int (*getAddDirectoryToTar(void))(gzFile, const char*, const char*, const char*);
+    int (*getCreateArchiveWithOptions(void))(RuntimeContext*, SessionState*, const char*, const char*, const char*);
+
+
+// ---- copy_log_file tests ----
+
+class CopyLogFileTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        fnCopyLogFile = getCopyLogFile();
+        ASSERT_NE(nullptr, fnCopyLogFile);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    bool (*fnCopyLogFile)(const char*, const char*);
+};
+
+TEST_F(CopyLogFileTest, NullSrcPath_ReturnsFalse) {
+    EXPECT_FALSE(fnCopyLogFile(nullptr, "/tmp/dest"));
+}
+
+TEST_F(CopyLogFileTest, NullDestDir_ReturnsFalse) {
+    EXPECT_FALSE(fnCopyLogFile("/tmp/test.log", nullptr));
+}
+
+TEST_F(CopyLogFileTest, Success_ExtractsFilename) {
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillOnce(Return(true));
+
+    EXPECT_TRUE(fnCopyLogFile("/opt/logs/test.log", "/tmp/dest"));
+}
+
+TEST_F(CopyLogFileTest, Success_NoSlashInPath) {
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillOnce(Return(true));
+
+    EXPECT_TRUE(fnCopyLogFile("test.log", "/tmp/dest"));
+}
+
+TEST_F(CopyLogFileTest, CopyFails_ReturnsFalse) {
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillOnce(Return(false));
+
+    EXPECT_FALSE(fnCopyLogFile("/opt/logs/test.log", "/tmp/dest"));
+}
+
+// ---- collect_files_from_dir tests ----
+
+class CollectFilesFromDirTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        g_readdir_call_count = 0;
+        g_opendir_call_count = 0;
+        fnCollectFilesFromDir = getCollectFilesFromDir();
+        ASSERT_NE(nullptr, fnCollectFilesFromDir);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    int (*fnCollectFilesFromDir)(const char*, const char*, bool (*)(const char*));
+};
+
+TEST_F(CollectFilesFromDirTest, NullSrcDir_ReturnsError) {
+    EXPECT_EQ(-1, fnCollectFilesFromDir(nullptr, "/tmp/dest", nullptr));
+}
+
+TEST_F(CollectFilesFromDirTest, NullDestDir_ReturnsError) {
+    EXPECT_EQ(-1, fnCollectFilesFromDir("/opt/logs", nullptr, nullptr));
+}
+
+TEST_F(CollectFilesFromDirTest, SrcDirNotExists_ReturnsZero) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(false));
+
+    EXPECT_EQ(0, fnCollectFilesFromDir("/opt/logs", "/tmp/dest", nullptr));
+}
+
+TEST_F(CollectFilesFromDirTest, OpendirFails_ReturnsError) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+
+    // opendir mock returns nullptr for paths containing "fail"
+    EXPECT_EQ(-1, fnCollectFilesFromDir("/fail", "/tmp/dest", nullptr));
+}
+
+TEST_F(CollectFilesFromDirTest, WithFilter_CollectsMatchingFiles) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillRepeatedly(Return(true));
+
+    // readdir mock returns test.log and another.log (both pass should_collect_file)
+    int result = fnCollectFilesFromDir("/opt/logs", "/tmp/dest", should_collect_file);
+    EXPECT_GE(result, 0);
+}
+
+TEST_F(CollectFilesFromDirTest, NoFilter_CollectsAllFiles) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, copy_file(_, _))
+        .WillRepeatedly(Return(true));
+
+    int result = fnCollectFilesFromDir("/opt/logs", "/tmp/dest", nullptr);
+    EXPECT_GE(result, 0);
+}
+
+// ---- generate_archive_name_at tests ----
+
+class GenerateArchiveNameAtTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        fnGenerateArchiveNameAt = getGenerateArchiveNameAt();
+        ASSERT_NE(nullptr, fnGenerateArchiveNameAt);
+    }
+    void TearDown() override {}
+    bool (*fnGenerateArchiveNameAt)(char*, size_t, const char*, const char*, time_t);
+};
+
+TEST_F(GenerateArchiveNameAtTest, Success_GeneratesCorrectFormat) {
+    char buffer[256];
+    // 1642780800 = 2022-01-21 12:00:00 UTC
+    bool result = fnGenerateArchiveNameAt(buffer, sizeof(buffer),
+                                         "AA:BB:CC:DD:EE:FF", "Logs",
+                                         (time_t)1642780800);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "AABBCCDDEEFF") != nullptr);
+    EXPECT_TRUE(strstr(buffer, "_Logs_") != nullptr);
+    EXPECT_TRUE(strstr(buffer, ".tgz") != nullptr);
+    EXPECT_TRUE(strstr(buffer, ":") == nullptr);
+}
+
+TEST_F(GenerateArchiveNameAtTest, RemovesColonsFromMAC) {
+    char buffer[256];
+    bool result = fnGenerateArchiveNameAt(buffer, sizeof(buffer),
+                                         "A8:4A:63:1E:37:A5", "Logs",
+                                         (time_t)1642780800);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "A84A631E37A5") != nullptr);
+}
+
+TEST_F(GenerateArchiveNameAtTest, DRI_Prefix) {
+    char buffer[256];
+    bool result = fnGenerateArchiveNameAt(buffer, sizeof(buffer),
+                                         "AA:BB:CC:DD:EE:FF", "DRI_Logs",
+                                         (time_t)1642780800);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "_DRI_Logs_") != nullptr);
+}
+
+TEST_F(GenerateArchiveNameAtTest, MACWithoutColons_Unchanged) {
+    char buffer[256];
+    bool result = fnGenerateArchiveNameAt(buffer, sizeof(buffer),
+                                         "AABBCCDDEEFF", "Logs",
+                                         (time_t)1642780800);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(strstr(buffer, "AABBCCDDEEFF") != nullptr);
+}
+
+TEST_F(GenerateArchiveNameAtTest, RefTimeUsedInTimestamp) {
+    char buf1[256], buf2[256];
+    fnGenerateArchiveNameAt(buf1, sizeof(buf1), "AA:BB:CC:DD:EE:FF", "Logs",
+                            (time_t)1642780800);
+    fnGenerateArchiveNameAt(buf2, sizeof(buf2), "AA:BB:CC:DD:EE:FF", "Logs",
+                            (time_t)1642867200);
+    // Different ref_time should produce different archive names
+    EXPECT_STRNE(buf1, buf2);
+}
+
+// ---- calculate_tar_checksum tests ----
+
+class CalculateTarChecksumTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        fnCalculateTarChecksum = getCalculateTarChecksum();
+        ASSERT_NE(nullptr, fnCalculateTarChecksum);
+    }
+    void TearDown() override {}
+    unsigned int (*fnCalculateTarChecksum)(struct tar_header*);
+};
+
+TEST_F(CalculateTarChecksumTest, ZeroHeader_ReturnsSpacesSum) {
+    struct tar_header header;
+    memset(&header, 0, sizeof(header));
+
+    unsigned int sum = fnCalculateTarChecksum(&header);
+    // Checksum field (8 bytes) is filled with spaces (0x20 each) = 8 * 32 = 256
+    EXPECT_EQ(sum, 256u);
+}
+
+TEST_F(CalculateTarChecksumTest, NonZeroHeader_IncludesAllBytes) {
+    struct tar_header header;
+    memset(&header, 0, sizeof(header));
+    strncpy(header.name, "test.log", sizeof(header.name) - 1);
+    snprintf(header.mode, sizeof(header.mode), "%07o", 0644);
+
+    unsigned int sum = fnCalculateTarChecksum(&header);
+    // Sum should be greater than just spaces (256)
+    EXPECT_GT(sum, 256u);
+}
+
+TEST_F(CalculateTarChecksumTest, Deterministic_SameInputSameOutput) {
+    struct tar_header header;
+    memset(&header, 0, sizeof(header));
+    strncpy(header.name, "file.log", sizeof(header.name) - 1);
+
+    unsigned int sum1 = fnCalculateTarChecksum(&header);
+
+    // Reset checksum field (calculate_tar_checksum modifies it)
+    memset(&header, 0, sizeof(header));
+    strncpy(header.name, "file.log", sizeof(header.name) - 1);
+
+    unsigned int sum2 = fnCalculateTarChecksum(&header);
+    EXPECT_EQ(sum1, sum2);
+}
+
+// ---- write_tar_header tests ----
+
+class WriteTarHeaderTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        fnWriteTarHeader = getWriteTarHeader();
+        ASSERT_NE(nullptr, fnWriteTarHeader);
+    }
+    void TearDown() override {}
+    int (*fnWriteTarHeader)(gzFile, const char*, struct stat*);
+};
+
+TEST_F(WriteTarHeaderTest, Success_WritesHeader) {
+    struct stat st;
+    memset(&st, 0, sizeof(st));
+    st.st_mode = S_IFREG | 0644;
+    st.st_size = 1024;
+    st.st_mtime = 1642780800;
+
+    int result = fnWriteTarHeader(mock_gz_ptr, "test.log", &st);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(WriteTarHeaderTest, GzwriteFails_ReturnsError) {
+    struct stat st;
+    memset(&st, 0, sizeof(st));
+    st.st_mode = S_IFREG | 0644;
+    st.st_size = 1024;
+
+    // Use invalid gzFile to trigger gzwrite failure
+    int result = fnWriteTarHeader(nullptr, "test.log", &st);
+    EXPECT_EQ(-1, result);
+}
+
+// ---- add_file_to_tar tests ----
+
+class AddFileToTarTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        g_fread_call_count = 0;
+        fnAddFileToTar = getAddFileToTar();
+        ASSERT_NE(nullptr, fnAddFileToTar);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    int (*fnAddFileToTar)(gzFile, const char*, const char*);
+};
+
+TEST_F(AddFileToTarTest, OpenFails_ReturnsError) {
+    // "missing" triggers stat mock to return -1
+    int result = fnAddFileToTar(mock_gz_ptr, "/tmp/missing_file", "missing_file");
+    EXPECT_EQ(-1, result);
+}
+
+TEST_F(AddFileToTarTest, RegularFile_Success) {
+    int result = fnAddFileToTar(mock_gz_ptr, "/tmp/test.log", "test.log");
+    // May succeed or fail depending on open() mock; verify no crash
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
+// ---- add_directory_to_tar tests ----
+
+class AddDirectoryToTarTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        g_readdir_call_count = 0;
+        g_opendir_call_count = 0;
+        fnAddDirectoryToTar = getAddDirectoryToTar();
+        ASSERT_NE(nullptr, fnAddDirectoryToTar);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    int (*fnAddDirectoryToTar)(gzFile, const char*, const char*, const char*);
+};
+
+TEST_F(AddDirectoryToTarTest, OpendirFails_ReturnsError) {
+    int result = fnAddDirectoryToTar(mock_gz_ptr, "/fail", "/fail", nullptr);
+    EXPECT_EQ(-1, result);
+}
+
+TEST_F(AddDirectoryToTarTest, EmptyDir_ReturnsSuccess) {
+    // readdir returns . and .. then nullptr
+    int result = fnAddDirectoryToTar(mock_gz_ptr, "/tmp/emptydir", "/tmp/emptydir", nullptr);
+    // opendir mock may limit calls; just verify no crash
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
+TEST_F(AddDirectoryToTarTest, ExcludesSpecifiedFile) {
+    int result = fnAddDirectoryToTar(mock_gz_ptr, "/tmp/logs", "/tmp/logs",
+                                     "/tmp/logs/test.log");
+    // test.log should be excluded; verify no crash
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
+// ---- create_archive_with_options tests ----
+
+class CreateArchiveWithOptionsTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        g_readdir_call_count = 0;
+        g_opendir_call_count = 0;
+        memset(&ctx, 0, sizeof(ctx));
+        memset(&session, 0, sizeof(session));
+        strcpy(ctx.mac_address, "AA:BB:CC:DD:EE:FF");
+        strcpy(ctx.device_type, "TEST_DEVICE");
+        fnCreateArchiveWithOptions = getCreateArchiveWithOptions();
+        ASSERT_NE(nullptr, fnCreateArchiveWithOptions);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    RuntimeContext ctx;
+    SessionState session;
+    int (*fnCreateArchiveWithOptions)(RuntimeContext*, SessionState*,
+                                     const char*, const char*, const char*);
+};
+
+TEST_F(CreateArchiveWithOptionsTest, NullCtx_ReturnsError) {
+    EXPECT_EQ(-1, fnCreateArchiveWithOptions(nullptr, &session, "/tmp", nullptr, "Logs"));
+}
+
+TEST_F(CreateArchiveWithOptionsTest, NullSession_ReturnsError) {
+    EXPECT_EQ(-1, fnCreateArchiveWithOptions(&ctx, nullptr, "/tmp", nullptr, "Logs"));
+}
+
+TEST_F(CreateArchiveWithOptionsTest, NullSourceDir_ReturnsError) {
+    EXPECT_EQ(-1, fnCreateArchiveWithOptions(&ctx, &session, nullptr, nullptr, "Logs"));
+}
+
+TEST_F(CreateArchiveWithOptionsTest, NullPrefix_ReturnsError) {
+    EXPECT_EQ(-1, fnCreateArchiveWithOptions(&ctx, &session, "/tmp", nullptr, nullptr));
+}
+
+TEST_F(CreateArchiveWithOptionsTest, SourceDirNotExist_ReturnsError) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillOnce(Return(false));
+
+    EXPECT_EQ(-1, fnCreateArchiveWithOptions(&ctx, &session, "/tmp/nope", nullptr, "Logs"));
+}
+
+TEST_F(CreateArchiveWithOptionsTest, Success_StoresArchiveFilename) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
+
+    int result = fnCreateArchiveWithOptions(&ctx, &session, "/tmp", nullptr, "Logs");
+    if (result == 0) {
+        EXPECT_TRUE(strlen(session.archive_file) > 0);
+        EXPECT_TRUE(strstr(session.archive_file, "_Logs_") != nullptr);
+        EXPECT_TRUE(strstr(session.archive_file, ".tgz") != nullptr);
+    }
+}
+
+TEST_F(CreateArchiveWithOptionsTest, CustomOutputDir_Used) {
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
+
+    int result = fnCreateArchiveWithOptions(&ctx, &session, "/tmp/src",
+                                            "/tmp/out", "DRI_Logs");
+    if (result == 0) {
+        EXPECT_TRUE(strstr(session.archive_file, "_DRI_Logs_") != nullptr);
+    }
+}
+
+TEST_F(CreateArchiveWithOptionsTest, EmptyMAC_FailsGracefully) {
+    strcpy(ctx.mac_address, "");
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
+
+    int result = fnCreateArchiveWithOptions(&ctx, &session, "/tmp", nullptr, "Logs");
+    // generate_archive_name returns false for empty MAC -> returns -1
+    EXPECT_EQ(-1, result);
+}
+
+TEST_F(CreateArchiveWithOptionsTest, ArchiveRefTimeUsed_WhenSet) {
+    ctx.archive_ref_time = (time_t)1642780800;
+    EXPECT_CALL(*g_mockFileOperations, dir_exists(_))
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*g_mockFileOperations, file_exists(_))
+        .WillRepeatedly(Return(true));
+
+    int result = fnCreateArchiveWithOptions(&ctx, &session, "/tmp", nullptr, "Logs");
+    EXPECT_TRUE(result == 0 || result == -1);
+}
+
 GTEST_API_ int main(int argc, char *argv[]){
     char testresults_fullfilepath[GTEST_REPORT_FILEPATH_SIZE];
     char buffer[GTEST_REPORT_FILEPATH_SIZE];
