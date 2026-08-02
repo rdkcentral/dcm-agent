@@ -510,6 +510,11 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
                         "[%s:%d] Destination path too long, skipping: %s\n", __FUNCTION__, __LINE__, line);
                 continue;
             }
+
+            /* Skip duplicate entries */
+            if (dir_exists(dest_subdir)) {
+                continue;
+            }
             create_directory(dest_subdir);
 
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -520,10 +525,11 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
     }
     fclose(fp);
 
-    // Clear the upload list after processing
+    // Always clear the upload list after reading (script: cat /dev/null > $DCM_UPLOAD_LIST)
+    fp = fopen(list_path, "w");
+    if (fp) fclose(fp);
+
     if (count > 0) {
-        fp = fopen(list_path, "w");
-        if (fp) fclose(fp);
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Processed %d entries from DCM upload list\n",
                 __FUNCTION__, __LINE__, count);
