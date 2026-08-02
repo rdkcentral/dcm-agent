@@ -828,3 +828,45 @@ int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* a
 
     return create_archive_with_options(ctx, session, ctx->dri_log_path, ctx->dri_log_path, "DRI_Logs");
 }
+
+#ifdef GTEST_ENABLE
+bool (*getCopyLogFile(void))(const char*, const char*)
+{
+    return &copy_log_file;
+}
+
+int (*getCollectFilesFromDir(void))(const char*, const char*, bool (*)(const char*))
+{
+    return &collect_files_from_dir;
+}
+
+bool (*getGenerateArchiveNameAt(void))(char*, size_t, const char*, const char*, time_t)
+{
+    return &generate_archive_name_at;
+}
+
+unsigned int (*getCalculateTarChecksum(void))(struct tar_header*)
+{
+    return &calculate_tar_checksum;
+}
+
+int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*)
+{
+    return &write_tar_header;
+}
+
+int (*getAddFileToTar(void))(gzFile, const char*, const char*)
+{
+    return &add_file_to_tar;
+}
+
+int (*getAddDirectoryToTar(void))(gzFile, const char*, const char*, const char*)
+{
+    return &add_directory_to_tar;
+}
+
+int (*getCreateArchiveWithOptions(void))(RuntimeContext*, SessionState*, const char*, const char*, const char*)
+{
+    return &create_archive_with_options;
+}
+#endif
