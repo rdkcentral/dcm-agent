@@ -330,7 +330,7 @@ extern "C" {
         return nullptr;
     }
     
-    extern int __real_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
+    extern int __real_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) __attribute__((weak));
     int __wrap_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
         (void)flags;
         if (dirfd == mock_control.open_return && mock_control.open_return > 0) {
@@ -345,7 +345,10 @@ extern "C" {
             }
             return mock_control.stat_return;
         }
-        return __real_fstatat(dirfd, pathname, statbuf, flags);
+        if (__real_fstatat) {
+            return __real_fstatat(dirfd, pathname, statbuf, flags);
+        }
+        return -1;
     }
     
     // Time operation mocks
