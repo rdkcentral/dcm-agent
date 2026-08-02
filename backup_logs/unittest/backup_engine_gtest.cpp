@@ -322,6 +322,32 @@ extern "C" {
         return __real_close(fd);
     }
     
+    DIR* __wrap_fdopendir(int fd) {
+        if (fd == mock_control.open_return && mock_control.open_return > 0) {
+            mock_control.opendir_called = true;
+            return mock_control.opendir_return;
+        }
+        return nullptr;
+    }
+    
+    extern int __real_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
+    int __wrap_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
+        (void)flags;
+        if (dirfd == mock_control.open_return && mock_control.open_return > 0) {
+            mock_control.stat_called = true;
+            if (mock_control.safe_to_copy_paths && pathname != nullptr) {
+                strncpy(mock_control.stat_last_path, pathname, PATH_MAX - 1);
+                mock_control.stat_last_path[PATH_MAX - 1] = '\0';
+            }
+            if (mock_control.stat_return == 0 && statbuf) {
+                memset(statbuf, 0, sizeof(struct stat));
+                statbuf->st_mode = mock_control.stat_mode;
+            }
+            return mock_control.stat_return;
+        }
+        return __real_fstatat(dirfd, pathname, statbuf, flags);
+    }
+    
     // Time operation mocks
     time_t __wrap_time(time_t *tloc) {
         mock_control.time_called = true;
@@ -686,7 +712,8 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipDirectories) {
 }
 
 TEST_F(BackupEngineTest, BackupAndRecoverLogs_OpenDirFails) {
-    mock_control.opendir_return = nullptr; // opendir fails
+    mock_control.opendir_return = nullptr; // fdopendir fails
+    mock_control.safe_to_copy_paths = true;
     
     int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
                                        BACKUP_OP_MOVE, "", "");
