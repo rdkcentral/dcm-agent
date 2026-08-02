@@ -503,8 +503,13 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
             const char* basename = strrchr(line, '/');
             basename = basename ? basename + 1 : line;
 
-            char dest_subdir[MAX_PATH_LENGTH];
-            snprintf(dest_subdir, sizeof(dest_subdir), "%s/%s", ctx->dcm_log_path, basename);
+            char dest_subdir[MAX_PATH_LENGTH + MAX_PATH_LENGTH];
+            int n = snprintf(dest_subdir, sizeof(dest_subdir), "%s/%s", ctx->dcm_log_path, basename);
+            if (n < 0 || (size_t)n >= sizeof(dest_subdir)) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Destination path too long, skipping: %s\n", __FUNCTION__, __LINE__, line);
+                continue;
+            }
             create_directory(dest_subdir);
 
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
