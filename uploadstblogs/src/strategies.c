@@ -499,9 +499,17 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
         if (strlen(line) == 0) continue;
 
         if (dir_exists(line)) {
+            /* cp -R $line $DCM_LOG_PATH copies the directory itself, not just contents */
+            const char* basename = strrchr(line, '/');
+            basename = basename ? basename + 1 : line;
+
+            char dest_subdir[MAX_PATH_LENGTH];
+            snprintf(dest_subdir, sizeof(dest_subdir), "%s/%s", ctx->dcm_log_path, basename);
+            create_directory(dest_subdir);
+
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "[%s:%d] Copying batched logs from %s\n", __FUNCTION__, __LINE__, line);
-            copy_dir_recursive(line, ctx->dcm_log_path);
+                    "[%s:%d] Copying batched logs from %s to %s\n", __FUNCTION__, __LINE__, line, dest_subdir);
+            copy_dir_recursive(line, dest_subdir);
             count++;
         }
     }
