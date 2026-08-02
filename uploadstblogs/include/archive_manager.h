@@ -111,7 +111,7 @@ int create_archive(RuntimeContext* ctx, SessionState* session, const char* sourc
  *
  * Creates tar.gz archive containing DRI logs from DRI_LOG_PATH
  */
-int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
+int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path);
 
 /**
  * @brief Generate archive filename with MAC and timestamp

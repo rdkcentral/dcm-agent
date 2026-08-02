@@ -335,7 +335,7 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
             strcat(file_path, "/");
             strcat(file_path, entry->d_name);
             if (remove(file_path) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove file during log cleanup: %s\n", file_path);
+                RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Failed to remove file during log cleanup: %s\n", file_path);
             }
         }
         closedir(dir);

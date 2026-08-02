@@ -62,7 +62,7 @@ int move_directory_contents(const char* source_dir, const char* dest_dir);
 int clean_directory(const char* dirpath);
 bool rbus_get_bool_param(const char* param_name, bool* value);
 bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, const char* timestamp);
-int create_dri_archive(RuntimeContext* ctx, const char* archive_path);
+int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path);
 void t2_count_notify(char* marker);
 int cleanup_old_log_backups(const char* log_path, int max_age_days);
 
@@ -234,7 +234,10 @@ bool generate_archive_name(char* buffer, size_t buffer_size, const char* type, c
     return false;
 }
 
-int create_dri_archive(RuntimeContext* ctx, const char* archive_path) {
+extern "C" int create_dri_archive(RuntimeContext* ctx, SessionState* session, const char* archive_path) {
+    if (session) {
+        snprintf(session->archive_file, sizeof(session->archive_file), "test_DRI_Logs.tgz");
+    }
     return 0; // Success
 }
 
