@@ -647,11 +647,15 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                 continue;
             }
             target[len] = '\0';
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
             if (write_tar_header(gz, arcname, &st, target) != 0) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
             }
         } else if (S_ISREG(st.st_mode)) {
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
