@@ -28,6 +28,7 @@
 #include "path_handler.h"
 #include "verification.h"
 #include "md5_utils.h"
+#include "rbus_interface.h"
 #include "rdk_debug.h"
 
 // Include the upload library headers
@@ -66,6 +67,11 @@ UploadResult execute_direct_path(RuntimeContext* ctx, SessionState* session)
     char *archive_filepath = session->archive_file;
     
     // Use endpoint_url from TR-181 if available, otherwise fall back to upload_http_link from CLI
+    // Fetch lazily here (not at init) to avoid 15s rbus timeout when provider isn't ready
+    if (strlen(ctx->endpoint_url) == 0) {
+        rbus_get_string_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL",
+                              ctx->endpoint_url, sizeof(ctx->endpoint_url));
+    }
     char *endpoint_url = (strlen(ctx->endpoint_url) > 0) ? 
                           ctx->endpoint_url : 
                           ctx->upload_http_link;
