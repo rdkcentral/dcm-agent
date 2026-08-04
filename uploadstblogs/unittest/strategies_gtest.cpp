@@ -2566,8 +2566,11 @@ TEST_F(DcmStrategyAccessorTest, Setup_UploadFlagFalse_ReturnsError) {
     MockFileOperations mock_ops;
     g_mock_file_ops = &mock_ops;
 
-    // dir_exists returns true for dcm_log_path
     EXPECT_CALL(mock_ops, dir_exists(StrEq("/tmp/dcm_logs")))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, remove_directory(StrEq("/tmp/dcm_logs")))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, create_directory(StrEq("/tmp/dcm_logs")))
         .WillOnce(Return(true));
 
     // fopen for DCMSettings.conf returns a FILE* with upload=false content
