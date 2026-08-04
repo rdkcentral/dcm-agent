@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <cstdlib>
+#include <fcntl.h>
 
 // Mock RDK_LOG before including other headers
 #ifdef GTEST_ENABLE
@@ -172,8 +173,16 @@ protected:
     void CreateTestLogFiles() {
         for (int i = 0; i < 3; i++) {
             std::string path = test_log_dir + "/test" + std::to_string(i) + ".log";
-            FILE* fp = fopen(path.c_str(), "w");
-            if (fp) { fprintf(fp, "log data %d", i); fclose(fp); }
+            int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            if (fd >= 0) {
+                FILE* fp = fdopen(fd, "w");
+                if (fp) {
+                    fprintf(fp, "log data %d", i);
+                    fclose(fp);
+                } else {
+                    close(fd);
+                }
+            }
         }
     }
 
