@@ -1613,6 +1613,10 @@ TEST_F(HelperFunctionsTest, WaitForTelemetryPrevlogsDone_ShortTimeoutInTest) {
     int (*getRebootArchive(void))(RuntimeContext*, SessionState*);
     int (*getRebootUpload(void))(RuntimeContext*, SessionState*);
     int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool);
+    int (*getCopyOptLogsFiles(void))(const char*, const char*);
+    int (*getCopyDirRecursive(void))(const char*, const char*);
+    int (*getCopyAllFilesToDcm(void))(const char*, const char*);
+    int (*getProcessDcmUploadList(void))(RuntimeContext*);
 
 
 // ---- read_dcm_upload_flag tests ----
@@ -2649,6 +2653,560 @@ TEST_F(OndemandStrategyAccessorTest, Upload_Success) {
 
     int result = fnOndemandUpload(&ctx, &session);
     EXPECT_EQ(result, 0);
+}
+
+// ---- File copy / DCM upload list static function tests ----
+
+class FileCopyTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mock_file_ops = nullptr;
+        g_mock_dir_exists = true;
+        g_mock_create_directory_result = true;
+        g_copy_file_should_fail = false;
+
+        snprintf(src_dir_, sizeof(src_dir_), "/tmp/strat_src_%d", getpid());
+        snprintf(dest_dir_, sizeof(dest_dir_), "/tmp/strat_dst_%d", getpid());
+        mkdir(src_dir_, 0755);
+        mkdir(dest_dir_, 0755);
+
+        fnCopyOptLogsFiles = getCopyOptLogsFiles();
+        fnCopyDirRecursive = getCopyDirRecursive();
+        fnCopyAllFilesToDcm = getCopyAllFilesToDcm();
+        fnProcessDcmUploadList = getProcessDcmUploadList();
+    }
+
+    void TearDown() override {
+        g_mock_file_ops = nullptr;
+        g_copy_file_should_fail = false;
+        g_mock_create_directory_result = true;
+        RemoveTree(src_dir_);
+        RemoveTree(dest_dir_);
+    }
+
+    void CreateFileIn(const char* dir, const char* name) {
+        char path[512];
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
+        int fd = open(path, O_CREAT | O_WRONLY, 0644);
+        if (fd >= 0) { write(fd, "data", 4); close(fd); }
+    }
+
+    void MakeSubdir(const char* parent, const char* name, char* out, size_t out_sz) {
+        snprintf(out, out_sz, "%s/%s", parent, name);
+        mkdir(out, 0755);
+    }
+
+    void RemoveTree(const char* path) {
+        DIR* d = opendir(path);
+        if (!d) return;
+        struct dirent* e;
+        char child[512];
+        while ((e = readdir(d)) != NULL) {
+            if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+                continue;
+            snprintf(child, sizeof(child), "%s/%s", path, e->d_name);
+            if (e->d_type == DT_DIR) {
+                RemoveTree(child);
+            } else {
+                unlink(child);
+            }
+        }
+        closedir(d);
+        rmdir(path);
+    }
+
+    char src_dir_[256];
+    char dest_dir_[256];
+    int (*fnCopyOptLogsFiles)(const char*, const char*);
+    int (*fnCopyDirRecursive)(const char*, const char*);
+    int (*fnCopyAllFilesToDcm)(const char*, const char*);
+    int (*fnProcessDcmUploadList)(RuntimeContext*);
+};
+
+// ---- copy_opt_logs_files tests ----
+
+/**
+ * @test copy_opt_logs_files: nonexistent source directory returns -1.
+ * Covers: opendir fails path.
+ */
+TEST_F(FileCopyTest, CopyOptLogs_NonexistentSrc_ReturnsError) {
+    int result = fnCopyOptLogsFiles("/nonexistent_dir_xyz", dest_dir_);
+    EXPECT_EQ(result, -1);
+}
+
+/**
+ * @test copy_opt_logs_files: empty directory returns 0.
+ * Covers: readdir loop with no entries.
+ */
+TEST_F(FileCopyTest, CopyOptLogs_EmptyDir_ReturnsZero) {
+    int result = fnCopyOptLogsFiles(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test copy_opt_logs_files: copies regular files and returns count.
+ * Covers: d_type != DT_DIR → copy_file called.
+ */
+TEST_F(FileCopyTest, CopyOptLogs_CopiesRegularFiles) {
+    CreateFileIn(src_dir_, "test1.log");
+    CreateFileIn(src_dir_, "test2.txt");
+    int result = fnCopyOptLogsFiles(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 2);
+}
+
+/**
+ * @test copy_opt_logs_files: subdirectories are skipped.
+ * Covers: d_type == DT_DIR continue path.
+ */
+TEST_F(FileCopyTest, CopyOptLogs_SkipsSubdirectories) {
+    CreateFileIn(src_dir_, "test.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "subdir", sub, sizeof(sub));
+    int result = fnCopyOptLogsFiles(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_opt_logs_files: failed copy_file is not counted.
+ * Covers: copy_file returns false → count not incremented.
+ */
+TEST_F(FileCopyTest, CopyOptLogs_CopyFails_NotCounted) {
+    CreateFileIn(src_dir_, "test.log");
+    g_copy_file_should_fail = true;
+    int result = fnCopyOptLogsFiles(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 0);
+}
+
+// ---- copy_dir_recursive tests ----
+
+/**
+ * @test copy_dir_recursive: nonexistent source returns -1.
+ * Covers: opendir fails.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_NonexistentSrc_ReturnsError) {
+    int result = fnCopyDirRecursive("/nonexistent_dir_xyz", dest_dir_);
+    EXPECT_EQ(result, -1);
+}
+
+/**
+ * @test copy_dir_recursive: empty directory returns 0.
+ * Covers: readdir loop with no entries.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_EmptyDir_ReturnsZero) {
+    int result = fnCopyDirRecursive(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test copy_dir_recursive: flat files are copied and counted.
+ * Covers: d_type != DT_DIR → copy_file.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_FilesOnly_ReturnsCount) {
+    CreateFileIn(src_dir_, "file1.log");
+    CreateFileIn(src_dir_, "file2.log");
+    int result = fnCopyDirRecursive(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 2);
+}
+
+/**
+ * @test copy_dir_recursive: recurses into subdirectories.
+ * Covers: d_type == DT_DIR → create_directory + recursive call.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_WithSubdirs_Recurses) {
+    CreateFileIn(src_dir_, "top.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "child", sub, sizeof(sub));
+    CreateFileIn(sub, "nested.log");
+    int result = fnCopyDirRecursive(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 2);
+}
+
+/**
+ * @test copy_dir_recursive: create_directory failure skips subdirectory.
+ * Covers: create_directory returns false → continue.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_CreateDirFails_SkipsSubdir) {
+    CreateFileIn(src_dir_, "top.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "child", sub, sizeof(sub));
+    CreateFileIn(sub, "nested.log");
+    g_mock_create_directory_result = false;
+    int result = fnCopyDirRecursive(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_dir_recursive: copy_file failure in subdir not counted.
+ * Covers: copy_file returns false in recursive call.
+ */
+TEST_F(FileCopyTest, CopyDirRecursive_CopyFails_NotCounted) {
+    CreateFileIn(src_dir_, "top.log");
+    g_copy_file_should_fail = true;
+    int result = fnCopyDirRecursive(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 0);
+}
+
+// ---- copy_all_files_to_dcm tests ----
+
+/**
+ * @test copy_all_files_to_dcm: nonexistent source returns -1.
+ * Covers: opendir fails.
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_NonexistentSrc_ReturnsError) {
+    int result = fnCopyAllFilesToDcm("/nonexistent_dir_xyz", dest_dir_);
+    EXPECT_EQ(result, -1);
+}
+
+/**
+ * @test copy_all_files_to_dcm: "dcm" directory is excluded.
+ * Covers: exclude[] match for "dcm".
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_ExcludesDcm) {
+    CreateFileIn(src_dir_, "regular.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "dcm", sub, sizeof(sub));
+    CreateFileIn(sub, "should_skip.log");
+    int result = fnCopyAllFilesToDcm(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_all_files_to_dcm: "PreviousLogs" directory is excluded.
+ * Covers: exclude[] match for "PreviousLogs".
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_ExcludesPreviousLogs) {
+    CreateFileIn(src_dir_, "regular.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "PreviousLogs", sub, sizeof(sub));
+    CreateFileIn(sub, "should_skip.log");
+    int result = fnCopyAllFilesToDcm(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_all_files_to_dcm: "PreviousLogs_backup" directory is excluded.
+ * Covers: exclude[] match for "PreviousLogs_backup".
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_ExcludesPreviousLogsBackup) {
+    CreateFileIn(src_dir_, "regular.log");
+    char sub[512];
+    MakeSubdir(src_dir_, "PreviousLogs_backup", sub, sizeof(sub));
+    CreateFileIn(sub, "should_skip.log");
+    int result = fnCopyAllFilesToDcm(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_all_files_to_dcm: non-excluded subdirectory is copied recursively.
+ * Covers: d_type == DT_DIR without exclude match → create_directory + copy_dir_recursive.
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_CopiesNonExcludedSubdirs) {
+    char sub[512];
+    MakeSubdir(src_dir_, "other_logs", sub, sizeof(sub));
+    CreateFileIn(sub, "file.log");
+    int result = fnCopyAllFilesToDcm(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 1);
+}
+
+/**
+ * @test copy_all_files_to_dcm: empty directory with only excluded entries returns 0.
+ * Covers: all entries skipped by exclude list.
+ */
+TEST_F(FileCopyTest, CopyAllToDcm_OnlyExcluded_ReturnsZero) {
+    char sub[512];
+    MakeSubdir(src_dir_, "dcm", sub, sizeof(sub));
+    MakeSubdir(src_dir_, "PreviousLogs", sub, sizeof(sub));
+    MakeSubdir(src_dir_, "PreviousLogs_backup", sub, sizeof(sub));
+    int result = fnCopyAllFilesToDcm(src_dir_, dest_dir_);
+    EXPECT_EQ(result, 0);
+}
+
+// ---- process_dcm_upload_list tests ----
+
+/**
+ * @test process_dcm_upload_list: no list file returns 0.
+ * Covers: fopen returns NULL → immediate return 0.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_NoFile_ReturnsZero) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strcpy(ctx.log_path, "/tmp/nonexistent_strat_xyz");
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test process_dcm_upload_list: empty list file returns 0.
+ * Covers: fgets returns NULL on empty file → 0 entries processed.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_EmptyFile_ReturnsZero) {
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+}
+
+/**
+ * @test process_dcm_upload_list: entry with non-existent source dir is skipped.
+ * Covers: dir_exists(line) returns false → skip.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_DirNotExists_Skipped) {
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    const char* content = "/tmp/no_such_batch_dir\n";
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq("/tmp/no_such_batch_dir")))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+}
+
+/**
+ * @test process_dcm_upload_list: duplicate dest directory is skipped.
+ * Covers: dir_exists(dest_subdir) returns true → skip.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_DuplicateDest_Skipped) {
+    char batch_dir[256];
+    snprintf(batch_dir, sizeof(batch_dir), "/tmp/strat_batch_%d", getpid());
+    mkdir(batch_dir, 0755);
+
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    char content[512];
+    snprintf(content, sizeof(content), "%s\n", batch_dir);
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    char expected_dest[512];
+    snprintf(expected_dest, sizeof(expected_dest), "%s/%s",
+             dest_dir_, strrchr(batch_dir, '/') + 1);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(batch_dir)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(expected_dest)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    RemoveTree(batch_dir);
+}
+
+/**
+ * @test process_dcm_upload_list: valid entry is processed and count returned.
+ * Covers: dir_exists(source) true, not duplicate, create_directory + copy_dir_recursive.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_ValidEntry_ProcessesAndReturns) {
+    char batch_dir[256];
+    snprintf(batch_dir, sizeof(batch_dir), "/tmp/strat_batch_%d", getpid());
+    mkdir(batch_dir, 0755);
+    CreateFileIn(batch_dir, "batch_file.log");
+
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    char content[512];
+    snprintf(content, sizeof(content), "%s\n", batch_dir);
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    char expected_dest[512];
+    snprintf(expected_dest, sizeof(expected_dest), "%s/%s",
+             dest_dir_, strrchr(batch_dir, '/') + 1);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(batch_dir)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(expected_dest)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, create_directory(StrEq(expected_dest)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 1);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    RemoveTree(batch_dir);
+}
+
+/**
+ * @test process_dcm_upload_list: create_directory failure skips entry.
+ * Covers: create_directory returns false → continue.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_CreateDirFails_Skipped) {
+    char batch_dir[256];
+    snprintf(batch_dir, sizeof(batch_dir), "/tmp/strat_batch_%d", getpid());
+    mkdir(batch_dir, 0755);
+
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    char content[512];
+    snprintf(content, sizeof(content), "%s\n", batch_dir);
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    char expected_dest[512];
+    snprintf(expected_dest, sizeof(expected_dest), "%s/%s",
+             dest_dir_, strrchr(batch_dir, '/') + 1);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(batch_dir)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(expected_dest)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, create_directory(StrEq(expected_dest)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 0);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    RemoveTree(batch_dir);
+}
+
+/**
+ * @test process_dcm_upload_list: blank lines in list are skipped.
+ * Covers: strlen(line) == 0 after trim → continue.
+ */
+TEST_F(FileCopyTest, ProcessDcmUploadList_BlankLines_Skipped) {
+    char batch_dir[256];
+    snprintf(batch_dir, sizeof(batch_dir), "/tmp/strat_batch_%d", getpid());
+    mkdir(batch_dir, 0755);
+    CreateFileIn(batch_dir, "file.log");
+
+    char list_file[512];
+    snprintf(list_file, sizeof(list_file), "%s/dcm_upload", src_dir_);
+    int fd = open(list_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    char content[512];
+    snprintf(content, sizeof(content), "\n\n%s\n\n", batch_dir);
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(list_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+    ASSERT_NE(nullptr, real_fp);
+
+    char expected_dest[512];
+    snprintf(expected_dest, sizeof(expected_dest), "%s/%s",
+             dest_dir_, strrchr(batch_dir, '/') + 1);
+
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("r")))
+        .WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(batch_dir)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(expected_dest)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, create_directory(StrEq(expected_dest)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    strncpy(ctx.log_path, src_dir_, sizeof(ctx.log_path) - 1);
+    strncpy(ctx.dcm_log_path, dest_dir_, sizeof(ctx.dcm_log_path) - 1);
+
+    int result = fnProcessDcmUploadList(&ctx);
+    EXPECT_EQ(result, 1);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    RemoveTree(batch_dir);
 }
 
 // Entry point for the test executable
