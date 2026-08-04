@@ -528,14 +528,12 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
 {
     struct stat st;
     
-    // Open file first with O_NOFOLLOW to prevent symlink attacks (TOCTOU fix)
-    int fd = open(filepath, O_RDONLY | O_NOFOLLOW);
+    // Open file for reading - follow symlinks as log files may be symlinked
+    int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
-        if (errno != ELOOP) {  // ELOOP = symlink detected
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                    "[%s:%d] Failed to open file: %s (errno=%d)\n", 
-                    __FUNCTION__, __LINE__, filepath, errno);
-        }
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                "[%s:%d] Failed to open file: %s (errno=%d)\n", 
+                __FUNCTION__, __LINE__, filepath, errno);
         return -1;
     }
     
