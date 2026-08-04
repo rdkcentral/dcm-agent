@@ -104,6 +104,7 @@ bool copy_file(const char* src, const char* dest) {
 
 // Mock implementations for external functions
 static bool g_mock_dir_exists = true;
+static bool g_mock_create_directory_result = true;
 static int g_mock_add_timestamp_result = 0;
 static int g_mock_collect_pcap_result = 0;
 static int g_mock_create_archive_result = 0;
@@ -456,7 +457,7 @@ extern "C" {
         if (g_mock_file_ops) {
             return g_mock_file_ops->create_directory(dirpath);
         }
-        return true; // Success
+        return g_mock_create_directory_result;
     }
     
     bool remove_directory(const char* dirpath) {
@@ -1960,6 +1961,7 @@ protected:
     void SetUp() override {
         g_mock_file_ops = nullptr;
         g_mock_dir_exists = true;
+        g_mock_create_directory_result = true;
         g_mock_add_timestamp_result = 0;
         g_mock_collect_pcap_result = 0;
         g_mock_create_archive_result = 0;
@@ -2017,6 +2019,7 @@ TEST_F(DcmStrategyAccessorTest, Setup_NullCtx_ReturnsError) {
  */
 TEST_F(DcmStrategyAccessorTest, Setup_DirNotExists_ReturnsError) {
     g_mock_dir_exists = false;
+    g_mock_create_directory_result = false;
     int result = fnDcmSetup(&ctx, &session);
     EXPECT_EQ(result, -1);
 }
@@ -2470,6 +2473,179 @@ TEST_F(RebootStrategyAccessorTest, Upload_WithPcap_ClearsCalled) {
     int result = fnRebootUpload(&ctx, &session);
     EXPECT_EQ(result, 0);
     EXPECT_EQ(g_clear_packet_captures_call_count, 1);
+}
+
+/**
+ * @test reboot_upload via accessor: DCM mode with upload_on_reboot=1 uploads.
+ * Covers: dcm_flag == 1 && upload_on_reboot == 1 → should_upload = true.
+ */
+TEST_F(RebootStrategyAccessorTest, Upload_DcmMode_UploadOnRebootEnabled) {
+    ctx.dcm_flag = 1;
+    ctx.upload_on_reboot = 1;
+    int result = fnRebootUpload(&ctx, &session);
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(g_upload_archive_call_count, 1);
+}
+
+/**
+ * @test reboot_upload via accessor: DCM mode with upload_on_reboot=0 and unscheduled reboot.
+ * Covers: dcm_flag==1, upload_on_reboot==0, reboot_reason file missing → unscheduled → uploads.
+ */
+TEST_F(RebootStrategyAccessorTest, Upload_DcmMode_UnscheduledReboot_Uploads) {
+    ctx.dcm_flag = 1;
+    ctx.upload_on_reboot = 0;
+    // No reboot reason file → is_scheduled_reboot=false, RFC disable=false → should_upload=true
+    int result = fnRebootUpload(&ctx, &session);
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(g_upload_archive_call_count, 1);
+}
+
+/**
+ * @test reboot_upload via accessor: DRI logs uploaded when include_dri and path exists.
+ * Covers: include_dri==true && dir_exists(dri_log_path) → create_dri_archive + upload.
+ */
+TEST_F(RebootStrategyAccessorTest, Upload_DriLogs_Uploaded) {
+    ctx.dcm_flag = 0;
+    ctx.include_dri = true;
+    strcpy(ctx.dri_log_path, "/opt/logs/dri");
+    g_mock_dir_exists = true;
+
+    int result = fnRebootUpload(&ctx, &session);
+    EXPECT_EQ(result, 0);
+    // Main upload + DRI upload
+    EXPECT_GE(g_upload_archive_call_count, 1);
+}
+
+/**
+ * @test reboot_upload via accessor: PCAP not cleared when include_pcap is false.
+ * Covers: include_pcap == false → clear_old_packet_captures skipped.
+ */
+TEST_F(RebootStrategyAccessorTest, Upload_NoPcap_SkipsClear) {
+    ctx.dcm_flag = 0;
+    ctx.include_pcap = false;
+    int result = fnRebootUpload(&ctx, &session);
+    EXPECT_EQ(result, 0);
+    EXPECT_EQ(g_clear_packet_captures_call_count, 0);
+}
+
+/**
+ * @test reboot_cleanup via accessor: successful cleanup creates backup and cleans prev_log_path.
+ * Covers: remove_timestamp, create_directory(perm_log_path), move_directory_contents, clean_directory.
+ */
+TEST_F(RebootStrategyAccessorTest, Cleanup_Success) {
+    // Run setup first to populate perm_log_path_storage
+    g_mock_dir_exists = true;
+    fnRebootSetup(&ctx, &session);
+
+    int result = fnRebootCleanup(&ctx, &session, true);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test reboot_cleanup via accessor: dcm_flag=1, upload_on_reboot=0 writes to dcm_upload list.
+ * Covers: ctx->dcm_flag==1 && ctx->upload_on_reboot==0 → fopen dcm_upload_list.
+ */
+TEST_F(RebootStrategyAccessorTest, Cleanup_DcmMode_NoUpload_WritesToDcmList) {
+    ctx.dcm_flag = 1;
+    ctx.upload_on_reboot = 0;
+
+    // Run setup first to populate perm_log_path_storage
+    g_mock_dir_exists = true;
+    fnRebootSetup(&ctx, &session);
+
+    int result = fnRebootCleanup(&ctx, &session, false);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test dcm_setup via accessor: read_dcm_upload_flag returns false → returns -1.
+ * Covers: DCMSettings.conf has upload=false → early return -1.
+ */
+TEST_F(DcmStrategyAccessorTest, Setup_UploadFlagFalse_ReturnsError) {
+    // Create a DCMSettings.conf with upload=false
+    MockFileOperations mock_ops;
+    g_mock_file_ops = &mock_ops;
+
+    // dir_exists returns true for dcm_log_path
+    EXPECT_CALL(mock_ops, dir_exists(StrEq("/tmp/dcm_logs")))
+        .WillOnce(Return(true));
+
+    // fopen for DCMSettings.conf returns a FILE* with upload=false content
+    char temp_file[64];
+    snprintf(temp_file, sizeof(temp_file), "/tmp/dcm_settings_test_%d", getpid());
+    int fd = open(temp_file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    const char* content = "urn:settings:LogUploadSettings:upload=false\n";
+    write(fd, content, strlen(content));
+    close(fd);
+    fd = open(temp_file, O_RDONLY);
+    FILE* real_fp = fdopen(fd, "r");
+
+    EXPECT_CALL(mock_ops, fopen(_, _)).WillOnce(Return(real_fp));
+    EXPECT_CALL(mock_ops, fclose(_)).WillOnce(Return(0));
+
+    int result = fnDcmSetup(&ctx, &session);
+    EXPECT_EQ(result, -1);
+
+    g_mock_file_ops = nullptr;
+    fclose(real_fp);
+    unlink(temp_file);
+}
+
+/**
+ * @test ondemand_setup via accessor: temp directory already exists gets cleaned.
+ * Covers: dir_exists(ONDEMAND_TEMP_DIR)==true → remove_directory called before create.
+ */
+TEST_F(OndemandStrategyAccessorTest, Setup_TempDirExists_CleansFirst) {
+    InSequence seq;
+    EXPECT_CALL(mock_ops, dir_exists(StrEq("/opt/logs")))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, has_log_files(StrEq("/opt/logs")))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, remove_directory(StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, create_directory(StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mock_ops, collect_logs(&ctx, &session, StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(3));
+    EXPECT_CALL(mock_ops, fopen(_, StrEq("a")))
+        .WillOnce(Return(reinterpret_cast<FILE*>(0x123)));
+    EXPECT_CALL(mock_ops, fprintf(_, _, _))
+        .WillOnce(Return(10));
+    EXPECT_CALL(mock_ops, fclose(_))
+        .WillOnce(Return(0));
+    EXPECT_CALL(mock_ops, file_exists(_))
+        .WillOnce(Return(false));
+
+    int result = fnOndemandSetup(&ctx, &session);
+    EXPECT_EQ(0, result);
+}
+
+/**
+ * @test ondemand_cleanup via accessor: temp dir does not exist → success without removal.
+ * Covers: dir_exists(ONDEMAND_TEMP_DIR) returns false → skip removal.
+ */
+TEST_F(OndemandStrategyAccessorTest, Cleanup_TempDirNotExists_Succeeds) {
+    EXPECT_CALL(mock_ops, file_exists(_))
+        .WillOnce(Return(false));
+    EXPECT_CALL(mock_ops, dir_exists(StrEq(ONDEMAND_TEMP_DIR)))
+        .WillOnce(Return(false));
+
+    int result = fnOndemandCleanup(&ctx, &session, true);
+    EXPECT_EQ(result, 0);
+}
+
+/**
+ * @test ondemand_upload via accessor: upload success returns 0.
+ * Covers: upload_archive returns 0 → return 0.
+ */
+TEST_F(OndemandStrategyAccessorTest, Upload_Success) {
+    EXPECT_CALL(mock_ops, upload_archive(&ctx, &session, _))
+        .WillOnce(Return(0));
+
+    int result = fnOndemandUpload(&ctx, &session);
+    EXPECT_EQ(result, 0);
 }
 
 // Entry point for the test executable
