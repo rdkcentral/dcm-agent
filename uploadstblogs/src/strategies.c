@@ -419,8 +419,11 @@ static int copy_dir_recursive(const char* src_dir, const char* dest_dir)
         snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
 
         if (entry->d_type == DT_DIR) {
-            create_directory(dest_path);
-            count += copy_dir_recursive(src_path, dest_path);
+            if (!create_directory(dest_path)) {
+                continue;
+            }
+            int ret = copy_dir_recursive(src_path, dest_path);
+            if (ret > 0) count += ret;
         } else {
             if (copy_file(src_path, dest_path))
                 count++;
@@ -466,8 +469,11 @@ static int copy_all_files_to_dcm(const char* src_dir, const char* dest_dir)
         snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
 
         if (entry->d_type == DT_DIR) {
-            create_directory(dest_path);
-            count += copy_dir_recursive(src_path, dest_path);
+            if (!create_directory(dest_path)) {
+                continue;
+            }
+            int ret = copy_dir_recursive(src_path, dest_path);
+            if (ret > 0) count += ret;
         } else {
             if (copy_file(src_path, dest_path))
                 count++;
@@ -515,7 +521,9 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
             if (dir_exists(dest_subdir)) {
                 continue;
             }
-            create_directory(dest_subdir);
+            if (!create_directory(dest_subdir)) {
+                continue;
+            }
 
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "[%s:%d] Copying batched logs from %s to %s\n", __FUNCTION__, __LINE__, line, dest_subdir);
@@ -526,8 +534,8 @@ static int process_dcm_upload_list(RuntimeContext* ctx)
     fclose(fp);
 
     // Always clear the upload list after reading (script: cat /dev/null > $DCM_UPLOAD_LIST)
-    fp = fopen(list_path, "w");
-    if (fp) fclose(fp);
+    int fd = open(list_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd >= 0) close(fd);
 
     if (count > 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
@@ -647,7 +655,6 @@ static int dcm_archive(RuntimeContext* ctx, SessionState* session)
                 "[%s:%d] Failed to create archive\n", __FUNCTION__, __LINE__);
         return -1;
     }
-	
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] DCM: Archive phase complete\n", __FUNCTION__, __LINE__);
 
