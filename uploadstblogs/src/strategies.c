@@ -1598,5 +1598,4 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
             __FUNCTION__, __LINE__, perm_log_path);
 
     return 0;
-
 }
