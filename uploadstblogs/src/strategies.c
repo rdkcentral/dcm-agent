@@ -44,6 +44,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/inotify.h>
+#include <dirent.h>
 #include <curl/curl.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
@@ -1600,6 +1601,7 @@ static int reboot_cleanup(RuntimeContext* ctx, SessionState* session, bool uploa
     return 0;
 }
 
+
 #ifdef GTEST_ENABLE
 int (*getGetJsonRpc(void))(char *, DownloadData *)
 {
@@ -1669,5 +1671,25 @@ int (*getRebootUpload(void))(RuntimeContext*, SessionState*)
 int (*getRebootCleanup(void))(RuntimeContext*, SessionState*, bool)
 {
     return &reboot_cleanup;
+}
+
+int (*getCopyOptLogsFiles(void))(const char*, const char*)
+{
+    return &copy_opt_logs_files;
+}
+
+int (*getCopyDirRecursive(void))(const char*, const char*)
+{
+    return &copy_dir_recursive;
+}
+
+int (*getCopyAllFilesToDcm(void))(const char*, const char*)
+{
+    return &copy_all_files_to_dcm;
+}
+
+int (*getProcessDcmUploadList(void))(RuntimeContext*)
+{
+    return &process_dcm_upload_list;
 }
 #endif
