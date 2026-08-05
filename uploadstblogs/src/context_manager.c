@@ -165,9 +165,10 @@ bool init_context(RuntimeContext* ctx)
     rdk_logger_ext_config_t config = {
         .pModuleName = "LOG.RDK.UPLOADSTB",     /* Module name */
         .loglevel = RDK_LOG_INFO,                 /* Default log level */
-        .output = RDKLOG_OUTPUT_FILE,
+        .output = RDKLOG_OUTPUT_CONSOLE,
         .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
-        .pFilePolicy =  &filelog                  /* using file output */
+        .pFilePolicy = NULL
+        //.pFilePolicy =  &filelog                  /* using file output */
     };
     
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
