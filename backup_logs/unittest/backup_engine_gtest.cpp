@@ -428,6 +428,7 @@ void setup_mock_directory_entries(const char* names[], int count) {
     for (int i = 0; i < count && i < 10; i++) {
         memset(&mock_control.mock_entries[i], 0, sizeof(struct dirent));
         strncpy(mock_control.mock_entries[i].d_name, names[i], sizeof(mock_control.mock_entries[i].d_name) - 1);
+        mock_control.mock_entries[i].d_type = DT_REG;
     }
 }
 
@@ -641,8 +642,6 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveOperation) {
     setup_mock_directory_entries(mock_files, 2);
     
     mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.stat_return = 0; // stat succeeds
-    mock_control.stat_mode = S_IFREG; // Regular file
     mock_control.copyFiles_return = 0; // Copy succeeds
     mock_control.remove_return = 0; // Remove succeeds
     mock_control.safe_to_copy_paths = true;
@@ -652,7 +651,6 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveOperation) {
     
     EXPECT_EQ(result, BACKUP_SUCCESS);
     EXPECT_TRUE(mock_control.opendir_called);
-    EXPECT_TRUE(mock_control.stat_called);
     EXPECT_TRUE(mock_control.copyFiles_called);
     EXPECT_TRUE(mock_control.remove_called);
 }
@@ -662,8 +660,6 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_CopyOperation) {
     setup_mock_directory_entries(mock_files, 1);
     
     mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.stat_return = 0;
-    mock_control.stat_mode = S_IFREG;
     mock_control.copyFiles_return = 0;
     mock_control.safe_to_copy_paths = true;
     
@@ -680,8 +676,6 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_WithPrefixes) {
     setup_mock_directory_entries(mock_files, 3);
     
     mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.stat_return = 0;
-    mock_control.stat_mode = S_IFREG;
     mock_control.copyFiles_return = 0;
     mock_control.safe_to_copy_paths = true;
     
@@ -695,16 +689,9 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_WithPrefixes) {
 TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipDirectories) {
     const char* mock_files[] = {"messages.txt", "subdir"};
     setup_mock_directory_entries(mock_files, 2);
+    mock_control.mock_entries[1].d_type = DT_DIR;
     
     mock_control.opendir_return = (DIR*)0x12345678;
-    
-    // First stat call returns regular file, second returns directory
-    static int stat_call_count = 0;
-    stat_call_count = 0;
-    mock_control.stat_return = 0;
-    // Need to set up different modes for different files - this is simplified
-    mock_control.stat_mode = S_IFREG; // Will be regular file for first call
-    
     mock_control.copyFiles_return = 0;
     mock_control.safe_to_copy_paths = true;
     
@@ -715,7 +702,7 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipDirectories) {
 }
 
 TEST_F(BackupEngineTest, BackupAndRecoverLogs_OpenDirFails) {
-    mock_control.opendir_return = nullptr; // fdopendir fails
+    mock_control.opendir_return = nullptr; // opendir fails
     mock_control.safe_to_copy_paths = true;
     
     int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
