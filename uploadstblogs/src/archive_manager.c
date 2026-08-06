@@ -583,14 +583,19 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
     return 0;
 }
 
-
 /**
  * @brief Recursively add directory to TAR archive
  */
 static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base_path, const char* exclude_file)
 {
-    DIR* dir = opendir(dirpath);
+    int dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
+    if (dirfd < 0) {
+        return -1;
+    }
+
+    DIR* dir = fdopendir(dirfd);
     if (!dir) {
+        close(dirfd);
         return -1;
     }
     
@@ -611,7 +616,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         struct stat st;
-        if (stat(fullpath, &st) != 0) {
+        if (fstatat(dirfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
             continue;
         }
         
@@ -622,13 +627,28 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         if (S_ISDIR(st.st_mode)) {
-            // Recursively process subdirectory
             if (add_directory_to_tar(gz, fullpath, base_path, exclude_file) != 0) {
                 closedir(dir);
                 return -1;
             }
+        } else if (S_ISLNK(st.st_mode)) {
+            char target[PATH_MAX];
+            ssize_t len = readlinkat(dirfd, entry->d_name, target, sizeof(target) - 1);
+            if (len < 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+                continue;
+            }
+            target[len] = '\0';
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
+            if (write_tar_header(gz, arcname, &st, target) != 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+            }
         } else if (S_ISREG(st.st_mode)) {
-            // Add file
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
