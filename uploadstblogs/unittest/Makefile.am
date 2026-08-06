@@ -2,7 +2,7 @@
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
 #
-# Copyright 2026 RDK Management
+# Copyright 2025 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,186 +20,130 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
 # Define the test executables
-bin_PROGRAMS = special_files_gtest config_manager_gtest sys_integration_gtest backup_logs_gtest backup_engine_gtest
+bin_PROGRAMS = context_manager_gtest md5_utils_gtest validation_gtest strategy_selector_gtest \
+               path_handler_gtest archive_manager_gtest upload_engine_gtest \
+               cleanup_handler_gtest verification_gtest \
+               rbus_interface_gtest uploadstblogs_gtest event_manager_gtest \
+               retry_logic_gtest strategies_gtest \
+               strategy_handler_gtest uploadlogsnow_gtest
 
 # Common include directories
-COMMON_CPPFLAGS = -I../include -I../../include -I../../../include -I/usr/include/cjson \
-                  -I/usr/include -I/usr/include/gtest -I/usr/local/include \
-                  -I/usr/local/include/gtest -DGTEST_ENABLE
+COMMON_CPPFLAGS = -std=c++11 -I. -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks \
+                  -I../src -I$(top_srcdir)/include -I$(top_srcdir)/../common_utilities/utils \
+                  -I$(top_srcdir)/../common_utilities/parsejson -I$(top_srcdir)/../common_utilities/dwnlutils \
+                  -I$(top_srcdir)/../common_utilities/uploadutil \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmbus \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs/sysmgr \
+                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rdk/iarmmgrs-hal \
+                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE -DGTEST_BASIC -DEN_MAINTENANCE_MANAGER -DIARM_ENABLED
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I../include -I../../include -I/usr/include 
-AM_CXXFLAGS = -std=c++14
+AM_CPPFLAGS = -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_srcdir)/mocks -I$(top_srcdir) -I/usr/include 
+AM_CXXFLAGS = -std=c++11
 
 # Common libraries
-COMMON_LDADD = -lgtest -lgmock -lpthread -lgcov
+COMMON_LDADD = -lgtest -lgmock -lpthread -lcurl -lcjson -lssl -lcrypto -lgcov -lz -lrbus -lsecure_wrapper \
+               -lfwutils -lrdkloggers
 
 # Common compiler flags
-COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result
+COMMON_CXXFLAGS = -frtti -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings -Wno-unused-result -Wno-error -Wno-format-truncation
 
 # Define source files for each test
-special_files_gtest_SOURCES = special_files_gtest.cpp
 
-special_files_gtest_LDADD = $(COMMON_LDADD)
-special_files_gtest_LDFLAGS = -Wl,--wrap=fopen -Wl,--wrap=fgets -Wl,--wrap=fclose -Wl,--wrap=remove
-special_files_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-special_files_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-special_files_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
-                               -DRDK_LOG_FATAL=0 \
-                               -DRDK_LOG_ERROR=1 \
-                               -DRDK_LOG_WARN=2 \
-                               -DRDK_LOG_NOTICE=3 \
-                               -DRDK_LOG_INFO=4 \
-                               -DRDK_LOG_DEBUG=5 \
-                               -DRDK_LOG_TRACE1=6 \
-                               -DRDK_LOG_TRACE2=7 \
-                               -DRDK_LOG_TRACE3=8 \
-                               -DRDK_LOG_TRACE4=9 \
-                               -DRDK_LOG_TRACE5=10 \
-                               -DRDK_LOG_TRACE6=11 \
-                               -DRDK_LOG_TRACE7=12 \
-                               -DRDK_LOG_TRACE8=13 \
-                               -DRDK_LOG_TRACE9=14 \
-                               -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
-                               -DUTILS_SUCCESS=0
+context_manager_gtest_SOURCES = context_manager_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp ./mocks/mock_file_operations.cpp
+context_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+context_manager_gtest_LDADD = $(COMMON_LDADD)
+context_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+context_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-# Config manager test configuration
-config_manager_gtest_SOURCES = config_manager_gtest.cpp ../src/config_manager.c
+md5_utils_gtest_SOURCES = md5_utils_gtest.cpp
+md5_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+md5_utils_gtest_LDADD = $(COMMON_LDADD)
+md5_utils_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+md5_utils_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-config_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
-                               -DRDK_LOG_FATAL=0 \
-                               -DRDK_LOG_ERROR=1 \
-                               -DRDK_LOG_WARN=2 \
-                               -DRDK_LOG_NOTICE=3 \
-                               -DRDK_LOG_INFO=4 \
-                               -DRDK_LOG_DEBUG=5 \
-                               -DRDK_LOG_TRACE1=6 \
-                               -DRDK_LOG_TRACE2=7 \
-                               -DRDK_LOG_TRACE3=8 \
-                               -DRDK_LOG_TRACE4=9 \
-                               -DRDK_LOG_TRACE5=10 \
-                               -DRDK_LOG_TRACE6=11 \
-                               -DRDK_LOG_TRACE7=12 \
-                               -DRDK_LOG_TRACE8=13 \
-                               -DRDK_LOG_TRACE9=14 \
-                               -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
-                               -DUTILS_SUCCESS=0
-config_manager_gtest_LDADD = $(COMMON_LDADD) 
-config_manager_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
-                              -Wl,--wrap=getIncludePropertyData \
-                              -Wl,--wrap=getDevicePropertyData
-config_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-config_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+validation_gtest_SOURCES = validation_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_file_operations.cpp
+validation_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+validation_gtest_LDADD = $(COMMON_LDADD)
+validation_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+validation_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-# System integration test configuration
-sys_integration_gtest_SOURCES = sys_integration_gtest.cpp ../src/sys_integration.c
+strategy_selector_gtest_SOURCES = strategy_selector_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_file_operations.cpp
+strategy_selector_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategy_selector_gtest_LDADD = $(COMMON_LDADD)
+strategy_selector_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategy_selector_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-sys_integration_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
-                               -DRDK_LOG_FATAL=0 \
-                               -DRDK_LOG_ERROR=1 \
-                               -DRDK_LOG_WARN=2 \
-                               -DRDK_LOG_NOTICE=3 \
-                               -DRDK_LOG_INFO=4 \
-                               -DRDK_LOG_DEBUG=5 \
-                               -DRDK_LOG_TRACE1=6 \
-                               -DRDK_LOG_TRACE2=7 \
-                               -DRDK_LOG_TRACE3=8 \
-                               -DRDK_LOG_TRACE4=9 \
-                               -DRDK_LOG_TRACE5=10 \
-                               -DRDK_LOG_TRACE6=11 \
-                               -DRDK_LOG_TRACE7=12 \
-                               -DRDK_LOG_TRACE8=13 \
-                               -DRDK_LOG_TRACE9=14 \
-                               -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\"
-sys_integration_gtest_LDADD = $(COMMON_LDADD) 
-sys_integration_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
-                              -Wl,--wrap=sd_notify
-sys_integration_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-sys_integration_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+path_handler_gtest_SOURCES = path_handler_gtest.cpp ./mocks/mock_curl.cpp
+path_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+path_handler_gtest_LDADD = $(COMMON_LDADD)
+path_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+path_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-# Backup logs test configuration
-backup_logs_gtest_SOURCES = backup_logs_gtest.cpp ../src/backup_logs.c
+archive_manager_gtest_SOURCES = archive_manager_gtest.cpp ./mocks/mock_file_operations.cpp
+archive_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+archive_manager_gtest_LDADD = $(COMMON_LDADD)
+archive_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+archive_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-backup_logs_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
-                            -DRDK_LOG_FATAL=0 \
-                            -DRDK_LOG_ERROR=1 \
-                            -DRDK_LOG_WARN=2 \
-                            -DRDK_LOG_NOTICE=3 \
-                            -DRDK_LOG_INFO=4 \
-                            -DRDK_LOG_DEBUG=5 \
-                            -DRDK_LOG_TRACE1=6 \
-                            -DRDK_LOG_TRACE2=7 \
-                            -DRDK_LOG_TRACE3=8 \
-                            -DRDK_LOG_TRACE4=9 \
-                            -DRDK_LOG_TRACE5=10 \
-                            -DRDK_LOG_TRACE6=11 \
-                            -DRDK_LOG_TRACE7=12 \
-                            -DRDK_LOG_TRACE8=13 \
-                            -DRDK_LOG_TRACE9=14 \
-                            -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
-                            -DUTILS_SUCCESS=0
-backup_logs_gtest_LDADD = $(COMMON_LDADD) 
-backup_logs_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
-                           -Wl,--wrap=config_load \
-                           -Wl,--wrap=createDir \
-                           -Wl,--wrap=emptyFolder \
-                           -Wl,--wrap=filePresentCheck \
-                           -Wl,--wrap=removeFile \
-                           -Wl,--wrap=v_secure_system \
-                           -Wl,--wrap=backup_execute_hdd_enabled_strategy \
-                           -Wl,--wrap=backup_execute_hdd_disabled_strategy \
-                           -Wl,--wrap=backup_execute_common_operations \
-                           -Wl,--wrap=special_files_cleanup \
-                           -Wl,--wrap=rdk_logger_init \
-                           -Wl,--wrap=fopen \
-                           -Wl,--wrap=fclose
-backup_logs_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-backup_logs_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+upload_engine_gtest_SOURCES = upload_engine_gtest.cpp ./mocks/mock_curl.cpp
+upload_engine_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+upload_engine_gtest_LDADD = $(COMMON_LDADD)
+upload_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+upload_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-# Backup engine test configuration
-backup_engine_gtest_SOURCES = backup_engine_gtest.cpp ../src/backup_engine.c
+cleanup_handler_gtest_SOURCES = cleanup_handler_gtest.cpp ./mocks/mock_file_operations.cpp
+cleanup_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+cleanup_handler_gtest_LDADD = $(COMMON_LDADD)
+cleanup_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+cleanup_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
-backup_engine_gtest_CPPFLAGS = $(COMMON_CPPFLAGS) \
-                              -DRDK_LOG_FATAL=0 \
-                              -DRDK_LOG_ERROR=1 \
-                              -DRDK_LOG_WARN=2 \
-                              -DRDK_LOG_NOTICE=3 \
-                              -DRDK_LOG_INFO=4 \
-                              -DRDK_LOG_DEBUG=5 \
-                              -DRDK_LOG_TRACE1=6 \
-                              -DRDK_LOG_TRACE2=7 \
-                              -DRDK_LOG_TRACE3=8 \
-                              -DRDK_LOG_TRACE4=9 \
-                              -DRDK_LOG_TRACE5=10 \
-                              -DRDK_LOG_TRACE6=11 \
-                              -DRDK_LOG_TRACE7=12 \
-                              -DRDK_LOG_TRACE8=13 \
-                              -DRDK_LOG_TRACE9=14 \
-                              -DLOG_BACKUP_LOGS=\"LOG.RDK.BACKUPLOGS\" \
-                              -DUTILS_SUCCESS=1
-backup_engine_gtest_LDADD = $(COMMON_LDADD) 
-backup_engine_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
-                             -Wl,--wrap=opendir \
-                             -Wl,--wrap=readdir \
-                             -Wl,--wrap=closedir \
-                             -Wl,--wrap=fdopendir \
-                             -Wl,--wrap=fstatat \
-                             -Wl,--wrap=filePresentCheck \
-                             -Wl,--wrap=createDir \
-                             -Wl,--wrap=copyFiles \
-                             -Wl,--wrap=remove \
-                             -Wl,--wrap=fopen \
-                             -Wl,--wrap=fclose \
-                             -Wl,--wrap=stat \
-                             -Wl,--wrap=open \
-                             -Wl,--wrap=fstat \
-                             -Wl,--wrap=close \
-                             -Wl,--wrap=time \
-                             -Wl,--wrap=localtime \
-                             -Wl,--wrap=strftime \
-                             -Wl,--wrap=special_files_init \
-                             -Wl,--wrap=special_files_load_config \
-                             -Wl,--wrap=special_files_execute_all \
-                             -Wl,--wrap=special_files_cleanup \
-                             -Wl,--wrap=sys_send_systemd_notification
-backup_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+verification_gtest_SOURCES = verification_gtest.cpp
+verification_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+verification_gtest_LDADD = $(COMMON_LDADD)
+verification_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+verification_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+rbus_interface_gtest_SOURCES = rbus_interface_gtest.cpp ./mocks/mock_rbus.cpp
+rbus_interface_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+rbus_interface_gtest_LDADD = $(COMMON_LDADD)
+rbus_interface_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+rbus_interface_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+uploadstblogs_gtest_SOURCES = uploadstblogs_gtest.cpp ./mocks/mock_rdk_utils.cpp ./mocks/mock_rbus.cpp ./mocks/mock_curl.cpp
+uploadstblogs_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+uploadstblogs_gtest_LDADD = $(COMMON_LDADD)
+uploadstblogs_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+uploadstblogs_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+event_manager_gtest_SOURCES = event_manager_gtest.cpp
+event_manager_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+event_manager_gtest_LDADD = $(COMMON_LDADD)
+event_manager_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+event_manager_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+retry_logic_gtest_SOURCES = retry_logic_gtest.cpp
+retry_logic_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+retry_logic_gtest_LDADD = $(COMMON_LDADD)
+retry_logic_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+retry_logic_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+strategies_gtest_SOURCES = strategies_gtest.cpp
+strategies_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategies_gtest_LDADD = $(COMMON_LDADD)
+strategies_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategies_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+strategy_handler_gtest_SOURCES = strategy_handler_gtest.cpp
+strategy_handler_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+strategy_handler_gtest_LDADD = $(COMMON_LDADD)
+strategy_handler_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+strategy_handler_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+uploadlogsnow_gtest_SOURCES = uploadlogsnow_gtest.cpp ../src/uploadlogsnow.c
+uploadlogsnow_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+uploadlogsnow_gtest_LDADD = $(COMMON_LDADD)
+uploadlogsnow_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+uploadlogsnow_gtest_CFLAGS = $(COMMON_CXXFLAGS)
