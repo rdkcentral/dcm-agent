@@ -386,9 +386,6 @@ struct tar_header {
 static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
                                        const char* source_dir, const char* output_dir,
                                        const char* prefix);
-static bool generate_archive_name_at(char* buffer, size_t buffer_size,
-                                     const char* mac_address, const char* prefix,
-                                     time_t ref_time);
 
 /**
  * @brief Generate archive filename with MAC and timestamp (script format)
@@ -418,20 +415,16 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
         return false;
     }
 
-    return generate_archive_name_at(buffer, buffer_size, mac_address, prefix, time(NULL));
-}
+    time_t now = time(NULL);
 
-static bool generate_archive_name_at(char* buffer, size_t buffer_size,
-                                     const char* mac_address, const char* prefix,
-                                     time_t ref_time)
-{
     struct tm tm_utc;
-    if (gmtime_r(&ref_time, &tm_utc) == NULL) {
+    if (gmtime_r(&now, &tm_utc) == NULL) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
         return false;
     }
 
     char timestamp[32];
+    // Format UTC timestamp as MM-DD-YY-HH-MMAM/PM.
     if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
@@ -590,19 +583,14 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
     return 0;
 }
 
+
 /**
  * @brief Recursively add directory to TAR archive
  */
 static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base_path, const char* exclude_file)
 {
-    int dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
-    if (dirfd < 0) {
-        return -1;
-    }
-
-    DIR* dir = fdopendir(dirfd);
+    DIR* dir = opendir(dirpath);
     if (!dir) {
-        close(dirfd);
         return -1;
     }
     
@@ -623,7 +611,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         struct stat st;
-        if (fstatat(dirfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+        if (stat(fullpath, &st) != 0) {
             continue;
         }
         
@@ -634,28 +622,13 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         if (S_ISDIR(st.st_mode)) {
+            // Recursively process subdirectory
             if (add_directory_to_tar(gz, fullpath, base_path, exclude_file) != 0) {
                 closedir(dir);
                 return -1;
             }
-        } else if (S_ISLNK(st.st_mode)) {
-            char target[PATH_MAX];
-            ssize_t len = readlinkat(dirfd, entry->d_name, target, sizeof(target) - 1);
-            if (len < 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
-                continue;
-            }
-            target[len] = '\0';
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "Processing file...%s\n", arcname);
-            if (write_tar_header(gz, arcname, &st, target) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
-            }
         } else if (S_ISREG(st.st_mode)) {
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "Processing file...%s\n", arcname);
+            // Add file
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
@@ -728,9 +701,8 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
-    time_t ref_time = (ctx->archive_ref_time != 0) ? ctx->archive_ref_time : time(NULL);
-    if (!generate_archive_name_at(archive_filename, sizeof(archive_filename),
-                                   ctx->mac_address, prefix, ref_time)) {
+    if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
+                               ctx->mac_address, prefix)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
