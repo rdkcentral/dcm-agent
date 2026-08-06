@@ -155,7 +155,7 @@ extern "C" {
         } else {
             strcpy(mock_control.opendir_last_path, "<mock_called>");
         }
-        return mock_control.opendir_return;
+        return const_cast<DIR*>(mock_control.opendir_return);
     }
     
     struct dirent* __wrap_readdir(DIR *dirp) {
@@ -321,11 +321,54 @@ extern "C" {
         }
         return __real_close(fd);
     }
-    
+
+    /* glibc may redirect open() to __open, __open_2, or open64 depending on
+     * _FORTIFY_SOURCE / _FILE_OFFSET_BITS.  Wrap every variant so the mock
+     * intercepts regardless of which symbol the compiler emits. */
+    static int _mock_open_intercept(const char *pathname) {
+        mock_control.open_called = true;
+        mock_control.stat_called = true;
+        if (mock_control.safe_to_copy_paths && pathname != nullptr) {
+            strncpy(mock_control.stat_last_path, pathname, PATH_MAX - 1);
+            mock_control.stat_last_path[PATH_MAX - 1] = '\0';
+        }
+        return mock_control.open_return;
+    }
+
+    int __wrap_open64(const char *pathname, int flags, ...) {
+        if (pathname && strstr(pathname, ".gcda")) return __real_open(pathname, flags);
+        if (mock_control.open_return > 0) return _mock_open_intercept(pathname);
+        return __real_open(pathname, flags);
+    }
+
+    int __wrap___open(const char *pathname, int flags, ...) {
+        if (pathname && strstr(pathname, ".gcda")) return __real_open(pathname, flags);
+        if (mock_control.open_return > 0) return _mock_open_intercept(pathname);
+        return __real_open(pathname, flags);
+    }
+
+    int __wrap___open_2(const char *pathname, int flags) {
+        if (pathname && strstr(pathname, ".gcda")) return __real_open(pathname, flags);
+        if (mock_control.open_return > 0) return _mock_open_intercept(pathname);
+        return __real_open(pathname, flags);
+    }
+
+    int __wrap___open64_2(const char *pathname, int flags) {
+        if (pathname && strstr(pathname, ".gcda")) return __real_open(pathname, flags);
+        if (mock_control.open_return > 0) return _mock_open_intercept(pathname);
+        return __real_open(pathname, flags);
+    }
+
+    /* Similarly, fstatat may become fstatat64 with LFS. */
+    int __wrap_fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
+    int __wrap_fstatat64(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
+        return __wrap_fstatat(dirfd, pathname, statbuf, flags);
+    }
+
     DIR* __wrap_fdopendir(int fd) {
         if (fd == mock_control.open_return && mock_control.open_return > 0) {
             mock_control.opendir_called = true;
-            return mock_control.opendir_return;
+            return const_cast<DIR*>(mock_control.opendir_return);
         }
         return nullptr;
     }
