@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <zlib.h>
 #include "archive_manager.h"
 #include "file_operations.h"
@@ -385,6 +386,9 @@ struct tar_header {
 static int create_archive_with_options(RuntimeContext* ctx, SessionState* session, 
                                        const char* source_dir, const char* output_dir,
                                        const char* prefix);
+static bool generate_archive_name_at(char* buffer, size_t buffer_size,
+                                     const char* mac_address, const char* prefix,
+                                     time_t ref_time);
 
 /**
  * @brief Generate archive filename with MAC and timestamp (script format)
@@ -414,16 +418,20 @@ bool generate_archive_name(char* buffer, size_t buffer_size,
         return false;
     }
 
-    time_t now = time(NULL);
+    return generate_archive_name_at(buffer, buffer_size, mac_address, prefix, time(NULL));
+}
 
+static bool generate_archive_name_at(char* buffer, size_t buffer_size,
+                                     const char* mac_address, const char* prefix,
+                                     time_t ref_time)
+{
     struct tm tm_utc;
-    if (gmtime_r(&now, &tm_utc) == NULL) {
+    if (gmtime_r(&ref_time, &tm_utc) == NULL) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
         return false;
     }
 
     char timestamp[32];
-    // Format UTC timestamp as MM-DD-YY-HH-MMAM/PM.
     if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p", &tm_utc) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to format timestamp\n", __FUNCTION__, __LINE__);
@@ -471,42 +479,36 @@ static unsigned int calculate_tar_checksum(struct tar_header* header)
 }
 
 /**
- * @brief Write TAR header for a file
+ * @brief Write TAR header for a file or symlink
  */
-static int write_tar_header(gzFile gz, const char* filename, struct stat* st)
+static int write_tar_header(gzFile gz, const char* filename, struct stat* st, const char* link_target)
 {
     struct tar_header header;
     memset(&header, 0, sizeof(header));
     
-    // Filename (strip leading path for archive)
     strncpy(header.name, filename, sizeof(header.name) - 1);
-    
-    // File mode
     snprintf(header.mode, sizeof(header.mode), "%07o", (unsigned int)st->st_mode & 0777);
-    
-    // UID and GID
     snprintf(header.uid, sizeof(header.uid), "%07o", 0);
     snprintf(header.gid, sizeof(header.gid), "%07o", 0);
-    
-    // File size
-    snprintf(header.size, sizeof(header.size), "%011lo", (unsigned long)st->st_size);
-    
-    // Modification time
     snprintf(header.mtime, sizeof(header.mtime), "%011lo", (unsigned long)st->st_mtime);
-    
-    // Type flag (regular file)
-    header.typeflag = '0';
-    
-    // Magic and version (ustar)
     memcpy(header.magic, "ustar", 5);
     header.magic[5] = '\0';
     memcpy(header.version, "00", 2);
+
+    if (S_ISLNK(st->st_mode)) {
+        header.typeflag = '2';
+        snprintf(header.size, sizeof(header.size), "%011o", 0);
+        if (link_target) {
+            strncpy(header.linkname, link_target, sizeof(header.linkname) - 1);
+        }
+    } else {
+        header.typeflag = '0';
+        snprintf(header.size, sizeof(header.size), "%011lo", (unsigned long)st->st_size);
+    }
     
-    // Calculate and write checksum
     unsigned int checksum = calculate_tar_checksum(&header);
     snprintf(header.checksum, sizeof(header.checksum), "%06o", checksum);
     
-    // Write header to gzip file
     if (gzwrite(gz, &header, sizeof(header)) != sizeof(header)) {
         return -1;
     }
@@ -521,10 +523,9 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
 {
     struct stat st;
     
-    // Open file first with O_NOFOLLOW to prevent symlink attacks (TOCTOU fix)
     int fd = open(filepath, O_RDONLY | O_NOFOLLOW);
     if (fd < 0) {
-        if (errno != ELOOP) {  // ELOOP = symlink detected
+        if (errno != ELOOP) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                     "[%s:%d] Failed to open file: %s (errno=%d)\n", 
                     __FUNCTION__, __LINE__, filepath, errno);
@@ -547,7 +548,7 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
     }
     
     // Write TAR header
-    if (write_tar_header(gz, arcname, &st) != 0) {
+    if (write_tar_header(gz, arcname, &st, NULL) != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to write TAR header\n", __FUNCTION__, __LINE__);
         close(fd);
@@ -594,8 +595,14 @@ static int add_file_to_tar(gzFile gz, const char* filepath, const char* arcname)
  */
 static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base_path, const char* exclude_file)
 {
-    DIR* dir = opendir(dirpath);
+    int dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
+    if (dirfd < 0) {
+        return -1;
+    }
+
+    DIR* dir = fdopendir(dirfd);
     if (!dir) {
+        close(dirfd);
         return -1;
     }
     
@@ -616,7 +623,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         struct stat st;
-        if (stat(fullpath, &st) != 0) {
+        if (fstatat(dirfd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
             continue;
         }
         
@@ -627,13 +634,28 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         }
         
         if (S_ISDIR(st.st_mode)) {
-            // Recursively process subdirectory
             if (add_directory_to_tar(gz, fullpath, base_path, exclude_file) != 0) {
                 closedir(dir);
                 return -1;
             }
+        } else if (S_ISLNK(st.st_mode)) {
+            char target[PATH_MAX];
+            ssize_t len = readlinkat(dirfd, entry->d_name, target, sizeof(target) - 1);
+            if (len < 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+                continue;
+            }
+            target[len] = '\0';
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
+            if (write_tar_header(gz, arcname, &st, target) != 0) {
+                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
+                        "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+            }
         } else if (S_ISREG(st.st_mode)) {
-            // Add file
+            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                    "Processing file...%s\n", arcname);
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
@@ -706,8 +728,9 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
             prefix);
     
     char archive_filename[MAX_FILENAME_LENGTH];
-    if (!generate_archive_name(archive_filename, sizeof(archive_filename), 
-                               ctx->mac_address, prefix)) {
+    time_t ref_time = (ctx->archive_ref_time != 0) ? ctx->archive_ref_time : time(NULL);
+    if (!generate_archive_name_at(archive_filename, sizeof(archive_filename),
+                                   ctx->mac_address, prefix, ref_time)) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to generate archive filename\n", __FUNCTION__, __LINE__);
         return -1;
