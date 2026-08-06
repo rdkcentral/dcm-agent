@@ -634,6 +634,124 @@ TEST_F(BackupEngineTest, HDDEnabledStrategy_PathTooLong) {
 }
 
 // ================================================================================================
+// backup_execute_hdd_disabled_strategy() Tests
+// ================================================================================================
+
+TEST_F(BackupEngineTest, HDDDisabledStrategy_FirstTime) {
+    mock_control.filePresentCheck_return = -1; // No messages.txt (first time)
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.fopen_return = (FILE*)0x12345678;
+    mock_control.safe_to_copy_paths = true;
+    
+    int result = backup_execute_hdd_disabled_strategy(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.filePresentCheck_called);
+    EXPECT_TRUE(mock_control.fopen_called); // Creates last_reboot
+}
+
+TEST_F(BackupEngineTest, HDDDisabledStrategy_SecondTime) {
+    // First call: messages.txt exists, bak1 doesn't
+    mock_control.filePresentCheck_return = 0; // messages.txt exists
+    
+    // Need to simulate multiple filePresentCheck calls with different return values
+    // This is a simplified test - in reality we'd need more sophisticated mock behavior
+    
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.fopen_return = (FILE*)0x12345678;
+    mock_control.safe_to_copy_paths = true;
+    
+    int result = backup_execute_hdd_disabled_strategy(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+}
+
+TEST_F(BackupEngineTest, HDDDisabledStrategy_PathTooLong) {
+    backup_config_t long_config = test_config;
+    memset(long_config.prev_log_path, 'A', PATH_MAX - 5);
+    long_config.prev_log_path[PATH_MAX - 5] = '\0';
+    
+    int result = backup_execute_hdd_disabled_strategy(&long_config);
+    
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
+}
+
+// ================================================================================================
+// backup_execute_common_operations() Tests  
+// ================================================================================================
+
+TEST_F(BackupEngineTest, CommonOperations_Success) {
+    mock_control.special_files_load_config_return = BACKUP_SUCCESS;
+    mock_control.special_files_execute_all_return = BACKUP_SUCCESS;
+    
+    int result = backup_execute_common_operations(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.special_files_init_called);
+    EXPECT_TRUE(mock_control.special_files_load_config_called);
+    EXPECT_TRUE(mock_control.special_files_execute_all_called);
+    EXPECT_TRUE(mock_control.sys_send_systemd_notification_called);
+    EXPECT_TRUE(mock_control.special_files_cleanup_called);
+    EXPECT_STREQ(mock_control.sys_send_systemd_notification_last_message, "Logs Backup Done..!");
+}
+
+TEST_F(BackupEngineTest, CommonOperations_ConfigLoadFails) {
+    mock_control.special_files_load_config_return = BACKUP_ERROR_CONFIG;
+    
+    int result = backup_execute_common_operations(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS); // Still succeeds even if special files config fails
+    EXPECT_TRUE(mock_control.special_files_init_called);
+    EXPECT_TRUE(mock_control.special_files_load_config_called);
+    EXPECT_FALSE(mock_control.special_files_execute_all_called); // Not called if config fails
+    EXPECT_TRUE(mock_control.sys_send_systemd_notification_called);
+    EXPECT_TRUE(mock_control.special_files_cleanup_called);
+}
+
+TEST_F(BackupEngineTest, CommonOperations_ExecuteAllFails) {
+    mock_control.special_files_load_config_return = BACKUP_SUCCESS;
+    mock_control.special_files_execute_all_return = BACKUP_ERROR_FILESYSTEM;
+    
+    int result = backup_execute_common_operations(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS); // Still succeeds even if execute fails
+    EXPECT_TRUE(mock_control.special_files_execute_all_called);
+}
+
+// ================================================================================================
+// Edge Cases and Error Handling Tests
+// ================================================================================================
+
+TEST_F(BackupEngineTest, TimeOperations_FailureHandling) {
+    mock_control.strftime_return = 0; // Trigger strftime fallback path
+    mock_control.filePresentCheck_return = 0; // Trigger subsequent backup path
+    mock_control.opendir_return = (DIR*)0x12345678;
+    
+    // Should handle gracefully even if time operations fail
+    int result = backup_execute_hdd_enabled_strategy(&test_config);
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.time_called);
+    EXPECT_TRUE(mock_control.strftime_called);
+    // Function should still attempt to continue
+}
+
+TEST_F(BackupEngineTest, FileOperations_EdgeCases) {
+    const char* mock_files[] = {".txt", "file.txt.backup", "file.log.old"};
+    setup_mock_directory_entries(mock_files, 3);
+    
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.filePresentCheck_return = 0;
+    mock_control.copyFiles_return = 0;
+    mock_control.safe_to_copy_paths = true;
+    
+    int result = move_log_files_by_pattern("/opt/logs", "/opt/logs/PreviousLogs");
+    
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    // All files contain .txt or .log so should be processed
+}
+
+// ================================================================================================
 // backup_and_recover_logs() Tests
 // ================================================================================================
 
@@ -921,125 +1039,6 @@ TEST_F(BackupEngineTest, BackupAndRecoverLogs_SextToDextRename) {
      * Dest should be: /opt/logs/PreviousLogs/bak1_system.log */
     EXPECT_STREQ(mock_control.copyFiles_last_source, "/opt/logs/PreviousLogs/bak2_system.log");
     EXPECT_STREQ(mock_control.copyFiles_last_dest, "/opt/logs/PreviousLogs/bak1_system.log");
-}
-
-
-// ================================================================================================
-// backup_execute_hdd_disabled_strategy() Tests
-// ================================================================================================
-
-TEST_F(BackupEngineTest, HDDDisabledStrategy_FirstTime) {
-    mock_control.filePresentCheck_return = -1; // No messages.txt (first time)
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.fopen_return = (FILE*)0x12345678;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_execute_hdd_disabled_strategy(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(mock_control.filePresentCheck_called);
-    EXPECT_TRUE(mock_control.fopen_called); // Creates last_reboot
-}
-
-TEST_F(BackupEngineTest, HDDDisabledStrategy_SecondTime) {
-    // First call: messages.txt exists, bak1 doesn't
-    mock_control.filePresentCheck_return = 0; // messages.txt exists
-    
-    // Need to simulate multiple filePresentCheck calls with different return values
-    // This is a simplified test - in reality we'd need more sophisticated mock behavior
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.fopen_return = (FILE*)0x12345678;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_execute_hdd_disabled_strategy(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-}
-
-TEST_F(BackupEngineTest, HDDDisabledStrategy_PathTooLong) {
-    backup_config_t long_config = test_config;
-    memset(long_config.prev_log_path, 'A', PATH_MAX - 5);
-    long_config.prev_log_path[PATH_MAX - 5] = '\0';
-    
-    int result = backup_execute_hdd_disabled_strategy(&long_config);
-    
-    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
-}
-
-// ================================================================================================
-// backup_execute_common_operations() Tests  
-// ================================================================================================
-
-TEST_F(BackupEngineTest, CommonOperations_Success) {
-    mock_control.special_files_load_config_return = BACKUP_SUCCESS;
-    mock_control.special_files_execute_all_return = BACKUP_SUCCESS;
-    
-    int result = backup_execute_common_operations(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(mock_control.special_files_init_called);
-    EXPECT_TRUE(mock_control.special_files_load_config_called);
-    EXPECT_TRUE(mock_control.special_files_execute_all_called);
-    EXPECT_TRUE(mock_control.sys_send_systemd_notification_called);
-    EXPECT_TRUE(mock_control.special_files_cleanup_called);
-    EXPECT_STREQ(mock_control.sys_send_systemd_notification_last_message, "Logs Backup Done..!");
-}
-
-TEST_F(BackupEngineTest, CommonOperations_ConfigLoadFails) {
-    mock_control.special_files_load_config_return = BACKUP_ERROR_CONFIG;
-    
-    int result = backup_execute_common_operations(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS); // Still succeeds even if special files config fails
-    EXPECT_TRUE(mock_control.special_files_init_called);
-    EXPECT_TRUE(mock_control.special_files_load_config_called);
-    EXPECT_FALSE(mock_control.special_files_execute_all_called); // Not called if config fails
-    EXPECT_TRUE(mock_control.sys_send_systemd_notification_called);
-    EXPECT_TRUE(mock_control.special_files_cleanup_called);
-}
-
-TEST_F(BackupEngineTest, CommonOperations_ExecuteAllFails) {
-    mock_control.special_files_load_config_return = BACKUP_SUCCESS;
-    mock_control.special_files_execute_all_return = BACKUP_ERROR_FILESYSTEM;
-    
-    int result = backup_execute_common_operations(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS); // Still succeeds even if execute fails
-    EXPECT_TRUE(mock_control.special_files_execute_all_called);
-}
-
-// ================================================================================================
-// Edge Cases and Error Handling Tests
-// ================================================================================================
-
-TEST_F(BackupEngineTest, TimeOperations_FailureHandling) {
-    mock_control.strftime_return = 0; // Trigger strftime fallback path
-    mock_control.filePresentCheck_return = 0; // Trigger subsequent backup path
-    mock_control.opendir_return = (DIR*)0x12345678;
-    
-    // Should handle gracefully even if time operations fail
-    int result = backup_execute_hdd_enabled_strategy(&test_config);
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(mock_control.time_called);
-    EXPECT_TRUE(mock_control.strftime_called);
-    // Function should still attempt to continue
-}
-
-TEST_F(BackupEngineTest, FileOperations_EdgeCases) {
-    const char* mock_files[] = {".txt", "file.txt.backup", "file.log.old"};
-    setup_mock_directory_entries(mock_files, 3);
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.filePresentCheck_return = 0;
-    mock_control.copyFiles_return = 0;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = move_log_files_by_pattern("/opt/logs", "/opt/logs/PreviousLogs");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    // All files contain .txt or .log so should be processed
 }
 
 // ================================================================================================
