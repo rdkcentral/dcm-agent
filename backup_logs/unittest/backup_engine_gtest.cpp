@@ -677,96 +677,6 @@ TEST_F(BackupEngineTest, HDDDisabledStrategy_PathTooLong) {
 }
 
 // ================================================================================================
-// backup_and_recover_logs() Tests
-// ================================================================================================
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveOperation) {
-    const char* mock_files[] = {"messages.txt", "system.log"};
-    setup_mock_directory_entries(mock_files, 2);
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.copyFiles_return = 0; // Copy succeeds
-    mock_control.remove_return = 0; // Remove succeeds
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_MOVE, "", "");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(mock_control.opendir_called);
-    EXPECT_TRUE(mock_control.copyFiles_called);
-    EXPECT_TRUE(mock_control.remove_called);
-}
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_CopyOperation) {
-    const char* mock_files[] = {"messages.txt"};
-    setup_mock_directory_entries(mock_files, 1);
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.copyFiles_return = 0;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_COPY, "", "");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    EXPECT_TRUE(mock_control.copyFiles_called);
-    EXPECT_FALSE(mock_control.remove_called); // No remove for copy operation
-}
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_WithPrefixes) {
-    const char* mock_files[] = {"bak1_messages.txt", "bak1_system.log", "other.txt"};
-    setup_mock_directory_entries(mock_files, 3);
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.copyFiles_return = 0;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_and_recover_logs("/opt/logs/PreviousLogs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_MOVE, "bak1_", "bak2_");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-    // Should process only files starting with "bak1_"
-}
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipDirectories) {
-    const char* mock_files[] = {"messages.txt", "subdir"};
-    setup_mock_directory_entries(mock_files, 2);
-    mock_control.mock_entries[1].d_type = DT_DIR;
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    mock_control.copyFiles_return = 0;
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_COPY, "", "");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS);
-}
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_OpenDirFails) {
-    mock_control.opendir_return = nullptr; // opendir fails
-    mock_control.safe_to_copy_paths = true;
-    
-    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_MOVE, "", "");
-    
-    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
-    EXPECT_TRUE(mock_control.opendir_called);
-}
-
-TEST_F(BackupEngineTest, BackupAndRecoverLogs_NoFiles) {
-    setup_mock_directory_entries(nullptr, 0); // No files
-    
-    mock_control.opendir_return = (DIR*)0x12345678;
-    
-    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", 
-                                       BACKUP_OP_MOVE, "", "");
-    
-    EXPECT_EQ(result, BACKUP_SUCCESS); // Success if no files found
-}
-
-// ================================================================================================
 // backup_execute_common_operations() Tests  
 // ================================================================================================
 
@@ -839,6 +749,296 @@ TEST_F(BackupEngineTest, FileOperations_EdgeCases) {
     
     EXPECT_EQ(result, BACKUP_SUCCESS);
     // All files contain .txt or .log so should be processed
+}
+
+// ================================================================================================
+// backup_and_recover_logs() Tests
+// ================================================================================================
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_NullSource) {
+    int result = backup_and_recover_logs(NULL, "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_NullDest) {
+    int result = backup_and_recover_logs("/opt/logs/", NULL, BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_BothNull) {
+    int result = backup_and_recover_logs(NULL, NULL, BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_OpenDirFails) {
+    mock_control.open_return = -1; // open() fails
+    mock_control.opendir_return = nullptr;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_EmptyDirectory) {
+    /* No entries configured - readdir returns NULL immediately */
+    mock_control.mock_entry_count = 0;
+    mock_control.mock_entry_index = 0;
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // No files found is success
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipsDotEntries) {
+    const char* mock_files[] = {".", ".."};
+    setup_mock_directory_entries(mock_files, 2);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // No real files processed
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipsBackupLogsLog) {
+    const char* mock_files[] = {"backup_logs.log", "backup_logs.log.0"};
+    setup_mock_directory_entries(mock_files, 2);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // Skipped files, no files counted
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SkipsDirectories) {
+    const char* mock_files[] = {"subdir"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFDIR; // Directory
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // Skipped directory, no files counted
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveSuccess) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+    EXPECT_TRUE(mock_control.remove_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_CopySuccess) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_COPY, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+    EXPECT_FALSE(mock_control.remove_called); // Copy does not remove source
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveFailsCopy) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = -1; // Copy fails
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+    EXPECT_FALSE(mock_control.remove_called); // Remove not called if copy fails
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_MoveRemoveFails) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = -1; // Remove fails
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM); // Move counted as failure
+    EXPECT_TRUE(mock_control.copyFiles_called);
+    EXPECT_TRUE(mock_control.remove_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SextFilterMatches) {
+    const char* mock_files[] = {"bak1_messages.txt", "bak1_system.log", "other.txt"};
+    setup_mock_directory_entries(mock_files, 3);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/PreviousLogs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "bak1_", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SextFilterNoMatch) {
+    const char* mock_files[] = {"messages.txt", "system.log"};
+    setup_mock_directory_entries(mock_files, 2);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "bak1_", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // No matching files, file_count==0
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_DextPrefixApplied) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "", "bak3_");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+    /* Destination should be /opt/logs/PreviousLogs/bak3_messages.txt */
+    EXPECT_STREQ(mock_control.copyFiles_last_dest, "/opt/logs/PreviousLogs/bak3_messages.txt");
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_MultipleFilesPartialFailure) {
+    const char* mock_files[] = {"file1.txt", "file2.log"};
+    setup_mock_directory_entries(mock_files, 2);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    /* First copy succeeds, second will also use same return value.
+     * With a single return value we can only test all-succeed or all-fail. */
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    EXPECT_TRUE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_InvalidOperation) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_DELETE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM); // DELETE not handled, result=-1
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_CombinedPrefixTooLong) {
+    /* Create a source path that, combined with s_ext, exceeds PATH_MAX */
+    char long_source[PATH_MAX];
+    memset(long_source, 'A', PATH_MAX - 2);
+    long_source[PATH_MAX - 2] = '/';
+    long_source[PATH_MAX - 1] = '\0';
+
+    int result = backup_and_recover_logs(long_source, "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "bak1_", "");
+    EXPECT_EQ(result, BACKUP_ERROR_INVALID_PARAM);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_FdopendirFails) {
+    mock_control.open_return = 100;
+    mock_control.opendir_return = nullptr; // fdopendir fails
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_ERROR_FILESYSTEM);
+    EXPECT_TRUE(mock_control.close_called); // fd should be closed on fdopendir failure
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_StatFails) {
+    const char* mock_files[] = {"messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_return = -1; // fstatat fails
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/", "/opt/logs/PreviousLogs/", BACKUP_OP_MOVE, "", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS); // Skipped file, file_count==0
+    EXPECT_FALSE(mock_control.copyFiles_called);
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SextStripFromDestination) {
+    /* When s_ext is "bak1_", the prefix "bak1_" is stripped from filename in dest */
+    const char* mock_files[] = {"bak1_messages.txt"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/PreviousLogs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "bak1_", "");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    /* Dest should strip "bak1_" prefix: /opt/logs/PreviousLogs/messages.txt */
+    EXPECT_STREQ(mock_control.copyFiles_last_dest, "/opt/logs/PreviousLogs/messages.txt");
+}
+
+TEST_F(BackupEngineTest, BackupAndRecoverLogs_SextToDextRename) {
+    /* Move with s_ext="bak2_" and d_ext="bak1_" renames prefix */
+    const char* mock_files[] = {"bak2_system.log"};
+    setup_mock_directory_entries(mock_files, 1);
+
+    mock_control.opendir_return = (DIR*)0x12345678;
+    mock_control.stat_mode = S_IFREG;
+    mock_control.copyFiles_return = 0;
+    mock_control.remove_return = 0;
+    mock_control.safe_to_copy_paths = true;
+
+    int result = backup_and_recover_logs("/opt/logs/PreviousLogs/", "/opt/logs/PreviousLogs/",
+                                         BACKUP_OP_MOVE, "bak2_", "bak1_");
+    EXPECT_EQ(result, BACKUP_SUCCESS);
+    /* Source: /opt/logs/PreviousLogs/bak2_system.log
+     * Dest should be: /opt/logs/PreviousLogs/bak1_system.log */
+    EXPECT_STREQ(mock_control.copyFiles_last_source, "/opt/logs/PreviousLogs/bak2_system.log");
+    EXPECT_STREQ(mock_control.copyFiles_last_dest, "/opt/logs/PreviousLogs/bak1_system.log");
 }
 
 // ================================================================================================
