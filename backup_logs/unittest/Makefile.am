@@ -200,5 +200,4 @@ backup_engine_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
                              -Wl,--wrap=special_files_cleanup \
                              -Wl,--wrap=sys_send_systemd_notification
 backup_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS) -U_FORTIFY_SOURCE
