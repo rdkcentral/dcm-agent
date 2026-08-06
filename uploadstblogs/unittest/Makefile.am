@@ -147,3 +147,4 @@ uploadlogsnow_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 uploadlogsnow_gtest_LDADD = $(COMMON_LDADD)
 uploadlogsnow_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 uploadlogsnow_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
