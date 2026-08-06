@@ -181,13 +181,6 @@ backup_engine_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
                              -Wl,--wrap=opendir \
                              -Wl,--wrap=readdir \
                              -Wl,--wrap=closedir \
-                             -Wl,--wrap=fdopendir \
-                             -Wl,--wrap=fstatat \
-                             -Wl,--wrap=fstatat64 \
-                             -Wl,--wrap=open64 \
-                             -Wl,--wrap=__open \
-                             -Wl,--wrap=__open_2 \
-                             -Wl,--wrap=__open64_2 \
                              -Wl,--wrap=filePresentCheck \
                              -Wl,--wrap=createDir \
                              -Wl,--wrap=copyFiles \
@@ -207,4 +200,4 @@ backup_engine_gtest_LDFLAGS = -Wl,--wrap=RDK_LOG \
                              -Wl,--wrap=special_files_cleanup \
                              -Wl,--wrap=sys_send_systemd_notification
 backup_engine_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS) -U_FORTIFY_SOURCE
+backup_engine_gtest_CFLAGS = $(COMMON_CXXFLAGS)
