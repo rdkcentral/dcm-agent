@@ -23,10 +23,12 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <dirent.h>
 #include "strategy_handler.h"
 #include "cleanup_handler.h"
+#include "file_operations.h"
 #include "rdk_debug.h"
-#include <string.h>
 
 // Forward declarations of strategy handlers
 extern const StrategyHandler ondemand_strategy_handler;
@@ -71,8 +73,10 @@ int execute_strategy_workflow(RuntimeContext* ctx, SessionState* session)
         return -1;
     }
 
-    // Remove stale .tgz archives from log path before any strategy runs.
+    // Pre-strategy cleanup (script lines 967-984)
     cleanup_old_archives(ctx->log_path);
+    clear_old_packet_captures(ctx->log_path);
+    remove_stale_timestamped_files(ctx->log_path);
     // Verify context has valid data
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[%s:%d] Context check: ctx=%p, MAC='%s', device_type='%s'\n",

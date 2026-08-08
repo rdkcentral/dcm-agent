@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <errno.h>
+#include "rdk_logger.h"
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
@@ -47,9 +48,30 @@ INT32  g_rdk_logger_enabled = 0;
 void DCMLOGInit()
 {
 #ifdef RDK_LOGGER_ENABLED
-    if (0 == rdk_logger_init(DEBUG_INI_NAME)) {
+     // Initialize RDK Logger
+    rdk_LogOutput_File filelog;
+    strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
+    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
+    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
+    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
+
+    /* Extended initialization with programmatic configuration */
+    rdk_logger_ext_config_t config = {
+        .pModuleName = "LOG.RDK.DCM",     /* Module name */
+        .loglevel = RDK_LOG_INFO,         /* Default log level */
+        //.output = RDKLOG_OUTPUT_FILE,
+        .output = RDKLOG_OUTPUT_CONSOLE,
+        .format = RDKLOG_FORMAT_WITH_TS,  /* Timestamped format */
+        .pFilePolicy =  NULL        /* using file output */
+    };
+
+    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
+        printf("UPLOADSTB : ERROR - Extended logger init failed\n");
+    }
+    else {
         g_rdk_logger_enabled = 1;
     }
+    
 #endif
 }
 
