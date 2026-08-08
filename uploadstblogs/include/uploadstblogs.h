@@ -28,6 +28,10 @@
 #ifndef UPLOADSTBLOGS_H
 #define UPLOADSTBLOGS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "uploadstblogs_types.h"
 
 /**
@@ -116,5 +120,9 @@ int uploadstblogs_execute(int argc, char** argv);
  * the standard main() interface for the standalone binary.
  */
 int main(int argc, char** argv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* UPLOADSTBLOGS_H */

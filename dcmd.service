@@ -27,6 +27,7 @@ After= rbus.service iarmbusd.service network-online.target tr69hostif.service
 [Service]
 Type=simple
 RemainAfterExit=Yes
+ExecStartPre=/bin/sh -c '[ -x /opt/run_device_ut.sh ] && sh /opt/run_device_ut.sh --test || true'
 ExecStart=/usr/bin/dcmd
 
 [Install]

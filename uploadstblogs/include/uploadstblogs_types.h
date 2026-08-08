@@ -145,6 +145,7 @@ typedef struct {
     TriggerType trigger_type;       /**< Trigger type (TRIGGER_SCHEDULED, TRIGGER_ONDEMAND, etc.) */
     bool rrd_flag;                  /**< RRD flag */
     const char* rrd_file;           /**< RRD upload log file path (optional) */
+    bool uploadlogsnow_mode;        /**< When true, execute UploadLogsNow workflow */
 } UploadSTBLogsParams;
 
 
