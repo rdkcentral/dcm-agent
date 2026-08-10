@@ -130,15 +130,4 @@ int cleanup_old_archives(const char *log_path);
  */
 bool is_timestamped_backup(const char *filename);
 
-/**
- * @brief Remove stale timestamped files from log directory
- * 
- * Removes regular files matching timestamp pattern but excludes
- * logbackup directories and moca.pcap files.
- * 
- * @param log_path Log directory path
- * @return Number of files removed
- */
-int remove_stale_timestamped_files(const char *log_path);
-
 #endif /* CLEANUP_HANDLER_H */
