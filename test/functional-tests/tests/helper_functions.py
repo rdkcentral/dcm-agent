@@ -22,7 +22,7 @@ import os
 import time
 import re
 
-LOG_FILE = "/opt/logs/dcmd.log.0"
+LOG_FILE = "/opt/logs/dcmd.log"
 RBUSCLI_SET_CMD = "rbuscli set "
 
 def run_dcmd():
