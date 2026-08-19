@@ -282,6 +282,24 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
         strncpy(ctx.rrd_file, params->rrd_file, sizeof(ctx.rrd_file) - 1);
     }
 
+    ctx.uploadlogsnow_mode = params->uploadlogsnow_mode;
+
+    /* Handle UploadLogsNow mode */
+    if (ctx.uploadlogsnow_mode) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] UploadLogsNow mode detected via API, executing custom workflow\n",
+                __FUNCTION__, __LINE__);
+
+        ret = execute_uploadlogsnow_workflow(&ctx);
+
+#ifdef T2_EVENT_ENABLED
+        t2_uninit();
+#endif
+        cleanup_iarm_connection();
+        release_lock();
+        return ret;
+    }
+
     /* Validate system prerequisites */
     if (!validate_system(&ctx)) {
         fprintf(stderr, "System validation failed\n");
@@ -402,6 +420,14 @@ int uploadstblogs_execute(int argc, char** argv)
         /* Release lock and exit */
         release_lock();
         return ret;
+    }
+    
+    /* Limit attempts to 1 when called from plugin (deepsleep) */
+    if (ctx.trigger_type == TRIGGER_MANUAL) {
+        ctx.direct_max_attempts = 1;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called from Plugin with 1 attempt\n");
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called with %d attempts\n", ctx.direct_max_attempts);
     }
     
     /* Verify context after parse_args */
