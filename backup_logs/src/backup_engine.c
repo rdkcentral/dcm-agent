@@ -373,8 +373,14 @@ int backup_and_recover_logs(const char* source, const char* dest,
         return BACKUP_ERROR_INVALID_PARAM;
     }
     /* Open source directory */
-    DIR* dir = opendir(source);
+    int dirfd = open(source, O_RDONLY | O_DIRECTORY);
+    if (dirfd < 0) {
+        RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to open source directory: %s\n", source);
+        return BACKUP_ERROR_FILESYSTEM;
+    }
+    DIR* dir = fdopendir(dirfd);
     if (!dir) {
+        close(dirfd);
         RDK_LOG(RDK_LOG_ERROR, LOG_BACKUP_LOGS, "Failed to open source directory: %s\n", source);
         return BACKUP_ERROR_FILESYSTEM;
     }
@@ -402,29 +408,24 @@ int backup_and_recover_logs(const char* source, const char* dest,
             continue;
         }
         
-        /* Check if it's a regular file (match shell script -type f).
-         * Use open(O_NOFOLLOW) + fstat() to eliminate TOCTOU (CWE-367):
-         * opening with O_NOFOLLOW refuses symlinks, and fstat() on the
-         * resulting fd operates on the same inode already held open,
-         * so no race window exists between the check and the use. */
+        /* Use fstatat with AT_SYMLINK_NOFOLLOW on the directory fd (same pattern
+         * as archive_manager.c) to detect file type without TOCTOU races.
+         * Symlinks whose target is a regular file are allowed through. */
         struct stat file_stat;
-        int check_fd = open(source_file, O_RDONLY | O_NOFOLLOW);
-        if (check_fd < 0) {
-            /* Skip if file cannot be opened (e.g. symlink or permission denied) */
+        if (fstatat(dirfd, entry->d_name, &file_stat, AT_SYMLINK_NOFOLLOW) != 0) {
             continue;
         }
-        if (fstat(check_fd, &file_stat) != 0) {
-            close(check_fd);
-            continue;
-        }
-        close(check_fd);
         if (S_ISDIR(file_stat.st_mode)) {
-            /* Skip directories - we don't want to backup directories to PreviousLogs */
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Skipping directory: %s\n", source_file);
             continue;
         }
-        if (!S_ISREG(file_stat.st_mode)) {
-            /* Skip non-regular files (symlinks, devices, etc.) */
+        if (S_ISLNK(file_stat.st_mode)) {
+            /* Symlink: verify target is a regular file before allowing copy */
+            struct stat target_stat;
+            if (fstatat(dirfd, entry->d_name, &target_stat, 0) != 0 || !S_ISREG(target_stat.st_mode)) {
+                continue;
+            }
+        } else if (!S_ISREG(file_stat.st_mode)) {
             continue;
         }
         
