@@ -43,25 +43,26 @@ extern "C" {
         return g_copy_file_retval;
     }
 
-    int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
-        if (g_create_archive_retval == 0 && g_session_archive_file[0] != '\0') {
-            strncpy(session->archive_file, g_session_archive_file,
-                    sizeof(session->archive_file) - 1);
-            session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-        }
-        return g_create_archive_retval;
-    }
-
-    bool generate_archive_name(char *buffer, size_t buffer_size,
-                               const char *mac_address, const char *prefix) {
-        if (!g_generate_archive_name_retval) {
-            return false;
-        }
-        snprintf(buffer, buffer_size, "%s_%s_Logs.tar.gz", prefix, mac_address);
-        return true;
-    }
-
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
+}
+
+/* These have C++ linkage in archive_manager.h, so define outside extern "C" */
+int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
+    if (g_create_archive_retval == 0 && g_session_archive_file[0] != '\0') {
+        strncpy(session->archive_file, g_session_archive_file,
+                sizeof(session->archive_file) - 1);
+        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+    }
+    return g_create_archive_retval;
+}
+
+bool generate_archive_name(char *buffer, size_t buffer_size,
+                           const char *mac_address, const char *prefix) {
+    if (!g_generate_archive_name_retval) {
+        return false;
+    }
+    snprintf(buffer, buffer_size, "%s_%s_Logs.tar.gz", prefix, mac_address);
+    return true;
 }
 
 class UsbLogArchiveTest : public ::testing::Test {
