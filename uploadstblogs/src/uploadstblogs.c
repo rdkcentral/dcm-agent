@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <time.h>
 #include <dirent.h>
+#include "common_device_api.h"
 
 #include "uploadstblogs.h"
 #include "uploadstblogs_types.h"
@@ -281,6 +282,24 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
         strncpy(ctx.rrd_file, params->rrd_file, sizeof(ctx.rrd_file) - 1);
     }
 
+    ctx.uploadlogsnow_mode = params->uploadlogsnow_mode;
+
+    /* Handle UploadLogsNow mode */
+    if (ctx.uploadlogsnow_mode) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+                "[%s:%d] UploadLogsNow mode detected via API, executing custom workflow\n",
+                __FUNCTION__, __LINE__);
+
+        ret = execute_uploadlogsnow_workflow(&ctx);
+
+#ifdef T2_EVENT_ENABLED
+        t2_uninit();
+#endif
+        cleanup_iarm_connection();
+        release_lock();
+        return ret;
+    }
+
     /* Validate system prerequisites */
     if (!validate_system(&ctx)) {
         fprintf(stderr, "System validation failed\n");
@@ -403,6 +422,14 @@ int uploadstblogs_execute(int argc, char** argv)
         return ret;
     }
     
+    /* Limit attempts to 1 when called from plugin (deepsleep) */
+    if (ctx.trigger_type == TRIGGER_MANUAL) {
+        ctx.direct_max_attempts = 1;
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called from Plugin with 1 attempt\n");
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "Called with %d attempts\n", ctx.direct_max_attempts);
+    }
+    
     /* Verify context after parse_args */
     RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB,
             "[main] Context after parse_args: MAC='%s', device_type='%s'\n",
@@ -474,7 +501,11 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
-
+    // Log total time from boot to upload completion
+    double uptime_seconds = 0.0;
+    if (get_system_uptime(&uptime_seconds)) {
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] log upload completed at system uptime %.0f seconds\n", __FUNCTION__, __LINE__, uptime_seconds);
+    }
     /* Release lock and exit */
     release_lock();
     return ret;

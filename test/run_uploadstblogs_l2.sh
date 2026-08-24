@@ -21,7 +21,7 @@
 # Test runner for uploadSTBLogs L2 tests
 
 export top_srcdir=`pwd`
-RESULT_DIR="/tmp/l2_test_report/uploadstblogs"
+RESULT_DIR="/tmp/l2_test_report"
 TEST_DIR="functional-tests/tests"
 
 # Create result directory
