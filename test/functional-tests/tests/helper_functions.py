@@ -26,7 +26,8 @@ LOG_FILE = "/opt/logs/dcmd.log.0"
 RBUSCLI_SET_CMD = "rbuscli set "
 
 def run_dcmd():
-    return subprocess.run("/usr/local/bin/dcmd", shell=True)
+    with open(LOG_FILE, "a") as log:
+        return subprocess.run("/usr/local/bin/dcmd", shell=True, stdout=log, stderr=log)
 
 def run_telemetry():
     return subprocess.run("/usr/local/bin/telemetry2_0", shell=True)
