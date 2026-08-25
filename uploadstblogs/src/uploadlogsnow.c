@@ -100,7 +100,7 @@ static int should_exclude_file(const char* filename)
  * @return Number of files successfully copied (>= 0), or -1 on directory open failure
  * @note Returns 0 for empty directories (this is a valid success case, not an error)
  */
-int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
+static int copy_files_to_dcm_path(const char* src_path, const char* dest_path)
 {
     DIR* dir = opendir(src_path);
     if (!dir) {
