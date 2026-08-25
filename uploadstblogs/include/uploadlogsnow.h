@@ -53,8 +53,7 @@ int execute_uploadlogsnow_workflow(RuntimeContext* ctx);
  * Copies each regular file from @p src_path into @p dest_path, excluding the
  * `dcm/`, `PreviousLogs/`, and `PreviousLogs_backup/` sub-directories (so it never
  * recurses into its own staging/backup dirs). Used by the on-demand UploadLogsNow
- * workflow and by the scheduled DCM strategy on platforms that opt into current-log
- * collection (RDK-C, DCM_SCHEDULED_LOG_COLLECT).
+ * workflow and by the scheduled DCM strategy.
  *
  * @param src_path Source directory (e.g. LOG_PATH)
  * @param dest_path Destination directory (DCM_LOG_PATH)

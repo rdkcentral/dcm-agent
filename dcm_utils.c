@@ -48,6 +48,8 @@ INT32  g_rdk_logger_enabled = 0;
 void DCMLOGInit()
 {
 #ifdef RDK_LOGGER_ENABLED
+
+#ifdef RDK_LOGGER_EXT
      // Initialize RDK Logger
     rdk_LogOutput_File filelog;
     strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
@@ -71,7 +73,17 @@ void DCMLOGInit()
     else {
         g_rdk_logger_enabled = 1;
     }
-    
+#else
+    /* Platforms with an older rdk-logger (e.g. RDKC's 2.4.0) do not provide the
+     * extended programmatic-config API: rdk_logger_ext_config_t there is a
+     * file-rotation struct and RDKLOG_OUTPUT_CONSOLE/RDKLOG_FORMAT_WITH_TS are
+     * absent. Fall back to the standard debug.ini init, matching the guard
+     * already used in backup_logs.c and usb_log_utils.c. */
+    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+        printf("UPLOADSTB : ERROR - Logger init failed\n");
+    }
+#endif // RDK_LOGGER_EXT
+
 #endif
 }
 
@@ -210,7 +222,7 @@ VOID dcmUtilsRemovePIDfile()
         fclose(fp);
         errno = 0;
         if (remove(DCM_PID_FILE) != 0) {
-            if (errno != ENOENT) {      
+            if (errno != ENOENT) {
                 DCMError("Failed to remove PID file: %s errno=%d (%s)\n",
                          DCM_PID_FILE, errno, strerror(errno));
             }

@@ -376,7 +376,7 @@ Sub-components within `uploadstblogs/`:
 
 **RDK-C behaviors:**
 
-- **Scheduled log collection** — when `DCM_SCHEDULED_LOG_COLLECT=true` (`/etc/device.properties`, RDK-C only), `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) so the daily scheduled DCM upload carries current logs. Default **off** on STB/broadband (external batcher / Maintenance Manager supplies the logs).
+- **Scheduled log collection** — `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) so each daily scheduled DCM upload carries current logs.
 
 ---
 
@@ -621,7 +621,7 @@ RDK-C camera platforms (e.g. XHC1) run **sysvinit**, not systemd, and ship an ol
 - **No systemd** — the `sys_integration` systemd READY notification is inactive and `dcmd.service` is not installed; `dcmd` is started from the sysvinit `dcm-log-service` init script.
 - **DCM–T2 handshake retry** — sysvinit start order is variable (telemetry can start well before `dcmd`), so the reload-config event publish is retried up to `DCM_RELOAD_EVENT_MAX_RETRY` (30 attempts, 1 s apart) so the handshake completes regardless of order.
 - **Logger fallback** — built **without** `-DRDK_LOGGER_EXT` (see Conditional Compile Flags), so `context_manager.c` initialises logging via the standard `rdk_logger_init(debug.ini)` path.
-- **Scheduled log collection** — `DCM_SCHEDULED_LOG_COLLECT=true` in `/etc/device.properties` stages the current `/opt/logs` tree into `DCM_LOG_PATH` before the scheduled DCM upload (RDK-C cameras have no external batcher). Default **off** on STB/broadband.
+- **Scheduled log collection** — `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` before each scheduled DCM upload.
 
 ### Resource Constraints
 

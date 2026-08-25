@@ -19,12 +19,9 @@ outputs, and how boot-time ordering is (or isn't) enforced.
 On RDK-C camera platforms (sysvinit; e.g. XHC1), the DCM Agent runs as the native `dcmd`
 daemon with an RDK-C-specific behavior layered onto the pipeline below:
 
-- **Scheduled log collection** (`DCM_SCHEDULED_LOG_COLLECT`) — RDK-C cameras have no external
-  batcher / Maintenance Manager, so with `DCM_SCHEDULED_LOG_COLLECT=true` in
-  `/etc/device.properties` the DCM strategy's `dcm_setup` stages the current `/opt/logs` tree
-  into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) before the scheduled upload, so the daily
-  archive carries current logs. Default **off** on STB/broadband (sources below supply the logs
-  externally).
+- **Scheduled log collection** — the DCM strategy's `dcm_setup` stages the current `/opt/logs` tree
+        into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) before every scheduled upload, so the daily
+        archive carries current logs.
 
 ---
 ## RDKE Log Upload Support

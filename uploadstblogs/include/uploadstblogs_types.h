@@ -304,7 +304,6 @@ typedef struct {
     bool maintenance_enabled;       /**< Maintenance mode enabled */
     bool uploadlogsnow_mode;        /**< UploadLogsNow mode enabled */
     time_t archive_ref_time;        /**< Reference time for archive filename (0 = use system time) */
-    bool collect_scheduled_logs;    /**< RDK-C: stage current logs into DCM_LOG_PATH before the scheduled DCM upload (DCM_SCHEDULED_LOG_COLLECT) */
 
     // File system paths
     char log_path[MAX_PATH_LENGTH];           /**< Main log directory */
@@ -388,6 +387,6 @@ time_t apply_ntp_fallback_time(void);
 void trigger_reboot_info_update(void);
 int wait_for_sentinel(const char *flag_path, const char *watch_dir, const char *filename, unsigned int timeout_s);
 int wait_for_reboot_reason(void);
-int wait_for_telemetry_prevlogs_done(void); 
+int wait_for_telemetry_prevlogs_done(void);
 
 #endif /* UPLOADSTBLOGS_TYPES_H */

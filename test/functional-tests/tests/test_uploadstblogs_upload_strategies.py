@@ -202,9 +202,8 @@ class TestDCMScheduledStrategy:
         assert result.returncode in [0, 1], "Should generate DCM telemetry"
 
     @pytest.mark.order(4)
-    def test_dcm_scheduled_log_collect_enabled(self):
-        """RDK-C: DCM_SCHEDULED_LOG_COLLECT=true stages current logs into DCM_LOG_PATH."""
-        set_device_property("DCM_SCHEDULED_LOG_COLLECT", "true")
+    def test_dcm_scheduled_log_collects_current_logs(self):
+        """DCM scheduled uploads stage current logs into DCM_LOG_PATH."""
         create_test_log_files(count=3)
 
         args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
@@ -212,25 +211,9 @@ class TestDCMScheduledStrategy:
 
         # The DCM strategy should log the RDK-C current-log collection step
         collect_logs = grep_uploadstb_logs_regex(
-            r"Collecting current logs|Scheduled DCM log collection enabled|Successfully copied")
+            r"Copied [0-9]+ files from|Collecting current logs|Successfully copied")
         assert len(collect_logs) > 0, \
-            "DCM_SCHEDULED_LOG_COLLECT=true should stage current logs into DCM_LOG_PATH"
-        assert result.returncode in [0, 1], "DCM upload should complete"
-
-    @pytest.mark.order(5)
-    def test_dcm_scheduled_log_collect_disabled(self):
-        """RDK-C: without the flag the DCM strategy does NOT stage current logs (STB/broadband parity)."""
-        set_device_property("DCM_SCHEDULED_LOG_COLLECT", "false")
-        create_test_log_files(count=3)
-
-        args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
-        result = run_uploadstblogs(args)
-
-        # The collection step must NOT run when the flag is false/absent
-        collect_logs = grep_uploadstb_logs_regex(
-            r"Collecting current logs|Scheduled DCM log collection enabled")
-        assert len(collect_logs) == 0, \
-            "DCM_SCHEDULED_LOG_COLLECT=false must not stage current logs"
+            "DCM scheduled uploads should stage current logs into DCM_LOG_PATH"
         assert result.returncode in [0, 1], "DCM upload should complete"
 
 

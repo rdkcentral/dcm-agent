@@ -414,20 +414,6 @@ bool load_environment(RuntimeContext* ctx)
     ctx->include_dri = true;
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
 
-    // RDK-C: stage current logs into DCM_LOG_PATH before the scheduled DCM upload.
-    // On STB/broadband DCM_LOG_PATH is batched externally (Maintenance Manager /
-    // on-demand), so this stays OFF and the DCM strategy remains a pure batch-drain.
-    // The RDK-C camera has no external batcher, so it opts in via device.properties
-    // (DCM_SCHEDULED_LOG_COLLECT=true) to restore the legacy copyOptLogsFiles step.
-    memset(buffer, 0, sizeof(buffer));
-    if (getDevicePropertyData("DCM_SCHEDULED_LOG_COLLECT", buffer, sizeof(buffer)) == UTILS_SUCCESS) {
-        if (strcasecmp(buffer, "true") == 0) {
-            ctx->collect_scheduled_logs = true;
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Scheduled DCM log collection enabled\n", __FUNCTION__, __LINE__);
-        }
-    }
-
-
     // Check for OCSP marker files
     // EnableOCSPStapling="/tmp/.EnableOCSPStapling"
     // EnableOCSP="/tmp/.EnableOCSPCA"

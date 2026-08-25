@@ -222,44 +222,6 @@ TEST_F(ContextManagerTest, LoadEnvironment_OCSPEnabled) {
     EXPECT_TRUE(ctx.ocsp_enabled);
 }
 
-// RDK-C: DCM_SCHEDULED_LOG_COLLECT device-property gating (collect_scheduled_logs)
-TEST_F(ContextManagerTest, LoadEnvironment_ScheduledLogCollect_Enabled) {
-    EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-    EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-    EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("DCM_SCHEDULED_LOG_COLLECT"), _, _))
-        .WillOnce(DoAll(SetArrayArgument<1>("true", "true" + 5),
-                       Return(UTILS_SUCCESS)));
-
-    EXPECT_TRUE(load_environment(&ctx));
-    EXPECT_TRUE(ctx.collect_scheduled_logs);
-}
-
-TEST_F(ContextManagerTest, LoadEnvironment_ScheduledLogCollect_DisabledWhenFalse) {
-    EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-    EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-    EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("DCM_SCHEDULED_LOG_COLLECT"), _, _))
-        .WillOnce(DoAll(SetArrayArgument<1>("false", "false" + 6),
-                       Return(UTILS_SUCCESS)));
-
-    EXPECT_TRUE(load_environment(&ctx));
-    EXPECT_FALSE(ctx.collect_scheduled_logs);
-}
-
-TEST_F(ContextManagerTest, LoadEnvironment_ScheduledLogCollect_DefaultDisabled) {
-    // Property absent (all device-property reads fail) => default off (STB/broadband parity)
-    EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-    EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
-        .WillRepeatedly(Return(UTILS_FAIL));
-
-    EXPECT_TRUE(load_environment(&ctx));
-    EXPECT_FALSE(ctx.collect_scheduled_logs);
-}
-
 // Test load_tr181_params function
 TEST_F(ContextManagerTest, LoadTR181Params_NullContext) {
     EXPECT_FALSE(load_tr181_params(nullptr));
