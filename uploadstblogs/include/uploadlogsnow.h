@@ -33,7 +33,7 @@ extern "C" {
 
 /**
  * @brief Execute UploadLogsNow workflow
- * 
+ *
  * This function replicates the behavior of the original UploadLogsNow.sh script:
  * 1. Creates DCM_LOG_PATH directory
  * 2. Copies all files from LOG_PATH to DCM_LOG_PATH (excluding certain directories)
@@ -41,7 +41,7 @@ extern "C" {
  * 4. Creates tar archive
  * 5. Uploads using ONDEMAND strategy
  * 6. Cleans up temporary files
- * 
+ *
  * @param ctx Runtime context with configuration and paths
  * @return 0 on success, negative value on failure
  */

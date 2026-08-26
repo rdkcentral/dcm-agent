@@ -62,7 +62,7 @@ protected:
         // Set up mock objects
         g_mockRdkUtils = new MockRdkUtils();
         g_mockRbus = new MockRbus();
-        
+
         // Clear context
         memset(&ctx, 0, sizeof(RuntimeContext));
     }
@@ -73,7 +73,7 @@ protected:
         unlink("/tmp/.lastcodebigfail_upl");
         unlink("/tmp/.EnableOCSPStapling");
         unlink("/tmp/.EnableOCSPCA");
-        
+
         delete g_mockRdkUtils;
         delete g_mockRbus;
         g_mockRdkUtils = nullptr;
@@ -116,12 +116,12 @@ TEST_F(ContextManagerTest, DirectBlocked_FileWithinBlockTime) {
 TEST_F(ContextManagerTest, DirectBlocked_FileExpired) {
     CreateTestFileWithAge("/tmp/.lastdirectfail_upl", 90000); // 25 hours ago
     EXPECT_FALSE(is_direct_blocked(86400)); // 24 hour block time
-    
+
     // File should be removed
     EXPECT_EQ(access("/tmp/.lastdirectfail_upl", F_OK), -1);
 }
 
-// Test is_codebig_blocked function  
+// Test is_codebig_blocked function
 TEST_F(ContextManagerTest, CodebigBlocked_NoFile) {
     unlink("/tmp/.lastcodebigfail_upl");
     EXPECT_FALSE(is_codebig_blocked(1800));
@@ -135,7 +135,7 @@ TEST_F(ContextManagerTest, CodebigBlocked_FileWithinBlockTime) {
 TEST_F(ContextManagerTest, CodebigBlocked_FileExpired) {
     CreateTestFileWithAge("/tmp/.lastcodebigfail_upl", 2000); // 33+ minutes ago
     EXPECT_FALSE(is_codebig_blocked(1800)); // 30 minute block time
-    
+
     // File should be removed
     EXPECT_EQ(access("/tmp/.lastcodebigfail_upl", F_OK), -1);
 }
@@ -150,35 +150,35 @@ TEST_F(ContextManagerTest, LoadEnvironment_Success) {
     EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(StrEq("LOG_PATH"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("/opt/test", "/opt/test" + 9),
                        Return(UTILS_SUCCESS)));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(StrEq("DIRECT_BLOCK_TIME"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("43200", "43200" + 6),
                        Return(UTILS_SUCCESS)));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(StrEq("CB_BLOCK_TIME"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("900", "900" + 4),
                        Return(UTILS_SUCCESS)));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("PROXY_BUCKET"), _, _))
         .WillOnce(Return(UTILS_FAIL));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("DEVICE_TYPE"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("mediaclient", "mediaclient" + 11),
                        Return(UTILS_SUCCESS)));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("BUILD_TYPE"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("prod", "prod" + 5),
                        Return(UTILS_SUCCESS)));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("DCM_LOG_PATH"), _, _))
         .WillOnce(Return(UTILS_FAIL));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(StrEq("ENABLE_MAINTENANCE"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("true", "true" + 5),
                        Return(UTILS_SUCCESS)));
 
     EXPECT_TRUE(load_environment(&ctx));
-    
+
     // Verify loaded values
     EXPECT_STREQ(ctx.log_path, "/opt/test");
     EXPECT_STREQ(ctx.prev_log_path, "/opt/test/PreviousLogs");
@@ -193,12 +193,12 @@ TEST_F(ContextManagerTest, LoadEnvironment_DefaultValues) {
     // All property calls fail, should use defaults
     EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(_, _, _))
         .WillRepeatedly(Return(UTILS_FAIL));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
         .WillRepeatedly(Return(UTILS_FAIL));
 
     EXPECT_TRUE(load_environment(&ctx));
-    
+
     // Verify default values
     EXPECT_STREQ(ctx.log_path, "/opt/logs");
     EXPECT_STREQ(ctx.prev_log_path, "/opt/logs/PreviousLogs");
@@ -211,10 +211,10 @@ TEST_F(ContextManagerTest, LoadEnvironment_DefaultValues) {
 TEST_F(ContextManagerTest, LoadEnvironment_OCSPEnabled) {
     // Create OCSP marker files
     CreateTestFile("/tmp/.EnableOCSPStapling");
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getIncludePropertyData(_, _, _))
         .WillRepeatedly(Return(UTILS_FAIL));
-    
+
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
         .WillRepeatedly(Return(UTILS_FAIL));
 
@@ -230,30 +230,30 @@ TEST_F(ContextManagerTest, LoadTR181Params_NullContext) {
 TEST_F(ContextManagerTest, LoadTR181Params_RbusInitFail) {
     EXPECT_CALL(*g_mockRbus, rbus_init())
         .WillOnce(Return(false));
-    
+
     EXPECT_FALSE(load_tr181_params(&ctx));
 }
 
 TEST_F(ContextManagerTest, LoadTR181Params_Success) {
     EXPECT_CALL(*g_mockRbus, rbus_init())
         .WillOnce(Return(true));
-    
+
     EXPECT_CALL(*g_mockRbus, rbus_get_string_param(
         StrEq("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("https://example.com/upload", "https://example.com/upload" + 27),
                        Return(true)));
-    
+
     EXPECT_CALL(*g_mockRbus, rbus_get_bool_param(
         StrEq("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable"), _))
         .WillOnce(DoAll(SetArgPointee<1>(true), Return(true)));
-    
+
     EXPECT_CALL(*g_mockRbus, rbus_get_string_param(
         StrEq("Device.X_RDKCENTRAL-COM_Privacy.PrivacyMode"), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>("DO_NOT_SHARE", "DO_NOT_SHARE" + 12),
                        Return(true)));
-    
+
     EXPECT_TRUE(load_tr181_params(&ctx));
-    
+
     // Verify loaded values
     EXPECT_STREQ(ctx.endpoint_url, "https://example.com/upload");
     EXPECT_TRUE(ctx.encryption_enable);
@@ -272,24 +272,24 @@ TEST_F(ContextManagerTest, GetMacAddress_ZeroSize) {
 
 TEST_F(ContextManagerTest, GetMacAddress_Success) {
     char mac_buffer[32];
-    
+
     EXPECT_CALL(*g_mockRdkUtils, GetEstbMac(_, _))
         .WillOnce(DoAll(
             Invoke([](char* mac_buf, size_t buf_size) -> size_t {
                 strcpy(mac_buf, "AA:BB:CC:DD:EE:FF");
                 return strlen("AA:BB:CC:DD:EE:FF");
             })));
-    
+
     EXPECT_TRUE(get_mac_address(mac_buffer, sizeof(mac_buffer)));
     EXPECT_STREQ(mac_buffer, "AA:BB:CC:DD:EE:FF");
 }
 
 TEST_F(ContextManagerTest, GetMacAddress_Failure) {
     char mac_buffer[32];
-    
+
     EXPECT_CALL(*g_mockRdkUtils, GetEstbMac(_, _))
         .WillOnce(Return(0));
-    
+
     EXPECT_FALSE(get_mac_address(mac_buffer, sizeof(mac_buffer)));
 }
 
@@ -304,7 +304,7 @@ TEST_F(ContextManagerTest, InitContext_Success) {
         .WillRepeatedly(Return(UTILS_FAIL));
     EXPECT_CALL(*g_mockRdkUtils, getDevicePropertyData(_, _, _))
         .WillRepeatedly(Return(UTILS_FAIL));
-    
+
     // Mock load_tr181_params success
     EXPECT_CALL(*g_mockRbus, rbus_init())
         .WillOnce(Return(true));
@@ -312,7 +312,7 @@ TEST_F(ContextManagerTest, InitContext_Success) {
         .WillRepeatedly(Return(false));
     EXPECT_CALL(*g_mockRbus, rbus_get_bool_param(_, _))
         .WillRepeatedly(Return(false));
-    
+
     // Mock get_mac_address success
     EXPECT_CALL(*g_mockRdkUtils, GetEstbMac(_, _))
         .WillOnce(DoAll(
@@ -320,7 +320,7 @@ TEST_F(ContextManagerTest, InitContext_Success) {
                 strcpy(mac_buf, "AA:BB:CC:DD:EE:FF");
                 return strlen("AA:BB:CC:DD:EE:FF");
             })));
-    
+
     EXPECT_TRUE(init_context(&ctx));
 }
 
@@ -334,9 +334,9 @@ TEST_F(ContextManagerTest, InitContext_LoadEnvironmentFails) {
 int main(int argc, char** argv) {
     // Create test results directory
     system("mkdir -p " GTEST_DEFAULT_RESULT_FILEPATH);
-    
+
     // Initialize Google Test
     ::testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }

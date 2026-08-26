@@ -11,6 +11,7 @@ The C migration must replicate the shell script’s logic for conditional log pa
 - Verification → cleanup + notification (events + telemetry).
 - Security layer (cert handling, TLS/MTLS, optional OCSP validation).
 - Support modules: configuration, log collection, file ops, event emission.
+- Scheduled DCM uploads stage current `/opt/logs` into `DCM_LOG_PATH` before archiving.
 
 ## 2. Inputs
 
@@ -94,7 +95,7 @@ The C migration must replicate the shell script’s logic for conditional log pa
 - Log each stage (strategy chosen, path selected, attempt counts, HTTP codes).
 - Log SHA256 hash of the archive at INFO level before each Direct upload for traceability.
 - Telemetry counters keyed to success, failure, fallback, curl and cert errors.
-  
+
 ## 10. Migration Non-Functional Requirements
 
 | Requirement | Description |

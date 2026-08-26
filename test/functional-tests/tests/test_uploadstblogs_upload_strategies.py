@@ -48,14 +48,14 @@ class TestOnDemandStrategy:
     def test_ondemand_immediate_execution(self):
         """Test: On-demand upload executes immediately"""
         create_test_log_files(count=2)
-        
+
         # Trigger on-demand upload (TriggerType=5)
         args = "'' 0 0 0 HTTP http://localhost:8080 5 0 ''"
-        
+
         start_time = time.time()
         result = run_uploadstblogs(args)
         elapsed = time.time() - start_time
-        
+
         # Should start immediately without waiting
         assert elapsed < 30, "On-demand upload should execute immediately"
 
@@ -63,11 +63,11 @@ class TestOnDemandStrategy:
     def test_ondemand_no_schedule_wait(self):
         """Test: On-demand upload doesn't wait for scheduled time"""
         create_test_log_files(count=2)
-        
+
         # Execute on-demand
         args = "'' 0 0 0 HTTP http://localhost:8080 5 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check logs for immediate execution
         immediate_logs = grep_uploadstb_logs_regex(r"immediate|ondemand|manual")
         # Process should complete
@@ -77,10 +77,10 @@ class TestOnDemandStrategy:
     def test_ondemand_telemetry(self):
         """Test: On-demand upload generates appropriate telemetry"""
         create_test_log_files(count=1)
-        
+
         args = "'' 0 0 0 HTTP http://localhost:8080 5 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check for telemetry
         telemetry_logs = grep_uploadstb_logs_regex(r"telemetry|marker")
         # Should complete
@@ -105,12 +105,12 @@ class TestRebootStrategy:
     def test_reboot_upload_detection(self):
         """Test: Service detects reboot condition"""
         create_test_log_files(count=2)
-        
+
         # Trigger reboot upload (UploadOnReboot=1, TriggerType=2)
         args = "'' 0 0 1 HTTP http://localhost:8080 2 0 ''"
-        
+
         result = run_uploadstblogs(args)
-        
+
         # Check for reboot detection (may not be explicitly logged)
         reboot_logs = grep_uploadstb_logs_regex(r"reboot|UploadOnReboot|REBOOT|TriggerType.*2")
         # Process should complete with reboot parameters
@@ -122,12 +122,12 @@ class TestRebootStrategy:
         # Create files in PreviousLogs directory
         sp.run("mkdir -p /opt/logs/PreviousLogs", shell=True)
         sp.run("echo 'previous log content' > /opt/logs/PreviousLogs/prev.log", shell=True)
-        
+
         create_test_log_files(count=1)
-        
+
         args = "'' 0 0 1 HTTP http://localhost:8080 2 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check for previous log collection
         prev_logs = grep_uploadstb_logs_regex(r"previous|PreviousLogs")
         # Should process logs
@@ -137,10 +137,10 @@ class TestRebootStrategy:
     def test_reboot_upload_telemetry(self):
         """Test: Reboot upload generates appropriate telemetry"""
         create_test_log_files(count=1)
-        
+
         args = "'' 0 0 1 HTTP http://localhost:8080 2 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check for telemetry
         telemetry_logs = grep_uploadstb_logs_regex(r"telemetry|reboot.*success")
         # Should complete
@@ -165,12 +165,12 @@ class TestDCMScheduledStrategy:
     def test_dcm_scheduled_trigger(self):
         """Test: DCM scheduled upload is triggered correctly"""
         create_test_log_files(count=2)
-        
+
         # DCM scheduled upload (FLAG=0, DCM_FLAG=0, TriggerType=0)
         args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
-        
+
         result = run_uploadstblogs(args)
-        
+
         # Check for DCM processing
         dcm_logs = grep_uploadstb_logs_regex(r"DCM|scheduled|FLAG.*0")
         assert len(dcm_logs) > 0, "DCM scheduled upload should be processed"
@@ -179,10 +179,10 @@ class TestDCMScheduledStrategy:
     def test_dcm_log_collection(self):
         """Test: DCM scheduled upload collects logs according to configuration"""
         create_test_log_files(count=3)
-        
+
         args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check for log collection
         collection_logs = grep_uploadstb_logs_regex(r"collect|archive|DCM")
         # Should attempt collection
@@ -192,14 +192,29 @@ class TestDCMScheduledStrategy:
     def test_dcm_upload_telemetry(self):
         """Test: DCM upload generates telemetry"""
         create_test_log_files(count=1)
-        
+
         args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check telemetry
         telemetry_logs = grep_uploadstb_logs_regex(r"telemetry|marker|SYST")
         # Should complete
         assert result.returncode in [0, 1], "Should generate DCM telemetry"
+
+    @pytest.mark.order(4)
+    def test_dcm_scheduled_log_collects_current_logs(self):
+        """DCM scheduled uploads stage current logs into DCM_LOG_PATH."""
+        create_test_log_files(count=3)
+
+        args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
+        result = run_uploadstblogs(args)
+
+        # The DCM strategy should log the RDK-C current-log collection step
+        collect_logs = grep_uploadstb_logs_regex(
+            r"Copied [0-9]+ files from|Collecting current logs|Successfully copied")
+        assert len(collect_logs) > 0, \
+            "DCM scheduled uploads should stage current logs into DCM_LOG_PATH"
+        assert result.returncode in [0, 1], "DCM upload should complete"
 
 
 class TestRBUSIntegration:
@@ -220,9 +235,9 @@ class TestRBUSIntegration:
     def test_rbus_parameter_loading(self):
         """Test: Service loads parameters from RBUS/TR-181"""
         create_test_log_files(count=1)
-        
+
         result = run_uploadstblogs()
-        
+
         # Check for RBUS initialization
         rbus_logs = grep_uploadstb_logs_regex(r"rbus|RBUS|TR-181|Device\.DeviceInfo")
         # RBUS parameters may be loaded during context init
@@ -235,22 +250,22 @@ class TestRBUSIntegration:
         rbus_check = sp.run("which rbuscli", shell=True, capture_output=True)
         if rbus_check.returncode != 0:
             pytest.skip("rbuscli not available")
-        
+
         create_test_log_files(count=1)
-        
+
         # Trigger via RBUS would be done through DCM agent typically
         # For direct test, we use command line args
         result = run_uploadstblogs()
-        
+
         assert result.returncode in [0, 1], "RBUS-triggered upload should work"
 
     @pytest.mark.order(3)
     def test_rbus_configuration_loading(self):
         """Test: Service loads upload configuration from RBUS"""
         create_test_log_files(count=1)
-        
+
         result = run_uploadstblogs()
-        
+
         # Check for configuration loading
         config_logs = grep_uploadstb_logs_regex(r"load.*TR-181|load.*param|endpoint|RFC")
         # Should attempt to load config
@@ -260,9 +275,9 @@ class TestRBUSIntegration:
     def test_rbus_event_publishing(self):
         """Test: Upload success event is published via RBUS"""
         create_test_log_files(count=1)
-        
+
         result = run_uploadstblogs()
-        
+
         # Check for event publishing
         event_logs = grep_uploadstb_logs_regex(r"event|publish|success")
         # Should complete
@@ -287,12 +302,12 @@ class TestStrategySelection:
     def test_strategy_selection_based_on_flags(self):
         """Test: Correct strategy is selected based on flags"""
         create_test_log_files(count=1)
-        
+
         # Test different flag combinations
         # RRD mode: RRD_FLAG=1
         args = "'' 0 0 0 HTTP http://localhost:8080 0 1 /opt/logs/rrd.log"
         result = run_uploadstblogs(args)
-        
+
         # Check for strategy selection
         strategy_logs = grep_uploadstb_logs_regex(r"strategy|RRD|select")
         assert result.returncode in [0, 1], "Should select appropriate strategy"
@@ -301,11 +316,11 @@ class TestStrategySelection:
     def test_multiple_strategy_parameters(self):
         """Test: Service handles multiple strategy parameters"""
         create_test_log_files(count=1)
-        
+
         # Test with various parameters
         args = "'' 1 1 1 HTTPS https://localhost:8443 1 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Should handle all parameters
         assert result.returncode in [0, 1], "Should handle multiple parameters"
 
@@ -313,10 +328,10 @@ class TestStrategySelection:
     def test_strategy_logging(self):
         """Test: Selected strategy is logged"""
         create_test_log_files(count=1)
-        
+
         args = "'' 0 0 1 HTTP http://localhost:8080 2 0 ''"
         result = run_uploadstblogs(args)
-        
+
         # Check strategy logging
         logs = grep_uploadstb_logs_regex(r"strategy|STRAT_|upload.*type")
         # Strategy should be determined

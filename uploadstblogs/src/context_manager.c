@@ -51,7 +51,7 @@ bool is_direct_blocked(int block_time)
 {
     const char *block_file = "/tmp/.lastdirectfail_upl";
     struct stat file_stat;
-    
+
     // Open file with O_NOFOLLOW to prevent symlink attacks, O_RDONLY for reading metadata
     int fd = open(block_file, O_RDONLY | O_NOFOLLOW);
     if (fd < 0) {
@@ -63,29 +63,29 @@ bool is_direct_blocked(int block_time)
         }
         return false;
     }
-    
+
     // Use fstat on the open file descriptor to avoid TOCTOU race
     if (fstat(fd, &file_stat) != 0) {
         close(fd);
         return false;
     }
-    
+
     close(fd);
-    
+
     time_t current_time = time(NULL);
     time_t mod_time = file_stat.st_mtime;
     time_t elapsed = current_time - mod_time;
-    
+
     if (elapsed <= block_time) {
         // Still within block period
         int remaining_hours = (block_time - elapsed) / 3600;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Last direct failed blocking is still valid for %d hrs, preventing direct\n",
                 __FUNCTION__, __LINE__, remaining_hours);
         return true;
     } else {
         // Block period expired, remove file (ignore errors if file disappeared)
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Last direct failed blocking has expired, removing %s, allowing direct\n",
                 __FUNCTION__, __LINE__, block_file);
         if (unlink(block_file) != 0 && errno != ENOENT) {
@@ -106,7 +106,7 @@ bool is_codebig_blocked(int block_time)
 {
     const char *block_file = "/tmp/.lastcodebigfail_upl";
     struct stat file_stat;
-    
+
     // Open file with O_NOFOLLOW to prevent symlink attacks, O_RDONLY for reading metadata
     int fd = open(block_file, O_RDONLY | O_NOFOLLOW);
     if (fd < 0) {
@@ -118,29 +118,29 @@ bool is_codebig_blocked(int block_time)
         }
         return false;
     }
-    
+
     // Use fstat on the open file descriptor to avoid TOCTOU race
     if (fstat(fd, &file_stat) != 0) {
         close(fd);
         return false;
     }
-    
+
     close(fd);
-    
+
     time_t current_time = time(NULL);
     time_t mod_time = file_stat.st_mtime;
     time_t elapsed = current_time - mod_time;
-    
+
     if (elapsed <= block_time) {
         // Still within block period
         int remaining_mins = (block_time - elapsed) / 60;
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Last Codebig failed blocking is still valid for %d mins, preventing Codebig\n",
                 __FUNCTION__, __LINE__, remaining_mins);
         return true;
     } else {
         // Block period expired, remove file (ignore errors if file disappeared)
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                 "[%s:%d] Last Codebig failed blocking has expired, removing %s, allowing Codebig\n",
                 __FUNCTION__, __LINE__, block_file);
         if (unlink(block_file) != 0 && errno != ENOENT) {
@@ -155,6 +155,7 @@ bool is_codebig_blocked(int block_time)
 bool init_context(RuntimeContext* ctx)
 {
     // Initialize RDK Logger
+#ifdef RDK_LOGGER_EXT
     rdk_LogOutput_File filelog;
     strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
     filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
@@ -169,10 +170,20 @@ bool init_context(RuntimeContext* ctx)
         .format = RDKLOG_FORMAT_WITH_TS,          /* Timestamped format */
         .pFilePolicy =  &filelog                  /* using file output */
     };
-    
+
     if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
         printf("UPLOADSTB : ERROR - Extended logger init failed\n");
     }
+#else
+    /* Platforms with an older rdk-logger (e.g. RDKC's 2.4.0) do not provide the
+     * extended programmatic-config API: rdk_logger_ext_config_t there is a
+     * file-rotation struct and RDKLOG_OUTPUT_CONSOLE/RDKLOG_FORMAT_WITH_TS are
+     * absent. Fall back to the standard debug.ini init, matching the guard
+     * already used in backup_logs.c and usb_log_utils.c. */
+    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+        printf("UPLOADSTB : ERROR - Logger init failed\n");
+    }
+#endif
     if (!ctx) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Context pointer is NULL\n", __FUNCTION__, __LINE__);
         return false;
@@ -202,10 +213,10 @@ bool init_context(RuntimeContext* ctx)
     // Final context validation summary
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Context initialization successful\n", __FUNCTION__, __LINE__);
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Device MAC: '%s', Type: '%s'\n",
-            __FUNCTION__, __LINE__, 
+            __FUNCTION__, __LINE__,
             ctx->mac_address,
             strlen(ctx->device_type) > 0 ? ctx->device_type : "(empty)");
-    
+
     return true;
 }
 
@@ -243,14 +254,14 @@ bool load_environment(RuntimeContext* ctx)
         strcpy(ctx->prev_log_path, ctx->log_path);
         strcat(ctx->prev_log_path, "/PreviousLogs");
     } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing PREV_LOG_PATH\n", 
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing PREV_LOG_PATH\n",
                 __FUNCTION__, __LINE__);
         strncpy(ctx->prev_log_path, "/opt/logs/PreviousLogs", sizeof(ctx->prev_log_path) - 1);
         ctx->prev_log_path[sizeof(ctx->prev_log_path) - 1] = '\0';
     }
 
     // Set DRI_LOG_PATH (hardcoded in script)
-    strncpy(ctx->dri_log_path, "/opt/logs/drilogs", 
+    strncpy(ctx->dri_log_path, "/opt/logs/drilogs",
             sizeof(ctx->dri_log_path) - 1);
     ctx->dri_log_path[sizeof(ctx->dri_log_path) - 1] = '\0';
 
@@ -261,7 +272,7 @@ bool load_environment(RuntimeContext* ctx)
         strcpy(ctx->rrd_file, ctx->log_path);
         strcat(ctx->rrd_file, "/remote-debugger.log");
     } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing RRD_LOG_FILE\n", 
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing RRD_LOG_FILE\n",
                 __FUNCTION__, __LINE__);
         strncpy(ctx->rrd_file, "/opt/logs/remote-debugger.log", sizeof(ctx->rrd_file) - 1);
         ctx->rrd_file[sizeof(ctx->rrd_file) - 1] = '\0';
@@ -334,7 +345,7 @@ bool load_environment(RuntimeContext* ctx)
         strcpy(ctx->dcm_log_file, ctx->log_path);
         strcat(ctx->dcm_log_file, "/dcmscript.log");
     } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing DCM_LOG_FILE\n", 
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] LOG_PATH too long for constructing DCM_LOG_FILE\n",
                 __FUNCTION__, __LINE__);
         strncpy(ctx->dcm_log_file, "/opt/logs/dcmscript.log", sizeof(ctx->dcm_log_file) - 1);
         ctx->dcm_log_file[sizeof(ctx->dcm_log_file) - 1] = '\0';
@@ -354,10 +365,10 @@ bool load_environment(RuntimeContext* ctx)
 
     // Create DCM log directory if it doesn't exist (matches script behavior)
     if (!dir_exists(ctx->dcm_log_path)) {
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DCM log folder does not exist. Creating now: %s\n", 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DCM log folder does not exist. Creating now: %s\n",
                 __FUNCTION__, __LINE__, ctx->dcm_log_path);
         if (!create_directory(ctx->dcm_log_path)) {
-            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create DCM log directory: %s\n", 
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to create DCM log directory: %s\n",
                     __FUNCTION__, __LINE__, ctx->dcm_log_path);
             // Continue anyway - not a fatal error
         }
@@ -366,7 +377,7 @@ bool load_environment(RuntimeContext* ctx)
     // Check for TLS support (set TLS flag if /etc/os-release exists)
     struct stat st_osrelease;
     bool os_release_exists = (stat("/etc/os-release", &st_osrelease) == 0);
-    
+
     if (os_release_exists) {
         ctx->tls_enabled = true;
         RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] TLS 1.2 support enabled\n", __FUNCTION__, __LINE__);
@@ -381,7 +392,7 @@ bool load_environment(RuntimeContext* ctx)
         strncpy(ctx->iarm_event_binary, "/usr/local/bin", sizeof(ctx->iarm_event_binary) - 1);
     }
     ctx->iarm_event_binary[sizeof(ctx->iarm_event_binary) - 1] = '\0';
-    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] IARM_EVENT_BINARY_LOCATION=%s\n", 
+    RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] IARM_EVENT_BINARY_LOCATION=%s\n",
             __FUNCTION__, __LINE__, ctx->iarm_event_binary);
 
     // Check for maintenance mode enable
@@ -403,12 +414,11 @@ bool load_environment(RuntimeContext* ctx)
     ctx->include_dri = true;
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] DRI log collection enabled\n", __FUNCTION__, __LINE__);
 
-    
     // Check for OCSP marker files
     // EnableOCSPStapling="/tmp/.EnableOCSPStapling"
     // EnableOCSP="/tmp/.EnableOCSPCA"
     struct stat st_ocsp;
-    if (stat("/tmp/.EnableOCSPStapling", &st_ocsp) == 0 || 
+    if (stat("/tmp/.EnableOCSPStapling", &st_ocsp) == 0 ||
         stat("/tmp/.EnableOCSPCA", &st_ocsp) == 0) {
         ctx->ocsp_enabled = true;
         RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] OCSP validation enabled\n", __FUNCTION__, __LINE__);
@@ -447,9 +457,9 @@ bool load_tr181_params(RuntimeContext* ctx)
     // Load LogUploadEndpoint URL
     // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL
     if (!rbus_get_string_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.LogUploadEndpoint.URL",
-                               ctx->endpoint_url, 
+                               ctx->endpoint_url,
                                sizeof(ctx->endpoint_url))) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n", 
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get LogUploadEndpoint.URL\n",
                 __FUNCTION__, __LINE__);
     }
 
@@ -457,7 +467,7 @@ bool load_tr181_params(RuntimeContext* ctx)
     // Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable
     if (!rbus_get_bool_param("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.EncryptCloudUpload.Enable",
                              &ctx->encryption_enable)) {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get EncryptCloudUpload.Enable, using default: false\n", 
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get EncryptCloudUpload.Enable, using default: false\n",
                 __FUNCTION__, __LINE__);
         ctx->encryption_enable = false;
     }
@@ -469,16 +479,16 @@ bool load_tr181_params(RuntimeContext* ctx)
                              privacy_mode, sizeof(privacy_mode))) {
         // PrivacyMode values: "DO_NOT_SHARE" or "SHARE"
         ctx->privacy_do_not_share = (strcasecmp(privacy_mode, "DO_NOT_SHARE") == 0);
-        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Privacy Mode: %s (do_not_share=%d)\n", 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] Privacy Mode: %s (do_not_share=%d)\n",
                 __FUNCTION__, __LINE__, privacy_mode, ctx->privacy_do_not_share);
     } else {
-        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get PrivacyMode, using default: false\n", 
+        RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, "[%s:%d] Failed to get PrivacyMode, using default: false\n",
                 __FUNCTION__, __LINE__);
         ctx->privacy_do_not_share = false;
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, "[%s:%d] TR-181 parameters loaded via RBUS\n", __FUNCTION__, __LINE__);
-    
+
     // Note: UploadLogsOnUnscheduledReboot.Disable is loaded at runtime when needed in maintenance window
     // Note: RDKRemoteDebugger.IssueType is only used for RRD mode which has separate handling
 
@@ -495,13 +505,13 @@ bool get_mac_address(char* mac_buf, size_t buf_size)
     }
 
     size_t copied = GetEstbMac(mac_buf, buf_size);
-    
+
     if (copied > 0 && strlen(mac_buf) > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] MAC address: %s\n", 
+        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, "[%s:%d] MAC address: %s\n",
                 __FUNCTION__, __LINE__, mac_buf);
         return true;
     } else {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get MAC address\n", 
+        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get MAC address\n",
                 __FUNCTION__, __LINE__);
         return false;
     }
