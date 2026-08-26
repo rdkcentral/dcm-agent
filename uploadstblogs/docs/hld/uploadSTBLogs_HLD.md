@@ -250,6 +250,5 @@ Excluded any unrelated enhancements (alternate compression, multi-protocol expan
 
 One RDK-C-specific behavior extends the base design on camera (sysvinit) platforms; it is inert on STB/broadband:
 
-- **Scheduled log collection** — the DCM strategy's `dcm_setup` stages the current `/opt/logs` tree into `DCM_LOG_PATH` (via `copy_files_to_dcm_path`) before archiving, so every scheduled upload carries current logs.
+- **Scheduled log collection** — the DCM strategy's `dcm_setup` stages current logs from `LOG_PATH` into `DCM_LOG_PATH` before archiving, so every scheduled upload carries current logs.
 
-```
