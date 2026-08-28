@@ -25,6 +25,7 @@
 
 extern "C" {
 #include "usb_log_validation.h"
+#include "usb_log_utils.h"
 }
 
 /* Controllable mock state for getDevicePropertyData */
