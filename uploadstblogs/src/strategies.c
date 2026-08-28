@@ -44,7 +44,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/inotify.h>
-#include <dirent.h>
 #include <curl/curl.h>
 #include "strategy_handler.h"
 #include "archive_manager.h"
