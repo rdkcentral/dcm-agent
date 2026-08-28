@@ -34,13 +34,13 @@ static char g_mock_device_prop_value[64] = "TV";
 
 extern "C" {
     int rdk_logger_init(const char*) { return 0; }
-    int getDevicePropertyData(const char*, char* buf, size_t sz) {
+    int getDevicePropertyData(const char*, char* buf, unsigned int sz) {
         if (g_mock_device_prop_rc != UTILS_SUCCESS) return g_mock_device_prop_rc;
         strncpy(buf, g_mock_device_prop_value, sz - 1);
         buf[sz - 1] = '\0';
         return UTILS_SUCCESS;
     }
-    int getIncludePropertyData(const char*, char* buf, size_t sz) {
+    int getIncludePropertyData(const char*, char* buf, unsigned int sz) {
         strncpy(buf, "/opt/logs", sz - 1);
         buf[sz - 1] = '\0';
         return UTILS_SUCCESS;
