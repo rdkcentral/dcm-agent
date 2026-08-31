@@ -78,7 +78,7 @@ void DCMLOGInit()
      * file-rotation struct and RDKLOG_OUTPUT_CONSOLE/RDKLOG_FORMAT_WITH_TS are
      * absent. Fall back to the standard debug.ini init, matching the guard
      * already used in backup_logs.c and usb_log_utils.c. */
-    if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
+    if (0 != rdk_logger_init(DEBUG_INI_NAME)) {
         printf("DCM : ERROR - Logger init failed\n");
     }
     else {
