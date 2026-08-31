@@ -364,16 +364,18 @@ int main(int argc, char* argv[])
      */
     {
         INT32 retryCount = 0;
-        do {
+        while (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
             ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
-            if(ret == DCM_SUCCESS) {
+            if (ret == DCM_SUCCESS) {
                 break;
             }
             retryCount++;
             DCMInfo("Reload event not delivered yet, retry %d/%d\n",
                     retryCount, DCM_RELOAD_EVENT_MAX_RETRY);
-            sleep(1);
-        } while(retryCount < DCM_RELOAD_EVENT_MAX_RETRY);
+            if (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
+                sleep(1);
+            }
+        }
     }
 #else
     /* Non-RDKC builds preserve the original single-attempt publish. */
