@@ -79,7 +79,10 @@ void DCMLOGInit()
      * absent. Fall back to the standard debug.ini init, matching the guard
      * already used in backup_logs.c and usb_log_utils.c. */
     if (rdk_logger_init(DEBUG_INI_NAME) != RDK_SUCCESS) {
-        printf("UPLOADSTB : ERROR - Logger init failed\n");
+        printf("DCM : ERROR - Logger init failed\n");
+    }
+    else {
+        g_rdk_logger_enabled = 1;
     }
 #endif // RDK_LOGGER_EXT
 

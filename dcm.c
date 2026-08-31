@@ -353,6 +353,7 @@ int main(int argc, char* argv[])
 
     DCMInfo("Telemetry Events subscriptions is success\n");
 
+#ifdef RDKC
     /*
      * Publish the reload event to telemetry. dcmRbusSendEvent only succeeds once
      * telemetry has subscribed to the reload event; on RDK-C that subscribe can
@@ -374,6 +375,10 @@ int main(int argc, char* argv[])
             sleep(1);
         } while(retryCount < DCM_RELOAD_EVENT_MAX_RETRY);
     }
+#else
+    /* Non-RDKC builds preserve the original single-attempt publish. */
+    ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
+#endif /* RDKC */
 
     if(ret) {
         DCMError("Reload config event failed!!!\n");
