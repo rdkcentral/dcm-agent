@@ -39,6 +39,14 @@
 #include "dcm_schedjob.h"
 #include "uploadstblogs.h"
 
+/*
+ * Max attempts to publish the reload config event to telemetry before giving up
+ * and continuing to the scheduling loop. Retrying makes the DCM<->T2 reload
+ * handshake independent of daemon start order (see the reload publish in main()
+ * and registerRbusDCMEventListener in telemetry's rbusInterface.c).
+ */
+#define DCM_RELOAD_EVENT_MAX_RETRY 30
+
 static DCMDHandle *g_pdcmHandle = NULL;
 
 /** @brief Call back function from Scheduler. This function
@@ -345,7 +353,35 @@ int main(int argc, char* argv[])
 
     DCMInfo("Telemetry Events subscriptions is success\n");
 
+#ifdef RDKC
+    /*
+     * Publish the reload event to telemetry. dcmRbusSendEvent only succeeds once
+     * telemetry has subscribed to the reload event; on RDK-C that subscribe can
+     * complete just after dcmd is ready, so the first publish may race ahead of
+     * it. Retry a bounded number of times until the event is delivered. The
+     * bound preserves the legacy "log and continue" behaviour so dcmd still
+     * enters its scheduling loop even if telemetry never subscribes.
+     */
+    {
+        INT32 retryCount = 0;
+        while (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
+            ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
+            if (ret == DCM_SUCCESS) {
+                break;
+            }
+            retryCount++;
+            DCMInfo("Reload event not delivered yet, retry %d/%d\n",
+                    retryCount, DCM_RELOAD_EVENT_MAX_RETRY);
+            if (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
+                sleep(1);
+            }
+        }
+    }
+#else
+    /* Non-RDKC builds preserve the original single-attempt publish. */
     ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
+#endif /* RDKC */
+
     if(ret) {
         DCMError("Reload config event failed!!!\n");
     }

@@ -525,6 +525,8 @@ make install
 | Flag | Effect |
 |------|--------|
 | `-DRDK_LOGGER_ENABLED` | Use RDK logger instead of stderr |
+| `-DRDK_LOGGER_EXT` | Use the **extended** RDK logger init API (`rdk_logger_ext_config_t`, `RDKLOG_OUTPUT_CONSOLE`, `RDKLOG_FORMAT_WITH_TS`). Its **absence** makes `context_manager.c` fall back to the standard `rdk_logger_init(debug.ini)` — required for RDK-C, whose rdk-logger 2.4.0 predates the extended API. |
+| `-DRDKC` | RDK-C (camera) platform marker. |
 | `-DHAS_MAINTENANCE_MANAGER` | Enable Maintenance Manager integration via IARM |
 | `-DGTEST_ENABLE` | Stub out RBUS/IARM for unit testing |
 | `-DDCM_DEF_LOG_URL=<url>` | Override default fallback upload URL |
@@ -607,6 +609,14 @@ if (ret != DCM_SUCCESS) {
 - RBUS IPC (`librbus`) must be available at runtime.
 - Optional IARM bus integration for Maintenance Manager notifications.
 - RDK logger (`librdkloggers`) replaces `fprintf(stderr)` when available.
+
+### RDK-C / Sysvinit (Camera)
+
+RDK-C camera platforms run **sysvinit**, not systemd, and ship an older rdk-logger. Key differences:
+
+- **No systemd** — the `sys_integration` systemd READY notification is inactive and `dcmd.service` is not installed; `dcmd` is started from the sysvinit `dcm-log-service` init script.
+- **DCM–T2 handshake retry** — sysvinit start order is variable (telemetry can start well before `dcmd`), so the reload-config event publish is retried up to `DCM_RELOAD_EVENT_MAX_RETRY` (30 attempts, 1 s apart) so the handshake completes regardless of order.
+- **Logger fallback** — built **without** `-DRDK_LOGGER_EXT` (see Conditional Compile Flags), so `context_manager.c` initialises logging via the standard `rdk_logger_init(debug.ini)` path.
 
 ### Resource Constraints
 
