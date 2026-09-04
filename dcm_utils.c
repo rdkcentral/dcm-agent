@@ -49,6 +49,7 @@ void DCMLOGInit()
 {
 #ifdef RDK_LOGGER_ENABLED
      // Initialize RDK Logger
+#if !defined(RDKC)
     rdk_LogOutput_File filelog;
     strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
     filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
@@ -71,7 +72,21 @@ void DCMLOGInit()
     else {
         g_rdk_logger_enabled = 1;
     }
-    
+#else
+    /* RDKC platforms with an older rdk-logger (e.g. RDKC's 2.4.0) do not
+     * provide the extended programmatic-config API: rdk_logger_ext_config_t
+     * there is a file-rotation struct and RDKLOG_OUTPUT_CONSOLE/
+     * RDKLOG_FORMAT_WITH_TS are absent. Fall back to the standard debug.ini
+     * init only for legacy RDKC builds, matching the guard already used in
+     * backup_logs.c and usb_log_utils.c. */
+    if (0 != rdk_logger_init(DEBUG_INI_NAME)) {
+        printf("DCM : ERROR - Logger init failed\n");
+    }
+    else {
+        g_rdk_logger_enabled = 1;
+    }
+#endif
+
 #endif
 }
 
