@@ -426,6 +426,80 @@ TEST_F(UploadEngineTest, FullWorkflow_FallbackSuccess) {
     EXPECT_FALSE(g_emit_success_called);
 }
 
+// ==================== single_attempt_upload TESTS (static accessor) ====================
+
+
+    UploadResult (*getSingleAttemptUpload(void))(RuntimeContext*, SessionState*, UploadPath);
+
+
+class SingleAttemptUploadTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_execute_direct_called = false;
+        g_execute_codebig_called = false;
+        g_mock_path_result = UPLOADSTB_SUCCESS;
+
+        memset(&ctx, 0, sizeof(ctx));
+        memset(&session, 0, sizeof(session));
+        session.primary = PATH_DIRECT;
+        session.fallback = PATH_CODEBIG;
+        strcpy(session.archive_file, "/tmp/test.tar.gz");
+
+        fnSingleAttemptUpload = getSingleAttemptUpload();
+        ASSERT_NE(nullptr, fnSingleAttemptUpload);
+    }
+    RuntimeContext ctx;
+    SessionState session;
+    UploadResult (*fnSingleAttemptUpload)(RuntimeContext*, SessionState*, UploadPath);
+};
+
+TEST_F(SingleAttemptUploadTest, NullContext_ReturnsFailed) {
+    UploadResult result = fnSingleAttemptUpload(nullptr, &session, PATH_DIRECT);
+    EXPECT_EQ(UPLOADSTB_FAILED, result);
+}
+
+TEST_F(SingleAttemptUploadTest, NullSession_ReturnsFailed) {
+    UploadResult result = fnSingleAttemptUpload(&ctx, nullptr, PATH_DIRECT);
+    EXPECT_EQ(UPLOADSTB_FAILED, result);
+}
+
+TEST_F(SingleAttemptUploadTest, DirectPath_CallsExecuteDirect) {
+    g_mock_path_result = UPLOADSTB_SUCCESS;
+    UploadResult result = fnSingleAttemptUpload(&ctx, &session, PATH_DIRECT);
+    EXPECT_EQ(UPLOADSTB_SUCCESS, result);
+    EXPECT_TRUE(g_execute_direct_called);
+    EXPECT_FALSE(g_execute_codebig_called);
+}
+
+TEST_F(SingleAttemptUploadTest, CodebigPath_CallsExecuteCodebig) {
+    g_mock_path_result = UPLOADSTB_SUCCESS;
+    UploadResult result = fnSingleAttemptUpload(&ctx, &session, PATH_CODEBIG);
+    EXPECT_EQ(UPLOADSTB_SUCCESS, result);
+    EXPECT_FALSE(g_execute_direct_called);
+    EXPECT_TRUE(g_execute_codebig_called);
+}
+
+TEST_F(SingleAttemptUploadTest, PathNone_ReturnsFailed) {
+    UploadResult result = fnSingleAttemptUpload(&ctx, &session, PATH_NONE);
+    EXPECT_EQ(UPLOADSTB_FAILED, result);
+    EXPECT_FALSE(g_execute_direct_called);
+    EXPECT_FALSE(g_execute_codebig_called);
+}
+
+TEST_F(SingleAttemptUploadTest, DirectPath_PropagatesFailure) {
+    g_mock_path_result = UPLOADSTB_FAILED;
+    UploadResult result = fnSingleAttemptUpload(&ctx, &session, PATH_DIRECT);
+    EXPECT_EQ(UPLOADSTB_FAILED, result);
+    EXPECT_TRUE(g_execute_direct_called);
+}
+
+TEST_F(SingleAttemptUploadTest, CodebigPath_PropagatesRetry) {
+    g_mock_path_result = UPLOADSTB_RETRY;
+    UploadResult result = fnSingleAttemptUpload(&ctx, &session, PATH_CODEBIG);
+    EXPECT_EQ(UPLOADSTB_RETRY, result);
+    EXPECT_TRUE(g_execute_codebig_called);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

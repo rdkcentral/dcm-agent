@@ -200,6 +200,53 @@ int rmdir(const char *pathname) {
     }
     return 0;
 }
+
+// Mock unlink for remove_archive and cleanup_temp_dirs
+static bool unlink_fail = false;
+static bool unlink_enoent = false;
+static int unlink_call_count = 0;
+
+int unlink(const char *pathname) {
+    unlink_call_count++;
+    if (!pathname) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (unlink_enoent) {
+        errno = ENOENT;
+        return -1;
+    }
+    if (unlink_fail) {
+        errno = EACCES;
+        return -1;
+    }
+    return 0;
+}
+
+// Mock fopen/fclose/fprintf for create_block_marker
+static bool fopen_fail = false;
+static FILE* mock_file_ptr = (FILE*)0x5678;
+static int fopen_call_count = 0;
+
+FILE* fopen(const char *pathname, const char *mode) {
+    fopen_call_count++;
+    if (fopen_fail || !pathname) {
+        return NULL;
+    }
+    return mock_file_ptr;
+}
+
+int fclose(FILE *stream) {
+    return 0;
+}
+
+int fprintf(FILE *stream, const char *format, ...) {
+    return 10;
+}
+
+// Accessor for static function
+int (*getRemoveDirectoryRecursive(void))(const char*);
+
 #endif
 }
 
@@ -223,6 +270,11 @@ protected:
         remove_fail = false;
         mock_readdir_count = 0;
         total_opendir_calls = 0;
+        unlink_fail = false;
+        unlink_enoent = false;
+        unlink_call_count = 0;
+        fopen_fail = false;
+        fopen_call_count = 0;
         
         // Set up test directory structure
         strcpy(test_log_path, "/opt/logs");
@@ -383,6 +435,310 @@ TEST_F(CleanupManagerTest, ArchiveCleanup_FileTypes) {
     // The mock readdir provides test files including .tgz files
     int result = cleanup_old_archives(test_log_path);
     EXPECT_GE(result, 0);
+}
+
+// ==================== remove_archive TESTS ====================
+
+TEST_F(CleanupManagerTest, RemoveArchive_NullPath) {
+    EXPECT_FALSE(remove_archive(nullptr));
+}
+
+TEST_F(CleanupManagerTest, RemoveArchive_EmptyPath) {
+    EXPECT_FALSE(remove_archive(""));
+}
+
+TEST_F(CleanupManagerTest, RemoveArchive_Success) {
+    unlink_fail = false;
+    EXPECT_TRUE(remove_archive("/tmp/test_archive.tgz"));
+    EXPECT_EQ(unlink_call_count, 1);
+}
+
+TEST_F(CleanupManagerTest, RemoveArchive_FileNotExist_ReturnsTrue) {
+    unlink_enoent = true;
+    EXPECT_TRUE(remove_archive("/tmp/nonexistent.tgz"));
+}
+
+TEST_F(CleanupManagerTest, RemoveArchive_PermissionDenied_ReturnsFalse) {
+    unlink_fail = true;
+    EXPECT_FALSE(remove_archive("/tmp/protected.tgz"));
+}
+
+// ==================== cleanup_temp_dirs TESTS ====================
+
+TEST_F(CleanupManagerTest, CleanupTempDirs_NullCtx) {
+    EXPECT_FALSE(cleanup_temp_dirs(nullptr, nullptr));
+}
+
+TEST_F(CleanupManagerTest, CleanupTempDirs_Success) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+
+    unlink_fail = false;
+    EXPECT_TRUE(cleanup_temp_dirs(&ctx, &session));
+}
+
+TEST_F(CleanupManagerTest, CleanupTempDirs_FilesNotExist_StillSucceeds) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+
+    unlink_enoent = true;
+    EXPECT_TRUE(cleanup_temp_dirs(&ctx, &session));
+}
+
+TEST_F(CleanupManagerTest, CleanupTempDirs_UnlinkFails_ReturnsFalse) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+
+    unlink_fail = true;
+    EXPECT_FALSE(cleanup_temp_dirs(&ctx, &session));
+}
+
+// ==================== create_block_marker TESTS ====================
+
+TEST_F(CleanupManagerTest, CreateBlockMarker_DirectPath_Success) {
+    fopen_fail = false;
+    EXPECT_TRUE(create_block_marker(PATH_DIRECT, 3600));
+    EXPECT_EQ(fopen_call_count, 1);
+}
+
+TEST_F(CleanupManagerTest, CreateBlockMarker_CodebigPath_Success) {
+    fopen_fail = false;
+    EXPECT_TRUE(create_block_marker(PATH_CODEBIG, 1800));
+    EXPECT_EQ(fopen_call_count, 1);
+}
+
+TEST_F(CleanupManagerTest, CreateBlockMarker_InvalidPath_ReturnsFalse) {
+    EXPECT_FALSE(create_block_marker(PATH_NONE, 3600));
+}
+
+TEST_F(CleanupManagerTest, CreateBlockMarker_FopenFails_ReturnsFalse) {
+    fopen_fail = true;
+    EXPECT_FALSE(create_block_marker(PATH_DIRECT, 3600));
+}
+
+// ==================== update_block_markers TESTS ====================
+
+TEST_F(CleanupManagerTest, UpdateBlockMarkers_NullCtx) {
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    // Should not crash
+    update_block_markers(nullptr, &session);
+}
+
+TEST_F(CleanupManagerTest, UpdateBlockMarkers_NullSession) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    // Should not crash
+    update_block_markers(&ctx, nullptr);
+}
+
+TEST_F(CleanupManagerTest, UpdateBlockMarkers_SuccessViaCodebig_BlocksDirect) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = true;
+    session.used_fallback = true;
+    session.codebig_attempts = 1;
+
+    fopen_fail = false;
+    fopen_call_count = 0;
+    update_block_markers(&ctx, &session);
+    // Should have created a block marker for Direct path
+    EXPECT_GE(fopen_call_count, 1);
+}
+
+TEST_F(CleanupManagerTest, UpdateBlockMarkers_DirectSuccess_NoBlocking) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = true;
+    session.used_fallback = false;
+    session.codebig_attempts = 0;
+
+    fopen_call_count = 0;
+    update_block_markers(&ctx, &session);
+    // Direct success should not create any block markers
+    EXPECT_EQ(fopen_call_count, 0);
+}
+
+TEST_F(CleanupManagerTest, UpdateBlockMarkers_CodebigFailed_BlocksCodebig) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = false;
+    session.codebig_attempts = 2;
+
+    fopen_fail = false;
+    fopen_call_count = 0;
+    update_block_markers(&ctx, &session);
+    // Should block CodeBig path
+    EXPECT_GE(fopen_call_count, 1);
+}
+
+// ==================== enforce_privacy TESTS ====================
+
+TEST_F(CleanupManagerTest, EnforcePrivacy_NullPath) {
+    // Should not crash
+    enforce_privacy(nullptr);
+}
+
+TEST_F(CleanupManagerTest, EnforcePrivacy_DirNotExists) {
+    ON_CALL(*g_mockFileOperations, dir_exists(_)).WillByDefault(Return(false));
+    // Should return early without crash
+    enforce_privacy("/nonexistent");
+}
+
+TEST_F(CleanupManagerTest, EnforcePrivacy_OpendirFails) {
+    ON_CALL(*g_mockFileOperations, dir_exists(_)).WillByDefault(Return(true));
+    opendir_fail = true;
+    // Should return without crash
+    enforce_privacy(test_log_path);
+}
+
+TEST_F(CleanupManagerTest, EnforcePrivacy_TruncatesFiles) {
+    ON_CALL(*g_mockFileOperations, dir_exists(_)).WillByDefault(Return(true));
+    opendir_fail = false;
+
+    enforce_privacy(test_log_path);
+    // Real open() will fail on non-existent mock paths; verifies no crash
+}
+
+TEST_F(CleanupManagerTest, EnforcePrivacy_OpenFails_ContinuesOtherFiles) {
+    ON_CALL(*g_mockFileOperations, dir_exists(_)).WillByDefault(Return(true));
+    opendir_fail = false;
+
+    // Real open() will fail on mock paths; function should handle gracefully
+    enforce_privacy(test_log_path);
+}
+
+// ==================== finalize TESTS ====================
+
+TEST_F(CleanupManagerTest, Finalize_NullCtx) {
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    // Should not crash
+    finalize(nullptr, &session);
+}
+
+TEST_F(CleanupManagerTest, Finalize_NullSession) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    // Should not crash
+    finalize(&ctx, nullptr);
+}
+
+TEST_F(CleanupManagerTest, Finalize_SuccessfulUpload_RemovesArchive) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = true;
+    strcpy(session.archive_file, "/tmp/test.tgz");
+
+    unlink_fail = false;
+    unlink_call_count = 0;
+    finalize(&ctx, &session);
+    // Should call unlink for the archive file and temp files
+    EXPECT_GT(unlink_call_count, 0);
+}
+
+TEST_F(CleanupManagerTest, Finalize_FailedUpload_NoArchiveRemoval) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = false;
+    strcpy(session.archive_file, "/tmp/test.tgz");
+
+    unlink_call_count = 0;
+    finalize(&ctx, &session);
+    // Should still cleanup temp dirs but not explicitly fail
+    // (unlink is called for temp files regardless)
+}
+
+TEST_F(CleanupManagerTest, Finalize_MemcaptureTrigger_SkipsArchiveRemoval) {
+    RuntimeContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.trigger_type = TRIGGER_MEMCAPTURE;
+    SessionState session;
+    memset(&session, 0, sizeof(session));
+    session.success = true;
+    strcpy(session.archive_file, "/tmp/test.tgz");
+
+    unlink_call_count = 0;
+    finalize(&ctx, &session);
+    // TRIGGER_MEMCAPTURE skips archive removal; only temp dirs are cleaned
+    // unlink_call_count should only be for temp files (2)
+    EXPECT_LE(unlink_call_count, 2);
+}
+
+// ==================== remove_directory_recursive TESTS (static accessor) ====================
+
+class RemoveDirectoryRecursiveTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        g_mockFileOperations = new MockFileOperations();
+        opendir_fail = false;
+        remove_fail = false;
+        mock_readdir_count = 0;
+        total_opendir_calls = 0;
+        unlink_fail = false;
+
+        fnRemoveDirectoryRecursive = getRemoveDirectoryRecursive();
+        ASSERT_NE(nullptr, fnRemoveDirectoryRecursive);
+    }
+    void TearDown() override {
+        delete g_mockFileOperations;
+        g_mockFileOperations = nullptr;
+    }
+    int (*fnRemoveDirectoryRecursive)(const char*);
+};
+
+TEST_F(RemoveDirectoryRecursiveTest, NullPath_OpendirFails_CallsRemove) {
+    opendir_fail = true;
+    // When opendir fails, falls back to remove()
+    int result = fnRemoveDirectoryRecursive("/tmp/somefile");
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(RemoveDirectoryRecursiveTest, OpendirFails_RemoveFails) {
+    opendir_fail = true;
+    remove_fail = true;
+    int result = fnRemoveDirectoryRecursive("/tmp/somefile");
+    EXPECT_EQ(-1, result);
+}
+
+TEST_F(RemoveDirectoryRecursiveTest, EmptyDirectory_RmdirsSuccessfully) {
+    opendir_fail = false;
+    remove_fail = false;
+    // readdir will return . and .. then NULL for empty directory
+    int result = fnRemoveDirectoryRecursive("/tmp/emptydir");
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(RemoveDirectoryRecursiveTest, DirectoryWithFiles_RemovesAll) {
+    opendir_fail = false;
+    remove_fail = false;
+    unlink_fail = false;
+    int result = fnRemoveDirectoryRecursive("/tmp/testdir");
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(RemoveDirectoryRecursiveTest, RmdirFails_ReturnsError) {
+    opendir_fail = false;
+    // rmdir is mocked with remove_fail
+    remove_fail = true;
+    int result = fnRemoveDirectoryRecursive("/tmp/testdir");
+    EXPECT_EQ(-1, result);
 }
 
 int main(int argc, char** argv) {

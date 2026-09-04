@@ -557,3 +557,10 @@ bool create_block_marker(UploadPath path, int duration_seconds)
         return false;
     }
 }
+
+#ifdef GTEST_ENABLE
+int (*getRemoveDirectoryRecursive(void))(const char*)
+{
+    return &remove_directory_recursive;
+}
+#endif
