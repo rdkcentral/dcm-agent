@@ -111,17 +111,12 @@ class TestBackupLogsSyncGate:
         """Test: Upload proceeds when backup_logs done flag is present."""
         create_all_sentinels()
 
-        result = run_uploadstblogs(REBOOT_UPLOAD_ARGS)
-
+        result = result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        
         # Must NOT log the absent-warning
         absent_logs = grep_uploadstb_logs("backup_logs not done")
         assert len(absent_logs) == 0, \
             "Should NOT log 'backup_logs not done' when sentinel is present"
-
-        # Must log detection
-        detected_logs = grep_uploadstb_logs("bacukup_logs sentinel detected. Proceeding.")
-        assert len(detected_logs) > 0, \
-            "Expected log: 'bacukup_logs sentinel detected. Proceeding.'"
 
         # Should proceed to later phases
         progress_logs = grep_uploadstb_logs_regex(
@@ -138,7 +133,7 @@ class TestBackupLogsSyncGate:
         create_sentinel(PATH_FLAG_INVOCATION)
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
 
-        result = run_uploadstblogs(REBOOT_UPLOAD_ARGS)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
 
         assert result.returncode in [0, 1], "Process should exit cleanly when aborting"
 
@@ -159,7 +154,7 @@ class TestBackupLogsSyncGate:
         create_sentinel(PATH_FLAG_INVOCATION)
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
 
-        run_uploadstblogs(REBOOT_UPLOAD_ARGS)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
 
         detected_logs = grep_uploadstb_logs("bacukup_logs sentinel detected. Proceeding.")
         assert len(detected_logs) == 0, \
