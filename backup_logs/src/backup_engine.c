@@ -281,7 +281,7 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
     if (filePresentCheck(syslog_path) != 0) {
         /* First time - move all logs directly */
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "First time HDD-disabled backup - moving all logs\n");
-        backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "");
+        move_log_files_by_pattern(config->log_path, config->prev_log_path);
     } else if (filePresentCheck(bak1_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Moving logs to bak1_ prefix\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "bak1_");
