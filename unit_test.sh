@@ -97,6 +97,7 @@ for test in \
   ./../uploadstblogs/unittest/strategies_gtest \
   ./../uploadstblogs/unittest/strategy_handler_gtest \
   ./../uploadstblogs/unittest/uploadlogsnow_gtest \
+  ./../uploadstblogs/unittest/file_operations_gtest \
   ./../usbLogUpload/unittest/usb_log_file_manager_gtest \
   ./../usbLogUpload/unittest/usb_log_validation_gtest \
   ./../usbLogUpload/unittest/usb_log_utils_gtest \
@@ -168,3 +169,4 @@ if [ "$ENABLE_COV" = true ]; then
         echo "WARNING: No coverage data found in any module; skipping combined report generation"
     fi
 fi
+

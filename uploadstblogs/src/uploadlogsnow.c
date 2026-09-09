@@ -332,3 +332,20 @@ cleanup:
     
     return ret;
 }
+
+#ifdef GTEST_ENABLE
+int (*getWriteUploadStatus(void))(const char*)
+{
+    return &write_upload_status;
+}
+
+int (*getShouldExcludeFile(void))(const char*)
+{
+    return &should_exclude_file;
+}
+
+int (*getCopyFilesToDcmPath(void))(const char*, const char*)
+{
+    return &copy_files_to_dcm_path;
+}
+#endif
