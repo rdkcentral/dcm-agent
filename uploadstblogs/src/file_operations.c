@@ -562,7 +562,7 @@ int add_timestamp_to_files_uploadlogsnow(const char* dir_path)
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, "[%s:%d] Failed to get UTC time\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    
+    char timestamp[32];
     if (strftime(timestamp, sizeof(timestamp), "%m-%d-%y-%I-%M%p-", &tm_utc) == 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                 "[%s:%d] Failed to format UTC timestamp\n",
