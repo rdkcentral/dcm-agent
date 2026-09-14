@@ -57,6 +57,9 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
     
     struct dirent* entry;
     int moved_count = 0;
+    unsigned long long total_bytes_copied = 0;
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
     
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
@@ -98,11 +101,17 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
             
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Moving log file: %s -> %s\n", source_file, dest_file);
             
+            struct stat file_stat;
+            bool have_size = (stat(source_file, &file_stat) == 0);
+            
             if (copyFiles(source_file, dest_file) == 0) {
                 if (remove(source_file) != 0) { /* Move operation: copy + delete */
                     RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove source file after copy: %s\n", source_file);
                 }
                 moved_count++;
+                if (have_size) {
+                    total_bytes_copied += (unsigned long long)file_stat.st_size;
+                }
                 RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Successfully moved: %s\n", entry->d_name);
             } else {
                 RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to move: %s\n", entry->d_name);
@@ -111,7 +120,14 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
     }
     
     closedir(dir);
+    
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double elapsed_sec = (end_time.tv_sec - start_time.tv_sec) +
+                         (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+    
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Pattern-based file move completed. Files moved: %d\n", moved_count);
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "move_log_files_by_pattern: copied %llu bytes to %s in %.3f seconds\n",
+            total_bytes_copied, dest_dir, elapsed_sec);
     return moved_count > 0 ? BACKUP_SUCCESS : BACKUP_ERROR_FILESYSTEM;
 }
 
@@ -281,7 +297,7 @@ int backup_execute_hdd_disabled_strategy(const backup_config_t* config) {
     if (filePresentCheck(syslog_path) != 0) {
         /* First time - move all logs directly */
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "First time HDD-disabled backup - moving all logs\n");
-        backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "");
+        move_log_files_by_pattern(config->log_path, config->prev_log_path);
     } else if (filePresentCheck(bak1_path) != 0) {
         RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Moving logs to bak1_ prefix\n");
         backup_and_recover_logs(log_path_slash, prev_log_path_slash, BACKUP_OP_MOVE, "", "bak1_");
@@ -362,6 +378,9 @@ int backup_and_recover_logs(const char* source, const char* dest,
     
     int file_count = 0;
     int success_count = 0;
+    unsigned long long total_bytes_copied = 0;
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
     
     /* Build combined prefix for path removal: source + s_ext */
     int combined_prefix_len = snprintf(combined_prefix, sizeof(combined_prefix), "%s%s",
@@ -488,6 +507,7 @@ int backup_and_recover_logs(const char* source, const char* dest,
         
         if (result == 0) {
             success_count++;
+            total_bytes_copied += (unsigned long long)file_stat.st_size;
             RDK_LOG(RDK_LOG_DEBUG, LOG_BACKUP_LOGS, "Successfully processed: %s -> %s\n", source_file, dest_file);
         } else {
             RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to process: %s -> %s\n", source_file, dest_file);
@@ -496,8 +516,14 @@ int backup_and_recover_logs(const char* source, const char* dest,
     
     closedir(dir);
     
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double elapsed_sec = (end_time.tv_sec - start_time.tv_sec) +
+                         (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+    
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "backup_and_recover_logs completed: %d/%d files processed successfully\n", 
             success_count, file_count);
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "backup_and_recover_logs: copied %llu bytes to %s in %.3f seconds\n",
+            total_bytes_copied, dest, elapsed_sec);
     
     /* Return success if we processed files successfully, or if no files were found */
     return (file_count == 0 || success_count > 0) ? BACKUP_SUCCESS : BACKUP_ERROR_FILESYSTEM;
