@@ -1095,7 +1095,7 @@ protected:
         g_mock_doStopDownload_call_count = 0;
         g_mock_cmdExec_call_count = 0;
         g_mock_FreeJson_call_count = 0;
-        // Default: WPEFrameworkSecurityUtility returns a token
+        // Default: ThunderSecurityUtility returns a token
         strncpy(g_mock_cmdExec_output, "{\"token\":\"testtoken123\"}", sizeof(g_mock_cmdExec_output) - 1);
     }
     void TearDown() override {}

@@ -65,7 +65,7 @@ suppressed — the Maintenance Manager owns the schedule instead.
 
 ### How it works
 
-The MaintenanceManager (a Thunder/WPEFramework plugin) orchestrates a fixed sequence of
+The MaintenanceManager (a Thunder plugin) orchestrates a fixed sequence of
 three maintenance tasks:
 
 ```
