@@ -238,3 +238,10 @@ int upload_archive(RuntimeContext* ctx, SessionState* session, const char* archi
         return -1;
     }
 }
+
+#ifdef GTEST_ENABLE
+UploadResult (*getSingleAttemptUpload(void))(RuntimeContext*, SessionState*, UploadPath)
+{
+    return &single_attempt_upload;
+}
+#endif

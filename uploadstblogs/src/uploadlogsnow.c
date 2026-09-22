@@ -321,7 +321,7 @@ cleanup:
         RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB, 
                 "[%s:%d] Failed to cleanup DCM_LOG_PATH\n", __FUNCTION__, __LINE__);
     } else {
-        RDK_LOG(RDK_LOG_DEBUG, LOG_UPLOADSTB, 
+        RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
                 "[%s:%d] Cleaned up DCM_LOG_PATH: %s\n", 
                 __FUNCTION__, __LINE__, dcm_log_path);
     }
@@ -332,3 +332,20 @@ cleanup:
     
     return ret;
 }
+
+#ifdef GTEST_ENABLE
+int (*getWriteUploadStatus(void))(const char*)
+{
+    return &write_upload_status;
+}
+
+int (*getShouldExcludeFile(void))(const char*)
+{
+    return &should_exclude_file;
+}
+
+int (*getCopyFilesToDcmPath(void))(const char*, const char*)
+{
+    return &copy_files_to_dcm_path;
+}
+#endif
