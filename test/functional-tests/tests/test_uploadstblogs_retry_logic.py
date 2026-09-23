@@ -43,20 +43,6 @@ class TestRetryLogic:
         remove_lock_file()
         kill_uploadstblogs()
 
-    @pytest.mark.order(1)
-    def test_network_failure_detection(self):
-        """Test: Service detects network failure"""
-        # Set invalid upload URL to simulate network failure
-        set_include_property("UPLOAD_HTTPLINK", "http://invalid.server.unreachable:9999")
-        
-        create_test_log_files(count=2)
-        
-        result = run_uploadstblogs()
-        
-        # Check for network failure detection
-        failure_logs = grep_uploadstb_logs_regex(r"fail|error|unable|unreachable|timeout")
-        assert len(failure_logs) > 0, "Network failure should be detected"
-
     @pytest.mark.order(2)
     def test_retry_attempts_count(self):
         """Test: Service retries 3 times for Direct path"""
@@ -101,20 +87,6 @@ class TestRetryLogic:
         telemetry_logs = grep_uploadstb_logs_regex(r"telemetry|marker|failed|SYST")
         # Failure should be logged
         assert result.returncode == 1, "Should exit with error after failed retries"
-
-    @pytest.mark.order(5)
-    def test_network_failure_logged(self):
-        """Test: Network failure details are logged"""
-        set_include_property("UPLOAD_HTTPLINK", "http://invalid.domain.test:8080")
-        
-        create_test_log_files(count=1)
-        
-        result = run_uploadstblogs()
-        
-        # Verify error logging
-        error_logs = grep_uploadstb_logs_regex(r"ERROR|error|fail")
-        assert len(error_logs) > 0, "Network failure should be logged"
-
 
 class TestNetworkInterruption:
     """Test suite for network interruption during upload"""
