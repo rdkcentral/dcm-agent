@@ -39,7 +39,7 @@
 #define DEBUG_INI_NAME "/etc/debug.ini"
 #define BACKUP_LOGS_FILE          "/tmp/backup_logs.log.0"
 #define BACKUP_LOGS_DEST "/opt/logs/backup_logs.log.0"
-+#define BACKUP_LOGS_PREVIOUS_DEST "/opt/logs/PreviousLogs/backup_logs.log.0"
+#define BACKUP_LOGS_PREVIOUS_DEST "/opt/logs/PreviousLogs/backup_logs.log.0"
 
 /* Initialize backup system */
 int backup_logs_init(backup_config_t *config) {
