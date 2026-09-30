@@ -955,6 +955,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         remove_file(old_tar);
     }
 
+	/*
 	// Copy backup_logs log file to PREV_LOG_PATH and LOG_PATH for inclusion in upload
     if (file_exists(BACKUP_LOGS_LOG_FILE)) {
         char dest_prev[MAX_PATH_LENGTH];
@@ -981,6 +982,7 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         // Remove original after copies
         remove_file(BACKUP_LOGS_LOG_FILE);
     }
+	*/
 
     // Add timestamps to all files in PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
