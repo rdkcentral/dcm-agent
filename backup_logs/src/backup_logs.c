@@ -315,7 +315,7 @@ int backup_logs_main(int argc, char *argv[]) {
         return BACKUP_ERROR_NOT_FOUND;
     }
 
-    int result = copyFiles((char *)BACKUP_LOGS_FILE, (char *)BACKUP_LOGS_DEST);
+    result = copyFiles((char *)BACKUP_LOGS_FILE, (char *)BACKUP_LOGS_DEST);
     if (result != 0) {
         RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS,
                 "Failed to copy backup log: %s -> %s\n",
