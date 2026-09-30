@@ -339,7 +339,7 @@ int backup_logs_main(int argc, char *argv[]) {
            "Copied backup log: %s -> %s\n",
             BACKUP_LOGS_FILE, BACKUP_LOGS_PREVIOUS_DEST);
     
-    remove_file(BACKUP_LOGS_FILE);
+   removeFile(BACKUP_LOGS_FILE);
     
     return EXIT_SUCCESS;
 }
