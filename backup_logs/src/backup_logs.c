@@ -37,6 +37,9 @@
 #define BACKUP_LOGS_VERSION "1.0.0"
 #define BACKUP_LOGS_BUILD_DATE __DATE__
 #define DEBUG_INI_NAME "/etc/debug.ini"
+#define BACKUP_LOGS_FILE          "/tmp/backup_logs.log.0"
+#define BACKUP_LOGS_DEST "/opt/logs/backup_logs.log.0"
+#define BACKUP_LOGS_PREVIOUS_DEST "/opt/logs/PreviousLogs/backup_logs.log.0"
 
 /* Initialize backup system */
 int backup_logs_init(backup_config_t *config) {
@@ -302,6 +305,42 @@ int backup_logs_main(int argc, char *argv[]) {
     }
 
     RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS, "Backup process completed successfully\n");
+
+    /* Copy the completed backup log to both persistent log locations. */
+
+
+    if (filePresentCheck(BACKUP_LOGS_FILE) != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS,
+                "Backup log file not found: %s\n", BACKUP_LOGS_FILE);
+        return BACKUP_ERROR_NOT_FOUND;
+    }
+
+    result = copyFiles((char *)BACKUP_LOGS_FILE, (char *)BACKUP_LOGS_DEST);
+    if (result != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS,
+                "Failed to copy backup log: %s -> %s\n",
+                BACKUP_LOGS_FILE, BACKUP_LOGS_DEST);
+    } else {
+        RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS,
+                "Copied backup log: %s -> %s\n",
+                BACKUP_LOGS_FILE, BACKUP_LOGS_DEST);
+    }
+
+    result = copyFiles((char *)BACKUP_LOGS_FILE,
+                       (char *)BACKUP_LOGS_PREVIOUS_DEST);
+    if (result != 0) {
+        RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS,
+                "Failed to copy backup log: %s -> %s\n",
+                BACKUP_LOGS_FILE, BACKUP_LOGS_PREVIOUS_DEST);
+        return BACKUP_ERROR_FILESYSTEM;
+   }
+
+    RDK_LOG(RDK_LOG_INFO, LOG_BACKUP_LOGS,
+           "Copied backup log: %s -> %s\n",
+            BACKUP_LOGS_FILE, BACKUP_LOGS_PREVIOUS_DEST);
+    
+   removeFile(BACKUP_LOGS_FILE);
+    
     return EXIT_SUCCESS;
 }
 #ifndef GTEST_ENABLE
