@@ -955,7 +955,6 @@ static int reboot_setup(RuntimeContext* ctx, SessionState* session)
         remove_file(old_tar);
     }
 
-	
     // Add timestamps to all files in PREV_LOG_PATH
     RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB, 
             "[%s:%d] Adding timestamps to files in PREV_LOG_PATH\n", 
