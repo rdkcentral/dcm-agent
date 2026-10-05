@@ -84,7 +84,7 @@ static VOID rbusSetConf(rbusHandle_t handle,
         DCMError("Rbus Handle is null\n");
         return;
     }
-
+   configPath = rbusObject_GetValue(event->data, DCM_SET_CONFIG);
    if(configPath) {
         const INT8 *filePath = rbusValue_GetString(configPath, NULL);
         if(filePath != NULL &&
