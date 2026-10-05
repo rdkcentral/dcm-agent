@@ -400,6 +400,10 @@ static UploadResult perform_metadata_post(RuntimeContext* ctx, SessionState* ses
             "[%s:%d] Using output file for strategy %d: %s\n",
             __FUNCTION__, __LINE__, session->strategy, outfile);
     
+    RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
+            "[%s:%d] Metadata POST endpoint: %s\n",
+            __FUNCTION__, __LINE__, endpoint_url);
+    
     // Prepare POST fields: filename first, then additional fields (following common utilities pattern)
     char post_fields[512] = {0};
     
