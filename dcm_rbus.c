@@ -65,7 +65,7 @@ static VOID rbusSetConf(rbusHandle_t handle,
                         rbusEvent_t const* event,
                         rbusEventSubscription_t* subscription)
 {
-    rbusValue_t configPath;
+    rbusValue_t configPath = NULL;
     DCMRBusHandle *pDCMRbusHandle;
 
     if(event == NULL) {
