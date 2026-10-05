@@ -296,6 +296,7 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
         t2_uninit();
 #endif
         cleanup_iarm_connection();
+        rbus_cleanup();
         release_lock();
         return ret;
     }
@@ -359,7 +360,7 @@ int uploadstblogs_run(const UploadSTBLogsParams* params)
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
-
+    rbus_cleanup();
     /* Release lock and exit */
     release_lock();
     return ret;
@@ -501,6 +502,7 @@ int uploadstblogs_execute(int argc, char** argv)
 
     /* Cleanup IARM connection */
     cleanup_iarm_connection();
+    rbus_cleanup();
     // Log total time from boot to upload completion
     double uptime_seconds = 0.0;
     if (get_system_uptime(&uptime_seconds)) {
