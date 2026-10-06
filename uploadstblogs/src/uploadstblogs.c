@@ -51,6 +51,7 @@
 #include "system_utils.h"
 #include "rdk_debug.h"
 #include "uploadlogsnow.h"
+#include "rbus_interface.h"
 
 #ifdef T2_EVENT_ENABLED
 #include <telemetry_busmessage_sender.h>
