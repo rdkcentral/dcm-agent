@@ -193,7 +193,7 @@ static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size_t svalSize,
+static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *sitem, INT8 *sval, size_t svalSize,
                                   INT32 *ival, INT32 *type)
 {
     INT32 ret        = DCM_SUCCESS;
@@ -216,8 +216,12 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
             *ival  = cJSON_IsTrue(pJsonItem);
         }
         else if(cJSON_IsNumber(pJsonItem)) {
-            *type  = DCM_JSONITEM_INT;
+          if(ival == NULL) {
+              DCMError("Invalid integer destination\n");
+              return DCM_FAILURE;
+        }
             *ival  = pJsonItem->valueint;
+            *type  = DCM_JSONITEM_INT;
         }
        /*
          else if(cJSON_IsString(pJsonItem)) {
@@ -226,23 +230,24 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
         }
         */
 
-       else if(cJSON_IsString(pJsonItem)) {
-            *type = DCM_JSONITEM_STR;
-
+     else if(cJSON_IsString(pJsonItem)) {
+       
             if((sval == NULL) || (svalSize == 0) ||
               (pJsonItem->valuestring == NULL)) {
-               DCMError("Invalid string destination for %s\n", sitem);
+               DCMError("Invalid string destination\n");
                return DCM_FAILURE;
               }
 
           size_t srcLen = strlen(pJsonItem->valuestring);
 
           if(srcLen >= svalSize) {
-             DCMError("Value for %s exceeds destination buffer size\n", sitem);
+             DCMError("JSON string exceeds destination buffer size\n");
              return DCM_FAILURE;
            }
 
           memcpy(sval, pJsonItem->valuestring, srcLen + 1);
+
+         *type = DCM_JSONITEM_STR;
          }
           
         else if(cJSON_IsNull(pJsonItem)) {
@@ -522,7 +527,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
-                          INT8 *pLogCron, INT8 *pDifdCron)
+                          INT8 *pLogCron, size_t logCronSize, INT8 *pDifdCron, size_t difdCronSize)
 {
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
