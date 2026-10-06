@@ -193,10 +193,10 @@ static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *sitem, INT8 *sval, size_t svalSize,
+static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size_t svalSize,
                                   INT32 *ival, INT32 *type)
 {
-    if((pJsonHandle == NULL) || (sitem == NULL) || (type == NULL)) {
+    if((pJsonHandle == NULL) || (item == NULL) || (type == NULL)) {
     DCMError("Invalid argument passed to dcmSettingJsonGetVal\n");
     return DCM_FAILURE;
     }
@@ -531,7 +531,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
-                          INT8 *pLogCron, size_t logCronSize, INT8 *pDifdCron, size_t difdCronSize)
+                          INT8 *pLogCron, INT8 *pDifdCron)
 {
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
@@ -589,7 +589,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("TimeZone : %s\n", pTimezone);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_REBOOT,
-                               &temp, 0, &uploadCheck, &type);
+                               &temp,0, &uploadCheck, &type);
 
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
