@@ -192,7 +192,7 @@ TEST(dcmParseConfTest, ParseConf_ValidHandleAndFile_Success) {
     INT8 logCron[256] = {0};
     INT8 difdCron[256] = {0};
     
-    INT32 result = dcmSettingParseConf(handle, "/tmp/test_valid_settings.json", logCron, difdCron);
+    INT32 result = dcmSettingParseConf(handle, "/tmp/test_valid_settings.json", logCron, sizeof(logCron), difdCron,sizeof(difdCron));
     
     EXPECT_EQ(result, DCM_FAILURE);
     EXPECT_STREQ(handle->cUploadPrtl, "");
@@ -214,7 +214,7 @@ TEST(dcmParseConfTest, ParseConf_EmptyJSON_Success) {
     INT8 logCron[256] = {0};
     INT8 difdCron[256] = {0};
     
-    INT32 result = dcmSettingParseConf(handle, "/tmp/test_empty_settings.json", logCron, difdCron);
+    INT32 result = dcmSettingParseConf(handle, "/tmp/test_empty_settings.json", logCron, sizeof(logCron), difdCron, sizeof(difdCron));
     
     EXPECT_EQ(result, DCM_FAILURE);
     // Should use default values
