@@ -196,6 +196,10 @@ static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
 static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *sitem, INT8 *sval, size_t svalSize,
                                   INT32 *ival, INT32 *type)
 {
+    if((pJsonHandle == NULL) || (sitem == NULL) || (type == NULL)) {
+    DCMError("Invalid argument passed to dcmSettingJsonGetVal\n");
+    return DCM_FAILURE;
+    }
     INT32 ret        = DCM_SUCCESS;
     cJSON *pJson     = (cJSON *)jsonHandle;
     cJSON *pJsonItem = NULL;
@@ -231,14 +235,14 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *sitem, INT8 *sval, siz
         */
 
      else if(cJSON_IsString(pJsonItem)) {
-       
+            size_t srcLen;
             if((sval == NULL) || (svalSize == 0) ||
               (pJsonItem->valuestring == NULL)) {
                DCMError("Invalid string destination\n");
                return DCM_FAILURE;
               }
 
-          size_t srcLen = strlen(pJsonItem->valuestring);
+          srcLen = strlen(pJsonItem->valuestring);
 
           if(srcLen >= svalSize) {
              DCMError("JSON string exceeds destination buffer size\n");
