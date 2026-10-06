@@ -405,8 +405,8 @@ int main(int argc, char* argv[])
             }
 
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
-                                      g_pdcmHandle->logCron,
-                                      g_pdcmHandle->difdCron);
+                                      g_pdcmHandle->logCron, sizeof(g_pdcmHandle->logCron),
+                                      g_pdcmHandle->difdCron), sizeof(g_pdcmHandle->difdCron) ;
             if(ret == DCM_SUCCESS) {
                 dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
                 dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
