@@ -196,7 +196,7 @@ static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
 static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size_t svalSize,
                                   INT32 *ival, INT32 *type)
 {
-    if((pJsonHandle == NULL) || (item == NULL) || (type == NULL)) {
+    if((jsonHandle == NULL) || (item == NULL) || (type == NULL)) {
     DCMError("Invalid argument passed to dcmSettingJsonGetVal\n");
     return DCM_FAILURE;
     }
@@ -594,7 +594,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, logCronSize, &confIntVal, &type);
+                               pLogCron, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pLogCron = 0;
     }
@@ -602,7 +602,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, difdCronSize, &confIntVal, &type);
+                               pDifdCron, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pDifdCron = 0;
     }
