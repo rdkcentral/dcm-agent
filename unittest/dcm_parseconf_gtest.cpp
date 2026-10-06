@@ -34,7 +34,7 @@
 
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
-INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*);
+INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, size_t, INT32*, INT32*);
 
 
 using namespace testing;
