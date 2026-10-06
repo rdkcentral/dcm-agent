@@ -594,7 +594,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, &confIntVal, &type);
+                               pLogCron, logCronSize, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pLogCron = 0;
     }
@@ -602,7 +602,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, &confIntVal, &type);
+                               pDifdCron, pDifdCron, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pDifdCron = 0;
     }
