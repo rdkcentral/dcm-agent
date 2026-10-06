@@ -62,7 +62,7 @@ typedef struct _dcmSettingsHandle
 INT32  dcmSettingsInit(VOID **ppdcmSetHandle);
 VOID   dcmSettingsUnInit(VOID *pdcmSetHandle);
 INT32  dcmSettingParseConf(VOID *pdcmSetHandle, INT8 *pConffile,
-                           INT8 *pLogCron, INT8 *pDifdCron);
+                           INT8 *pLogCron, size_t logCronSize, INT8 *pDifdCron, size_t difdCronSize); );
 INT8*  dcmSettingsGetUploadProtocol(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetUploadURL(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetRDKPath(VOID *pdcmSetHandle);
