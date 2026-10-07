@@ -197,8 +197,8 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
                                   INT32 *ival, INT32 *type)
 {
     if((jsonHandle == NULL) || (item == NULL) || (type == NULL)) {
-    DCMError("Invalid argument passed to dcmSettingJsonGetVal\n");
-    return DCM_FAILURE;
+       DCMError("Invalid argument passed to dcmSettingJsonGetVal\n");
+       return DCM_FAILURE;
     }
     INT32 ret        = DCM_SUCCESS;
     cJSON *pJson     = (cJSON *)jsonHandle;
@@ -220,7 +220,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
             *ival  = cJSON_IsTrue(pJsonItem);
         }
         else if(cJSON_IsNumber(pJsonItem)) {
-          if(ival == NULL) {
+          if(ival == NULL) ||(type == NULL) {
               DCMError("Invalid integer destination\n");
               return DCM_FAILURE;
         }
@@ -236,13 +236,13 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
 
      else if(cJSON_IsString(pJsonItem)) {
             size_t srcLen;
-            if(pJsonItem->valuestring == NULL) {
+            if((sval == NULL) || (svalSize == 0) || (type == NULL) ||pJsonItem->valuestring == NULL) {
                DCMError("Invalid string destination\n");
                return DCM_FAILURE;
               }
 
           srcLen = strlen(pJsonItem->valuestring);
-
+          *type = DCM_JSONITEM_STR;
           if(srcLen >= svalSize) {
              DCMError("JSON string exceeds destination buffer size\n");
              return DCM_FAILURE;
@@ -250,7 +250,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
 
           memcpy(sval, pJsonItem->valuestring, srcLen + 1);
 
-         *type = DCM_JSONITEM_STR;
+         
          }
           
         else if(cJSON_IsNull(pJsonItem)) {
