@@ -53,11 +53,25 @@ def grep_dcmdlogs(search: str):
     return search_result
 
 def kill_dcmd(signal: int=9):
-    print(f"Received Signal to kill dcmd {signal} with pid {get_pid('dcmd')}")
-    resp = subprocess.run(f"kill -{signal} {get_pid('dcmd')}", shell=True, capture_output=True)
-    print(resp.stdout.decode('utf-8'))
-    print(resp.stderr.decode('utf-8'))
-    return ""
+    pid = get_pid('dcmd')
+    print(f"Received Signal to kill dcmd {signal} with pid {pid}")
+    if pid:
+        resp = subprocess.run(f"kill -{signal} {pid}", shell=True, capture_output=True)
+        print(resp.stdout.decode('utf-8'))
+        print(resp.stderr.decode('utf-8'))
+
+    for _ in range(50):
+        try:
+            with open("/tmp/.dcm-daemon.pid", "r", encoding="utf-8") as pid_file:
+                daemon_pid = pid_file.read().strip()
+        except FileNotFoundError:
+            return ""
+
+        if not daemon_pid or not os.path.exists(f"/proc/{daemon_pid}"):
+            return ""
+        time.sleep(0.1)
+
+    raise RuntimeError("dcmd did not stop before restart")
 
 def kill_telemetry(signal: int=9):
     print(f"Received Signal to kill telemetry2_0 {signal} with pid {get_pid('telemetry2_0')}")
