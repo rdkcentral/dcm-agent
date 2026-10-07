@@ -204,8 +204,10 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
     cJSON *pJson     = (cJSON *)jsonHandle;
     cJSON *pJsonItem = NULL;
 
-    if((sval == NULL) || (svalSize == 0U)) {
-        DCMError("Invalid string destination or size\n");
+    if((sval == NULL) || (svalSize == 0U)) {
+
+        DCMError("Invalid string destination or size\n");
+
         return DCM_FAILURE;
     }
 
@@ -218,7 +220,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
         if(cJSON_IsBool(pJsonItem)) {
             *type  = DCM_JSONITEM_BOOL;
             *ival  = cJSON_IsTrue(pJsonItem);
-        }
+          if((ival == NULL) || (type == NULL)) {
         else if(cJSON_IsNumber(pJsonItem)) {
           if(ival == NULL) ||(type == NULL) {
               DCMError("Invalid integer destination\n");
