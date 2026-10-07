@@ -204,8 +204,8 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
     cJSON *pJson     = (cJSON *)jsonHandle;
     cJSON *pJsonItem = NULL;
 
-    if((pJson == NULL) || (sval == NULL) || (svalSize <= 0)){
-        DCMError("Json Handle is null\n");
+    if((sval == NULL) || (svalSize == 0U)) {
+        DCMError("Invalid string destination or size\n");
         return DCM_FAILURE;
     }
 
