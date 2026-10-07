@@ -617,50 +617,6 @@ TEST_F(DcmSettingJsonGetValTest, OversizedString_ReturnsFailure)
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-TEST_F(DcmSettingJsonGetValTest, ExactFitString_ReturnsFailure)
-{
-    INT8 smallBuffer[8];
-    INT32 intValue = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-    cJSON_AddStringToObject(json, "testKey", "12345678");
-
-    INT32 result = jsonGetVal(
-                        json,
-                        (INT8*)"testKey",
-                        smallBuffer,
-                        sizeof(smallBuffer),
-                        &intValue,
-                        &type);
-
-    EXPECT_EQ(result, DCM_FAILURE);
-
-    cJSON_Delete(json);
-}
-
-TEST_F(DcmSettingJsonGetValTest, OversizedString_ReturnsFailure)
-{
-    INT8 smallBuffer[8];
-    INT32 intValue = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-    cJSON_AddStringToObject(json, "testKey", "123456789");
-
-    INT32 result = jsonGetVal(
-                        json,
-                        (INT8*)"testKey",
-                        smallBuffer,
-                        sizeof(smallBuffer),
-                        &intValue,
-                        &type);
-
-    EXPECT_EQ(result, DCM_FAILURE);
-
-    cJSON_Delete(json);
-}
-
 TEST_F(DcmSettingJsonGetValTest, StringValue_ReturnsCorrectValue) {
     if (!jsonGetVal) {
         GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
