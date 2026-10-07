@@ -204,7 +204,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
     cJSON *pJson     = (cJSON *)jsonHandle;
     cJSON *pJsonItem = NULL;
 
-    if(pJson == NULL) {
+    if((pJson == NULL) || (sval == NULL) || (svalSize <= 0)){
         DCMError("Json Handle is null\n");
         return DCM_FAILURE;
     }
@@ -236,8 +236,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval, size
 
      else if(cJSON_IsString(pJsonItem)) {
             size_t srcLen;
-            if((sval == NULL) || (svalSize == 0) ||
-              (pJsonItem->valuestring == NULL)) {
+            if(pJsonItem->valuestring == NULL) {
                DCMError("Invalid string destination\n");
                return DCM_FAILURE;
               }
@@ -536,7 +535,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
     INT32  confIntVal    = 0;
-    INT8   temp          = 0;
+    INT8 tempStr[8] = {0};
     INT32  type          = 0;
     INT32  uploadCheck   = 0;
     INT8  *pUploadURL    = NULL;
@@ -589,7 +588,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("TimeZone : %s\n", pTimezone);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_REBOOT,
-                               &temp,0, &uploadCheck, &type);
+                               tempStr, sizeof(tempStr), &uploadCheck, &type);
 
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
