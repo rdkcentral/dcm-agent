@@ -324,7 +324,7 @@ INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue, size_t valueSize)
             goto exit;
         }
         else {
-            if((stringValue == NULL) || (valueSize == 0))
+            if(valueSize == 0)
               {
                  DCMError("Invalid input\n");
                  ret = DCM_FAILURE;
