@@ -187,7 +187,7 @@ INT32 dcmUtilsCheckDaemonStatus()
         fgets(PID, sizeof(PID), fp);
         fclose(fp);
 
-         if((pRDKPath == NULL) || (strpbrk(pRDKPath, ";|&`$><")))
+         if((filePath == NULL) || (strpbrk(filePath, ";|&`$><")))
            {
               return;
            }
