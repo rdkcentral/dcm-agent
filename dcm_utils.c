@@ -129,7 +129,7 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
 
     if(out != NULL)
         out[0] = 0;
-
+     
      if ((cmd == NULL) || (cmd[0] == '\0'))
        {
            return;
