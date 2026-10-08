@@ -351,7 +351,7 @@ TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
     
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_STREQ(versionBuffer, "2.1.5");
@@ -362,7 +362,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_dcm_rbushandle_null)
     char versionBuffer[256];
     memset(versionBuffer, 0, sizeof(versionBuffer));
     
-    INT32 result = dcmRbusGetT2Version(nullptr, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(nullptr, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -370,7 +370,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_t2version_null)
 {
     DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();    
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr, 0);
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
