@@ -149,10 +149,12 @@ static INT32 dcmSettingJsonInit(DCMSettingsHandle *pdcmSetHandle,
 
     if(tmp) {
         lc = tmp - pcJsonStr;
-        pcJsonStr[lc - 2] = '}';
-        pcJsonStr[lc - 1] = 0;
+       if(lc >= 2)
+         {
+            pcJsonStr[lc - 2] = '}';
+            pcJsonStr[lc - 1] = 0;
+         }
     }
-
     pJson = cJSON_Parse(pcJsonStr);
     if(pJson == NULL) {
         DCMError("Json Handle is null\n");
