@@ -187,6 +187,11 @@ INT32 dcmUtilsCheckDaemonStatus()
         fgets(PID, sizeof(PID), fp);
         fclose(fp);
 
+         if((pRDKPath == NULL) || (strpbrk(pRDKPath, ";|&`$><")))
+           {
+              return;
+           }
+         
         snprintf(filePath, sizeof(filePath), "/proc/%s", PID);
 
         if (dcmUtilsFilePresentCheck(filePath) == 0) {
