@@ -65,7 +65,7 @@ static VOID rbusSetConf(rbusHandle_t handle,
                         rbusEvent_t const* event,
                         rbusEventSubscription_t* subscription)
 {
-    rbusValue_t configPath;
+    rbusValue_t configPath = NULL;
     DCMRBusHandle *pDCMRbusHandle;
 
     if(event == NULL) {
@@ -89,12 +89,12 @@ static VOID rbusSetConf(rbusHandle_t handle,
 
     if(configPath) {
         const INT8 *filePath = rbusValue_GetString(configPath, NULL);
-        if(filePath != NULL) {
+        if(filePath != NULL && strcmp(filePath, "/opt/.t2persistentfolder/DCMresponse.txt") == 0) {
             strncpy(pDCMRbusHandle->confPath, filePath, DCM_CONF_SIZE - 1);
             pDCMRbusHandle->confPath[DCM_CONF_SIZE - 1] = '\0';
             DCMInfo("configPath: %s\n", filePath);
         } else {
-            DCMError("configPath value is NULL or invalid\n");
+            DCMError("Rejected invalid configPath\n");
         }
     }
 
@@ -280,7 +280,7 @@ INT32 dcmRbusSendEvent(VOID *pDCMRbusHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue)
+INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue, size_t valueSize)
 {
     INT32           ret = DCM_SUCCESS;
     INT32           rc  = RBUS_ERROR_SUCCESS;
@@ -324,7 +324,23 @@ INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue)
             goto exit;
         }
         else {
-            strcpy(t2_ver, stringValue);
+            if(valueSize == 0)
+              {
+                 DCMError("Invalid input\n");
+                 ret = DCM_FAILURE;
+                 goto exit;
+               }
+
+         if(strlen(stringValue) >= valueSize) 
+           {
+               DCMError("T2 version string too long\n");
+               ret = DCM_FAILURE;
+               goto exit;
+            }
+
+         strncpy(t2_ver, stringValue, valueSize - 1);
+         t2_ver[valueSize - 1] = '\0';
+          
             DCMInfo("Telemetry 2 Version: %s\n", stringValue);
         }
     }

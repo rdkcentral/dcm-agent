@@ -54,7 +54,7 @@ INT32  dcmRbusSchedJobStatus(VOID *pDCMRbusHandle);
 VOID   dcmRbusSchedResetStatus(VOID *pDCMRbusHandle);
 INT8   dcmRbusGetEventSubStatus(VOID *pDCMRbusHandle);
 INT8*  dcmRbusGetConfPath(VOID *pDCMRbusHandle);
-INT32  dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *value);
+INT32  dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *value, size_t valueSize);
 
 #ifdef __cplusplus
 }

@@ -305,7 +305,12 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
         // Remove query parameters from path
         size_t path_len = query_start - path_start;
         static char clean_path[512];
-        strncpy(clean_path, path_start, path_len);
+        if(path_len >= sizeof(clean_path))
+         {
+              path_len = sizeof(clean_path) - 1;
+          }
+
+         memcpy(clean_path, path_start, path_len);
         clean_path[path_len] = '\0';
         path_part = clean_path;
     }
