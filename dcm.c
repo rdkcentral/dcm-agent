@@ -114,7 +114,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
          DCMInfo("Start FW update Script\n");
-        if(strpbrk(pRDKPath, ";|&`$><"))
+        if(strpbrk(pRDKPath, ";|&`$><") != NULL)
           {
            DCMError("Invalid RDK Path\n");
            return;
