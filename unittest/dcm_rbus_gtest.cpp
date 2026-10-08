@@ -381,7 +381,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_rbushandle_null)
     char versionBuffer[256];
     memset(versionBuffer, 0, sizeof(versionBuffer));
     dcmHandle.pRbusHandle = NULL;  
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer) );
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -398,7 +398,7 @@ TEST_F(DcmRbusTest, GetT2Version_rbusget_fail) {
         _))
         .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_BUS_ERROR)));
     
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -423,7 +423,7 @@ TEST_F(DcmRbusTest, GetT2Version_rbusvaluetostring_fail) {
 
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
