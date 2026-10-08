@@ -186,11 +186,6 @@ INT32 dcmUtilsCheckDaemonStatus()
         /* exit if an instance is already running */
         fgets(PID, sizeof(PID), fp);
         fclose(fp);
-
-         if((filePath == NULL) || (strpbrk(filePath, ";|&`$><")))
-           {
-              return;
-           }
          
         snprintf(filePath, sizeof(filePath), "/proc/%s", PID);
 
