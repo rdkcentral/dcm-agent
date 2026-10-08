@@ -65,7 +65,7 @@ static VOID rbusSetConf(rbusHandle_t handle,
                         rbusEvent_t const* event,
                         rbusEventSubscription_t* subscription)
 {
-    rbusValue_t configPath;
+    rbusValue_t configPath = NULL;
     DCMRBusHandle *pDCMRbusHandle;
 
     if(event == NULL) {
@@ -89,12 +89,12 @@ static VOID rbusSetConf(rbusHandle_t handle,
 
     if(configPath) {
         const INT8 *filePath = rbusValue_GetString(configPath, NULL);
-        if(filePath != NULL) {
+        if(filePath != NULL && strcmp(filePath, "/opt/.t2persistentfolder/DCMresponse.txt") == 0) {
             strncpy(pDCMRbusHandle->confPath, filePath, DCM_CONF_SIZE - 1);
             pDCMRbusHandle->confPath[DCM_CONF_SIZE - 1] = '\0';
             DCMInfo("configPath: %s\n", filePath);
         } else {
-            DCMError("configPath value is NULL or invalid\n");
+            DCMError("Rejected invalid configPath\n");
         }
     }
 
