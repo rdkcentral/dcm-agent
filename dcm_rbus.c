@@ -38,6 +38,8 @@
 #include "dcm_utils.h"
 #include "dcm_parseconf.h"
 
+#define DCM_RESPONSE_FILE "/opt/.t2persistentfolder/DCMresponse.txt"
+
 static rbusError_t rbusSendEventCB(rbusHandle_t handle, rbusEventSubAction_t action,
                                    const INT8* eventName, rbusFilter_t filter,
                                    int32_t interval, BOOL* autoPublish);
@@ -89,7 +91,7 @@ static VOID rbusSetConf(rbusHandle_t handle,
 
     if(configPath) {
         const INT8 *filePath = rbusValue_GetString(configPath, NULL);
-        if(filePath != NULL && strcmp(filePath, "/opt/.t2persistentfolder/DCMresponse.txt") == 0) {
+        if(filePath != NULL && strcmp(filePath, DCM_RESPONSE_FILE) == 0) {
             strncpy(pDCMRbusHandle->confPath, filePath, DCM_CONF_SIZE - 1);
             pDCMRbusHandle->confPath[DCM_CONF_SIZE - 1] = '\0';
             DCMInfo("configPath: %s\n", filePath);
