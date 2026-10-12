@@ -149,8 +149,7 @@ static INT32 dcmSettingJsonInit(DCMSettingsHandle *pdcmSetHandle,
 
     if(tmp) {
         lc = tmp - pcJsonStr;
-       if(lc >= 2)
-         {
+       if(lc >= 2) {
             pcJsonStr[lc - 2] = '}';
             pcJsonStr[lc - 1] = 0;
          }
