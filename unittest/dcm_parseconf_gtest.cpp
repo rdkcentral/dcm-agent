@@ -73,6 +73,108 @@ protected:
     }
 };
 
+TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringSuccess)
+{
+    char outBuf[16] = {0};
+    INT32 val = 0;
+    INT32 type = 0;
+
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "Cron", "12345");
+
+    EXPECT_EQ(DCM_SUCCESS, dcmSettingJsonGetVal(json,
+                                   (INT8 *)"Cron",
+                                   (INT8 *)outBuf,
+                                   sizeof(outBuf),
+                                   &val,
+                                   &type));
+
+    EXPECT_STREQ("12345", outBuf);
+    EXPECT_EQ(DCM_JSONITEM_STR, type);
+
+    cJSON_Delete(json);
+}
+
+TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringBoundaryFailure)
+{
+    char outBuf[16] = {0};
+    INT32 val = 0;
+    INT32 type = 0;
+
+    cJSON *json = cJSON_CreateObject();
+
+    /* length = 16 */
+    cJSON_AddStringToObject(json, "Cron", "1234567890123456");
+
+    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
+                                  (INT8 *)"Cron",
+                                  (INT8 *)outBuf,
+                                  sizeof(outBuf),
+                                  &val,
+                                  &type));
+
+    cJSON_Delete(json);
+}
+
+TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringOverflowFailure)
+{
+    char outBuf[16] = {0};
+    INT32 val = 0;
+    INT32 type = 0;
+
+    cJSON *json = cJSON_CreateObject();
+
+    cJSON_AddStringToObject(json,
+                           "Cron",
+                           "abcdefghijklmnopqrstuvwxyz");
+
+    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
+                                  (INT8 *)"Cron",
+                                  (INT8 *)outBuf,
+                                  sizeof(outBuf),
+                                  &val,
+                                  &type));
+
+    cJSON_Delete(json);
+}
+
+TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_NullBuffer)
+{
+    INT32 val = 0;
+    INT32 type = 0;
+
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "Cron", "12345");
+
+    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
+                                  (INT8 *)"Cron",
+                                  NULL,
+                                  16,
+                                  &val,
+                                  &type));
+
+   cJSON_Delete(json);
+}
+
+TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_ZeroSize)
+{
+    char outBuf[16] = {0};
+    INT32 val = 0;
+    INT32 type = 0;
+
+    cJSON *json  cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "Cron", "12345");
+
+    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
+                                  (INT8 *)"Cron",
+                                  (INT8 *)outBuf,
+                                   0,
+                                   &val,
+                                   &type));
+
+    cJSON_Delete(json);
+}
+
 // Test when /etc/include.properties doesn't exist - uses default path
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {    
     INT32 result = dcmSettingDefaultBoot();
