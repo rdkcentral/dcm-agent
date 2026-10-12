@@ -128,8 +128,12 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
     FILE *fp;
 
     if(out != NULL)
-        out[0] = 0;
-
+         out[0] = 0;
+       if (!validateCommand(cmd)) {
+           DCMError("Invalid command\n");
+           return;
+         }
+     
     fp = popen (cmd, "r");
     if (fp) {
         if(out) {
