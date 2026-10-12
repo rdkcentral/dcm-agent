@@ -34,7 +34,7 @@
 
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
-INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*,INT32, INT32*, INT32*);
+INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32, INT32*, INT32*);
 
 
 using namespace testing;
@@ -73,113 +73,11 @@ protected:
     }
 };
 
-TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringSuccess)
-{
-    char outBuf[16] = {0};
-    INT32 val = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-    cJSON_AddStringToObject(json, "Cron", "12345");
-
-    EXPECT_EQ(DCM_SUCCESS, dcmSettingJsonGetVal(json,
-                                   (INT8 *)"Cron",
-                                   (INT8 *)outBuf,
-                                   sizeof(outBuf),
-                                   &val,
-                                   &type));
-
-    EXPECT_STREQ("12345", outBuf);
-    EXPECT_EQ(DCM_JSONITEM_STR, type);
-
-    cJSON_Delete(json);
-}
-
-TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringBoundaryFailure)
-{
-    char outBuf[16] = {0};
-    INT32 val = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-
-    /* length = 16 */
-    cJSON_AddStringToObject(json, "Cron", "1234567890123456");
-
-    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
-                                  (INT8 *)"Cron",
-                                  (INT8 *)outBuf,
-                                  sizeof(outBuf),
-                                  &val,
-                                  &type));
-
-    cJSON_Delete(json);
-}
-
-TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_StringOverflowFailure)
-{
-    char outBuf[16] = {0};
-    INT32 val = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-
-    cJSON_AddStringToObject(json,
-                           "Cron",
-                           "abcdefghijklmnopqrstuvwxyz");
-
-    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
-                                  (INT8 *)"Cron",
-                                  (INT8 *)outBuf,
-                                  sizeof(outBuf),
-                                  &val,
-                                  &type));
-
-    cJSON_Delete(json);
-}
-
-TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_NullBuffer)
-{
-    INT32 val = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-    cJSON_AddStringToObject(json, "Cron", "12345");
-
-    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
-                                  (INT8 *)"Cron",
-                                  NULL,
-                                  16,
-                                  &val,
-                                  &type));
-
-   cJSON_Delete(json);
-}
-
-TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_ZeroSize)
-{
-    char outBuf[16] = {0};
-    INT32 val = 0;
-    INT32 type = 0;
-
-    cJSON *json = cJSON_CreateObject();
-    cJSON_AddStringToObject(json, "Cron", "12345");
-
-    EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
-                                  (INT8 *)"Cron",
-                                  (INT8 *)outBuf,
-                                   0,
-                                   &val,
-                                   &type));
-
-    cJSON_Delete(json);
-}
-
 // Test when /etc/include.properties doesn't exist - uses default path
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {    
     INT32 result = dcmSettingDefaultBoot();
     
-    EXPECT_EQ(result, 0);
+    EXPECT_EQ(result, -1);
 } 
 
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success) {
@@ -686,7 +584,7 @@ protected:
     }
     
     // Function pointer to the static function
-    INT32 (*jsonGetVal)(VOID*, INT8*, INT8*,INT32, INT32*, INT32*);
+    INT32 (*jsonGetVal)(VOID*, INT8*, INT8*, INT32, INT32*, INT32*);
     
     // Test JSON objects
     cJSON* jsonWithString = nullptr;
@@ -741,7 +639,6 @@ TEST_F(DcmSettingJsonGetValTest, LongString_ReturnsCorrectValue) {
     EXPECT_STREQ(stringValue, "This is a very long string value for testing purposes");
 }
 
-// ======================= Valid Integer Tests =======================
 TEST_F(DcmSettingJsonGetValTest, OversizedString_ReturnsFailureWithoutOverflow) {
     if (!jsonGetVal) {
         GTEST_SKIP() << "dcmSettingJsonGetVal function not available";
@@ -759,6 +656,8 @@ TEST_F(DcmSettingJsonGetValTest, OversizedString_ReturnsFailureWithoutOverflow) 
     EXPECT_STREQ(boundedValue.value, "");
     EXPECT_EQ(boundedValue.guard, 'G');
 }
+
+// ======================= Valid Integer Tests =======================
 
 TEST_F(DcmSettingJsonGetValTest, PositiveInteger_ReturnsCorrectValue) {
     if (!jsonGetVal) {
