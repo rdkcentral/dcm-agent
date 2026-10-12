@@ -506,7 +506,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
-                          INT8 *pLogCron, size_t logCronSize, INT8 *pDifdCron, size_t difdCronSize)
+                          INT8 *pLogCron,INT8 *pDifdCron)
 {
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
@@ -569,7 +569,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, logCronSize, &confIntVal, &type);
+                               pLogCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pLogCron = 0;
     }
@@ -577,7 +577,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, difdCronSize, &confIntVal, &type);
+                               pDifdCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pDifdCron = 0;
     }
