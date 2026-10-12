@@ -149,10 +149,11 @@ static INT32 dcmSettingJsonInit(DCMSettingsHandle *pdcmSetHandle,
 
     if(tmp) {
         lc = tmp - pcJsonStr;
-        pcJsonStr[lc - 2] = '}';
-        pcJsonStr[lc - 1] = 0;
+       if(lc >= 2) {
+            pcJsonStr[lc - 2] = '}';
+            pcJsonStr[lc - 1] = 0;
+         }
     }
-
     pJson = cJSON_Parse(pcJsonStr);
     if(pJson == NULL) {
         DCMError("Json Handle is null\n");
@@ -193,14 +194,14 @@ static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,
+static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT32 svalSize,
                                   INT32 *ival, INT32 *type)
 {
     INT32 ret        = DCM_SUCCESS;
     cJSON *pJson     = (cJSON *)jsonHandle;
     cJSON *pJsonItem = NULL;
 
-    if(pJson == NULL) {
+    if(pJson == NULL || sval == NULL || svalSize <= 0) {
         DCMError("Json Handle is null\n");
         return DCM_FAILURE;
     }
@@ -221,8 +222,13 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,
         }
         else if(cJSON_IsString(pJsonItem)) {
             *type = DCM_JSONITEM_STR;
-            strcpy(sval, pJsonItem->valuestring);
-        }
+             if((pJsonItem->valuestring == NULL) || (strlen(pJsonItem->valuestring) >= svalSize)) {
+                ret = DCM_FAILURE;
+                }
+            else {
+                strcpy(sval, pJsonItem->valuestring);
+                }
+          }
         else if(cJSON_IsNull(pJsonItem)) {
             *type  = DCM_JSONITEM_NULL;
             *ival  = pJsonItem->valueint;
@@ -500,7 +506,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
-                          INT8 *pLogCron, INT8 *pDifdCron)
+                          INT8 *pLogCron,INT8 *pDifdCron)
 {
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
@@ -530,7 +536,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     }
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_PROTOCOL,
-                               pUploadprtl, &confIntVal, &type);
+                               pUploadprtl, sizeof(pdcmSetHandle->cUploadPrtl), &confIntVal, &type);
 
     if(ret || type != DCM_JSONITEM_STR || strlen(pUploadprtl) == 0) {
         DCMError("%s is not found in DCMSettings.conf, Setting to HTTP\n", DCM_LOGUPLOAD_PROTOCOL);
@@ -540,7 +546,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("Log Upload protocol: %s\n", pUploadprtl);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_URL,
-                               pUploadURL, &confIntVal, &type);
+                               pUploadURL, sizeof(pdcmSetHandle->cUploadURL), &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR || strlen(pUploadURL) == 0) {
         DCMWarn("%s is not found in DCMSettings.conf, Setting to default\n", DCM_LOGUPLOAD_URL);
         strcpy(pUploadURL, DCM_DEF_LOG_URL);
@@ -549,7 +555,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("Log Upload URL: %s\n", pUploadURL);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_TIMEZONE,
-                               pTimezone, &confIntVal, &type);
+                               pTimezone,  sizeof(pdcmSetHandle->cTimeZone), &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR || strlen(pTimezone) == 0) {
         DCMWarn("%s is not found in DCMSettings.conf, Setting to default\n", DCM_TIMEZONE);
         strcpy(pTimezone, DCM_DEF_TIMEZONE);
@@ -558,12 +564,12 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("TimeZone : %s\n", pTimezone);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_REBOOT,
-                               &temp, &uploadCheck, &type);
+                               &temp, sizeof(temp), &uploadCheck, &type);
 
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, &confIntVal, &type);
+                               pLogCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pLogCron = 0;
     }
@@ -571,7 +577,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, &confIntVal, &type);
+                               pDifdCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pDifdCron = 0;
     }
@@ -826,7 +832,7 @@ INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VO
 {
     return &dcmSettingJsonInit;
 }
-INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32*, INT32*)
+INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32, INT32*, INT32*)
 {
     return &dcmSettingJsonGetVal;
 }
