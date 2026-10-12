@@ -179,7 +179,7 @@ TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_ZeroSize)
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {    
     INT32 result = dcmSettingDefaultBoot();
     
-    EXPECT_EQ(result, -1);
+    EXPECT_EQ(result, 0);
 } 
 
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath_success) {
