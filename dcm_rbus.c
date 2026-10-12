@@ -324,7 +324,7 @@ INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue)
             goto exit;
         }
         else {
-            strcpy(t2_ver, stringValue);
+            snprintf(t2_ver, sizeof(t2_ver), "%s", stringValue);
             DCMInfo("Telemetry 2 Version: %s\n", stringValue);
         }
     }
