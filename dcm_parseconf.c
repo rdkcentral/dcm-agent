@@ -222,7 +222,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
         }
         else if(cJSON_IsString(pJsonItem)) {
             *type = DCM_JSONITEM_STR;
-             if(strlen(pJsonItem->valuestring) >= svalSize) {
+             if((pJsonItem->valuestring == NULL) || (strlen(pJsonItem->valuestring) >= svalSize)) {
                 ret = DCM_FAILURE;
                 }
             else {
