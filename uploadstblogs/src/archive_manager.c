@@ -747,13 +747,28 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
             "[%s:%d] Creating archive: %s from %s\n", 
             __FUNCTION__, __LINE__, archive_path, source_dir);
 
-    // Create gzip file
-    gzFile gz = gzopen(archive_path, "wb9");
-    if (!gz) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create gzip file\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
+    
+     int fd = open(archive_path,
+                   O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
+                   0600);
+
+      if (fd < 0) {
+          RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                 "[%s:%d] Failed to securely create archive file\n",
+            __FUNCTION__, __LINE__);
+           return -1;
+      }
+
+      gzFile gz = gzdopen(fd, "wb9");
+
+       if (!gz) {
+           close(fd);
+           RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                   "[%s:%d] Failed to securely create gzip file\n",
+                 __FUNCTION__, __LINE__);
+           return -1;
+        }
+   
 
     // Add all files from directory
     int ret = add_directory_to_tar(gz, source_dir, source_dir, archive_path);
