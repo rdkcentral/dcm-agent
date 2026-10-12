@@ -162,7 +162,7 @@ TEST_F(dcmParseConfTest, DcmSettingJsonGetVal_ZeroSize)
     INT32 val = 0;
     INT32 type = 0;
 
-    cJSON *json  cJSON_CreateObject();
+    cJSON *json = cJSON_CreateObject();
     cJSON_AddStringToObject(json, "Cron", "12345");
 
     EXPECT_EQ(DCM_FAILURE, dcmSettingJsonGetVal(json,
