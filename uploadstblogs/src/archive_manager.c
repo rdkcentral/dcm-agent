@@ -652,7 +652,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
             }
         }
-    }
+    
     
     closedir(dir);
     return 0;
