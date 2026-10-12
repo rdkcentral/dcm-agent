@@ -49,7 +49,6 @@ extern "C"
 #define DCM_DEF_TIMEZONE       "Local Time"
 #define DCM_CRON_SIZE 16
 
-
 typedef struct _dcmSettingsHandle
 {
     INT8  cJsonStr[DCM_JSON_STRSIZE];
