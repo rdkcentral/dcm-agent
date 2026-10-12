@@ -203,7 +203,7 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
     cJSON *pJsonItem = NULL;
 
     if(pJson == NULL || sval == NULL || svalSize <= 0) {
-        DCMError("Json Handle is null\n");
+        DCMError("Invalid JSON handle or output buffer\n");
         return DCM_FAILURE;
     }
 
