@@ -639,19 +639,10 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                 return -1;
             }
         } else if (S_ISLNK(st.st_mode)) {
-            char target[PATH_MAX];
-            ssize_t len = readlinkat(dirfd, entry->d_name, target, sizeof(target) - 1);
-            if (len < 0) {
+            
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
                         "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
                 continue;
-            }
-            target[len] = '\0';
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "Processing file...%s\n", arcname);
-            if (write_tar_header(gz, arcname, &st, target) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
             }
         } else if (S_ISREG(st.st_mode)) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
