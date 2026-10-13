@@ -258,8 +258,13 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
 
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_RelativePathRejected)
 {
-    setenv("DCM_RDK_PATH", "tmp/test_dcm_scripts", 1);
-    EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
+    auto *settings = static_cast<DCMSettingsHandle *>(dcmHandle.pDcmSetHandle);
+    strcpy(settings->cRdkPath, "tmp/test_dcm_scripts");
+    strcpy(dcmHandle.pExecBuff, "unchanged");
+
+    get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle);
+
+    EXPECT_STREQ(dcmHandle.pExecBuff, "unchanged");
 }
 
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_MetaCharacterPathRejected)
