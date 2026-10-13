@@ -256,6 +256,18 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_ExecutesCorrectScript) {
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
 }
 
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_RelativePathRejected)
+{
+    setenv("DCM_RDK_PATH", "tmp/test_dcm_scripts", 1);
+    EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
+}
+
+TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_MetaCharacterPathRejected)
+{
+    setenv("DCM_RDK_PATH", "/tmp/test;rm -rf /", 1);
+    EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));
+}
+
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_NullHandle_NoThrow) {    
     EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, nullptr));
 }
