@@ -644,7 +644,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                         "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
                 continue;
             }
-        } else if (S_ISREG(st.st_mode)) {
+          else if (S_ISREG(st.st_mode)) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "Processing file...%s\n", arcname);
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
