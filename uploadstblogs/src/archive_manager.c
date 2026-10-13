@@ -745,9 +745,9 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
 
       if (fd < 0) {
           RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                 "[%s:%d] Failed to securely create archive file\n",
-            __FUNCTION__, __LINE__);
-           return -1;
+                  "[%s:%d] Failed to securely create archive file: %s (errno=%d, %s)\n",
+                  __FUNCTION__, __LINE__, archive_path, errno, strerror(errno));
+          return -1;
       }
 
       gzFile gz = gzdopen(fd, "wb9");
