@@ -306,9 +306,12 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
         size_t path_len = query_start - path_start;
         static char clean_path[512];
         if(path_len >= sizeof(clean_path))
-         {
-              path_len = sizeof(clean_path) - 1;
-          }
+        {
+            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                    "[%s:%d] S3 path too long for proxy fallback\n",
+                    __FUNCTION__, __LINE__);
+            return UPLOADSTB_FAILED;
+        }
 
          memcpy(clean_path, path_start, path_len);
         clean_path[path_len] = '\0';
