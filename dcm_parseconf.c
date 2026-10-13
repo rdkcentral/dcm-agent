@@ -203,7 +203,8 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
     cJSON *pJsonItem = NULL;
 
     if(pJson == NULL || sval == NULL || svalSize <= 0) {
-        DCMError("Invalid JSON handle or output buffer\n");
+        DCMError("Invalid JSON handle or output buffer\n");
+
         return DCM_FAILURE;
     }
 
@@ -571,7 +572,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, 16, &confIntVal, &type);
+                               pLogCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pLogCron = 0;
     }
@@ -579,7 +580,7 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
     DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
 
     ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, 16, &confIntVal, &type);
+                               pDifdCron, DCM_CRON_SIZE, &confIntVal, &type);
     if(ret || type != DCM_JSONITEM_STR) {
         *pDifdCron = 0;
     }
