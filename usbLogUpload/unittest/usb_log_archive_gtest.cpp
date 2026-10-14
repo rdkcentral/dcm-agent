@@ -30,6 +30,15 @@ static bool g_generate_archive_name_retval;
 static char g_session_archive_file[256];
 
 extern "C" {
+ 
+
+typedef struct gzFile_s *gzFile;
+
+int open(const char *pathname, int flags, ...);
+gzFile gzdopen(int fd, const char *mode);
+int gzwrite(gzFile file, const void *buf, unsigned len);
+int gzclose(gzFile file);
+
     int get_current_timestamp(char *buf, size_t len) {
         if (g_timestamp_retval != 0) {
             return g_timestamp_retval;
@@ -43,6 +52,22 @@ extern "C" {
         printf("copy_file_and_delete called ret=%d\n", g_copy_file_retval);
         return g_copy_file_retval;
     }
+
+     int open(const char *pathname, int flags, ...) {
+        return 100;
+     }
+
+      gzFile gzdopen(int fd, const char *mode) {
+        return (gzFile)0x1234;
+      }
+
+      int gzwrite(gzFile file, const void *buf, unsigned len) {
+        return len;
+      }
+
+      int gzclose(gzFile file) {
+        return Z_OK;
+      }
 
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
 }
