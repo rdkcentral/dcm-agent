@@ -50,13 +50,27 @@ extern "C" {
 /* These have C++ linkage in archive_manager.h, so define outside extern "C" */
 int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
     printf("create_archive called ret=%d\n", g_create_archive_retval);
-    if (g_create_archive_retval == 0 && g_session_archive_file[0] != '\0') {
-        strncpy(session->archive_file, g_session_archive_file,
-                sizeof(session->archive_file) - 1);
+
+    if (g_create_archive_retval == 0) {
+        if (g_session_archive_file[0] != '\0') {
+            strncpy(session->archive_file,
+                    g_session_archive_file,
+                    sizeof(session->archive_file) - 1);
+        }
+        else {
+            strncpy(session->archive_file,
+                    "test_archive.tar.gz",
+                    sizeof(session->archive_file) - 1);
+         }
+
         session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+
+        printf("session archive=%s\n", session->archive_file);
     }
+
     return g_create_archive_retval;
 }
+
 
 bool generate_archive_name(char *buffer, size_t buffer_size,
                            const char *mac_address, const char *prefix) {
