@@ -252,13 +252,6 @@ gzFile gzopen(const char* path, const char* mode) {
     return mock_gz_ptr;
 }
 
-int open(const char* pathname, int flags, ...)
-{
-    if (!pathname || strstr(pathname, "fail"))
-        return -1;
-    return mock_fd;
-}
-
 gzFile gzdopen(int fd, const char* mode)
 {
     if (fd < 0 || !mode)
