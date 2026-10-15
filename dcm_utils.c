@@ -129,7 +129,12 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
 
     if(out != NULL)
         out[0] = 0;
-
+     
+     if ((cmd == NULL) || (cmd[0] == '\0'))
+       {
+           return;
+        }
+     
     fp = popen (cmd, "r");
     if (fp) {
         if(out) {
@@ -186,7 +191,7 @@ INT32 dcmUtilsCheckDaemonStatus()
         /* exit if an instance is already running */
         fgets(PID, sizeof(PID), fp);
         fclose(fp);
-
+         
         snprintf(filePath, sizeof(filePath), "/proc/%s", PID);
 
         if (dcmUtilsFilePresentCheck(filePath) == 0) {
