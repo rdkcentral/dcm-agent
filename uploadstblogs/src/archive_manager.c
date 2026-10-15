@@ -879,7 +879,7 @@ int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*)
     return &write_tar_header;
 }
 
-int (*getAddFileToTar(void))(gzFile, const char*, const char*, struct stat *)
+int (*getAddFileToTar(void))(gzFile, const char*, const char*)
 {
     return &add_file_to_tar;
 }
