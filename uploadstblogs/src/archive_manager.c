@@ -641,7 +641,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
         } else if (S_ISLNK(st.st_mode)) {
             
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+                        "[%s:%d]Skipping symbolic link: %s\n", __FUNCTION__, __LINE__, fullpath);
                 continue;
             }
           else if (S_ISREG(st.st_mode)) {
