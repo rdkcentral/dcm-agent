@@ -53,10 +53,6 @@ int gzclose(gzFile file);
         return g_copy_file_retval;
     }
 
-     int open(const char *pathname, int flags, ...) {
-        return 100;
-     }
-
       gzFile gzdopen(int fd, const char *mode) {
         return (gzFile)0x1234;
       }
