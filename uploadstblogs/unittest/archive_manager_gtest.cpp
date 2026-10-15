@@ -124,16 +124,6 @@ int close(int fd) {
     return 0;
 }
 
-int open(const char* pathname, int flags, ...) {
-    if (!pathname)
-        return -1;
-
-    if (strstr(pathname, "fail"))
-        return -1;
-
-    return mock_fd;
-}
-
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
     if (stream != mock_file_ptr || !ptr) return 0;
     
