@@ -803,7 +803,7 @@ TEST_F(ArchiveManagerTest, CollectDriLogs_Success) {
     int (*getCollectFilesFromDir(void))(const char*, const char*, bool (*)(const char*));
     bool (*getGenerateArchiveNameAt(void))(char*, size_t, const char*, const char*, time_t);
     unsigned int (*getCalculateTarChecksum(void))(struct tar_header*);
-    int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*);
+    int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*, const char*);
     int (*getAddFileToTar(void))(gzFile, const char*, const char*);
     int (*getAddDirectoryToTar(void))(gzFile, const char*, const char*, const char*);
     int (*getCreateArchiveWithOptions(void))(RuntimeContext*, SessionState*, const char*, const char*, const char*);
