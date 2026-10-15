@@ -66,7 +66,7 @@ int gzclose(gzFile file);
       }
 
       int gzclose(gzFile file) {
-        return Z_OK;
+        return 0;
       }
 
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
