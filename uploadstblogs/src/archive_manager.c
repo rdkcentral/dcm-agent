@@ -874,7 +874,7 @@ unsigned int (*getCalculateTarChecksum(void))(struct tar_header*)
     return &calculate_tar_checksum;
 }
 
-int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*)
+int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*, const char*)
 {
     return &write_tar_header;
 }
