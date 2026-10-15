@@ -1034,7 +1034,7 @@ protected:
         ASSERT_NE(nullptr, fnWriteTarHeader);
     }
     void TearDown() override {}
-    int (*fnWriteTarHeader)(gzFile, const char*, struct stat*);
+    int (*fnWriteTarHeader)(gzFile, const char*, struct stat*, const char*);
 };
 
 TEST_F(WriteTarHeaderTest, Success_WritesHeader) {
@@ -1044,7 +1044,7 @@ TEST_F(WriteTarHeaderTest, Success_WritesHeader) {
     st.st_size = 1024;
     st.st_mtime = 1642780800;
 
-    int result = fnWriteTarHeader(mock_gz_ptr, "test.log", &st);
+    int result = fnWriteTarHeader(mock_gz_ptr, "test.log", &st, NULL);
     EXPECT_EQ(0, result);
 }
 
@@ -1055,7 +1055,7 @@ TEST_F(WriteTarHeaderTest, GzwriteFails_ReturnsError) {
     st.st_size = 1024;
 
     // Use invalid gzFile to trigger gzwrite failure
-    int result = fnWriteTarHeader(nullptr, "test.log", &st);
+    int result = fnWriteTarHeader(nullptr, "test.log", &st, NULL);
     EXPECT_EQ(-1, result);
 }
 
