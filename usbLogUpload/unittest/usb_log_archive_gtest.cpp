@@ -155,6 +155,7 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SourcePathIsFile) {
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
+    g_create_archive_retval = 0;
     g_timestamp_retval = -1;
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
@@ -163,6 +164,7 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
+    g_create_archive_retval = 0;
     strncpy(g_session_archive_file, "session_archive.tar.gz", sizeof(g_session_archive_file) - 1);
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
@@ -171,6 +173,7 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_FallbackToGenerateArchiveName) {
     /* session.archive_file stays empty, triggers generate_archive_name path */
+    g_create_archive_retval = 0;
     memset(g_session_archive_file, 0, sizeof(g_session_archive_file));
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
