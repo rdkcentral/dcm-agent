@@ -31,13 +31,6 @@
 #include <string.h>
 #include <errno.h>
 
-__attribute__((weak))
-int archive_create_wrapper(RuntimeContext *ctx,
-                           SessionState *session,
-                           const char *source_dir) {
-    return create_archive(ctx, session, source_dir);
-}
-
 /**
  * @brief Create compressed archive for USB log upload
  * 
@@ -94,7 +87,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
             "[%s:%d] Creating archive from %s with MAC %s\n", 
             __FUNCTION__, __LINE__, source_dir, mac_address);
 
-        int result = create_archive_wrapper(&ctx, &session, source_dir);
+        int result = create_archive(&ctx, &session, source_dir);
     if (result != 0) {
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s USB WRITING ERROR - Failed to create archive (error: %d)\n", 
