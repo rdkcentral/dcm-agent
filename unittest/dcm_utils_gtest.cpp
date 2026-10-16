@@ -76,10 +76,10 @@ TEST(DCMUtilsTest, FilePresentCheck_FileNotExist) {
 }
 
 // Test dcmUtilsCopyCommandOutput
-TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
+TEST(DCMUtilsTest, CopyCommandOutput_DisallowedCommand) {
     char output[128];
     dcmUtilsCopyCommandOutput((INT8*)"echo hello", (INT8*)output, sizeof(output));
-    EXPECT_STREQ(output, "hello");
+    EXPECT_STREQ(output, "");
 }
 
 TEST(DCMUtilsTest, CopyCommandOutput_NullOut) {

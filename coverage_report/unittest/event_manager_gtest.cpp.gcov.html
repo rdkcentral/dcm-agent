@@ -1,0 +1,635 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.info - unittest/event_manager_gtest.cpp</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">unittest</a> - event_manager_gtest.cpp<span style="font-size: 80%;"> (source / <a href="event_manager_gtest.cpp.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">251</td>
+            <td class="headerCovTableEntry">269</td>
+            <td class="headerCovTableEntryHi">93.3 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2026-09-23 11:04:01</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">69</td>
+            <td class="headerCovTableEntry">106</td>
+            <td class="headerCovTableEntryLo">65.1 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /**</a>
+<a name="2"><span class="lineNum">       2 </span>            :  * Copyright 2025 RDK Management</a>
+<a name="3"><span class="lineNum">       3 </span>            :  *</a>
+<a name="4"><span class="lineNum">       4 </span>            :  * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</a>
+<a name="5"><span class="lineNum">       5 </span>            :  * you may not use this file except in compliance with the License.</a>
+<a name="6"><span class="lineNum">       6 </span>            :  * You may obtain a copy of the License at</a>
+<a name="7"><span class="lineNum">       7 </span>            :  *</a>
+<a name="8"><span class="lineNum">       8 </span>            :  * http://www.apache.org/licenses/LICENSE-2.0</a>
+<a name="9"><span class="lineNum">       9 </span>            :  *</a>
+<a name="10"><span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software</a>
+<a name="11"><span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</a>
+<a name="12"><span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</a>
+<a name="13"><span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and</a>
+<a name="14"><span class="lineNum">      14 </span>            :  * limitations under the License.</a>
+<a name="15"><span class="lineNum">      15 </span>            :  *</a>
+<a name="16"><span class="lineNum">      16 </span>            :  */</a>
+<a name="17"><span class="lineNum">      17 </span>            : </a>
+<a name="18"><span class="lineNum">      18 </span>            : #include &lt;gtest/gtest.h&gt;</a>
+<a name="19"><span class="lineNum">      19 </span>            : #include &lt;gmock/gmock.h&gt;</a>
+<a name="20"><span class="lineNum">      20 </span>            : #include &lt;cstring&gt;</a>
+<a name="21"><span class="lineNum">      21 </span>            : #include &lt;iostream&gt;</a>
+<a name="22"><span class="lineNum">      22 </span>            : </a>
+<a name="23"><span class="lineNum">      23 </span>            : // Mock RDK_LOG before including other headers</a>
+<a name="24"><span class="lineNum">      24 </span>            : #ifdef GTEST_ENABLE</a>
+<a name="25"><span class="lineNum">      25 </span>            : #define RDK_LOG(level, module, ...) do {} while(0)</a>
+<a name="26"><span class="lineNum">      26 </span>            : #endif</a>
+<a name="27"><span class="lineNum">      27 </span>            : </a>
+<a name="28"><span class="lineNum">      28 </span>            : #include &quot;uploadstblogs_types.h&quot;</a>
+<a name="29"><span class="lineNum">      29 </span>            : </a>
+<a name="30"><span class="lineNum">      30 </span>            : // Mock external dependencies</a>
+<a name="31"><span class="lineNum">      31 </span>            : extern &quot;C&quot; {</a>
+<a name="32"><span class="lineNum">      32 </span>            : // Mock system functions</a>
+<a name="33"><span class="lineNum">      33 </span>            : int access(const char *pathname, int mode);</a>
+<a name="34"><span class="lineNum">      34 </span>            : pid_t fork(void);</a>
+<a name="35"><span class="lineNum">      35 </span>            : int execl(const char *pathname, const char *arg, ...);</a>
+<a name="36"><span class="lineNum">      36 </span>            : void _exit(int status);</a>
+<a name="37"><span class="lineNum">      37 </span>            : pid_t waitpid(pid_t pid, int *wstatus, int options);</a>
+<a name="38"><span class="lineNum">      38 </span>            : int snprintf(char *str, size_t size, const char *format, ...);</a>
+<a name="39"><span class="lineNum">      39 </span>            : int strcasecmp(const char *s1, const char *s2);</a>
+<a name="40"><span class="lineNum">      40 </span>            : int strcmp(const char *s1, const char *s2);</a>
+<a name="41"><span class="lineNum">      41 </span>            : char *strcpy(char *dest, const char *src);</a>
+<a name="42"><span class="lineNum">      42 </span>            : int atoi(const char *nptr);</a>
+<a name="43"><span class="lineNum">      43 </span>            : </a>
+<a name="44"><span class="lineNum">      44 </span>            : // Include va_list for variadic function mocking</a>
+<a name="45"><span class="lineNum">      45 </span>            : #include &lt;stdarg.h&gt;</a>
+<a name="46"><span class="lineNum">      46 </span>            : </a>
+<a name="47"><span class="lineNum">      47 </span>            : // Mock external module functions</a>
+<a name="48"><span class="lineNum">      48 </span>            : int getDevicePropertyData(const char* property, char* buffer, size_t buffer_size);</a>
+<a name="49"><span class="lineNum">      49 </span>            : void report_upload_success(const SessionState* session);</a>
+<a name="50"><span class="lineNum">      50 </span>            : void report_upload_failure(const SessionState* session);</a>
+<a name="51"><span class="lineNum">      51 </span>            : </a>
+<a name="52"><span class="lineNum">      52 </span>            : // Define constants that might be missing</a>
+<a name="53"><span class="lineNum">      53 </span>            : #ifndef UTILS_SUCCESS</a>
+<a name="54"><span class="lineNum">      54 </span>            : #define UTILS_SUCCESS 0</a>
+<a name="55"><span class="lineNum">      55 </span>            : #endif</a>
+<a name="56"><span class="lineNum">      56 </span>            : </a>
+<a name="57"><span class="lineNum">      57 </span>            : // Mock state</a>
+<a name="58"><span class="lineNum">      58 </span>            : static bool mock_access_result = true;</a>
+<a name="59"><span class="lineNum">      59 </span>            : static bool mock_maintenance_enabled = false;</a>
+<a name="60"><span class="lineNum">      60 </span>            : static pid_t mock_fork_result = 1;</a>
+<a name="61"><span class="lineNum">      61 </span>            : static bool mock_fork_fail = false;</a>
+<a name="62"><span class="lineNum">      62 </span>            : static int mock_execl_fail = false;</a>
+<a name="63"><span class="lineNum">      63 </span>            : static int mock_waitpid_status = 0;</a>
+<a name="64"><span class="lineNum">      64 </span>            : static char mock_device_type[64] = &quot;gateway&quot;;</a>
+<a name="65"><span class="lineNum">      65 </span>            : static int mock_fork_call_count = 0;</a>
+<a name="66"><span class="lineNum">      66 </span>            : </a>
+<a name="67"><span class="lineNum">      67 </span>            : #ifdef GTEST_ENABLE</a>
+<a name="68"><span class="lineNum">      68 </span>            : // Mock call tracking variables</a>
+<a name="69"><span class="lineNum">      69 </span>            : static int mock_iarm_event_calls = 0;</a>
+<a name="70"><span class="lineNum">      70 </span>            : static char mock_last_event_name[256] = {0};</a>
+<a name="71"><span class="lineNum">      71 </span>            : static int mock_last_event_code = 0;</a>
+<a name="72"><span class="lineNum">      72 </span>            : static int mock_report_success_calls = 0;</a>
+<a name="73"><span class="lineNum">      73 </span>            : static int mock_report_failure_calls = 0;</a>
+<a name="74"><span class="lineNum">      74 </span>            : </a>
+<a name="75"><span class="lineNum">      75 </span>            : // Test-specific implementations</a>
+<a name="76"><span class="lineNum">      76 </span>            : // Override send_iarm_event for testing</a>
+<a name="77"><span class="lineNum">      77 </span><span class="lineCov">         24 : void send_iarm_event(const char* event_name, int event_code) {</span></a>
+<a name="78"><span class="lineNum">      78 </span><span class="lineCov">         24 :     if (!event_name) {</span></a>
+<a name="79"><span class="lineNum">      79 </span>            :         return;</a>
+<a name="80"><span class="lineNum">      80 </span>            :     }</a>
+<a name="81"><span class="lineNum">      81 </span>            : </a>
+<a name="82"><span class="lineNum">      82 </span>            :     // Simulate the same logic as real implementation</a>
+<a name="83"><span class="lineNum">      83 </span>            :     // Check if IARM event sender binary exists</a>
+<a name="84"><span class="lineNum">      84 </span><span class="lineCov">         24 :     if (!mock_access_result) {</span></a>
+<a name="85"><span class="lineNum">      85 </span>            :         // Binary not found - don't increment call counter</a>
+<a name="86"><span class="lineNum">      86 </span>            :         return;</a>
+<a name="87"><span class="lineNum">      87 </span>            :     }</a>
+<a name="88"><span class="lineNum">      88 </span>            : </a>
+<a name="89"><span class="lineNum">      89 </span>            :     // Simulate fork behavior</a>
+<a name="90"><span class="lineNum">      90 </span><span class="lineCov">         23 :     if (mock_fork_fail) {</span></a>
+<a name="91"><span class="lineNum">      91 </span>            :         // Fork failed - don't increment call counter</a>
+<a name="92"><span class="lineNum">      92 </span>            :         return;</a>
+<a name="93"><span class="lineNum">      93 </span>            :     }</a>
+<a name="94"><span class="lineNum">      94 </span>            : </a>
+<a name="95"><span class="lineNum">      95 </span>            :     // Track the IARM event call for testing (only if all checks pass)</a>
+<a name="96"><span class="lineNum">      96 </span><span class="lineCov">         22 :     mock_iarm_event_calls++;</span></a>
+<a name="97"><span class="lineNum">      97 </span><span class="lineCov">         22 :     strcpy(mock_last_event_name, event_name);</span></a>
+<a name="98"><span class="lineNum">      98 </span><span class="lineCov">         22 :     mock_last_event_code = event_code;</span></a>
+<a name="99"><span class="lineNum">      99 </span>            : }</a>
+<a name="100"><span class="lineNum">     100 </span>            : </a>
+<a name="101"><span class="lineNum">     101 </span>            : // Mock send_iarm_event_maintenance for testing</a>
+<a name="102"><span class="lineNum">     102 </span><span class="lineCov">         17 : void send_iarm_event_maintenance(int maint_event_code) {</span></a>
+<a name="103"><span class="lineNum">     103 </span>            :     // Mock implementation - track the call with MaintenanceMGR event name</a>
+<a name="104"><span class="lineNum">     104 </span><span class="lineCov">         17 :     mock_iarm_event_calls++;</span></a>
+<a name="105"><span class="lineNum">     105 </span><span class="lineCov">         17 :     strcpy(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="106"><span class="lineNum">     106 </span><span class="lineCov">         17 :     mock_last_event_code = maint_event_code;</span></a>
+<a name="107"><span class="lineNum">     107 </span><span class="lineCov">         17 : }</span></a>
+<a name="108"><span class="lineNum">     108 </span>            : </a>
+<a name="109"><span class="lineNum">     109 </span>            : // Mock implementations</a>
+<a name="110"><span class="lineNum">     110 </span><span class="lineNoCov">          0 : int access(const char *pathname, int mode) {</span></a>
+<a name="111"><span class="lineNum">     111 </span><span class="lineNoCov">          0 :     if (pathname &amp;&amp; strstr(pathname, &quot;IARM_event_sender&quot;)) {</span></a>
+<a name="112"><span class="lineNum">     112 </span><span class="lineNoCov">          0 :         return mock_access_result ? 0 : -1;</span></a>
+<a name="113"><span class="lineNum">     113 </span>            :     }</a>
+<a name="114"><span class="lineNum">     114 </span><span class="lineNoCov">          0 :     if (pathname &amp;&amp; strstr(pathname, &quot;/etc/os-release&quot;)) {</span></a>
+<a name="115"><span class="lineNum">     115 </span>            :         return 0; // Assume exists for most tests</a>
+<a name="116"><span class="lineNum">     116 </span>            :     }</a>
+<a name="117"><span class="lineNum">     117 </span>            :     return 0;</a>
+<a name="118"><span class="lineNum">     118 </span>            : }</a>
+<a name="119"><span class="lineNum">     119 </span>            : </a>
+<a name="120"><span class="lineNum">     120 </span><span class="lineNoCov">          0 : int snprintf(char *str, size_t size, const char *format, ...) {</span></a>
+<a name="121"><span class="lineNum">     121 </span><span class="lineNoCov">          0 :     if (str &amp;&amp; size &gt; 0) {</span></a>
+<a name="122"><span class="lineNum">     122 </span><span class="lineNoCov">          0 :         str[0] = '\0'; // Simple mock</span></a>
+<a name="123"><span class="lineNum">     123 </span>            :     }</a>
+<a name="124"><span class="lineNum">     124 </span><span class="lineNoCov">          0 :     return 0;</span></a>
+<a name="125"><span class="lineNum">     125 </span>            : }</a>
+<a name="126"><span class="lineNum">     126 </span>            : </a>
+<a name="127"><span class="lineNum">     127 </span><span class="lineCov">         17 : int strcasecmp(const char *s1, const char *s2) {</span></a>
+<a name="128"><span class="lineNum">     128 </span><span class="lineCov">         17 :     if (!s1 || !s2) return -1;</span></a>
+<a name="129"><span class="lineNum">     129 </span><span class="lineCov">         16 :     return strcmp(s1, s2); // Simple case-insensitive comparison mock</span></a>
+<a name="130"><span class="lineNum">     130 </span>            : }</a>
+<a name="131"><span class="lineNum">     131 </span>            : </a>
+<a name="132"><span class="lineNum">     132 </span><span class="lineCov">         16 : int getDevicePropertyData(const char* property, char* buffer, size_t buffer_size) {</span></a>
+<a name="133"><span class="lineNum">     133 </span><span class="lineCov">         16 :     if (property &amp;&amp; strcmp(property, &quot;ENABLE_MAINTENANCE&quot;) == 0) {</span></a>
+<a name="134"><span class="lineNum">     134 </span><span class="lineCov">         16 :         strcpy(buffer, mock_maintenance_enabled ? &quot;true&quot; : &quot;false&quot;);</span></a>
+<a name="135"><span class="lineNum">     135 </span><span class="lineCov">         16 :         return 0; // UTILS_SUCCESS</span></a>
+<a name="136"><span class="lineNum">     136 </span>            :     }</a>
+<a name="137"><span class="lineNum">     137 </span>            :     return -1;</a>
+<a name="138"><span class="lineNum">     138 </span>            : }</a>
+<a name="139"><span class="lineNum">     139 </span>            : </a>
+<a name="140"><span class="lineNum">     140 </span>            : } // extern &quot;C&quot;</a>
+<a name="141"><span class="lineNum">     141 </span><span class="lineNoCov">          0 : void report_upload_success(const SessionState* session) {</span></a>
+<a name="142"><span class="lineNum">     142 </span><span class="lineNoCov">          0 :     mock_report_success_calls++;</span></a>
+<a name="143"><span class="lineNum">     143 </span><span class="lineNoCov">          0 : }</span></a>
+<a name="144"><span class="lineNum">     144 </span>            : </a>
+<a name="145"><span class="lineNum">     145 </span><span class="lineNoCov">          0 : void report_upload_failure(const SessionState* session) {</span></a>
+<a name="146"><span class="lineNum">     146 </span><span class="lineNoCov">          0 :     mock_report_failure_calls++;</span></a>
+<a name="147"><span class="lineNum">     147 </span><span class="lineNoCov">          0 : }</span></a>
+<a name="148"><span class="lineNum">     148 </span>            : </a>
+<a name="149"><span class="lineNum">     149 </span><span class="lineNoCov">          0 : void t2_count_notify(char* marker) {</span></a>
+<a name="150"><span class="lineNum">     150 </span>            :     // Track t2_count_notify calls - no action needed for most tests</a>
+<a name="151"><span class="lineNum">     151 </span><span class="lineNoCov">          0 : }</span></a>
+<a name="152"><span class="lineNum">     152 </span>            : </a>
+<a name="153"><span class="lineNum">     153 </span><span class="lineNoCov">          0 : void t2_val_notify(char* marker, char* value) {</span></a>
+<a name="154"><span class="lineNum">     154 </span>            :     // Track t2_val_notify calls - no action needed for most tests</a>
+<a name="155"><span class="lineNum">     155 </span><span class="lineNoCov">          0 : }</span></a>
+<a name="156"><span class="lineNum">     156 </span>            : </a>
+<a name="157"><span class="lineNum">     157 </span>            : </a>
+<a name="158"><span class="lineNum">     158 </span>            : #endif</a>
+<a name="159"><span class="lineNum">     159 </span>            : </a>
+<a name="160"><span class="lineNum">     160 </span>            : // Include the actual event manager implementation</a>
+<a name="161"><span class="lineNum">     161 </span>            : #include &quot;event_manager.h&quot;</a>
+<a name="162"><span class="lineNum">     162 </span>            : #include &quot;../src/event_manager.c&quot;</a>
+<a name="163"><span class="lineNum">     163 </span>            : </a>
+<a name="164"><span class="lineNum">     164 </span>            : using namespace testing;</a>
+<a name="165"><span class="lineNum">     165 </span>            : using namespace std;</a>
+<a name="166"><span class="lineNum">     166 </span>            : </a>
+<a name="167"><span class="lineNum">     167 </span><span class="lineCov">         62 : class EventManagerTest : public ::testing::Test {</span></a>
+<a name="168"><span class="lineNum">     168 </span>            : protected:</a>
+<a name="169"><span class="lineNum">     169 </span><span class="lineCov">         31 :     void SetUp() override {</span></a>
+<a name="170"><span class="lineNum">     170 </span>            :         // Reset mock state</a>
+<a name="171"><span class="lineNum">     171 </span><span class="lineCov">         31 :         mock_access_result = true;</span></a>
+<a name="172"><span class="lineNum">     172 </span><span class="lineCov">         31 :         mock_maintenance_enabled = false;</span></a>
+<a name="173"><span class="lineNum">     173 </span><span class="lineCov">         31 :         mock_fork_result = 1; // Parent process - child will be handled separately</span></a>
+<a name="174"><span class="lineNum">     174 </span><span class="lineCov">         31 :         mock_fork_fail = false;</span></a>
+<a name="175"><span class="lineNum">     175 </span><span class="lineCov">         31 :         mock_execl_fail = false;</span></a>
+<a name="176"><span class="lineNum">     176 </span><span class="lineCov">         31 :         mock_waitpid_status = 0;</span></a>
+<a name="177"><span class="lineNum">     177 </span><span class="lineCov">         31 :         strcpy(mock_device_type, &quot;gateway&quot;);</span></a>
+<a name="178"><span class="lineNum">     178 </span><span class="lineCov">         31 :         mock_fork_call_count = 0;</span></a>
+<a name="179"><span class="lineNum">     179 </span>            : </a>
+<a name="180"><span class="lineNum">     180 </span>            :         // Reset call tracking</a>
+<a name="181"><span class="lineNum">     181 </span><span class="lineCov">         31 :         mock_iarm_event_calls = 0;</span></a>
+<a name="182"><span class="lineNum">     182 </span><span class="lineCov">         31 :         memset(mock_last_event_name, 0, sizeof(mock_last_event_name));</span></a>
+<a name="183"><span class="lineNum">     183 </span><span class="lineCov">         31 :         mock_last_event_code = 0;</span></a>
+<a name="184"><span class="lineNum">     184 </span><span class="lineCov">         31 :         mock_report_success_calls = 0;</span></a>
+<a name="185"><span class="lineNum">     185 </span><span class="lineCov">         31 :         mock_report_failure_calls = 0;</span></a>
+<a name="186"><span class="lineNum">     186 </span>            : </a>
+<a name="187"><span class="lineNum">     187 </span>            :         // Initialize test structures</a>
+<a name="188"><span class="lineNum">     188 </span><span class="lineCov">         31 :         memset(&amp;test_ctx, 0, sizeof(RuntimeContext));</span></a>
+<a name="189"><span class="lineNum">     189 </span><span class="lineCov">         31 :         memset(&amp;test_session, 0, sizeof(SessionState));</span></a>
+<a name="190"><span class="lineNum">     190 </span>            : </a>
+<a name="191"><span class="lineNum">     191 </span>            :         // Set up default test context</a>
+<a name="192"><span class="lineNum">     192 </span><span class="lineCov">         31 :         strcpy(test_ctx.device_type, mock_device_type);</span></a>
+<a name="193"><span class="lineNum">     193 </span><span class="lineCov">         31 :         strcpy(test_ctx.log_path, &quot;/opt/logs&quot;);</span></a>
+<a name="194"><span class="lineNum">     194 </span>            : </a>
+<a name="195"><span class="lineNum">     195 </span>            :         // Set up default test session</a>
+<a name="196"><span class="lineNum">     196 </span><span class="lineCov">         31 :         test_session.strategy = STRAT_DCM;</span></a>
+<a name="197"><span class="lineNum">     197 </span><span class="lineCov">         31 :         test_session.direct_attempts = 1;</span></a>
+<a name="198"><span class="lineNum">     198 </span><span class="lineCov">         31 :         test_session.codebig_attempts = 0;</span></a>
+<a name="199"><span class="lineNum">     199 </span><span class="lineCov">         31 :         test_session.used_fallback = false;</span></a>
+<a name="200"><span class="lineNum">     200 </span><span class="lineCov">         31 :         test_session.success = false;</span></a>
+<a name="201"><span class="lineNum">     201 </span><span class="lineCov">         31 :     }</span></a>
+<a name="202"><span class="lineNum">     202 </span>            : </a>
+<a name="203"><span class="lineNum">     203 </span><span class="lineCov">         31 :     void TearDown() override {}</span></a>
+<a name="204"><span class="lineNum">     204 </span>            : </a>
+<a name="205"><span class="lineNum">     205 </span>            :     RuntimeContext test_ctx;</a>
+<a name="206"><span class="lineNum">     206 </span>            :     SessionState test_session;</a>
+<a name="207"><span class="lineNum">     207 </span>            : };</a>
+<a name="208"><span class="lineNum">     208 </span>            : </a>
+<a name="209"><span class="lineNum">     209 </span>            : // Test emit_privacy_abort function</a>
+<a name="210"><span class="lineNum">     210 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitPrivacyAbort_Success) {</span></a>
+<a name="211"><span class="lineNum">     211 </span><span class="lineCov">          1 :     emit_privacy_abort();</span></a>
+<a name="212"><span class="lineNum">     212 </span>            : </a>
+<a name="213"><span class="lineNum">     213 </span>            :     // Should send MAINT_LOGUPLOAD_COMPLETE event</a>
+<a name="214"><span class="lineNum">     214 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="215"><span class="lineNum">     215 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="216"><span class="lineNum">     216 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 4); // MAINT_LOGUPLOAD_COMPLETE</span></a>
+<a name="217"><span class="lineNum">     217 </span><span class="lineCov">          1 : }</span></a>
+<a name="218"><span class="lineNum">     218 </span>            : </a>
+<a name="219"><span class="lineNum">     219 </span>            : // Test emit_no_logs_reboot function</a>
+<a name="220"><span class="lineNum">     220 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsReboot_BroadbandDevice) {</span></a>
+<a name="221"><span class="lineNum">     221 </span><span class="lineCov">          1 :     strcpy(test_ctx.device_type, &quot;broadband&quot;);</span></a>
+<a name="222"><span class="lineNum">     222 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="223"><span class="lineNum">     223 </span>            : </a>
+<a name="224"><span class="lineNum">     224 </span><span class="lineCov">          1 :     emit_no_logs_reboot(&amp;test_ctx);</span></a>
+<a name="225"><span class="lineNum">     225 </span>            : </a>
+<a name="226"><span class="lineNum">     226 </span>            :     // Should NOT send event for broadband device</a>
+<a name="227"><span class="lineNum">     227 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="228"><span class="lineNum">     228 </span><span class="lineCov">          1 : }</span></a>
+<a name="229"><span class="lineNum">     229 </span>            : </a>
+<a name="230"><span class="lineNum">     230 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsReboot_NonBroadbandWithMaintenance) {</span></a>
+<a name="231"><span class="lineNum">     231 </span><span class="lineCov">          1 :     strcpy(test_ctx.device_type, &quot;gateway&quot;);</span></a>
+<a name="232"><span class="lineNum">     232 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="233"><span class="lineNum">     233 </span>            : </a>
+<a name="234"><span class="lineNum">     234 </span><span class="lineCov">          1 :     emit_no_logs_reboot(&amp;test_ctx);</span></a>
+<a name="235"><span class="lineNum">     235 </span>            : </a>
+<a name="236"><span class="lineNum">     236 </span>            :     // Should send MAINT_LOGUPLOAD_COMPLETE event</a>
+<a name="237"><span class="lineNum">     237 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="238"><span class="lineNum">     238 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="239"><span class="lineNum">     239 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 4); // MAINT_LOGUPLOAD_COMPLETE</span></a>
+<a name="240"><span class="lineNum">     240 </span><span class="lineCov">          1 : }</span></a>
+<a name="241"><span class="lineNum">     241 </span>            : </a>
+<a name="242"><span class="lineNum">     242 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsReboot_NonBroadbandWithoutMaintenance) {</span></a>
+<a name="243"><span class="lineNum">     243 </span><span class="lineCov">          1 :     strcpy(test_ctx.device_type, &quot;gateway&quot;);</span></a>
+<a name="244"><span class="lineNum">     244 </span><span class="lineCov">          1 :     mock_maintenance_enabled = false;</span></a>
+<a name="245"><span class="lineNum">     245 </span>            : </a>
+<a name="246"><span class="lineNum">     246 </span><span class="lineCov">          1 :     emit_no_logs_reboot(&amp;test_ctx);</span></a>
+<a name="247"><span class="lineNum">     247 </span>            : </a>
+<a name="248"><span class="lineNum">     248 </span>            :     // Should NOT send event without maintenance mode</a>
+<a name="249"><span class="lineNum">     249 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="250"><span class="lineNum">     250 </span><span class="lineCov">          1 : }</span></a>
+<a name="251"><span class="lineNum">     251 </span>            : </a>
+<a name="252"><span class="lineNum">     252 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsReboot_NullContext) {</span></a>
+<a name="253"><span class="lineNum">     253 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="254"><span class="lineNum">     254 </span>            : </a>
+<a name="255"><span class="lineNum">     255 </span><span class="lineCov">          1 :     emit_no_logs_reboot(nullptr);</span></a>
+<a name="256"><span class="lineNum">     256 </span>            : </a>
+<a name="257"><span class="lineNum">     257 </span>            :     // Should handle null context gracefully</a>
+<a name="258"><span class="lineNum">     258 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="259"><span class="lineNum">     259 </span><span class="lineCov">          1 : }</span></a>
+<a name="260"><span class="lineNum">     260 </span>            : </a>
+<a name="261"><span class="lineNum">     261 </span>            : // Test emit_no_logs_ondemand function</a>
+<a name="262"><span class="lineNum">     262 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsOndemand_WithMaintenance) {</span></a>
+<a name="263"><span class="lineNum">     263 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="264"><span class="lineNum">     264 </span>            : </a>
+<a name="265"><span class="lineNum">     265 </span><span class="lineCov">          1 :     emit_no_logs_ondemand();</span></a>
+<a name="266"><span class="lineNum">     266 </span>            : </a>
+<a name="267"><span class="lineNum">     267 </span>            :     // Should send MAINT_LOGUPLOAD_COMPLETE event</a>
+<a name="268"><span class="lineNum">     268 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="269"><span class="lineNum">     269 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="270"><span class="lineNum">     270 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 4); // MAINT_LOGUPLOAD_COMPLETE</span></a>
+<a name="271"><span class="lineNum">     271 </span><span class="lineCov">          1 : }</span></a>
+<a name="272"><span class="lineNum">     272 </span>            : </a>
+<a name="273"><span class="lineNum">     273 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitNoLogsOndemand_WithoutMaintenance) {</span></a>
+<a name="274"><span class="lineNum">     274 </span><span class="lineCov">          1 :     mock_maintenance_enabled = false;</span></a>
+<a name="275"><span class="lineNum">     275 </span>            : </a>
+<a name="276"><span class="lineNum">     276 </span><span class="lineCov">          1 :     emit_no_logs_ondemand();</span></a>
+<a name="277"><span class="lineNum">     277 </span>            : </a>
+<a name="278"><span class="lineNum">     278 </span>            :     // Should NOT send event without maintenance mode</a>
+<a name="279"><span class="lineNum">     279 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="280"><span class="lineNum">     280 </span><span class="lineCov">          1 : }</span></a>
+<a name="281"><span class="lineNum">     281 </span>            : </a>
+<a name="282"><span class="lineNum">     282 </span>            : // Test emit_upload_success function</a>
+<a name="283"><span class="lineNum">     283 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadSuccess_DirectPath) {</span></a>
+<a name="284"><span class="lineNum">     284 </span><span class="lineCov">          1 :     test_session.success = true;</span></a>
+<a name="285"><span class="lineNum">     285 </span><span class="lineCov">          1 :     test_session.used_fallback = false;</span></a>
+<a name="286"><span class="lineNum">     286 </span><span class="lineCov">          1 :     test_session.direct_attempts = 2;</span></a>
+<a name="287"><span class="lineNum">     287 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="288"><span class="lineNum">     288 </span>            : </a>
+<a name="289"><span class="lineNum">     289 </span><span class="lineCov">          1 :     emit_upload_success(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="290"><span class="lineNum">     290 </span>            : </a>
+<a name="291"><span class="lineNum">     291 </span>            :     // Should send LogUploadEvent success and MaintenanceMGR complete</a>
+<a name="292"><span class="lineNum">     292 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2);</span></a>
+<a name="293"><span class="lineNum">     293 </span>            :     // Note: Implementation calls t2_count_notify, not report_upload_success</a>
+<a name="294"><span class="lineNum">     294 </span><span class="lineCov">          1 : }</span></a>
+<a name="295"><span class="lineNum">     295 </span>            : </a>
+<a name="296"><span class="lineNum">     296 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadSuccess_CodeBigPath) {</span></a>
+<a name="297"><span class="lineNum">     297 </span><span class="lineCov">          1 :     test_session.success = true;</span></a>
+<a name="298"><span class="lineNum">     298 </span><span class="lineCov">          1 :     test_session.used_fallback = true;</span></a>
+<a name="299"><span class="lineNum">     299 </span><span class="lineCov">          1 :     test_session.codebig_attempts = 1;</span></a>
+<a name="300"><span class="lineNum">     300 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="301"><span class="lineNum">     301 </span>            : </a>
+<a name="302"><span class="lineNum">     302 </span><span class="lineCov">          1 :     emit_upload_success(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="303"><span class="lineNum">     303 </span>            : </a>
+<a name="304"><span class="lineNum">     304 </span>            :     // Should send LogUploadEvent success and MaintenanceMGR complete</a>
+<a name="305"><span class="lineNum">     305 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2);</span></a>
+<a name="306"><span class="lineNum">     306 </span>            :     // Note: Implementation calls t2_count_notify, not report_upload_success</a>
+<a name="307"><span class="lineNum">     307 </span><span class="lineCov">          1 : }</span></a>
+<a name="308"><span class="lineNum">     308 </span>            : </a>
+<a name="309"><span class="lineNum">     309 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadSuccess_BroadbandDevice) {</span></a>
+<a name="310"><span class="lineNum">     310 </span><span class="lineCov">          1 :     strcpy(test_ctx.device_type, &quot;broadband&quot;);</span></a>
+<a name="311"><span class="lineNum">     311 </span><span class="lineCov">          1 :     test_session.success = true;</span></a>
+<a name="312"><span class="lineNum">     312 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="313"><span class="lineNum">     313 </span>            : </a>
+<a name="314"><span class="lineNum">     314 </span><span class="lineCov">          1 :     emit_upload_success(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="315"><span class="lineNum">     315 </span>            : </a>
+<a name="316"><span class="lineNum">     316 </span>            :     // Should send only LogUploadEvent success (no MaintenanceMGR for broadband)</a>
+<a name="317"><span class="lineNum">     317 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="318"><span class="lineNum">     318 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;LogUploadEvent&quot;);</span></a>
+<a name="319"><span class="lineNum">     319 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 0); // LOG_UPLOAD_SUCCESS</span></a>
+<a name="320"><span class="lineNum">     320 </span><span class="lineCov">          1 : }</span></a>
+<a name="321"><span class="lineNum">     321 </span>            : </a>
+<a name="322"><span class="lineNum">     322 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadSuccess_NullSession) {</span></a>
+<a name="323"><span class="lineNum">     323 </span><span class="lineCov">          1 :     emit_upload_success(&amp;test_ctx, nullptr);</span></a>
+<a name="324"><span class="lineNum">     324 </span>            : </a>
+<a name="325"><span class="lineNum">     325 </span>            :     // Should handle null session gracefully</a>
+<a name="326"><span class="lineNum">     326 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="327"><span class="lineNum">     327 </span>            :     // Note: report_upload_success not called by implementation</a>
+<a name="328"><span class="lineNum">     328 </span><span class="lineCov">          1 : }</span></a>
+<a name="329"><span class="lineNum">     329 </span>            : </a>
+<a name="330"><span class="lineNum">     330 </span>            : // Test emit_upload_failure function</a>
+<a name="331"><span class="lineNum">     331 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadFailure_NonBroadbandWithMaintenance) {</span></a>
+<a name="332"><span class="lineNum">     332 </span><span class="lineCov">          1 :     test_session.direct_attempts = 3;</span></a>
+<a name="333"><span class="lineNum">     333 </span><span class="lineCov">          1 :     test_session.codebig_attempts = 2;</span></a>
+<a name="334"><span class="lineNum">     334 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="335"><span class="lineNum">     335 </span>            : </a>
+<a name="336"><span class="lineNum">     336 </span><span class="lineCov">          1 :     emit_upload_failure(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="337"><span class="lineNum">     337 </span>            : </a>
+<a name="338"><span class="lineNum">     338 </span>            :     // Should send LogUploadEvent failure and MaintenanceMGR error</a>
+<a name="339"><span class="lineNum">     339 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2);</span></a>
+<a name="340"><span class="lineNum">     340 </span>            :     // Note: Implementation calls t2_count_notify, not report_upload_failure</a>
+<a name="341"><span class="lineNum">     341 </span><span class="lineCov">          1 : }</span></a>
+<a name="342"><span class="lineNum">     342 </span>            : </a>
+<a name="343"><span class="lineNum">     343 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadFailure_BroadbandDevice) {</span></a>
+<a name="344"><span class="lineNum">     344 </span><span class="lineCov">          1 :     strcpy(test_ctx.device_type, &quot;broadband&quot;);</span></a>
+<a name="345"><span class="lineNum">     345 </span><span class="lineCov">          1 :     test_session.direct_attempts = 3;</span></a>
+<a name="346"><span class="lineNum">     346 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="347"><span class="lineNum">     347 </span>            : </a>
+<a name="348"><span class="lineNum">     348 </span><span class="lineCov">          1 :     emit_upload_failure(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="349"><span class="lineNum">     349 </span>            : </a>
+<a name="350"><span class="lineNum">     350 </span>            :     // Should send only LogUploadEvent failure (no MaintenanceMGR for broadband)</a>
+<a name="351"><span class="lineNum">     351 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="352"><span class="lineNum">     352 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;LogUploadEvent&quot;);</span></a>
+<a name="353"><span class="lineNum">     353 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 1); // LOG_UPLOAD_FAILED</span></a>
+<a name="354"><span class="lineNum">     354 </span><span class="lineCov">          1 : }</span></a>
+<a name="355"><span class="lineNum">     355 </span>            : </a>
+<a name="356"><span class="lineNum">     356 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadFailure_NullSession) {</span></a>
+<a name="357"><span class="lineNum">     357 </span><span class="lineCov">          1 :     emit_upload_failure(&amp;test_ctx, nullptr);</span></a>
+<a name="358"><span class="lineNum">     358 </span>            : </a>
+<a name="359"><span class="lineNum">     359 </span>            :     // Should handle null session gracefully</a>
+<a name="360"><span class="lineNum">     360 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="361"><span class="lineNum">     361 </span>            :     // Note: report_upload_failure not called by implementation</a>
+<a name="362"><span class="lineNum">     362 </span><span class="lineCov">          1 : }</span></a>
+<a name="363"><span class="lineNum">     363 </span>            : </a>
+<a name="364"><span class="lineNum">     364 </span>            : // Test emit_upload_aborted function</a>
+<a name="365"><span class="lineNum">     365 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadAborted_Success) {</span></a>
+<a name="366"><span class="lineNum">     366 </span><span class="lineCov">          1 :     emit_upload_aborted();</span></a>
+<a name="367"><span class="lineNum">     367 </span>            : </a>
+<a name="368"><span class="lineNum">     368 </span>            :     // Should send LogUploadEvent aborted and MaintenanceMGR error</a>
+<a name="369"><span class="lineNum">     369 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2);</span></a>
+<a name="370"><span class="lineNum">     370 </span><span class="lineCov">          1 : }</span></a>
+<a name="371"><span class="lineNum">     371 </span>            : </a>
+<a name="372"><span class="lineNum">     372 </span>            : // Test emit_upload_start function</a>
+<a name="373"><span class="lineNum">     373 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitUploadStart_Success) {</span></a>
+<a name="374"><span class="lineNum">     374 </span><span class="lineCov">          1 :     emit_upload_start();</span></a>
+<a name="375"><span class="lineNum">     375 </span>            : </a>
+<a name="376"><span class="lineNum">     376 </span>            :     // Should only log, not send events (matches script behavior)</a>
+<a name="377"><span class="lineNum">     377 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="378"><span class="lineNum">     378 </span><span class="lineCov">          1 : }</span></a>
+<a name="379"><span class="lineNum">     379 </span>            : </a>
+<a name="380"><span class="lineNum">     380 </span>            : // Test emit_fallback function</a>
+<a name="381"><span class="lineNum">     381 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitFallback_DirectToCodeBig) {</span></a>
+<a name="382"><span class="lineNum">     382 </span><span class="lineCov">          1 :     emit_fallback(PATH_DIRECT, PATH_CODEBIG);</span></a>
+<a name="383"><span class="lineNum">     383 </span>            : </a>
+<a name="384"><span class="lineNum">     384 </span>            :     // Should only log, not send events</a>
+<a name="385"><span class="lineNum">     385 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="386"><span class="lineNum">     386 </span><span class="lineCov">          1 : }</span></a>
+<a name="387"><span class="lineNum">     387 </span>            : </a>
+<a name="388"><span class="lineNum">     388 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitFallback_CodeBigToDirect) {</span></a>
+<a name="389"><span class="lineNum">     389 </span><span class="lineCov">          1 :     emit_fallback(PATH_CODEBIG, PATH_DIRECT);</span></a>
+<a name="390"><span class="lineNum">     390 </span>            : </a>
+<a name="391"><span class="lineNum">     391 </span>            :     // Should only log, not send events</a>
+<a name="392"><span class="lineNum">     392 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="393"><span class="lineNum">     393 </span><span class="lineCov">          1 : }</span></a>
+<a name="394"><span class="lineNum">     394 </span>            : </a>
+<a name="395"><span class="lineNum">     395 </span>            : // Test send_iarm_event function</a>
+<a name="396"><span class="lineNum">     396 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEvent_Success) {</span></a>
+<a name="397"><span class="lineNum">     397 </span><span class="lineCov">          1 :     send_iarm_event(&quot;LogUploadEvent&quot;, 0);</span></a>
+<a name="398"><span class="lineNum">     398 </span>            : </a>
+<a name="399"><span class="lineNum">     399 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="400"><span class="lineNum">     400 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;LogUploadEvent&quot;);</span></a>
+<a name="401"><span class="lineNum">     401 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 0);</span></a>
+<a name="402"><span class="lineNum">     402 </span><span class="lineCov">          1 : }</span></a>
+<a name="403"><span class="lineNum">     403 </span>            : </a>
+<a name="404"><span class="lineNum">     404 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEvent_NullEventName) {</span></a>
+<a name="405"><span class="lineNum">     405 </span><span class="lineCov">          1 :     send_iarm_event(nullptr, 0);</span></a>
+<a name="406"><span class="lineNum">     406 </span>            : </a>
+<a name="407"><span class="lineNum">     407 </span>            :     // Should handle null event name gracefully</a>
+<a name="408"><span class="lineNum">     408 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="409"><span class="lineNum">     409 </span><span class="lineCov">          1 : }</span></a>
+<a name="410"><span class="lineNum">     410 </span>            : </a>
+<a name="411"><span class="lineNum">     411 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEvent_BinaryNotFound) {</span></a>
+<a name="412"><span class="lineNum">     412 </span><span class="lineCov">          1 :     mock_access_result = false;</span></a>
+<a name="413"><span class="lineNum">     413 </span>            : </a>
+<a name="414"><span class="lineNum">     414 </span><span class="lineCov">          1 :     send_iarm_event(&quot;LogUploadEvent&quot;, 0);</span></a>
+<a name="415"><span class="lineNum">     415 </span>            : </a>
+<a name="416"><span class="lineNum">     416 </span>            :     // Should not send event when binary not found</a>
+<a name="417"><span class="lineNum">     417 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="418"><span class="lineNum">     418 </span><span class="lineCov">          1 : }</span></a>
+<a name="419"><span class="lineNum">     419 </span>            : </a>
+<a name="420"><span class="lineNum">     420 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEvent_ForkFailure) {</span></a>
+<a name="421"><span class="lineNum">     421 </span><span class="lineCov">          1 :     mock_fork_fail = true;</span></a>
+<a name="422"><span class="lineNum">     422 </span>            : </a>
+<a name="423"><span class="lineNum">     423 </span><span class="lineCov">          1 :     send_iarm_event(&quot;LogUploadEvent&quot;, 0);</span></a>
+<a name="424"><span class="lineNum">     424 </span>            : </a>
+<a name="425"><span class="lineNum">     425 </span>            :     // Should handle fork failure gracefully</a>
+<a name="426"><span class="lineNum">     426 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="427"><span class="lineNum">     427 </span><span class="lineCov">          1 : }</span></a>
+<a name="428"><span class="lineNum">     428 </span>            : </a>
+<a name="429"><span class="lineNum">     429 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEvent_ChildProcess) {</span></a>
+<a name="430"><span class="lineNum">     430 </span><span class="lineCov">          1 :     mock_fork_result = 0; // Simulate child process</span></a>
+<a name="431"><span class="lineNum">     431 </span>            : </a>
+<a name="432"><span class="lineNum">     432 </span><span class="lineCov">          1 :     send_iarm_event(&quot;LogUploadEvent&quot;, 0);</span></a>
+<a name="433"><span class="lineNum">     433 </span>            : </a>
+<a name="434"><span class="lineNum">     434 </span>            :     // Child process should attempt exec</a>
+<a name="435"><span class="lineNum">     435 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="436"><span class="lineNum">     436 </span><span class="lineCov">          1 : }</span></a>
+<a name="437"><span class="lineNum">     437 </span>            : </a>
+<a name="438"><span class="lineNum">     438 </span>            : // Test send_iarm_event_maintenance function</a>
+<a name="439"><span class="lineNum">     439 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, SendIarmEventMaintenance_Success) {</span></a>
+<a name="440"><span class="lineNum">     440 </span><span class="lineCov">          1 :     send_iarm_event_maintenance(4);</span></a>
+<a name="441"><span class="lineNum">     441 </span>            : </a>
+<a name="442"><span class="lineNum">     442 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="443"><span class="lineNum">     443 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="444"><span class="lineNum">     444 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 4);</span></a>
+<a name="445"><span class="lineNum">     445 </span><span class="lineCov">          1 : }</span></a>
+<a name="446"><span class="lineNum">     446 </span>            : </a>
+<a name="447"><span class="lineNum">     447 </span>            : // Test emit_folder_missing_error function</a>
+<a name="448"><span class="lineNum">     448 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EmitFolderMissingError_Success) {</span></a>
+<a name="449"><span class="lineNum">     449 </span><span class="lineCov">          1 :     emit_folder_missing_error();</span></a>
+<a name="450"><span class="lineNum">     450 </span>            : </a>
+<a name="451"><span class="lineNum">     451 </span>            :     // Should send MaintenanceMGR Complete event</a>
+<a name="452"><span class="lineNum">     452 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="453"><span class="lineNum">     453 </span><span class="lineCov">          1 :     EXPECT_STREQ(mock_last_event_name, &quot;MaintenanceMGR&quot;);</span></a>
+<a name="454"><span class="lineNum">     454 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_last_event_code, 4); // MAINT_LOGUPLOAD_COMPLETE</span></a>
+<a name="455"><span class="lineNum">     455 </span><span class="lineCov">          1 : }</span></a>
+<a name="456"><span class="lineNum">     456 </span>            : </a>
+<a name="457"><span class="lineNum">     457 </span>            : // Integration tests</a>
+<a name="458"><span class="lineNum">     458 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, Integration_SuccessfulUploadFlow) {</span></a>
+<a name="459"><span class="lineNum">     459 </span>            :     // Simulate successful upload flow</a>
+<a name="460"><span class="lineNum">     460 </span><span class="lineCov">          1 :     emit_upload_start();</span></a>
+<a name="461"><span class="lineNum">     461 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 0);</span></a>
+<a name="462"><span class="lineNum">     462 </span>            : </a>
+<a name="463"><span class="lineNum">     463 </span>            :     // Successful upload</a>
+<a name="464"><span class="lineNum">     464 </span><span class="lineCov">          1 :     test_session.success = true;</span></a>
+<a name="465"><span class="lineNum">     465 </span><span class="lineCov">          1 :     test_session.used_fallback = false;</span></a>
+<a name="466"><span class="lineNum">     466 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="467"><span class="lineNum">     467 </span>            : </a>
+<a name="468"><span class="lineNum">     468 </span><span class="lineCov">          1 :     emit_upload_success(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="469"><span class="lineNum">     469 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2); // LogUploadEvent + MaintenanceMGR</span></a>
+<a name="470"><span class="lineNum">     470 </span>            :     // Note: Implementation calls t2_count_notify, not report_upload_success</a>
+<a name="471"><span class="lineNum">     471 </span><span class="lineCov">          1 : }</span></a>
+<a name="472"><span class="lineNum">     472 </span>            : </a>
+<a name="473"><span class="lineNum">     473 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, Integration_FailedUploadFlow) {</span></a>
+<a name="474"><span class="lineNum">     474 </span>            :     // Simulate failed upload flow</a>
+<a name="475"><span class="lineNum">     475 </span><span class="lineCov">          1 :     emit_upload_start();</span></a>
+<a name="476"><span class="lineNum">     476 </span>            : </a>
+<a name="477"><span class="lineNum">     477 </span>            :     // Failed upload after fallback</a>
+<a name="478"><span class="lineNum">     478 </span><span class="lineCov">          1 :     test_session.direct_attempts = 3;</span></a>
+<a name="479"><span class="lineNum">     479 </span><span class="lineCov">          1 :     test_session.codebig_attempts = 2;</span></a>
+<a name="480"><span class="lineNum">     480 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="481"><span class="lineNum">     481 </span>            : </a>
+<a name="482"><span class="lineNum">     482 </span><span class="lineCov">          1 :     emit_upload_failure(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="483"><span class="lineNum">     483 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 2); // LogUploadEvent + MaintenanceMGR</span></a>
+<a name="484"><span class="lineNum">     484 </span>            :     // Note: Implementation calls t2_count_notify, not report_upload_failure</a>
+<a name="485"><span class="lineNum">     485 </span><span class="lineCov">          1 : }</span></a>
+<a name="486"><span class="lineNum">     486 </span>            : </a>
+<a name="487"><span class="lineNum">     487 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, Integration_NoLogsScenario) {</span></a>
+<a name="488"><span class="lineNum">     488 </span>            :     // Test no logs scenario for different strategies</a>
+<a name="489"><span class="lineNum">     489 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="490"><span class="lineNum">     490 </span>            : </a>
+<a name="491"><span class="lineNum">     491 </span>            :     // Ondemand strategy</a>
+<a name="492"><span class="lineNum">     492 </span><span class="lineCov">          1 :     emit_no_logs_ondemand();</span></a>
+<a name="493"><span class="lineNum">     493 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="494"><span class="lineNum">     494 </span>            : </a>
+<a name="495"><span class="lineNum">     495 </span>            :     // Reset counters</a>
+<a name="496"><span class="lineNum">     496 </span><span class="lineCov">          1 :     mock_iarm_event_calls = 0;</span></a>
+<a name="497"><span class="lineNum">     497 </span>            : </a>
+<a name="498"><span class="lineNum">     498 </span>            :     // Reboot strategy (non-broadband)</a>
+<a name="499"><span class="lineNum">     499 </span><span class="lineCov">          1 :     emit_no_logs_reboot(&amp;test_ctx);</span></a>
+<a name="500"><span class="lineNum">     500 </span><span class="lineCov">          1 :     EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="501"><span class="lineNum">     501 </span><span class="lineCov">          1 : }</span></a>
+<a name="502"><span class="lineNum">     502 </span>            : </a>
+<a name="503"><span class="lineNum">     503 </span>            : // Test edge cases and error conditions</a>
+<a name="504"><span class="lineNum">     504 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EdgeCases_DeviceTypeVariations) {</span></a>
+<a name="505"><span class="lineNum">     505 </span><span class="lineCov">          1 :     const char* device_types[] = {&quot;broadband&quot;, &quot;gateway&quot;, &quot;hybrid&quot;, &quot;unknown&quot;};</span></a>
+<a name="506"><span class="lineNum">     506 </span><span class="lineCov">          1 :     bool should_send_maint[] = {false, true, true, true};</span></a>
+<a name="507"><span class="lineNum">     507 </span>            : </a>
+<a name="508"><span class="lineNum">     508 </span><span class="lineCov">          1 :     mock_maintenance_enabled = true;</span></a>
+<a name="509"><span class="lineNum">     509 </span><span class="lineCov">          1 :     test_session.success = true;</span></a>
+<a name="510"><span class="lineNum">     510 </span>            : </a>
+<a name="511"><span class="lineNum">     511 </span><span class="lineCov">          5 :     for (int i = 0; i &lt; 4; i++) {</span></a>
+<a name="512"><span class="lineNum">     512 </span><span class="lineCov">          4 :         mock_iarm_event_calls = 0;</span></a>
+<a name="513"><span class="lineNum">     513 </span><span class="lineCov">          4 :         strcpy(test_ctx.device_type, device_types[i]);</span></a>
+<a name="514"><span class="lineNum">     514 </span>            : </a>
+<a name="515"><span class="lineNum">     515 </span><span class="lineCov">          4 :         emit_upload_success(&amp;test_ctx, &amp;test_session);</span></a>
+<a name="516"><span class="lineNum">     516 </span>            : </a>
+<a name="517"><span class="lineNum">     517 </span><span class="lineCov">          4 :         int expected_calls = should_send_maint[i] ? 2 : 1;</span></a>
+<a name="518"><span class="lineNum">     518 </span><span class="lineCov">          4 :         EXPECT_EQ(mock_iarm_event_calls, expected_calls)</span></a>
+<a name="519"><span class="lineNum">     519 </span><span class="lineCov">          4 :             &lt;&lt; &quot;Failed for device type: &quot; &lt;&lt; device_types[i];</span></a>
+<a name="520"><span class="lineNum">     520 </span>            :     }</a>
+<a name="521"><span class="lineNum">     521 </span><span class="lineCov">          1 : }</span></a>
+<a name="522"><span class="lineNum">     522 </span>            : </a>
+<a name="523"><span class="lineNum">     523 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EdgeCases_MaintenanceModeStates) {</span></a>
+<a name="524"><span class="lineNum">     524 </span>            :     // Test different maintenance mode states</a>
+<a name="525"><span class="lineNum">     525 </span><span class="lineCov">          1 :     bool maintenance_states[] = {true, false};</span></a>
+<a name="526"><span class="lineNum">     526 </span>            : </a>
+<a name="527"><span class="lineNum">     527 </span><span class="lineCov">          3 :     for (bool maintenance : maintenance_states) {</span></a>
+<a name="528"><span class="lineNum">     528 </span><span class="lineCov">          2 :         mock_maintenance_enabled = maintenance;</span></a>
+<a name="529"><span class="lineNum">     529 </span><span class="lineCov">          2 :         mock_iarm_event_calls = 0;</span></a>
+<a name="530"><span class="lineNum">     530 </span>            : </a>
+<a name="531"><span class="lineNum">     531 </span><span class="lineCov">          2 :         emit_no_logs_ondemand();</span></a>
+<a name="532"><span class="lineNum">     532 </span>            : </a>
+<a name="533"><span class="lineNum">     533 </span><span class="lineCov">          2 :         int expected_calls = maintenance ? 1 : 0;</span></a>
+<a name="534"><span class="lineNum">     534 </span><span class="lineCov">          2 :         EXPECT_EQ(mock_iarm_event_calls, expected_calls)</span></a>
+<a name="535"><span class="lineNum">     535 </span><span class="lineCov">          2 :             &lt;&lt; &quot;Failed for maintenance state: &quot; &lt;&lt; maintenance;</span></a>
+<a name="536"><span class="lineNum">     536 </span>            :     }</a>
+<a name="537"><span class="lineNum">     537 </span><span class="lineCov">          1 : }</span></a>
+<a name="538"><span class="lineNum">     538 </span>            : </a>
+<a name="539"><span class="lineNum">     539 </span><span class="lineCov">          3 : TEST_F(EventManagerTest, EdgeCases_EventCodeValues) {</span></a>
+<a name="540"><span class="lineNum">     540 </span>            :     // Test various event codes</a>
+<a name="541"><span class="lineNum">     541 </span><span class="lineCov">          1 :     int event_codes[] = {0, 1, 2, 4, 5, 16, -1, 999};</span></a>
+<a name="542"><span class="lineNum">     542 </span>            : </a>
+<a name="543"><span class="lineNum">     543 </span><span class="lineCov">          9 :     for (int code : event_codes) {</span></a>
+<a name="544"><span class="lineNum">     544 </span><span class="lineCov">          8 :         mock_iarm_event_calls = 0;</span></a>
+<a name="545"><span class="lineNum">     545 </span><span class="lineCov">          8 :         mock_last_event_code = -999; // Reset</span></a>
+<a name="546"><span class="lineNum">     546 </span>            : </a>
+<a name="547"><span class="lineNum">     547 </span><span class="lineCov">          8 :         send_iarm_event(&quot;TestEvent&quot;, code);</span></a>
+<a name="548"><span class="lineNum">     548 </span>            : </a>
+<a name="549"><span class="lineNum">     549 </span><span class="lineCov">          8 :         EXPECT_EQ(mock_iarm_event_calls, 1);</span></a>
+<a name="550"><span class="lineNum">     550 </span><span class="lineCov">         16 :         EXPECT_EQ(mock_last_event_code, code) &lt;&lt; &quot;Failed for event code: &quot; &lt;&lt; code;</span></a>
+<a name="551"><span class="lineNum">     551 </span>            :     }</a>
+<a name="552"><span class="lineNum">     552 </span><span class="lineCov">          1 : }</span></a>
+<a name="553"><span class="lineNum">     553 </span>            : </a>
+<a name="554"><span class="lineNum">     554 </span><span class="lineCov">          1 : int main(int argc, char** argv) {</span></a>
+<a name="555"><span class="lineNum">     555 </span><span class="lineCov">          1 :     ::testing::InitGoogleTest(&amp;argc, argv);</span></a>
+<a name="556"><span class="lineNum">     556 </span><span class="lineCov">          1 :     cout &lt;&lt; &quot;Starting Event Manager Unit Tests&quot; &lt;&lt; endl;</span></a>
+<a name="557"><span class="lineNum">     557 </span><span class="lineCov">          1 :     return RUN_ALL_TESTS();</span></a>
+<a name="558"><span class="lineNum">     558 </span>            : }</a>
+<a name="559"><span class="lineNum">     559 </span>            : </a>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.14</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

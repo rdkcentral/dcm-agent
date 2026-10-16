@@ -187,7 +187,7 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 
     DCMInfo("T2 is enabled\n");
 
-    ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver);
+    ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver, sizeof(t2_ver));
     DCMInfo("T2 Version: %s\n", t2_ver);
 
     /* Initialize Rbus */
