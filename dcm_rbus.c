@@ -282,7 +282,7 @@ INT32 dcmRbusSendEvent(VOID *pDCMRbusHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue)
+INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue, size_t valueSize)
 {
     INT32           ret = DCM_SUCCESS;
     INT32           rc  = RBUS_ERROR_SUCCESS;
@@ -326,7 +326,7 @@ INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue)
             goto exit;
         }
         else {
-            strcpy(t2_ver, stringValue);
+            snprintf(t2_ver, valueSize, "%s", stringValue);
             DCMInfo("Telemetry 2 Version: %s\n", stringValue);
         }
     }

@@ -30,6 +30,13 @@ static bool g_generate_archive_name_retval;
 static char g_session_archive_file[256];
 
 extern "C" {
+typedef struct gzFile_s *gzFile;
+
+int open(const char *pathname, int flags, ...);
+gzFile gzdopen(int fd, const char *mode);
+int gzwrite(gzFile file, const void *buf, unsigned len);
+int gzclose(gzFile file);
+
     int get_current_timestamp(char *buf, size_t len) {
         if (g_timestamp_retval != 0) {
             return g_timestamp_retval;
@@ -40,24 +47,47 @@ extern "C" {
     }
 
     int copy_file_and_delete(const char *src, const char *dst) {
+        printf("copy_file_and_delete called ret=%d\n", g_copy_file_retval);
         return g_copy_file_retval;
     }
+
+      gzFile gzdopen(int fd, const char *mode) {
+        return (gzFile)0x1234;
+      }
+
+      int gzwrite(gzFile file, const void *buf, unsigned len) {
+        return len;
+      }
+
+      int gzclose(gzFile file) {
+        return 0;
+      }
 
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
 }
 
 /* These have C++ linkage in archive_manager.h, so define outside extern "C" */
 int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
-    if (g_create_archive_retval == 0 && g_session_archive_file[0] != '\0') {
-        strncpy(session->archive_file, g_session_archive_file,
-                sizeof(session->archive_file) - 1);
-        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-    }
+    printf("create_archive called ret=%d\n", g_create_archive_retval);
+
+
+        if (g_session_archive_file[0] != '\0') {
+            strncpy(session->archive_file,
+                    g_session_archive_file,
+                    sizeof(session->archive_file) - 1);
+            session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        }
+
+        printf("session archive=%s\n", session->archive_file);
+    
+
     return g_create_archive_retval;
 }
 
+
 bool generate_archive_name(char *buffer, size_t buffer_size,
                            const char *mac_address, const char *prefix) {
+    printf("generate_archive_name called retval=%d\n", g_generate_archive_name_retval);
     if (!g_generate_archive_name_retval) {
         return false;
     }
@@ -123,13 +153,16 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SourcePathIsFile) {
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
+    g_create_archive_retval = 0;
     g_timestamp_retval = -1;
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
+    printf("final ret=%d\n", ret);
     EXPECT_EQ(ret, 0);
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
+    g_create_archive_retval = 0;
     strncpy(g_session_archive_file, "session_archive.tar.gz", sizeof(g_session_archive_file) - 1);
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
@@ -138,6 +171,7 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_FallbackToGenerateArchiveName) {
     /* session.archive_file stays empty, triggers generate_archive_name path */
+    g_create_archive_retval = 0;
     memset(g_session_archive_file, 0, sizeof(g_session_archive_file));
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");

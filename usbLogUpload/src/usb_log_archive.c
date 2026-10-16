@@ -92,6 +92,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s USB WRITING ERROR - Failed to create archive (error: %d)\n", 
                 __FUNCTION__, __LINE__, timestamp_buf, result);
+        printf("DEBUG1 create_archive result=%d\n", result);
         return 3; /* Exit code 3 matches original script: "Writing Error" */
     }
 
@@ -109,6 +110,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
                                    mac_address, "Logs")) {
             RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                     "[%s:%d] Failed to determine archive filename\n", __FUNCTION__, __LINE__);
+            printf("DEBUG2 generate_archive_name failed\n");
             return 3;
         }
         snprintf(temp_archive_path, sizeof(temp_archive_path), "%s/%s", 
@@ -122,6 +124,7 @@ int create_usb_log_archive(const char *source_dir, const char *archive_path, con
         RDK_LOG(RDK_LOG_ERROR, LOG_USB_UPLOAD, 
                 "[%s:%d] %s USB WRITING ERROR - Failed to move archive to %s: %s\n", 
                 __FUNCTION__, __LINE__, timestamp_buf, archive_path, strerror(errno));
+        printf("DEBUG3 copy_file_and_delete failed\n");
         return 3; /* Exit code 3: Writing Error */
     }
 
