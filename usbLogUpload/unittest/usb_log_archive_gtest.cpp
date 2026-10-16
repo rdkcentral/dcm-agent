@@ -30,6 +30,19 @@ static bool g_generate_archive_name_retval;
 static char g_session_archive_file[256];
 
 extern "C" {
+int archive_create_wrapper(RuntimeContext *ctx,
+                           SessionState *session,
+                           const char *source_dir) {
+    if (g_session_archive_file[0] != '\0')
+    {
+        strncpy(session->archive_file,
+               g_session_archive_file,
+               sizeof(session->archive_file) - 1);
+        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+    }
+
+   return g_create_archive_retval;
+}
  
 
 typedef struct gzFile_s *gzFile;
