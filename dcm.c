@@ -114,6 +114,11 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
+        if(pRDKPath[0] != '/' ||
+              strspn(pRDKPath, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/_-.")!= strlen(pRDKPath)) {
+             DCMError("Invalid RDK Path\n");
+             return;
+    }
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
     }
