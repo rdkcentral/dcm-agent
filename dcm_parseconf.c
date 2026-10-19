@@ -743,16 +743,6 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
 
-static VOID dcmSettingJsonUnInit(VOID **jsonHandle)
-{
-    cJSON *pJson = (cJSON *)(*jsonHandle);
-
-    if(pJson) {
-        cJSON_Delete(pJson);
-        *jsonHandle = NULL;
-    }
-}
-
 /* Add here */
 static BOOL isValidRdkPath(const char *path)
 {
