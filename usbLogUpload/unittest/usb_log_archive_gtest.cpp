@@ -15,12 +15,18 @@
  */
 
 #include <gtest/gtest.h>
-#include "usb_log_archive.h"
 #include <string>
 #include <cstring>
 #include <cstdio>
 #include <sys/stat.h>
 #include <fstream>
+
+/* archive_manager.h (pulled in by usb_log_archive.h) has no C++ guards. Include it
+ * with C linkage so the mocks below override the C symbols that usb_log_archive.c
+ * references, instead of the real ones in libuploadstblogs. */
+extern "C" {
+#include "usb_log_archive.h"
+}
 
 /* Controllable mock return values */
 static int g_timestamp_retval;
@@ -30,6 +36,8 @@ static bool g_generate_archive_name_retval;
 static char g_session_archive_file[256];
 
 extern "C" {
+ 
+
 typedef struct gzFile_s *gzFile;
 
 int open(const char *pathname, int flags, ...);
@@ -66,8 +74,8 @@ int gzclose(gzFile file);
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
 }
 
-/* These have C++ linkage in archive_manager.h, so define outside extern "C" */
-int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
+/* usb_log_archive.h declares these with C linkage, matching usb_log_archive.c */
+extern "C" int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
     printf("create_archive called ret=%d\n", g_create_archive_retval);
 
 
@@ -85,7 +93,7 @@ int create_archive(RuntimeContext *ctx, SessionState *session, const char *sourc
 }
 
 
-bool generate_archive_name(char *buffer, size_t buffer_size,
+extern "C" bool generate_archive_name(char *buffer, size_t buffer_size,
                            const char *mac_address, const char *prefix) {
     printf("generate_archive_name called retval=%d\n", g_generate_archive_name_retval);
     if (!g_generate_archive_name_retval) {
@@ -153,7 +161,6 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SourcePathIsFile) {
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
-    g_create_archive_retval = 0;
     g_timestamp_retval = -1;
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
@@ -162,7 +169,6 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
 }
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
-    g_create_archive_retval = 0;
     strncpy(g_session_archive_file, "session_archive.tar.gz", sizeof(g_session_archive_file) - 1);
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
@@ -171,7 +177,6 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_SessionArchiveFileSet) {
 
 TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_FallbackToGenerateArchiveName) {
     /* session.archive_file stays empty, triggers generate_archive_name path */
-    g_create_archive_retval = 0;
     memset(g_session_archive_file, 0, sizeof(g_session_archive_file));
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
