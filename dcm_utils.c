@@ -133,6 +133,15 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
         DCMError("Invalid command\n");
         return;
     }
+
+     /* Allow only known commands */
+    if ((strcmp((const char *)cmd,
+            "grep ERouter0 /proc/net/dev | awk '{print $2}'") != 0) &&
+        (strcmp((const char *)cmd,
+            "grep ERouter0 /proc/net/dev | awk '{print $10}'") != 0)) {
+          DCMError("Command not allowed\n");
+          return;
+    }
      
     fp = popen (cmd, "r");
     if (fp) {
