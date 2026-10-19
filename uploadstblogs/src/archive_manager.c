@@ -757,6 +757,11 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
 
        if (!gz) {
            close(fd);
+           if (!remove_file(archive_path)) {
+               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                       "[%s:%d] Failed to remove empty archive: %s\n",
+                       __FUNCTION__, __LINE__, archive_path);
+           }
            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                    "[%s:%d] Failed to securely create gzip file\n",
                  __FUNCTION__, __LINE__);
