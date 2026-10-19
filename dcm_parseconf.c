@@ -773,11 +773,6 @@ static BOOL isValidRdkPath(const char *path)
     return TRUE;
 }
 
-/* existing functions continue */
-static INT32 dcmSettingJsonGetVal(...)
-{
-    ...
-}
 INT32 dcmSettingsInit(VOID **ppdcmSetHandle)
 {
     INT32 ret = DCM_SUCCESS;
