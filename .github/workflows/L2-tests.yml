@@ -61,7 +61,7 @@ jobs:
           docker exec -i ci-container bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME && echo 'Contents in workspace directory' && ls -l . && echo '===============================' && echo 'Contents in /tmp/L2_TEST_RESULTS' && ls -l /tmp/L2_TEST_RESULTS && echo '===============================' && git config --global --add safe.directory /mnt/L2_CONTAINER_SHARED_VOLUME && gtest-json-result-push.py /tmp/L2_TEST_RESULTS https://rdkeorchestrationservice.apps.cloud.comcast.net/rdke_orchestration_api/push_unit_test_results /mnt/L2_CONTAINER_SHARED_VOLUME"
       - name: Copy lcov tracefile from container
         id: copy_tracefile
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         continue-on-error: true
         run: docker cp native-platform:/tmp/l2_coverage/coverage.info /tmp/coverage.info
 
@@ -75,7 +75,7 @@ jobs:
             --output       remote_debugger/test/functional-tests/L2_Coverage.md
 
       - name: Commit L2_Coverage.md
-        if: github.event_name == 'push' && steps.copy_tracefile.outcome == 'success'
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && steps.copy_tracefile.outcome == 'success'
         run: |
           cd remote_debugger
           git config user.name  "github-actions[bot]"
