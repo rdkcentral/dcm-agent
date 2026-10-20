@@ -753,7 +753,7 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
 static BOOL isValidRdkPath(const char *path)
 {
     if (path == NULL || *path == '\0')
-        return FALSE;
+        return 0;
 
     while (*path)
     {
@@ -762,11 +762,11 @@ static BOOL isValidRdkPath(const char *path)
               *path == '_' ||
               *path == '-' ||
               *path == '.')) {
-           return FALSE;
+           return 0;
         }
         path++;
     }
-    return TRUE;
+    return 1;
 }
 
 INT32 dcmSettingsInit(VOID **ppdcmSetHandle)
