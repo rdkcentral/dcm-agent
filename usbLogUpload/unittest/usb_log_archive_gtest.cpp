@@ -55,7 +55,6 @@ int gzclose(gzFile file);
     }
 
     int copy_file_and_delete(const char *src, const char *dst) {
-        printf("copy_file_and_delete called ret=%d\n", g_copy_file_retval);
         return g_copy_file_retval;
     }
 
@@ -76,8 +75,6 @@ int gzclose(gzFile file);
 
 /* usb_log_archive.h declares these with C linkage, matching usb_log_archive.c */
 extern "C" int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
-    printf("create_archive called ret=%d\n", g_create_archive_retval);
-
 
         if (g_session_archive_file[0] != '\0') {
             strncpy(session->archive_file,
@@ -95,7 +92,6 @@ extern "C" int create_archive(RuntimeContext *ctx, SessionState *session, const 
 
 extern "C" bool generate_archive_name(char *buffer, size_t buffer_size,
                            const char *mac_address, const char *prefix) {
-    printf("generate_archive_name called retval=%d\n", g_generate_archive_name_retval);
     if (!g_generate_archive_name_retval) {
         return false;
     }
@@ -164,7 +160,6 @@ TEST_F(UsbLogArchiveTest, CreateUsbLogArchive_TimestampFails_UsesFallback) {
     g_timestamp_retval = -1;
     char archive_path[] = "./test_usb_log_dir/test_archive.tar.gz";
     int ret = create_usb_log_archive(temp_dir.c_str(), archive_path, "00:11:22:33:44:55");
-    printf("final ret=%d\n", ret);
     EXPECT_EQ(ret, 0);
 }
 
