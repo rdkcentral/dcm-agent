@@ -227,7 +227,8 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
                 ret = DCM_FAILURE;
                 }
             else {
-                strcpy(sval, pJsonItem->valuestring);
+                strncpy(sval, pJsonItem->valuestring, svalSize - 1);
+                 sval[svalSize - 1] = '\0';
                 }
           }
         else if(cJSON_IsNull(pJsonItem)) {
