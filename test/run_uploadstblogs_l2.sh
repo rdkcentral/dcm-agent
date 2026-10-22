@@ -24,6 +24,9 @@ export top_srcdir=`pwd`
 RESULT_DIR="/tmp/l2_test_report"
 TEST_DIR="functional-tests/tests"
 
+# Test helpers stop processes with SIGTERM instead of SIGKILL so gcov data is flushed
+export DCM_COVERAGE_MODE=1
+
 # Create result directory
 mkdir -p "$RESULT_DIR"
 
@@ -73,6 +76,9 @@ echo pwd
 mkdir -p /opt/logs
 mkdir -p /opt/logs/PreviousLogs
 touch /opt/logs/PreviousLogs/logupload.log
+
+# Baseline is normally created by run_l2.sh; create it here only when run standalone
+sh "$top_srcdir/test/l2_coverage.sh" ensure
 
 echo "====================================="
 echo "Running uploadSTBLogs L2 Test Suite"
@@ -153,3 +159,6 @@ echo "Test Execution Complete"
 echo "====================================="
 echo "Results saved to: $RESULT_DIR"
 echo ""
+
+# Capture, filter and report L2 coverage (cumulative with run_l2.sh data)
+sh "$top_srcdir/test/l2_coverage.sh" report

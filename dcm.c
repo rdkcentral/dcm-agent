@@ -39,19 +39,6 @@
 #include "dcm_schedjob.h"
 #include "uploadstblogs.h"
 
-#ifdef USECOV
-#include <signal.h>
-#include <stdlib.h>
-extern void __gcov_dump(void);
-/* Flush gcov counters on SIGTERM so lcov captures L2 exercise data. */
-static void rrd_gcov_sigterm_handler(int sig)
-{
-    (void)sig;
-    __gcov_dump();
-    _exit(0);
-}
-#endif
-
 /*
  * Max attempts to publish the reload config event to telemetry before giving up
  * and continuing to the scheduling loop. Retrying makes the DCM<->T2 reload
@@ -287,10 +274,6 @@ int main(int argc, char* argv[])
     INT32 ret              = DCM_SUCCESS;
     INT32 count            = 0;
 
-#ifdef USECOV
-    signal(SIGTERM, rrd_gcov_sigterm_handler);
-#endif
-    
     DCMLOGInit();
 
     g_pdcmHandle = malloc(sizeof(DCMDHandle));
