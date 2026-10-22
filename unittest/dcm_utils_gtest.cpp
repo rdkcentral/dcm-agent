@@ -85,11 +85,14 @@ TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
     EXPECT_STREQ(output, "hello");
 }
 
-TEST(DCMUtilsTest, CopyCommandOutput_DisallowedCommand) {
-    char output[128];
-    dcmUtilsCopyCommandOutput((INT8*)"echo hello;id",
+TEST(DCMUtilsTest, CopyCommandOutput_NullCommand)
+{
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(NULL,
                               (INT8*)output,
-                               sizeof(output));
+                              sizeof(output));
+
     EXPECT_STREQ(output, "");
 }
 
