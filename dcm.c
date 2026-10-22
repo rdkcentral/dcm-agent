@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
@@ -46,6 +47,24 @@
  * and registerRbusDCMEventListener in telemetry's rbusInterface.c).
  */
 #define DCM_RELOAD_EVENT_MAX_RETRY 30
+
+static BOOL isValidRdkPath(const char *path) {
+    if(path == NULL || *path == '\0')
+        return 0;
+
+    while(*path) {
+        if(!(isalnum((unsigned char)*path) ||
+             *path == '/' ||
+             *path == '_' ||
+             *path == '-' ||
+             *path == '.')) {
+            return 0;
+        }
+        path++;
+    }
+
+    return 1;
+}
 
 static DCMDHandle *g_pdcmHandle = NULL;
 
@@ -114,6 +133,10 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     }
     else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
         DCMInfo("Start FW update Script\n");
+        if(!isValidRdkPath(pRDKPath)) {
+           DCMError("Invalid RDK Path\n");
+           return;
+        }
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
     }
