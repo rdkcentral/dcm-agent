@@ -79,7 +79,7 @@ TEST(DCMUtilsTest, FilePresentCheck_FileNotExist) {
 TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
     char output[128] = {0};
     dcmUtilsCopyCommandOutput((INT8*)"echo hello", (INT8*)output, sizeof(output));
-    EXPECT_STREQ(output, "hello");
+    EXPECT_STREQ(output, "hello\n");
 }
 
 // DCM-006: a command containing a shell command-separator must be refused
