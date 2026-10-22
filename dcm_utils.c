@@ -135,6 +135,19 @@ VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
         return;
     }
 
+     /* Reject classic shell command-chaining/substitution operators so a
+     * corrupted or attacker-influenced cmd can never run more than the
+     * single intended command. Redirection operators ('>', '<', '&') are
+     * intentionally still allowed since the production caller in dcm.c
+     * relies on them (e.g. "... >> file 2>&1"). */
+    if((strpbrk(cmd, ";|`\n") != NULL) ||
+       (strstr(cmd, "$(") != NULL) ||
+       (strstr(cmd, "&&") != NULL) ||
+       (strstr(cmd, "||") != NULL)) {
+        DCMError("Command not allowed: %s\n", cmd);
+        return;
+    }
+
     fp = popen (cmd, "r");
     if (fp) {
         if(out) {
