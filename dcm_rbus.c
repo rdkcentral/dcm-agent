@@ -326,7 +326,21 @@ INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue, size_t valueSize)
             goto exit;
         }
         else {
-            snprintf(t2_ver, valueSize, "%s", stringValue);
+             if(valueSize == 0) {
+                 DCMError("Invalid input\n");
+                 ret = DCM_FAILURE;
+                 goto exit;
+               }
+
+         if(strlen(stringValue) >= valueSize) {
+               DCMError("T2 version string too long\n");
+               ret = DCM_FAILURE;
+               goto exit;
+            }
+
+         strncpy(t2_ver, stringValue, valueSize - 1);
+         t2_ver[valueSize - 1] = '\0';
+          
             DCMInfo("Telemetry 2 Version: %s\n", stringValue);
         }
     }
