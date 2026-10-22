@@ -68,16 +68,16 @@ jobs:
       - name: Generate L2_Coverage.md
         if: github.event_name == 'push' && steps.copy_tracefile.outcome == 'success'
         run: |
-          python3 remote_debugger/test/functional-tests/generate_l2_coverage_report.py \
+          python3 dcm-agent/test/functional-tests/generate_l2_coverage_report.py \
             --tracefile    /tmp/coverage.info \
-            --features-dir remote_debugger/test/functional-tests/features \
-            --tests-dir    remote_debugger/test/functional-tests/tests \
-            --output       remote_debugger/test/functional-tests/L2_Coverage.md
+            --features-dir dcm-agent/test/functional-tests/features \
+            --tests-dir    dcm-agent/test/functional-tests/tests \
+            --output      dcm-agent/test/functional-tests/L2_Coverage.md
 
       - name: Commit L2_Coverage.md
         if: (github.event_name == 'push' || github.event_name == 'pull_request') && steps.copy_tracefile.outcome == 'success'
         run: |
-          cd remote_debugger
+          cd dcm-agent
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add test/functional-tests/L2_Coverage.md
