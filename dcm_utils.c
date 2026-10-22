@@ -20,293 +20,470 @@
  */
 
 #include <stdio.h>
-#include <stdarg.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <time.h>
-#include <fcntl.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <signal.h>
-#include <dirent.h>
-#include <errno.h>
-#include "rdk_logger.h"
+#include <fcntl.h>
+#include <time.h>
 
 #include "dcm_types.h"
 #include "dcm_utils.h"
 #include "dcm_parseconf.h"
+#include "dcm.h"
+#include "dcm_rbus.h"
+#include "dcm_cronparse.h"
+#include "dcm_schedjob.h"
+#include "uploadstblogs.h"
 
-#ifdef RDK_LOGGER_ENABLED
-INT32  g_rdk_logger_enabled = 0;
-#endif
-
-#define IARM_BUS_DCM_NAME "DCM"
-
-void DCMLOGInit()
-{
-#ifdef RDK_LOGGER_ENABLED
-     // Initialize RDK Logger
-#if !defined(RDKC)
-    rdk_LogOutput_File filelog;
-    strncpy(filelog.fileName, "dcmscript.log", sizeof(filelog.fileName)-1);
-    filelog.fileName[sizeof(filelog.fileName) - 1] = '\0';
-    strncpy(filelog.fileLocation, "/opt/logs/", sizeof(filelog.fileLocation)-1);
-    filelog.fileLocation[sizeof(filelog.fileLocation) - 1] = '\0';
-
-    /* Extended initialization with programmatic configuration */
-    rdk_logger_ext_config_t config = {
-        .pModuleName = "LOG.RDK.DCM",     /* Module name */
-        .loglevel = RDK_LOG_INFO,         /* Default log level */
-        //.output = RDKLOG_OUTPUT_FILE,
-        .output = RDKLOG_OUTPUT_CONSOLE,
-        .format = RDKLOG_FORMAT_WITH_TS,  /* Timestamped format */
-        .pFilePolicy =  NULL        /* using file output */
-    };
-
-    if (rdk_logger_ext_init(&config) != RDK_SUCCESS) {
-        printf("UPLOADSTB : ERROR - Extended logger init failed\n");
-    }
-    else {
-        g_rdk_logger_enabled = 1;
-    }
-#else
-    /* RDKC platforms with an older rdk-logger (e.g. RDKC's 2.4.0) do not
-     * provide the extended programmatic-config API: rdk_logger_ext_config_t
-     * there is a file-rotation struct and RDKLOG_OUTPUT_CONSOLE/
-     * RDKLOG_FORMAT_WITH_TS are absent. Fall back to the standard debug.ini
-     * init only for legacy RDKC builds, matching the guard already used in
-     * backup_logs.c and usb_log_utils.c. */
-    if (0 != rdk_logger_init(DEBUG_INI_NAME)) {
-        printf("DCM : ERROR - Logger init failed\n");
-    }
-    else {
-        g_rdk_logger_enabled = 1;
-    }
-#endif
-
-#endif
-}
-
-/** @brief This Function checks if the file present or not.
- *
- *  @param[in]  file_name  file path
- *
- *  @return  Returns the status of the operation.
- *  @retval  Returns DCM_SUCCESS if present, DCM_FAILURE otherwise.
+/*
+ * Max attempts to publish the reload config event to telemetry before giving up
+ * and continuing to the scheduling loop. Retrying makes the DCM<->T2 reload
+ * handshake independent of daemon start order (see the reload publish in main()
+ * and registerRbusDCMEventListener in telemetry's rbusInterface.c).
  */
-INT32 dcmUtilsFilePresentCheck(const INT8 *file_name)
+#define DCM_RELOAD_EVENT_MAX_RETRY 30
+
+static DCMDHandle *g_pdcmHandle = NULL;
+
+/** @brief Checks that a path contains only characters that are safe to
+ *         interpolate unquoted into a /bin/sh command line, rejecting
+ *         shell metacharacters (e.g. ; | & $ ` > < ( ) # space ' ") so a
+ *         corrupted or attacker-influenced path cannot be used for shell
+ *         command injection.
+ *
+ *  @param[in]  pPath  Path string to validate
+ *
+ *  @return  TRUE if the path is safe to use, FALSE otherwise.
+ */
+static BOOLEAN dcmIsPathSafeForShell(const INT8 *pPath)
 {
-    INT32 ret = DCM_SUCCESS;
-    if(file_name == NULL) {
-        DCMError("Invalid Parameter\n");
-        return DCM_FAILURE;
-    }
-    struct stat sfile;
-    memset(&sfile, '\0', sizeof(sfile));
+    const INT8 *p = pPath;
 
-    if(stat(file_name, &sfile)) {
-        return DCM_FAILURE;
+    if(p == NULL || *p == '\0') {
+        return FALSE;
     }
 
-    return ret;
+    for( ; *p != '\0'; p++) {
+        if(!(isalnum((unsigned char)*p) || *p == '/' || *p == '_' ||
+             *p == '-' || *p == '.')) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
-/** @brief This Function executes the system command and copies the output.
+/** @brief Call back function from Scheduler. This function
+ *         Initiates the job
  *
- *  @param[in]  cmd  command to be executed
- *  @param[out] out  Output buffer
- *  @param[in]  len  Output buffer length
+ *  @param[in]  profileName  Scheduler name
  *
  *  @return  None.
  *  @retval  None.
  */
-VOID dcmUtilsCopyCommandOutput (INT8 *cmd, INT8 *out, INT32 len)
+static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
 {
-    FILE *fp;
-
-    if(out != NULL)
-         out[0] = 0;
-    if (cmd == NULL) {
-        DCMError("Invalid command\n");
+    DCMDHandle *pdcmHandle = (DCMDHandle *)pHandle;
+    if(pHandle == NULL) {
+        DCMError("Input Handle is NULL\n");
+        return;
+    }
+    if(dcmSettingsGetMMFlag()) {
+        DCMInfo("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled\n");
         return;
     }
 
-     /* Allow only known commands */
-    if ((strcmp((const char *)cmd,
-            "grep ERouter0 /proc/net/dev | awk '{print $2}'") != 0) &&
-        (strcmp((const char *)cmd,
-            "grep ERouter0 /proc/net/dev | awk '{print $10}'") != 0)) {
-          DCMError("Command not allowed\n");
-          return;
-    }
-     
-    fp = popen (cmd, "r");
-    if (fp) {
-        if(out) {
-            if (fgets (out, len, fp) != NULL) {
-                size_t str_len = strlen (out);
-                if ((str_len > 0) && (out[str_len - 1] == '\n'))
-                    out[str_len - 1] = 0;
-            }
+    INT8 *pRDKPath = dcmSettingsGetRDKPath(pdcmHandle->pDcmSetHandle);
+    INT8 *pExecBuff = pdcmHandle->pExecBuff;
+
+    if(pRDKPath == NULL || !dcmIsPathSafeForShell(pRDKPath)) {
+        if(pRDKPath != NULL) {
+            DCMError("RDK Path contains unsafe characters, using %s\n", DCM_LIB_PATH);
         }
-        pclose (fp);
+        else {
+            DCMWarn("RDK Patch is NULL, using %s\n", DCM_LIB_PATH);
+        }
+        pRDKPath = DCM_LIB_PATH;
     }
-    else {
-        DCMWarn("Failed to run the command: %s\n", cmd);
+
+    if(strcmp(profileName, DCM_LOGUPLOAD_SCHED) == 0) {
+        INT8 *pPrctl = dcmSettingsGetUploadProtocol(pdcmHandle->pDcmSetHandle);
+        INT8 *pURL   = dcmSettingsGetUploadURL(pdcmHandle->pDcmSetHandle);
+
+        if(pPrctl == NULL) {
+            DCMWarn("Log Upload protocol is NULL, using HTTP\n");
+            pPrctl = "HTTP";
+        }
+        if(pURL == NULL) {
+            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
+            pURL = DCM_DEF_LOG_URL;
+        }
+
+        DCMInfo("\nStart log upload via library API\n");
+
+        // Call uploadstblogs library API instead of shell script
+        UploadSTBLogsParams params = {
+            .flag = 0,
+            .dcm_flag = 1,
+            .upload_on_reboot = false,
+            .upload_protocol = pPrctl,
+            .upload_http_link = pURL,
+            .trigger_type = TRIGGER_SCHEDULED,
+            .rrd_flag = false,
+            .rrd_file = NULL
+        };
+#ifndef GTEST_ENABLE
+        int result = uploadstblogs_run(&params);
+        if (result != 0) {
+            DCMError("Log upload failed with error code: %d\n", result);
+        } else {
+            DCMInfo("Log upload completed successfully\n");
+        }
+#endif
     }
+    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
+        DCMInfo("Start FW update Script\n");
+        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
+                                               pRDKPath);
+    }
+
+    dcmUtilsSysCmdExec(pExecBuff);
 }
 
-/** @brief This Function executes the system command.
+/** @brief Signal handler, un-intializes the module before exiting
  *
- *  @param[in]  cmd  command to be executed
+ *  @param[in]  sig  signal type
  *
- *  @return  Returns the status of the operation.
- *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
+ *  @return  None.
+ *  @retval  None.
  */
-INT32 dcmUtilsSysCmdExec(INT8 *cmd)
+static VOID sig_handler(INT32 sig)
 {
     INT32 ret = DCM_SUCCESS;
 
-    if (cmd == NULL) {
-        DCMError("parameter is NULL\n");
+    if ( sig == SIGINT  || sig == SIGTERM ||
+         sig == SIGKILL || sig == SIGABRT) {
+        DCMDebug("SIGINT received!\n");
+        // As per the script, send MAINT_DCM_ERROR, MAINT_RFC_ERROR, MAINT_FWDOWNLOAD_ERROR,
+        // MAINT_LOGUPLOAD_ERROR
+        ret = dcmIARMEvntSend(DCM_IARM_ERROR);
+        if(ret) {
+            DCMWarn("Failed to send Event\n");
+        }
+        dcmDaemonMainUnInit(g_pdcmHandle);
+        exit(1);
+    }
+}
+
+/** @brief Initializes all modules
+ *
+ *  @param[in]  None
+ *
+ *  @return  Returns the status of the operation.
+ *  @retval  Returns DCM_SUCCESS on Success, DCM_FAILURE otherwise.
+ */
+INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
+{
+    INT32 ret = DCM_SUCCESS;
+    INT8  t2_ver[32];
+
+    /* Check if the Daemon is already running */
+    ret = dcmUtilsCheckDaemonStatus();
+    if(ret) {
+        pdcmHandle->isDCMRunning = true;
+        DCMError("DCM Daemon is already running\n");
+        return ret;
+    }
+
+    /* Initialize the Parser */
+    ret = dcmSettingsInit(&pdcmHandle->pDcmSetHandle);
+    if(ret) {
+        DCMError("Failed to init settings\n");
+        return ret;
+    }
+
+    /* register the signals */
+    signal(SIGINT,  sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGKILL, sig_handler);
+    signal(SIGABRT, sig_handler);
+
+    ret = dcmRbusInit(&pdcmHandle->pRbusHandle);
+    if (ret != DCM_SUCCESS) {
+        DCMError("Failed to init rbus\n");
+        return ret;
+    }
+
+    DCMInfo("T2 is enabled\n");
+
+    ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver);
+    DCMInfo("T2 Version: %s\n", t2_ver);
+
+    /* Initialize Rbus */
+    ret = dcmRbusSubscribeEvents(pdcmHandle->pRbusHandle);
+    if (ret != DCM_SUCCESS) {
+        DCMError("Failed to init rbus\n");
+        return ret;
+    }
+
+    pdcmHandle->pExecBuff = malloc(EXECMD_BUFF_SIZE);
+    if(pdcmHandle->pExecBuff == NULL) {
+        DCMError("Failed to allocate memeory\n");
         return DCM_FAILURE;
     }
 
-    dcmUtilsCopyCommandOutput(cmd, NULL, 0);
+    /* Initialize Schecduler */
+    ret = dcmSchedInit();
+    if(ret) {
+        DCMError("Failed to init scheduler\n");
+        return ret;
+    }
+
+    /* Add log upload job to Schecduler */
+    pdcmHandle->pLogSchedHandle  = dcmSchedAddJob(DCM_LOGUPLOAD_SCHED,
+                                                  (DCMSchedCB)dcmRunJobs,
+                                                  (VOID *) pdcmHandle);
+    if(pdcmHandle->pLogSchedHandle == NULL) {
+        DCMError("Failed to Add Log Scheduler jobs\n");
+        return DCM_FAILURE;
+    }
+
+    /* Add FW update job to Schecduler */
+    pdcmHandle->pDifdSchedHandle = dcmSchedAddJob(DCM_DIFD_SCHED,
+                                                  (DCMSchedCB)dcmRunJobs,
+                                                  (VOID *) pdcmHandle);
+    if(pdcmHandle->pDifdSchedHandle == NULL) {
+        DCMError("Failed to Add FW Updater Scheduler jobs\n");
+        return DCM_FAILURE;
+    }
 
     return ret;
 }
 
-/** @brief This Function checks if daemon is already running or not.
- *
- *  @param[in]  None
- *
- *  @return  Returns the status of the daemon.
- *  @retval  Returns DCM_SUCCESS if daemon not running, DCM_FAILURE otherwise.
- */
-INT32 dcmUtilsCheckDaemonStatus()
-{
-    FILE *fp = NULL;
-    INT8 PID[32];
-    INT8 filePath[64];
-
-    fp = fopen(DCM_PID_FILE, "r");
-
-    if (NULL != fp) {
-        /* exit if an instance is already running */
-        fgets(PID, sizeof(PID), fp);
-        fclose(fp);
-
-        snprintf(filePath, sizeof(filePath), "/proc/%s", PID);
-
-        if (dcmUtilsFilePresentCheck(filePath) == 0) {
-            DCMWarn("Daemon is already running %s\n", filePath);
-            return DCM_FAILURE;
-        }
-        DCMInfo("pid file not present %s\n", filePath);
-    }
-
-    DCMInfo("Opening new pid file\n");
-    fp = fopen(DCM_PID_FILE, "w");
-    if(fp == NULL) {
-        DCMWarn("Failed to open PID file %s\n", DCM_PID_FILE);
-        return DCM_FAILURE;
-    }
-
-    fprintf(fp, "%d", getpid());
-    fclose(fp);
-
-    return DCM_SUCCESS;
-}
-
-/** @brief This Function removes the dcm PID file.
+/** @brief De-Initializes all modules
  *
  *  @param[in]  None
  *
  *  @return  None.
  *  @retval  None.
  */
-VOID dcmUtilsRemovePIDfile()
+VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
 {
-    FILE *fp = NULL;
+    if(pdcmHandle->isDCMRunning == false) {
+        dcmUtilsRemovePIDfile();
+    }
+    if(pdcmHandle->pExecBuff) {
+        free(pdcmHandle->pExecBuff);
+    }
 
-    fp = fopen(DCM_PID_FILE, "r");
-    if(fp) {
-        fclose(fp);
-        errno = 0;
-        if (remove(DCM_PID_FILE) != 0) {
-            if (errno != ENOENT) {      
-                DCMError("Failed to remove PID file: %s errno=%d (%s)\n",
-                         DCM_PID_FILE, errno, strerror(errno));
-            }
+    dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
+    dcmRbusUnInit(pdcmHandle->pRbusHandle);
+    dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
+    dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
+    dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
+    dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
+    dcmSchedUnInit();
+
+    memset(pdcmHandle, 0, sizeof(DCMDHandle));
+}
+
+/** @brief Main function
+ *
+ *  @param[in]  argc   No. of arguments
+ *  @param[in]  argv   arguments array
+ *
+ *  @return  status.
+ *  @retval  status.
+ */
+#ifndef GTEST_ENABLE
+int main(int argc, char* argv[])
+{
+    pid_t process_id       = 0;
+    pid_t sid              = 0;
+    INT32 ret              = DCM_SUCCESS;
+    INT32 count            = 0;
+
+    DCMLOGInit();
+
+    g_pdcmHandle = malloc(sizeof(DCMDHandle));
+    if(g_pdcmHandle == NULL) {
+        DCMError("Memory allocation failed, Closing the daemon\n");
+        return DCM_FAILURE;
+    }
+
+    memset(g_pdcmHandle, 0, sizeof(DCMDHandle));
+
+    g_pdcmHandle->isDebugEnabled = true;
+
+    DCMInfo("Starting DCM Process: %d\n", getpid());
+
+    /* Create child process */
+    process_id = fork();
+    if (process_id < 0) {
+        DCMError("fork failed!\n");
+        ret = DCM_FAILURE;
+        goto exit2;
+    } else if (process_id > 0) {
+        DCMInfo("Exiting the main process\n");
+        return 0;
+    }
+
+    /* unmask the file mode */
+    umask(0);
+
+    /* set new session */
+    sid = setsid();
+    if (sid < 0) {
+        DCMError("setsid failed!\n");
+        ret = DCM_FAILURE;
+        goto exit2;
+    }
+
+    /* Change the current working directory to root. */
+    chdir("/");
+
+    if (g_pdcmHandle->isDebugEnabled != true) {
+        /* Close stdin. stdout and stderr */
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+    }
+
+    DCMDebug("Initializing DCM Component: %d\n", getpid());
+
+    ret = dcmDaemonMainInit(g_pdcmHandle);
+
+    if(ret) {
+        DCMError("Initialization of DCM Process Failed, closing the DCM Process!!!\n");
+        goto exit1;
+    }
+
+    DCMDebug("Initializing DCM Component Done\n");
+
+    //#ifdef DCM_DEFAULT_BOOTCONFIG // make this default as this is inline with legacy implementation
+    DCMInfo("Loading the Default config\n");
+    ret = dcmSettingDefaultBoot();
+    if(ret != DCM_SUCCESS) {
+        DCMError("Failed to load default config file\n");
+    }
+    //#endif
+
+    while(1) {
+        if(count > 10) {
+            DCMInfo("Waiting for Telemetry to up and running to Subscribe the events\n");
+            count = 0;
         }
+        count++;
+        if(dcmRbusGetEventSubStatus(g_pdcmHandle->pRbusHandle)) {
+            break;
+        }
+        sleep(1);
     }
-}
 
-/** @brief This Function sends events to MM using IARM bus.
- *
- *  @param[in]  status Event Status
- *
- *  @return  Returns the status of the operation.
- *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
- */
-INT32 dcmIARMEvntSend(INT32 status)
-{
-    INT32 ret = DCM_SUCCESS;
-    return ret;
-}
+    DCMInfo("Telemetry Events subscriptions is success\n");
 
-
-/**
- * @brief Fetch the value of a given entry from a file (simple key=value format).
- *
- * This function searches for a line in the form "key=value" within the specified file and returns
- * a heap-allocated string containing the associated value for the given key.
- *
- * @param[in] fileName      Path to the file to search (must not be NULL).
- * @param[in] searchEntry   Entry key to search for (must not be NULL).
- *
- * @return  Pointer to a heap-allocated string containing the entry value (must be freed by the caller),
- *          or NULL if the entry is not found or if an error occurs.
- *
- * @note This function expects:
- *       - The file contains lines in the format "key=value" (no comments).
- *       - There is no whitespace before or after the '=' character.
- *       - The search is case-sensitive.
- */
-
-INT8* dcmUtilsGetFileEntry(const INT8* fileName, const INT8* searchEntry)
-{
-    if(fileName == NULL || searchEntry == NULL)
+#ifdef RDKC
+    /*
+     * Publish the reload event to telemetry. dcmRbusSendEvent only succeeds once
+     * telemetry has subscribed to the reload event; on RDK-C that subscribe can
+     * complete just after dcmd is ready, so the first publish may race ahead of
+     * it. Retry a bounded number of times until the event is delivered. The
+     * bound preserves the legacy "log and continue" behaviour so dcmd still
+     * enters its scheduling loop even if telemetry never subscribes.
+     */
     {
-        return NULL;
-    }
-    FILE *fp = NULL;
-    char* entryValue = NULL;
-
-    fp = fopen(fileName, "r");
-    if(NULL != fp)
-    {
-        char line[512];
-        size_t entryLen = strlen(searchEntry);
-        while (fgets(line, sizeof(line), fp))
-        {
-            if (line[entryLen] == '=' && strncmp(line, searchEntry, entryLen) == 0 )
-            {
-                char *value = line + entryLen + 1;
-                char *checkNewline = strpbrk(value, "\r\n"); // just a saftey check
-                if (checkNewline)
-                {
-                    *checkNewline = '\0';
-                }
-                entryValue = strdup(value);
+        INT32 retryCount = 0;
+        while (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
+            ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
+            if (ret == DCM_SUCCESS) {
                 break;
             }
+            retryCount++;
+            DCMInfo("Reload event not delivered yet, retry %d/%d\n",
+                    retryCount, DCM_RELOAD_EVENT_MAX_RETRY);
+            if (retryCount < DCM_RELOAD_EVENT_MAX_RETRY) {
+                sleep(1);
+            }
         }
-        fclose(fp);
     }
-    return entryValue;
+#else
+    /* Non-RDKC builds preserve the original single-attempt publish. */
+    ret = dcmRbusSendEvent(g_pdcmHandle->pRbusHandle);
+#endif /* RDKC */
+
+    if(ret) {
+        DCMError("Reload config event failed!!!\n");
+    }
+
+    DCMInfo("Sent Event to telemetry for configuraion path\n");
+
+    while(1) {
+        INT32 ret = DCM_SUCCESS;
+        INT8 *pconfPath = NULL;
+
+        /* Wait for event Device.DCM.Processconfig */
+        if(dcmRbusSchedJobStatus(g_pdcmHandle->pRbusHandle)) {
+            DCMInfo("Start Scheduling\n");
+
+            pconfPath = dcmRbusGetConfPath(g_pdcmHandle->pRbusHandle);
+
+            if(pconfPath == NULL) {
+                DCMWarn("conf file pointer is null\n");
+                sleep(1);
+                continue;
+            }
+
+            ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
+                                      g_pdcmHandle->logCron,
+                                      g_pdcmHandle->difdCron);
+            if(ret == DCM_SUCCESS) {
+                dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
+                dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
+
+                ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
+                if(ret) {
+                    DCMError("Failed to send Event\n");
+                }
+            }
+            else {
+                DCMWarn("Failed to parse the conf file\n");
+            }
+
+            dcmRbusSchedResetStatus(g_pdcmHandle->pRbusHandle);
+        }
+        sleep(1);
+    } //while(1)
+
+    DCMInfo("Exiting DCM Component\n");
+
+exit1:
+    dcmDaemonMainUnInit(g_pdcmHandle);
+exit2:
+    if(g_pdcmHandle) {
+        free(g_pdcmHandle);
+        g_pdcmHandle = NULL;
+    }
+    if(ret) {
+        ret = dcmIARMEvntSend(DCM_IARM_ERROR);
+        if(ret) {
+            DCMError("Failed to send Event\n");
+        }
+    }
+    return ret;
 }
+#endif
+
+#ifdef GTEST_ENABLE
+void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) 
+{
+    dcmRunJobs(profileName, pHandle);
+}
+void get_sig_handler(INT32 sig)
+{
+     sig_handler(sig);
+}
+#endif
