@@ -82,7 +82,7 @@ TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
                               (INT8*)output,
                               sizeof(output));
 
-    EXPECT_STREQ(output, "hello\n");
+    EXPECT_STREQ(output, "hello");
 }
 
 TEST(DCMUtilsTest, CopyCommandOutput_DisallowedCommand) {
