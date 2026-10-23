@@ -305,7 +305,7 @@ static UploadResult attempt_proxy_fallback(RuntimeContext* ctx, SessionState* se
         // Remove query parameters from path
         size_t path_len = query_start - path_start;
         static char clean_path[512];
-        strncpy(clean_path, path_start, path_len);
+        
         if(path_len >= sizeof(clean_path)) {
             RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                     "[%s:%d] S3 path too long for proxy fallback\n",
