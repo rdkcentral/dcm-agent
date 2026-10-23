@@ -121,9 +121,8 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
     }
         snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
                                                pRDKPath);
+         dcmUtilsSysCmdExec(pExecBuff);
     }
-
-    dcmUtilsSysCmdExec(pExecBuff);
 }
 
 /** @brief Signal handler, un-intializes the module before exiting
@@ -202,7 +201,7 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    pdcmHandle->pExecBuff = malloc(EXECMD_BUFF_SIZE);
+    pdcmHandle->pExecBuff = calloc(1, EXECMD_BUFF_SIZE);
     if(pdcmHandle->pExecBuff == NULL) {
         DCMError("Failed to allocate memeory\n");
         return DCM_FAILURE;
