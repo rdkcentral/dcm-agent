@@ -53,6 +53,9 @@ def grep_dcmdlogs(search: str):
     return search_result
 
 def kill_dcmd(signal: int=9):
+    # SIGKILL skips the gcov dump, so use SIGTERM when L2 coverage is collected
+    if os.environ.get("DCM_COVERAGE_MODE") and signal == 9:
+        signal = 15
     print(f"Received Signal to kill dcmd {signal} with pid {get_pid('dcmd')}")
     resp = subprocess.run(f"kill -{signal} {get_pid('dcmd')}", shell=True, capture_output=True)
     print(resp.stdout.decode('utf-8'))
