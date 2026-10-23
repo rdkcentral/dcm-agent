@@ -109,6 +109,62 @@ TEST(DCMUtilsTest, CopyCommandOutput_EmptyCmd_NotExecuted) {
     EXPECT_STREQ(output, "");
 }
 
+//Disallowed Comments
+TEST(DCMUtilsTest, CopyCommandOutput_PipeOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello | cat",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_AndOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello && id",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_OrOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello || id",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_CommandSubstitution_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo $(id)",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_Backtick_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo `id`",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
 // Test dcmUtilsSysCmdExec
 TEST(DCMUtilsTest, SysCmdExec_Valid) {
     EXPECT_EQ(dcmUtilsSysCmdExec((INT8*)"echo test"), DCM_SUCCESS);
