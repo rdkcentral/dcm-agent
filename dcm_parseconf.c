@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <ctype.h>
 #include <cjson/cJSON.h>
 
 #include "dcm_types.h"
@@ -226,7 +227,8 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
                 ret = DCM_FAILURE;
                 }
             else {
-                strcpy(sval, pJsonItem->valuestring);
+                strncpy(sval, pJsonItem->valuestring, svalSize - 1);
+                 sval[svalSize - 1] = '\0';
                 }
           }
         else if(cJSON_IsNull(pJsonItem)) {
@@ -747,6 +749,27 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
+
+/* Add here */
+static BOOL isValidRdkPath(const char *path)
+{
+    if (path == NULL || *path == '\0')
+        return 0;
+
+    while (*path)
+    {
+       if (!(isalnum((unsigned char)*path) ||
+              *path == '/' ||
+              *path == '_' ||
+              *path == '-' ||
+              *path == '.')) {
+           return 0;
+        }
+        path++;
+    }
+    return 1;
+}
+
 INT32 dcmSettingsInit(VOID **ppdcmSetHandle)
 {
     INT32 ret = DCM_SUCCESS;
@@ -766,6 +789,10 @@ INT32 dcmSettingsInit(VOID **ppdcmSetHandle)
                                   pdcmSetHandle->cRdkPath, "=")) {
         strcpy(pdcmSetHandle->cRdkPath, DCM_LIB_PATH);
     }
+    if(!isValidRdkPath(pdcmSetHandle->cRdkPath)) {
+        DCMError("Invalid RDK_PATH detected\n");
+        strcpy(pdcmSetHandle->cRdkPath, DCM_LIB_PATH);
+    }  
 
     if(dcmSettingGetValueFromFile(pdcmSetHandle->ctBuff, DEVICE_PROP_FILE, "ENABLE_MAINTENANCE",
                                   pdcmSetHandle->ctBuff, "=")) {
