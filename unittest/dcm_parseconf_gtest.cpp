@@ -346,8 +346,13 @@ TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
 //Invalid RDK_PATH Rejected
 TEST_F(DcmSettingsInitTest, InvalidRDKPathFallsBackToDefault)
 {
+    CleanupTestFiles();
+
     CreateFile(INCLUDE_PROP_FILE,
         "RDK_PATH=../../tmp/test\n");
+
+    CreateFile(DEVICE_PROP_FILE,
+        "ENABLE_MAINTENANCE=true\n");
 
     INT32 result = dcmSettingsInit(&handle);
 
