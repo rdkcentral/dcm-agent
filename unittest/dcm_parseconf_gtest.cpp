@@ -360,6 +360,19 @@ TEST_F(DcmSettingsInitTest, RDKPathWithShellCharsFallsBackToDefault)
                  DCM_LIB_PATH);
 }
 
+TEST_F(DcmSettingsInitTest, RDKPathTraversalFallsBackToDefault)
+{
+    CreateFile(INCLUDE_PROP_FILE, "RDK_PATH=../../tmp/test\n");
+
+    INT32 result = dcmSettingsInit(&handle);
+
+    EXPECT_EQ(result, DCM_SUCCESS);
+
+    DCMSettingsHandle* dcmHandle = (DCMSettingsHandle*)handle;
+
+    EXPECT_STREQ(dcmHandle->cRdkPath, DCM_LIB_PATH);
+}
+
 class DcmSettingSaveMaintenanceTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -672,6 +685,22 @@ TEST_F(DcmSettingJsonGetValTest, OversizedString_ReturnsFailureWithoutOverflow) 
     EXPECT_EQ(result, DCM_FAILURE);
     EXPECT_STREQ(boundedValue.value, "");
     EXPECT_EQ(boundedValue.guard, 'G');
+}
+
+TEST_F(DcmSettingJsonGetValTest, BoundaryStringFitsBuffer)
+{
+    cJSON* json = cJSON_CreateObject();
+
+    cJSON_AddStringToObject( json, "boundary", "123456");
+
+    INT8 value[7] = {0};
+
+    INT32 result = jsonGetVal( json, (INT8*)"boundary", value, sizeof(value), &intValue, &type);
+
+    EXPECT_EQ(result, DCM_SUCCESS);
+    EXPECT_STREQ(value, "123456");
+
+    cJSON_Delete(json);
 }
 
 // ======================= Valid Integer Tests =======================
