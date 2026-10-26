@@ -753,7 +753,7 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
 /* Add here */
 static BOOL isValidRdkPath(const char *path)
 {
-    if (path == NULL || *path == '\0')
+    if (path == NULL || path[0] != '/')
         return 0;
 
     while (*path)
