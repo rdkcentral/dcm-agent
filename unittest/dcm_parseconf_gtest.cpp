@@ -343,6 +343,40 @@ TEST_F(DcmSettingsInitTest, MissingMaintenanceFlag) {
     EXPECT_EQ(dcmSettingsGetMMFlag(), 0);
 }
 
+//Invalid RDK_PATH Rejected
+TEST_F(DcmSettingsInitTest, InvalidRDKPathFallsBackToDefault)
+{
+    CreateFile(INCLUDE_PROP_FILE,
+        "RDK_PATH=../../tmp/test\n");
+
+    INT32 result = dcmSettingsInit(&handle);
+
+    EXPECT_EQ(result, DCM_SUCCESS);
+
+    DCMSettingsHandle* dcmHandle =
+        (DCMSettingsHandle*)handle;
+
+    EXPECT_STREQ(dcmHandle->cRdkPath,
+                 DCM_LIB_PATH);
+}
+
+//Command characters in RDK_PATH
+TEST_F(DcmSettingsInitTest, RDKPathWithShellCharsFallsBackToDefault)
+{
+    CreateFile(INCLUDE_PROP_FILE,
+        "RDK_PATH=/tmp/test;rm -rf /\n");
+
+    INT32 result = dcmSettingsInit(&handle);
+
+    EXPECT_EQ(result, DCM_SUCCESS);
+
+    DCMSettingsHandle* dcmHandle =
+        (DCMSettingsHandle*)handle;
+
+    EXPECT_STREQ(dcmHandle->cRdkPath,
+                 DCM_LIB_PATH);
+}
+
 class DcmSettingSaveMaintenanceTest : public ::testing::Test {
 protected:
     void SetUp() override {
