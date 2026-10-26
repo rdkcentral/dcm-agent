@@ -143,7 +143,7 @@ class TestNTPSyncGate:
         """Test: Upload proceeds normally when NTP sentinel is present."""
         create_all_sentinels()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/",shell=True)
 
         # Must log detection
         detected = grep_uploadstb_logs("NTP sync sentinel detected")
