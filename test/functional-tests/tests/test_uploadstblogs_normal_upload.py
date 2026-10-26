@@ -54,7 +54,7 @@ class TestNormalUpload:
 
         # Run uploadSTBLogs
         #result = run_uploadstblogs()
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/",shell=True)
        
         # Verify initialization
         assert result.returncode == 0 or result.returncode == 1, "Upload process should complete"
@@ -95,7 +95,7 @@ class TestLargeFileHandling:
         """Test: Service collects large log files within limits"""
         # Create large test files (10MB each)
         large_files = create_large_test_log_files(count=3, size_mb=10)
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/",shell=True)
 
         # Verify files were processed
         
