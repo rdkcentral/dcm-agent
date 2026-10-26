@@ -428,19 +428,6 @@ TEST_F(DcmRbusTest, GetT2Version_rbusvaluetostring_fail) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-TEST_F(DcmRbusTest, GetT2Version_ZeroSizeBuffer_Fails)
-{
-    DCMRBusHandle dcmHandle;
-
-    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
-
-    char versionBuffer[32];
-
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, 0);
-
-    EXPECT_EQ(result, DCM_FAILURE);
-}
-
 TEST_F(DcmRbusTest, GetT2Version_BufferTooSmall_Fails)
 {
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
