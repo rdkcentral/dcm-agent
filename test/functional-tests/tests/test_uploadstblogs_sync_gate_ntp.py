@@ -126,6 +126,7 @@ class TestNTPSyncGate:
 
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self):
+        set_include_property("LOG_PATH", "/opt/logs")
         clear_uploadstb_logs()
         remove_lock_file()
         remove_all_sentinels()
