@@ -105,6 +105,11 @@ int move_log_files_by_pattern(const char* source_dir, const char* dest_dir) {
             bool have_size = (stat(source_file, &file_stat) == 0);
             
             if (copyFiles(source_file, dest_file) == 0) {
+                /* Size the copy (not the source) so no check on source_file precedes its removal (avoids TOCTOU) */
+                struct stat file_stat;
+                if (stat(dest_file, &file_stat) == 0) {
+                    total_bytes_copied += (unsigned long long)file_stat.st_size;
+                }
                 if (remove(source_file) != 0) { /* Move operation: copy + delete */
                     RDK_LOG(RDK_LOG_WARN, LOG_BACKUP_LOGS, "Failed to remove source file after copy: %s\n", source_file);
                 }
