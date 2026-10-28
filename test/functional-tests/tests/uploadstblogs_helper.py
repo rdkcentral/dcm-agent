@@ -26,7 +26,7 @@ import hashlib
 
 # Extended helper functions for uploadSTBLogs testing
 
-UPLOADSTB_LOG = "/opt/logs/logupload.log.0"
+UPLOADSTB_LOG = "/opt/logs/dcmscript.log"
 DCMD_LOG = "/opt/logs/dcmd.log.0"
 UPLOADSTB_BINARY = "/usr/local/bin/logupload"
 LOCK_FILE = "/tmp/.log-upload.lock"
