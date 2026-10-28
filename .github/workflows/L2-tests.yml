@@ -3,6 +3,11 @@ name: L2 Integration Tests
 on:
   pull_request:
     branches: [ develop ]
+  push:
+    branches: [ develop ]
+
+permissions:
+  contents: write
 
 env:
   AUTOMATICS_UNAME: ${{ secrets.AUTOMATICS_UNAME }}
@@ -54,3 +59,26 @@ jobs:
         run: |
           docker cp /tmp/L2_TEST_RESULTS ci-container:/tmp/L2_TEST_RESULTS
           docker exec -i ci-container bash -c "cd /mnt/L2_CONTAINER_SHARED_VOLUME && echo 'Contents in workspace directory' && ls -l . && echo '===============================' && echo 'Contents in /tmp/L2_TEST_RESULTS' && ls -l /tmp/L2_TEST_RESULTS && echo '===============================' && git config --global --add safe.directory /mnt/L2_CONTAINER_SHARED_VOLUME && gtest-json-result-push.py /tmp/L2_TEST_RESULTS https://rdkeorchestrationservice.apps.cloud.comcast.net/rdke_orchestration_api/push_unit_test_results /mnt/L2_CONTAINER_SHARED_VOLUME"
+      - name: Copy lcov tracefile from container
+        id: copy_tracefile
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        continue-on-error: true
+        run: docker cp native-platform:/tmp/l2_coverage/coverage.info /tmp/coverage.info
+
+      - name: Generate L2_Coverage.md
+        if: github.event_name == 'push' && steps.copy_tracefile.outcome == 'success'
+        run: |
+          python3 test/functional-tests/generate_l2_coverage_report.py \
+            --tracefile    /tmp/coverage.info \
+            --features-dir test/functional-tests/features \
+            --tests-dir    test/functional-tests/tests \
+            --output      test/functional-tests/L2_Coverage.md
+
+      - name: Commit L2_Coverage.md
+        if: github.event_name == 'push' && steps.copy_tracefile.outcome == 'success'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add test/functional-tests/L2_Coverage.md
+          git diff --cached --quiet || git commit -m "ci: regenerate L2_Coverage.md [skip ci]"
+          git push
