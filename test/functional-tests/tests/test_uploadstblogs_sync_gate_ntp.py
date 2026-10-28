@@ -126,6 +126,7 @@ class TestNTPSyncGate:
 
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self):
+        set_include_property("LOG_PATH", "/opt/logs")
         clear_uploadstb_logs()
         remove_lock_file()
         remove_all_sentinels()
@@ -143,7 +144,7 @@ class TestNTPSyncGate:
         """Test: Upload proceeds normally when NTP sentinel is present."""
         create_all_sentinels()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         # Must log detection
         detected = grep_uploadstb_logs("NTP sync sentinel detected")
@@ -159,7 +160,7 @@ class TestNTPSyncGate:
         """Test: 'NTP absent' log does NOT appear when sentinel is present."""
         create_all_sentinels()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         absent_logs = grep_uploadstb_logs("NTP absent")
         assert len(absent_logs) == 0, \
@@ -176,7 +177,7 @@ class TestNTPSyncGate:
         # STT_FLAG intentionally absent
         setup_systimemgr_clock(int(time.time()))
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         absent_logs = grep_uploadstb_logs("NTP absent")
         assert len(absent_logs) > 0, "Expected log: 'NTP absent �~@�' when NTP sentinel is missing"
@@ -190,7 +191,7 @@ class TestNTPSyncGate:
         # STT_FLAG intentionally absent
         remove_systimemgr_clock()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         # Must log NTP absent
         absent_logs = grep_uploadstb_logs("NTP absent")
@@ -210,7 +211,7 @@ class TestNTPSyncGate:
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
         setup_systimemgr_clock("invalid_not_a_number")
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         assert result.returncode in [0, 1], \
             "Should not crash with invalid systimemgr epoch value"
@@ -223,7 +224,7 @@ class TestNTPSyncGate:
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
         remove_systimemgr_clock()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         assert result.returncode in [0, 1], \
             "Should not crash when systimemgr clock file is missing"
