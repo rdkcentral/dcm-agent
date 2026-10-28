@@ -35,6 +35,7 @@ export top_srcdir=`pwd`
 export top_builddir=`pwd`
 
 autoreconf --install
+sed -i '/appender name="RI_UPLOADSTBrollingfileappender"/ s/prefix="logupload\.log"/prefix="dcmscript.log"/' /etc/log4crc
 
 cd ${ROOT}
 rm -rf iarmmgrs
