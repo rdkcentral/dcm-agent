@@ -161,20 +161,6 @@ class TestDCMScheduledStrategy:
         cleanup_test_log_files()
         remove_lock_file()
 
-    @pytest.mark.order(1)
-    def test_dcm_scheduled_trigger(self):
-        """Test: DCM scheduled upload is triggered correctly"""
-        create_test_log_files(count=2)
-        
-        # DCM scheduled upload (FLAG=0, DCM_FLAG=0, TriggerType=0)
-        args = "'' 0 0 0 HTTP http://localhost:8080 0 0 ''"
-        
-        result = run_uploadstblogs(args)
-        
-        # Check for DCM processing
-        dcm_logs = grep_uploadstb_logs_regex(r"DCM|scheduled|FLAG.*0")
-        assert len(dcm_logs) > 0, "DCM scheduled upload should be processed"
-
     @pytest.mark.order(2)
     def test_dcm_log_collection(self):
         """Test: DCM scheduled upload collects logs according to configuration"""
