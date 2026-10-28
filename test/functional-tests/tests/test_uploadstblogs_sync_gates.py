@@ -101,7 +101,7 @@ class TestNormalUpload:
 
         # Run uploadSTBLogs
         #result = run_uploadstblogs()
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         # Verify initialization
         assert result.returncode == 0 or result.returncode == 1, "Upload process should complete"
