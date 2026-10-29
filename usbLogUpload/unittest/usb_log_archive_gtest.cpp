@@ -15,12 +15,18 @@
  */
 
 #include <gtest/gtest.h>
-#include "usb_log_archive.h"
 #include <string>
 #include <cstring>
 #include <cstdio>
 #include <sys/stat.h>
 #include <fstream>
+
+/* archive_manager.h (pulled in by usb_log_archive.h) has no C++ guards. Include it
+ * with C linkage so the mocks below override the C symbols that usb_log_archive.c
+ * references, instead of the real ones in libuploadstblogs. */
+extern "C" {
+#include "usb_log_archive.h"
+}
 
 /* Controllable mock return values */
 static int g_timestamp_retval;
@@ -30,6 +36,15 @@ static bool g_generate_archive_name_retval;
 static char g_session_archive_file[256];
 
 extern "C" {
+ 
+
+typedef struct gzFile_s *gzFile;
+
+int open(const char *pathname, int flags, ...);
+gzFile gzdopen(int fd, const char *mode);
+int gzwrite(gzFile file, const void *buf, unsigned len);
+int gzclose(gzFile file);
+
     int get_current_timestamp(char *buf, size_t len) {
         if (g_timestamp_retval != 0) {
             return g_timestamp_retval;
@@ -43,20 +58,39 @@ extern "C" {
         return g_copy_file_retval;
     }
 
+      gzFile gzdopen(int fd, const char *mode) {
+        return (gzFile)0x1234;
+      }
+
+      int gzwrite(gzFile file, const void *buf, unsigned len) {
+        return len;
+      }
+
+      int gzclose(gzFile file) {
+        return 0;
+      }
+
     void RDK_LOG(int level, int module, const char *fmt, ...) {}
 }
 
-/* These have C++ linkage in archive_manager.h, so define outside extern "C" */
-int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
-    if (g_create_archive_retval == 0 && g_session_archive_file[0] != '\0') {
-        strncpy(session->archive_file, g_session_archive_file,
-                sizeof(session->archive_file) - 1);
-        session->archive_file[sizeof(session->archive_file) - 1] = '\0';
-    }
+/* usb_log_archive.h declares these with C linkage, matching usb_log_archive.c */
+extern "C" int create_archive(RuntimeContext *ctx, SessionState *session, const char *source_dir) {
+
+        if (g_session_archive_file[0] != '\0') {
+            strncpy(session->archive_file,
+                    g_session_archive_file,
+                    sizeof(session->archive_file) - 1);
+            session->archive_file[sizeof(session->archive_file) - 1] = '\0';
+        }
+
+        printf("session archive=%s\n", session->archive_file);
+    
+
     return g_create_archive_retval;
 }
 
-bool generate_archive_name(char *buffer, size_t buffer_size,
+
+extern "C" bool generate_archive_name(char *buffer, size_t buffer_size,
                            const char *mac_address, const char *prefix) {
     if (!g_generate_archive_name_retval) {
         return false;
