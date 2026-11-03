@@ -44,6 +44,7 @@
 #define LOG_UPLOADSTB "LOG.RDK.UPLOADSTB"
 #define STATUS_FILE "/opt/loguploadstatus.txt"
 #define DCM_TEMP_DIR "/tmp/DCM"
+#define BACKUP_LOGS_LOG_FILE          "/tmp/backup_logs.log.0"
 
 /* ==========================
    Enumerations
