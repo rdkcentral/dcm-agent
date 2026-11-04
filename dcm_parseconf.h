@@ -47,6 +47,7 @@ extern "C"
 #endif
 
 #define DCM_DEF_TIMEZONE       "Local Time"
+#define DCM_CRON_SIZE 17
 
 typedef struct _dcmSettingsHandle
 {

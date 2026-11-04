@@ -72,10 +72,13 @@ struct tm* localtime(const time_t* timep);
 gzFile gzopen(const char* path, const char* mode);
 int gzwrite(gzFile file, const void* buf, unsigned len);
 int gzclose(gzFile file);
+int open(const char* pathname, int flags, ...);
+gzFile gzdopen(int fd, const char* mode);
 
 // Global mock variables
 static FILE* mock_file_ptr = (FILE*)0x12345678;
 static gzFile mock_gz_ptr = (gzFile)0xABCDEF01;
+static int mock_fd = 100;
 static struct stat mock_stat_buf;
 static DIR* mock_dir_ptr = (DIR*)0x87654321;
 static struct dirent mock_dirent_buf;
@@ -109,11 +112,16 @@ int fclose(FILE* stream) {
         g_fread_call_count = 0;
         return 0;
     }
+    
     // Delegate to real fclose for real FILE handles (e.g., GTest output files)
     typedef int (*real_fclose_t)(FILE*);
     static real_fclose_t real_fclose = nullptr;
     if (!real_fclose) real_fclose = (real_fclose_t)dlsym(RTLD_NEXT, "fclose");
     return (real_fclose && stream) ? real_fclose(stream) : -1;
+}
+
+int close(int fd) {
+    return 0;
 }
 
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -231,6 +239,15 @@ struct tm* localtime(const time_t* timep) {
 gzFile gzopen(const char* path, const char* mode) {
     if (!path || !mode || strstr(path, "fail")) return nullptr;
     g_fread_call_count = 0; // Reset read counter for new archive
+    return mock_gz_ptr;
+}
+
+gzFile gzdopen(int fd, const char* mode)
+{
+    if (fd < 0 || !mode)
+        return nullptr;
+
+    g_fread_call_count = 0;
     return mock_gz_ptr;
 }
 
@@ -776,7 +793,7 @@ TEST_F(ArchiveManagerTest, CollectDriLogs_Success) {
     int (*getCollectFilesFromDir(void))(const char*, const char*, bool (*)(const char*));
     bool (*getGenerateArchiveNameAt(void))(char*, size_t, const char*, const char*, time_t);
     unsigned int (*getCalculateTarChecksum(void))(struct tar_header*);
-    int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*);
+    int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*, const char*);
     int (*getAddFileToTar(void))(gzFile, const char*, const char*);
     int (*getAddDirectoryToTar(void))(gzFile, const char*, const char*, const char*);
     int (*getCreateArchiveWithOptions(void))(RuntimeContext*, SessionState*, const char*, const char*, const char*);
@@ -1007,7 +1024,7 @@ protected:
         ASSERT_NE(nullptr, fnWriteTarHeader);
     }
     void TearDown() override {}
-    int (*fnWriteTarHeader)(gzFile, const char*, struct stat*);
+    int (*fnWriteTarHeader)(gzFile, const char*, struct stat*, const char*);
 };
 
 TEST_F(WriteTarHeaderTest, Success_WritesHeader) {
@@ -1017,7 +1034,7 @@ TEST_F(WriteTarHeaderTest, Success_WritesHeader) {
     st.st_size = 1024;
     st.st_mtime = 1642780800;
 
-    int result = fnWriteTarHeader(mock_gz_ptr, "test.log", &st);
+    int result = fnWriteTarHeader(mock_gz_ptr, "test.log", &st, NULL);
     EXPECT_EQ(0, result);
 }
 
@@ -1028,7 +1045,7 @@ TEST_F(WriteTarHeaderTest, GzwriteFails_ReturnsError) {
     st.st_size = 1024;
 
     // Use invalid gzFile to trigger gzwrite failure
-    int result = fnWriteTarHeader(nullptr, "test.log", &st);
+    int result = fnWriteTarHeader(nullptr, "test.log", &st, NULL);
     EXPECT_EQ(-1, result);
 }
 

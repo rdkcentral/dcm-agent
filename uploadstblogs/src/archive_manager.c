@@ -639,21 +639,12 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                 return -1;
             }
         } else if (S_ISLNK(st.st_mode)) {
-            char target[PATH_MAX];
-            ssize_t len = readlinkat(dirfd, entry->d_name, target, sizeof(target) - 1);
-            if (len < 0) {
+            
                 RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to readlink: %s\n", __FUNCTION__, __LINE__, fullpath);
+                        "[%s:%d]Skipping symbolic link: %s\n", __FUNCTION__, __LINE__, fullpath);
                 continue;
             }
-            target[len] = '\0';
-            RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
-                    "Processing file...%s\n", arcname);
-            if (write_tar_header(gz, arcname, &st, target) != 0) {
-                RDK_LOG(RDK_LOG_WARN, LOG_UPLOADSTB,
-                        "[%s:%d] Failed to add symlink: %s\n", __FUNCTION__, __LINE__, fullpath);
-            }
-        } else if (S_ISREG(st.st_mode)) {
+          else if (S_ISREG(st.st_mode)) {
             RDK_LOG(RDK_LOG_INFO, LOG_UPLOADSTB,
                     "Processing file...%s\n", arcname);
             if (add_file_to_tar(gz, fullpath, arcname) != 0) {
@@ -661,7 +652,7 @@ static int add_directory_to_tar(gzFile gz, const char* dirpath, const char* base
                         "[%s:%d] Failed to add file: %s\n", __FUNCTION__, __LINE__, fullpath);
             }
         }
-    }
+      }
     
     closedir(dir);
     return 0;
@@ -747,13 +738,36 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
             "[%s:%d] Creating archive: %s from %s\n", 
             __FUNCTION__, __LINE__, archive_path, source_dir);
 
-    // Create gzip file
-    gzFile gz = gzopen(archive_path, "wb9");
-    if (!gz) {
-        RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
-                "[%s:%d] Failed to create gzip file\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
+    
+     int fd = open(archive_path,
+                   O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
+                   0600);
+
+      if (fd < 0) {
+          RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                  "[%s:%d] Failed to securely create archive file: %s (errno=%d, %s)\n",
+
+                  __FUNCTION__, __LINE__, archive_path, errno, strerror(errno));
+
+          return -1;
+
+      }
+
+      gzFile gz = gzdopen(fd, "wb9");
+
+       if (!gz) {
+           close(fd);
+           if (!remove_file(archive_path)) {
+               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                       "[%s:%d] Failed to remove empty archive: %s\n",
+                       __FUNCTION__, __LINE__, archive_path);
+           }
+           RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+                   "[%s:%d] Failed to securely create gzip file\n",
+                 __FUNCTION__, __LINE__);
+           return -1;
+        }
+   
 
     // Add all files from directory
     int ret = add_directory_to_tar(gz, source_dir, source_dir, archive_path);
@@ -865,7 +879,7 @@ unsigned int (*getCalculateTarChecksum(void))(struct tar_header*)
     return &calculate_tar_checksum;
 }
 
-int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*)
+int (*getWriteTarHeader(void))(gzFile, const char*, struct stat*, const char*)
 {
     return &write_tar_header;
 }

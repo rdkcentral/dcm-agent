@@ -77,9 +77,17 @@ TEST(DCMUtilsTest, FilePresentCheck_FileNotExist) {
 
 // Test dcmUtilsCopyCommandOutput
 TEST(DCMUtilsTest, CopyCommandOutput_Echo) {
-    char output[128];
+    char output[128] = {0};
     dcmUtilsCopyCommandOutput((INT8*)"echo hello", (INT8*)output, sizeof(output));
     EXPECT_STREQ(output, "hello");
+}
+
+// DCM-006: a command containing a shell command-separator must be refused
+// entirely rather than executed, so the appended command never runs.
+TEST(DCMUtilsTest, CopyCommandOutput_DisallowedCommand) {
+    char output[128];
+    dcmUtilsCopyCommandOutput((INT8*)"echo hello;id", (INT8*)output, sizeof(output));
+    EXPECT_STREQ(output, "");
 }
 
 TEST(DCMUtilsTest, CopyCommandOutput_NullOut) {
@@ -87,6 +95,75 @@ TEST(DCMUtilsTest, CopyCommandOutput_NullOut) {
     dcmUtilsCopyCommandOutput((INT8*)"echo test", NULL, 0);
 }
 
+// DCM-006: a NULL or empty cmd must never reach popen(); it should be
+// rejected up front instead of invoking undefined behavior / a useless shell.
+TEST(DCMUtilsTest, CopyCommandOutput_NullCmd_NoThrow) {
+    char output[128] = "unchanged";
+    EXPECT_NO_THROW(dcmUtilsCopyCommandOutput(NULL, (INT8*)output, sizeof(output)));
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_EmptyCmd_NotExecuted) {
+    char output[128] = "unchanged";
+    EXPECT_NO_THROW(dcmUtilsCopyCommandOutput((INT8*)"", (INT8*)output, sizeof(output)));
+    EXPECT_STREQ(output, "");
+}
+
+//Disallowed Comments
+TEST(DCMUtilsTest, CopyCommandOutput_PipeOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello | cat",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_AndOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello && id",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_OrOperator_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo hello || id",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_CommandSubstitution_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo $(id)",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
+
+TEST(DCMUtilsTest, CopyCommandOutput_Backtick_Disallowed) {
+    char output[128] = {0};
+
+    dcmUtilsCopyCommandOutput(
+        (INT8*)"echo `id`",
+        (INT8*)output,
+        sizeof(output));
+
+    EXPECT_STREQ(output, "");
+}
 
 // Test dcmUtilsSysCmdExec
 TEST(DCMUtilsTest, SysCmdExec_Valid) {

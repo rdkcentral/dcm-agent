@@ -351,7 +351,7 @@ TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
     
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_SUCCESS);
     EXPECT_STREQ(versionBuffer, "2.1.5");
@@ -362,7 +362,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_dcm_rbushandle_null)
     char versionBuffer[256];
     memset(versionBuffer, 0, sizeof(versionBuffer));
     
-    INT32 result = dcmRbusGetT2Version(nullptr, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(nullptr, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -370,7 +370,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_t2version_null)
 {
     DCMRBusHandle dcmHandle;
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();    
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, nullptr, 0);
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -381,7 +381,7 @@ TEST_F(DcmRbusTest, GetT2Version_with_rbushandle_null)
     char versionBuffer[256];
     memset(versionBuffer, 0, sizeof(versionBuffer));
     dcmHandle.pRbusHandle = NULL;  
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -398,7 +398,7 @@ TEST_F(DcmRbusTest, GetT2Version_rbusget_fail) {
         _))
         .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_BUS_ERROR)));
     
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
@@ -423,9 +423,33 @@ TEST_F(DcmRbusTest, GetT2Version_rbusvaluetostring_fail) {
 
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
-    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer);
+    INT32 result = dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer));
     
     EXPECT_EQ(result, DCM_FAILURE);
+}
+
+TEST_F(DcmRbusTest, GetT2Version_BufferTooSmall_Fails)
+{
+    rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
+
+    DCMRBusHandle dcmHandle;
+    dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+
+    char versionBuffer[4];
+
+    EXPECT_CALL(*mockRBus, rbus_get(_, _, _))
+        .WillOnce( DoAll( SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
+
+    EXPECT_CALL(*mockRBus, rbusValue_GetType(mockValue))
+        .WillOnce(Return(RBUS_STRING));
+
+    EXPECT_CALL(*mockRBus, rbusValue_ToString(mockValue, NULL, 0))
+        .WillOnce(Return(strdup("2.1.5")));
+
+    EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
+        .Times(1);
+
+    EXPECT_EQ(dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer)), DCM_FAILURE);
 }
 
 class RbusProcConfTest : public ::testing::Test {
