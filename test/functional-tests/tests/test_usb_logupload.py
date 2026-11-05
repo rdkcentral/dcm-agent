@@ -4,7 +4,7 @@ import re
 import pytest
 
 USBLOGUPLOAD_BIN = "/usr/local/bin/usblogupload"
-LOG_FILE = "/opt/logs/logupload.log"  # Adjust if needed
+LOG_FILE = "/opt/logs/dcmscript.log"  # Adjust if needed
 
 # Helper to grep logs
 

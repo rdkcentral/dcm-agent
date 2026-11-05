@@ -125,7 +125,7 @@ class TestRebootReasonSyncGate:
         """Test: Fast path — sentinel exists before inotify watch is set up."""
         create_all_sentinels()
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         # Must log detection
         detected = grep_uploadstb_logs("Reboot reason sentinel detected. Proceeding.")
@@ -146,7 +146,7 @@ class TestRebootReasonSyncGate:
         # PATH_FLAG_INVOCATION will appear after 1 s
         thread = delayed_sentinel_create(PATH_FLAG_INVOCATION, 1)
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
         thread.join(timeout=10)
 
         assert result.returncode in [0, 1], "Process should complete cleanly"
@@ -163,7 +163,7 @@ class TestRebootReasonSyncGate:
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
         # PATH_FLAG_INVOCATION intentionally absent
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         # Must log timeout warning
         timeout_logs = grep_uploadstb_logs("Reboot reason sentinel not present")
@@ -182,7 +182,7 @@ class TestRebootReasonSyncGate:
         create_sentinel(STT_FLAG)
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         detected = grep_uploadstb_logs("Reboot reason sentinel detected. Proceeding.")
         assert len(detected) == 0, \
@@ -195,7 +195,7 @@ class TestRebootReasonSyncGate:
         create_sentinel(STT_FLAG)
         create_sentinel(TELEMETRY_PREVLOGS_DONE_FLAG)
 
-        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/logupload.log.0",shell=True)
+        result = subprocess.run("/usr/local/bin/logupload '' 1 1 true HTTP https://mockxconf:50058/ >> /opt/logs/dcmscript.log",shell=True)
 
         assert result.returncode in [0, 1], "Process should exit cleanly"
 

@@ -34,7 +34,7 @@ from helper_functions import *
 
 def run_uploadlogsnow():
     """Execute uploadlogsnow using the specific binary command"""
-    result = subprocess.run("/usr/local/bin/logupload uploadlogsnow >> /opt/logs/logupload.log.0",shell=True)
+    result = subprocess.run("/usr/local/bin/logupload uploadlogsnow >> /opt/logs/dcmscript.log",shell=True)
     return result
 
 class TestUploadLogsNow:
@@ -280,7 +280,7 @@ class TestUploadLogsNow:
     def check_logupload_file_success(self, success_patterns):
         """Check logupload.log file for success indicators using grep"""
         logupload_files = [
-            "/opt/logs/logupload.log",
+            "/opt/logs/dcmscript.log",
             "/tmp/logupload.log",
             "/var/log/logupload.log"
         ]
