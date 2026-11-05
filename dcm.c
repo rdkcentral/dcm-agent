@@ -57,73 +57,6 @@ static DCMDHandle *g_pdcmHandle = NULL;
  *  @return  None.
  *  @retval  None.
  */
-static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
-{
-    DCMDHandle *pdcmHandle = (DCMDHandle *)pHandle;
-    if(pHandle == NULL) {
-        DCMError("Input Handle is NULL\n");
-        return;
-    }
-    if(dcmSettingsGetMMFlag()) {
-        DCMInfo("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled\n");
-        return;
-    }
-
-    INT8 *pRDKPath = dcmSettingsGetRDKPath(pdcmHandle->pDcmSetHandle);
-    INT8 *pExecBuff = pdcmHandle->pExecBuff;
-
-    if(pRDKPath == NULL) {
-        DCMWarn("RDK Patch is NULL, using %s\n", DCM_LIB_PATH);
-        pRDKPath = DCM_LIB_PATH;
-    }
-
-    if(strcmp(profileName, DCM_LOGUPLOAD_SCHED) == 0) {
-        INT8 *pPrctl = dcmSettingsGetUploadProtocol(pdcmHandle->pDcmSetHandle);
-        INT8 *pURL   = dcmSettingsGetUploadURL(pdcmHandle->pDcmSetHandle);
-
-        if(pPrctl == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using HTTP\n");
-            pPrctl = "HTTP";
-        }
-        if(pURL == NULL) {
-            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
-            pURL = DCM_DEF_LOG_URL;
-        }
-
-        DCMInfo("\nStart log upload via library API\n");
-
-        // Call uploadstblogs library API instead of shell script
-        UploadSTBLogsParams params = {
-            .flag = 0,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pPrctl,
-            .upload_http_link = pURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload failed with error code: %d\n", result);
-        } else {
-            DCMInfo("Log upload completed successfully\n");
-        }
-#endif
-    }
-    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
-        DCMInfo("Start FW update Script\n");
-        if(pRDKPath[0] != '/' ||
-              strspn(pRDKPath, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/_-.")!= strlen(pRDKPath)) {
-             DCMError("Invalid RDK Path\n");
-             return;
-    }
-        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
-                                               pRDKPath);
-         dcmUtilsSysCmdExec(pExecBuff);
-    }
-}
 
 /** @brief Signal handler, un-intializes the module before exiting
  *
@@ -214,19 +147,11 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    /* Add log upload job to Schecduler */
-    pdcmHandle->pLogSchedHandle  = dcmSchedAddJob(DCM_LOGUPLOAD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
     if(pdcmHandle->pLogSchedHandle == NULL) {
         DCMError("Failed to Add Log Scheduler jobs\n");
         return DCM_FAILURE;
     }
 
-    /* Add FW update job to Schecduler */
-    pdcmHandle->pDifdSchedHandle = dcmSchedAddJob(DCM_DIFD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
     if(pdcmHandle->pDifdSchedHandle == NULL) {
         DCMError("Failed to Add FW Updater Scheduler jobs\n");
         return DCM_FAILURE;
