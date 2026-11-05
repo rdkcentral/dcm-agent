@@ -223,6 +223,9 @@ def get_backup_logs_pid():
     return result.stdout.strip()
 
 def kill_backup_logs(signal=9):
+    # SIGKILL skips the gcov dump, so use SIGTERM when L2 coverage is collected
+    if os.environ.get("DCM_COVERAGE_MODE") and signal == 9:
+        signal = 15
     pid = get_backup_logs_pid()
     if pid:
         subprocess.run(f"kill -{signal} {pid}", shell=True)

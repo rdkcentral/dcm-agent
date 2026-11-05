@@ -93,6 +93,9 @@ def get_uploadstblogs_pid():
 
 def kill_uploadstblogs(signal=9):
     """Kill uploadSTBLogs process"""
+    # SIGKILL skips the gcov dump, so use SIGTERM when L2 coverage is collected
+    if os.environ.get("DCM_COVERAGE_MODE") and signal == 9:
+        signal = 15
     pid = get_uploadstblogs_pid()
     if pid:
         subprocess.run(f"kill -{signal} {pid}", shell=True)

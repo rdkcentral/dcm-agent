@@ -64,5 +64,6 @@ make
 make install
 
 cd $WORKDIR
-./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -DL2_TEST_ENABLED -I$ROOT/iarmmgrs/maintenance/include"
+# --coverage / -DUSECOV instrument dcm-agent, uploadstblogs, usbLogUpload and backup_logs for L2 lcov reports (see test/l2_coverage.sh)
+./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -DL2_TEST_ENABLED -DUSECOV -I$ROOT/iarmmgrs/maintenance/include -g -O0 --coverage" LDFLAGS="--coverage"
 make && make install

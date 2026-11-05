@@ -518,8 +518,20 @@ int uploadstblogs_execute(int argc, char** argv)
  * This is only compiled when building the binary, not the library.
  * External components should call uploadstblogs_execute() directly.
  */
+#ifdef USECOV
+#include <signal.h>
+/* exit() runs the gcov dump of the binary and of libuploadstblogs so lcov captures L2 data. */
+static void uploadstblogs_cov_sigterm_handler(int sig)
+{
+    exit(128 + sig);
+}
+#endif
+
 int main(int argc, char** argv)
 {
+#ifdef USECOV
+    signal(SIGTERM, uploadstblogs_cov_sigterm_handler);
+#endif
     return uploadstblogs_execute(argc, argv);
 }
 #endif /* UPLOADSTBLOGS_BUILD_BINARY */

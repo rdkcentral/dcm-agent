@@ -25,6 +25,15 @@ Test files disabled (commented out): 0
 Estimated current L2 functional coverage: ~67%
 Target L2 functional coverage: ~80%
 
+## Measured L2 Code Coverage (lcov)
+
+In addition to the estimate above, L2 runs now collect measured source coverage with gcov/lcov:
+
+1. `cov_build.sh` builds dcm-agent, uploadstblogs, usbLogUpload and backup_logs with `--coverage -DUSECOV`.
+2. `test/run_l2.sh` calls `test/l2_coverage.sh init` (zero counters, capture baseline); `test/run_uploadstblogs_l2.sh` calls `ensure` (baseline only if missing). Both end with `test/l2_coverage.sh report`, which captures, merges with the baseline, filters `/usr/*`, `*/unittest/*`, `*/test/*` and writes `/tmp/l2_coverage/coverage.info` plus HTML in `/tmp/l2_coverage/html`. Counters accumulate, so the last report covers both scripts.
+3. Both scripts export `DCM_COVERAGE_MODE=1`: the pytest helpers (`kill_dcmd`, `kill_uploadstblogs`, `kill_backup_logs`) then send SIGTERM instead of SIGKILL so gcov data is flushed. `dcmd`, `logupload` and `backup_logs` exit through `exit()` on SIGTERM (the latter two via `USECOV` handlers).
+4. The `L2 Integration Tests` workflow runs `test/functional-tests/generate_l2_coverage_report.py` on the tracefile, appends the result to the job summary and uploads the `l2-coverage-report` artifact (HTML, tracefile, markdown).
+
 ## Basis For These Numbers
 
 1. Total source functions is a repository-wide approximation based on function prototypes exposed in module header files, used as a stable proxy for the functional surface reviewed by L2 tests.

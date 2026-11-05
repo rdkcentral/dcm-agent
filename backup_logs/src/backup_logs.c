@@ -323,8 +323,19 @@ int backup_logs_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 #ifndef GTEST_ENABLE
+#ifdef USECOV
+#include <signal.h>
+/* Flush gcov counters on SIGTERM so lcov captures L2 exercise data. */
+static void backup_logs_cov_sigterm_handler(int sig) {
+    exit(128 + sig);
+}
+#endif
+
 /* Standard main function for executable */
 int main(int argc, char *argv[]) {
+#ifdef USECOV
+    signal(SIGTERM, backup_logs_cov_sigterm_handler);
+#endif
     return backup_logs_main(argc, argv);
 }
 #endif

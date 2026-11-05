@@ -23,6 +23,9 @@ RESULT_DIR="/tmp/l2_test_report"
 LOCAL_DIR="/usr/local"
 RBUS_INSTALL_DIR="/usr/local"
 
+# Test helpers stop daemons with SIGTERM instead of SIGKILL so gcov data is flushed
+export DCM_COVERAGE_MODE=1
+
 mkdir -p "$RESULT_DIR"
 echo "LOG.RDK.DEFAULT" >> /etc/debug.ini
 
@@ -33,6 +36,9 @@ fi
 if ! grep -q "PERSISTENT_PATH=/opt/" /etc/include.properties; then
     echo "PERSISTENT_PATH=/opt/" >> /etc/include.properties
 fi
+
+# lcov baseline: zero counters before any test runs
+sh "$top_srcdir/test/l2_coverage.sh" init
 
 pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/run_dcm-agent.json test/functional-tests/tests/test_start_dcm-agent.py
 
@@ -49,3 +55,6 @@ if ! grep -q "ENABLE_MAINTENANCE=" /etc/device.properties; then
 fi
 
 pytest -v --json-report --json-report-summary --json-report-file $RESULT_DIR/log_upload_reboot_MM_test.json test/functional-tests/tests/test_log_upload_onreboot_MM_case.py
+
+# Capture, filter and report L2 coverage
+sh "$top_srcdir/test/l2_coverage.sh" report
