@@ -757,17 +757,22 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
 
        if (!gz) {
            close(fd);
-           if (!remove_file(archive_path)) {
-               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                       "[%s:%d] Failed to remove empty archive: %s\n",
-                       __FUNCTION__, __LINE__, archive_path);
-           }
+           if (!remove_file(archive_path)) {
+
+               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+
+                       "[%s:%d] Failed to remove empty archive: %s\n",
+
+                       __FUNCTION__, __LINE__, archive_path);
+
+           }
+
            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                    "[%s:%d] Failed to securely create gzip file\n",
                  __FUNCTION__, __LINE__);
            return -1;
         }
-   
+       fd = -1;
 
     // Add all files from directory
     int ret = add_directory_to_tar(gz, source_dir, source_dir, archive_path);
@@ -823,6 +828,7 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
         return -1;
     }
 }
+   
 
 /**
  * @brief Create DRI logs archive
