@@ -453,50 +453,6 @@ exit1:
     return ret;
 }
 
-#ifdef HAS_MAINTENANCE_MANAGER
-/** @brief This Function stores the maintanance time and zone to conf file.
- *
- *  @param[in]  pCronptr  cron pattern
- *  @param[in]  pTimeZone time zone
- *
- *  @return  Returns the status of the operation.
- *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
- */
-static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
-{
-    FILE *fp = fopen(DCM_MAINT_CONF_PATH, "w");
-    INT8 buffhr[4] = {0};
-    INT8 buffmin[4] = {0};
-    INT8 *ptr;
-    INT32 i = 0, count = 0;
-
-    if(fp == NULL) {
-        DCMError("Unable to open %s\n", DCM_MAINT_CONF_PATH);
-        return DCM_FAILURE;
-    }
-
-    ptr = buffmin;
-    for(i = 0; i < strlen(pCronptr); i++) {
-        if(pCronptr[i] == ' ') {
-            count++;
-            if(count > 1) {
-                break;
-            }
-            ptr = buffhr;
-            continue;
-        }
-        *ptr++ = pCronptr[i];
-    }
-
-    fprintf(fp, "start_hr=\"%d\"\n", atoi(buffhr));
-    fprintf(fp, "start_min=\"%d\"\n", atoi(buffmin));
-    fprintf(fp, "tz_mode=\"%s\"\n", pTimeZone);
-
-    fclose(fp);
-
-    return DCM_SUCCESS;
-}
-#endif
 
 /** @brief This Function parses the settings file.
  *
@@ -617,13 +573,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile)
     if(dcmSettingStoreTempConf(pConffile, DCM_TMP_CONF, DCM_OPT_CONF)) {
         DCMWarn ("Storing to tmp, opt folder failed\n");
     }
-#ifdef HAS_MAINTENANCE_MANAGER
-    if(dcmSettingsGetMMFlag()) {
-        if(dcmSettingSaveMaintenance(pDifdCron, pTimezone)) {
-            DCMWarn ("Storing to rdk_maintenance.conf failed\n");
-        }
-    }
-#endif
     return ret;
 }
 
@@ -807,10 +756,7 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
  }
 
 #ifdef GTEST_ENABLE
-INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
-{
-    return &dcmSettingSaveMaintenance;
-}
+
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **)
 {
     return &dcmSettingJsonInit;
