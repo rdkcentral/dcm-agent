@@ -93,7 +93,6 @@ static VOID sig_handler(INT32 sig)
 INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 {
     INT32 ret = DCM_SUCCESS;
-    INT8  t2_ver[32];
 
     /* Check if the Daemon is already running */
     ret = dcmUtilsCheckDaemonStatus();
@@ -122,11 +121,6 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    DCMInfo("T2 is enabled\n");
-
-    ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver, sizeof(t2_ver));
-    DCMInfo("T2 Version: %s\n", t2_ver);
-
     /* Initialize Rbus */
     ret = dcmRbusSubscribeEvents(pdcmHandle->pRbusHandle);
     if (ret != DCM_SUCCESS) {
@@ -146,17 +140,6 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         DCMError("Failed to init scheduler\n");
         return ret;
     }
-
-    if(pdcmHandle->pLogSchedHandle == NULL) {
-        DCMError("Failed to Add Log Scheduler jobs\n");
-        return DCM_FAILURE;
-    }
-
-    if(pdcmHandle->pDifdSchedHandle == NULL) {
-        DCMError("Failed to Add FW Updater Scheduler jobs\n");
-        return DCM_FAILURE;
-    }
-
     return ret;
 }
 
@@ -337,9 +320,6 @@ int main(int argc, char* argv[])
                                       g_pdcmHandle->logCron,
                                       g_pdcmHandle->difdCron);
             if(ret == DCM_SUCCESS) {
-                dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
-                dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
-
                 ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
                 if(ret) {
                     DCMError("Failed to send Event\n");
