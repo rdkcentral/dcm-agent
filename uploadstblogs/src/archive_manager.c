@@ -757,11 +757,16 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
 
        if (!gz) {
            close(fd);
-           if (!remove_file(archive_path)) {
-               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
-                       "[%s:%d] Failed to remove empty archive: %s\n",
-                       __FUNCTION__, __LINE__, archive_path);
-           }
+           if (!remove_file(archive_path)) {
+
+               RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
+
+                       "[%s:%d] Failed to remove empty archive: %s\n",
+
+                       __FUNCTION__, __LINE__, archive_path);
+
+           }
+
            RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB,
                    "[%s:%d] Failed to securely create gzip file\n",
                  __FUNCTION__, __LINE__);
@@ -816,6 +821,7 @@ static int create_archive_with_options(RuntimeContext* ctx, SessionState* sessio
         strncpy(session->archive_file, archive_filename, sizeof(session->archive_file) - 1);
         session->archive_file[sizeof(session->archive_file) - 1] = '\0';
         
+            /* coverity[leaked_storage] - fd ownership transferred to gz via gzdopen; gzclose(gz) releases the underlying fd */
         return 0;
     } else {
         RDK_LOG(RDK_LOG_ERROR, LOG_UPLOADSTB, 
