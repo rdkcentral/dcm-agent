@@ -36,7 +36,7 @@
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
-void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+
 void get_sig_handler(INT32 sig);
 
 using namespace testing;
