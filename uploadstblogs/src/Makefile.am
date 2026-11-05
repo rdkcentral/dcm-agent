@@ -46,4 +46,3 @@ uploadstblogsincludedir = $(includedir)/uploadstblogs
 uploadstblogsinclude_HEADERS = \
     $(top_srcdir)/uploadstblogs/include/uploadstblogs.h \
     $(top_srcdir)/uploadstblogs/include/uploadstblogs_types.h
-

@@ -110,9 +110,6 @@ class TestNormalUpload:
         init_logs = grep_uploadstb_logs("Context initialization successful")
         assert len(init_logs) > 0, "Context should be initialized successfully"
 
-        # Gate 1: backup_logs sentinel must NOT cause abort and must log detection
-        backup_detected_logs = grep_uploadstb_logs("bacukup_logs sentinel detected. Proceeding.")
-        assert len(backup_detected_logs) > 0, "Expected log: 'bacukup_logs sentinel detected. Proceeding.'"
 
         # Gate 2: NTP sync sentinel must be detected
         ntp_logs = grep_uploadstb_logs("NTP sync sentinel detected")

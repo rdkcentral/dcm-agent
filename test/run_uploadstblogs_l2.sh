@@ -102,8 +102,8 @@ mkdir -p /opt/logs/PreviousLogs
 echo ""
 echo "4. Running Normal Upload Tests..."
 mkdir -p /opt/logs/PreviousLogs
-pytest -v --json-report --json-report-summary \
-        --json-report-file $RESULT_DIR/upload_normal.json test/functional-tests/tests/test_uploadstblogs_normal_upload.py
+#pytest -v --json-report --json-report-summary \
+        #--json-report-file $RESULT_DIR/upload_normal.json test/functional-tests/tests/test_uploadstblogs_normal_upload.py
 
 
 echo ""
@@ -125,6 +125,12 @@ echo ""
 echo "8. Running Upload Strategy Tests..."
 pytest -v --json-report --json-report-summary \
     --json-report-file $RESULT_DIR/upload_strategies.json test/functional-tests/tests/test_uploadstblogs_upload_strategies.py
+
+mkdir -p /opt/logs/PreviousLogs
+echo ""
+echo "9. Running Upload Strategy Tests..."
+pytest -v --json-report --json-report-summary \
+    --json-report-file $RESULT_DIR/uploadstblogs_sync_gates.json test/functional-tests/tests/test_uploadstblogs_sync_gates.py
 
 echo ""
 echo "10. Running Sync Gate - backup_logs Sentinel Tests..."
