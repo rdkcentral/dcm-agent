@@ -453,50 +453,6 @@ exit1:
     return ret;
 }
 
-#ifdef HAS_MAINTENANCE_MANAGER
-/** @brief This Function stores the maintanance time and zone to conf file.
- *
- *  @param[in]  pCronptr  cron pattern
- *  @param[in]  pTimeZone time zone
- *
- *  @return  Returns the status of the operation.
- *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
- */
-static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
-{
-    FILE *fp = fopen(DCM_MAINT_CONF_PATH, "w");
-    INT8 buffhr[4] = {0};
-    INT8 buffmin[4] = {0};
-    INT8 *ptr;
-    INT32 i = 0, count = 0;
-
-    if(fp == NULL) {
-        DCMError("Unable to open %s\n", DCM_MAINT_CONF_PATH);
-        return DCM_FAILURE;
-    }
-
-    ptr = buffmin;
-    for(i = 0; i < strlen(pCronptr); i++) {
-        if(pCronptr[i] == ' ') {
-            count++;
-            if(count > 1) {
-                break;
-            }
-            ptr = buffhr;
-            continue;
-        }
-        *ptr++ = pCronptr[i];
-    }
-
-    fprintf(fp, "start_hr=\"%d\"\n", atoi(buffhr));
-    fprintf(fp, "start_min=\"%d\"\n", atoi(buffmin));
-    fprintf(fp, "tz_mode=\"%s\"\n", pTimeZone);
-
-    fclose(fp);
-
-    return DCM_SUCCESS;
-}
-#endif
 
 /** @brief This Function parses the settings file.
  *
@@ -507,8 +463,7 @@ static INT32 dcmSettingSaveMaintenance(INT8 *pCronptr, INT8* pTimeZone)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
-INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
-                          INT8 *pLogCron,INT8 *pDifdCron)
+INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile)
 {
     VOID  *pJsonHandle   = NULL;
     INT32  ret           = DCM_SUCCESS;
@@ -570,22 +525,6 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
 
     DCMInfo("DCM_LOGUPLOAD_REBOOT: %d\n", uploadCheck);
 
-    ret = dcmSettingJsonGetVal(pJsonHandle, DCM_LOGUPLOAD_CRON,
-                               pLogCron, DCM_CRON_SIZE, &confIntVal, &type);
-    if(ret || type != DCM_JSONITEM_STR) {
-        *pLogCron = 0;
-    }
-
-    DCMInfo("DCM_LOGUPLOAD_CRON: %s\n", pLogCron);
-
-    ret = dcmSettingJsonGetVal(pJsonHandle, DCM_DIFD_CRON,
-                               pDifdCron, DCM_CRON_SIZE, &confIntVal, &type);
-    if(ret || type != DCM_JSONITEM_STR) {
-        *pDifdCron = 0;
-    }
-
-    DCMInfo("DCM_DIFD_CRON: %s\n", pDifdCron);
-
     if(uploadCheck == 1 && pdcmSetHandle->bRebootFlag == 0) {
         DCMInfo("Triggering log upload with reboot flag via library API\n");
         UploadSTBLogsParams params = {
@@ -628,47 +567,12 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
         DCMWarn ("Nothing to do here for uploadCheck value = %d\n", uploadCheck);
     }
 
-    if(strlen(pLogCron) == 0) {
-        DCMWarn ("Uploading logs as DCM response is either null or not present\n");
-        
-        UploadSTBLogsParams params = {
-            .flag = 1,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pUploadprtl,
-            .upload_http_link = pUploadURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload (empty cron) failed: %d\n", result);
-        }
-#endif
-    }
-    else {
-        DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
-    }
-
-    if(strlen(pDifdCron) == 0) {
-        DCMWarn ("difdCron is empty\n");
-    }
-
     dcmSettingJsonUnInit(&pJsonHandle);
 
     /* Parse the conf file and store in opt and tmp folder which is used by other modules */
     if(dcmSettingStoreTempConf(pConffile, DCM_TMP_CONF, DCM_OPT_CONF)) {
         DCMWarn ("Storing to tmp, opt folder failed\n");
     }
-#ifdef HAS_MAINTENANCE_MANAGER
-    if(dcmSettingsGetMMFlag()) {
-        if(dcmSettingSaveMaintenance(pDifdCron, pTimezone)) {
-            DCMWarn ("Storing to rdk_maintenance.conf failed\n");
-        }
-    }
-#endif
     return ret;
 }
 
@@ -753,7 +657,8 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
 /* Add here */
 static BOOL isValidRdkPath(const char *path)
 {
-    if (path == NULL || path[0] != '/')
+    if (path == NULL || path[0] != '/')
+
         return 0;
 
     while (*path)
@@ -851,10 +756,7 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
  }
 
 #ifdef GTEST_ENABLE
-INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
-{
-    return &dcmSettingSaveMaintenance;
-}
+
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **)
 {
     return &dcmSettingJsonInit;
