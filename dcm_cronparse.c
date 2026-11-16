@@ -878,7 +878,7 @@ time_t dcmCronParseGetNext(dcmCronExpr* expr, time_t date)
  */
 INT32 dcmCronParseExp(const INT8* expression, dcmCronExpr* target)
 {
-    UINT32 len = 0;
+    UINT32 len = 10;
     INT8** fields = NULL;
     INT32 i = 0;
     INT32 ret = CRON_SUCCESS;
