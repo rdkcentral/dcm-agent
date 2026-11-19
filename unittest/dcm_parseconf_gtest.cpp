@@ -73,6 +73,81 @@ protected:
     }
 };
 
+class DcmAtomicConfigTest : public ::testing::Test {
+protected:
+    std::string directory;
+    std::string input;
+    std::string output;
+    std::string persistent;
+    std::string victim;
+
+    void SetUp() override {
+        char path[] = "/tmp/dcm-atomic-XXXXXX";
+        ASSERT_NE(mkdtemp(path), nullptr);
+        directory = path;
+        input = directory + "/input.json";
+        output = directory + "/settings.conf";
+        persistent = directory + "/persistent.conf";
+        victim = directory + "/victim";
+    }
+
+    void TearDown() override {
+        if (!directory.empty()) {
+            unlink(input.c_str());
+            unlink(output.c_str());
+            unlink(persistent.c_str());
+            unlink(victim.c_str());
+            rmdir(directory.c_str());
+        }
+    }
+
+    int store() {
+        return dcmSettingStoreTempConf(&input[0], &output[0], &persistent[0]);
+    }
+};
+
+TEST_F(DcmAtomicConfigTest, ReplacesSymlinksWithoutChangingTargetsAndUsesPrivateMode) {
+    CreateFile(input.c_str(), "{\"HTTP_UPLOAD_LINK\":\"https://logs.example.com\"}");
+    CreateFile(victim.c_str(), "keep");
+    ASSERT_EQ(symlink(victim.c_str(), output.c_str()), 0);
+    ASSERT_EQ(symlink(victim.c_str(), persistent.c_str()), 0);
+
+    mode_t previous = umask(0);
+    int result = store();
+    umask(previous);
+    ASSERT_EQ(result, DCM_SUCCESS);
+
+    for (const auto &path : {output, persistent}) {
+        struct stat st;
+        ASSERT_EQ(lstat(path.c_str(), &st), 0);
+        EXPECT_TRUE(S_ISREG(st.st_mode));
+        EXPECT_EQ(st.st_mode & 0777, 0600);
+    }
+    std::ifstream saved(output);
+    std::string line;
+    std::getline(saved, line);
+    EXPECT_EQ(line, "HTTP_UPLOAD_LINK=https://logs.example.com");
+    std::ifstream original(victim);
+    std::getline(original, line);
+    EXPECT_EQ(line, "keep");
+}
+
+TEST_F(DcmAtomicConfigTest, FailedParsePreservesBothExistingFiles) {
+    CreateFile(input.c_str(), "invalid json");
+    CreateFile(output.c_str(), "old temporary");
+    CreateFile(persistent.c_str(), "old persistent");
+
+    EXPECT_EQ(store(), DCM_FAILURE);
+
+    std::string line;
+    std::ifstream saved(output);
+    std::getline(saved, line);
+    EXPECT_EQ(line, "old temporary");
+    std::ifstream opt(persistent);
+    std::getline(opt, line);
+    EXPECT_EQ(line, "old persistent");
+}
+
 // Test when /etc/include.properties doesn't exist - uses default path
 TEST(dcmParseConfTest, DefaultBoot_IncludeFileNotExists_UsesDefaultPath) {    
     INT32 result = dcmSettingDefaultBoot();

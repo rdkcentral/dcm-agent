@@ -243,7 +243,39 @@ static INT32 dcmSettingJsonGetVal(VOID *jsonHandle, INT8 *item, INT8 *sval,  INT
     return ret;
 }
 
-/** @brief This Function parses the settings file and store in tmp and opt folder.
+/* The caller owns the stream and must close it before publishing with rename(). */
+static FILE *dcmSettingOpenTempConf(const char *destination, char *temporary, size_t size)
+{
+    int len = snprintf(temporary, size, "%s.XXXXXX", destination);
+    if (len < 0 || (size_t)len >= size) {
+        DCMError("Configuration path is too long: %s\n", destination);
+        return NULL;
+    }
+
+    mode_t old_umask = umask(077);
+    int fd = mkstemp(temporary);
+    umask(old_umask);
+
+    if (fd < 0) {
+       DCMError("Cannot create temporary configuration for %s: %s\n", destination, strerror(errno));
+       return NULL;
+    }      
+  
+    FILE *stream = NULL;
+    if (fchmod(fd, S_IRUSR | S_IWUSR) == 0) {
+        stream = fdopen(fd, "w");
+    }
+    if (stream == NULL) {
+        DCMError("Cannot open temporary configuration for %s: %s\n", destination, strerror(errno));
+        close(fd);
+        if (unlink(temporary) != 0) {
+            DCMError("Cannot remove temporary configuration %s: %s\n", temporary, strerror(errno));
+        }
+    }
+    return stream;
+}
+
+/** @brief This Function parses the settings file and atomically stores private copies in tmp and opt.
  *
  *  @param[in]   pConffile  settings file path
  *  @param[out]  pTempConf  tmp folder conf path
@@ -260,7 +292,10 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
     INT32 i        = 0;
     INT32 ret      = DCM_SUCCESS;
     FILE *fp_out_opt = NULL;
+    bool opt_created = false;
     size_t bytes_read = 0;
+    char temp_conf[EXECMD_BUFF_SIZE] = {0};
+    char opt_conf[EXECMD_BUFF_SIZE] = {0};
 
     FILE *fp_in = fopen(pConffile, "r");
     if (fp_in == NULL) {
@@ -268,19 +303,20 @@ static INT32 dcmSettingStoreTempConf(INT8 *pConffile, INT8 *pTempConf, INT8 *pOp
         return DCM_FAILURE;
     }
 
-    FILE *fp_out = fopen(pTempConf, "w");
+    FILE *fp_out = dcmSettingOpenTempConf(pTempConf, temp_conf, sizeof(temp_conf));
     if (fp_out == NULL) {
         ret = DCM_FAILURE;
         DCMError("Unable to open tmp file: %s\n", pTempConf);
         goto exit1;
     }
 
-    fp_out_opt = fopen(pOptConf, "w");
+    fp_out_opt = dcmSettingOpenTempConf(pOptConf, opt_conf, sizeof(opt_conf));
     if (fp_out_opt == NULL) {
         ret = DCM_FAILURE;
         DCMError("Unable to open out file: %s\n", pOptConf);
         goto exit2;
     }
+    opt_created = true;
 
     fseek(fp_in, 0, SEEK_END);
     errno = 0;
@@ -443,10 +479,34 @@ exit4:
     free(buff);
 exit3:
     if (fp_out_opt) {
-        fclose(fp_out_opt);
+        if (ferror(fp_out_opt)) {
+            ret = DCM_FAILURE;
+        }
+        if (fclose(fp_out_opt) != 0) {
+            ret = DCM_FAILURE;
+        }
     }
 exit2:
-    fclose(fp_out);
+    if (ferror(fp_out)) {
+        ret = DCM_FAILURE;
+    }
+    if (fclose(fp_out) != 0) {
+        ret = DCM_FAILURE;
+    }
+    if (ret == DCM_SUCCESS) {
+        if (rename(opt_conf, pOptConf) != 0 || rename(temp_conf, pTempConf) != 0) {
+            DCMError("Cannot publish configuration files: %s\n", strerror(errno));
+            ret = DCM_FAILURE;
+        }
+    } else {
+        DCMError("Configuration write failed; keeping existing configuration files\n");
+    }
+    if (unlink(temp_conf) != 0 && errno != ENOENT) {
+        DCMError("Cannot remove temporary configuration %s: %s\n", temp_conf, strerror(errno));
+    }
+    if (opt_created && unlink(opt_conf) != 0 && errno != ENOENT) {
+        DCMError("Cannot remove temporary configuration %s: %s\n", opt_conf, strerror(errno));
+    }
 exit1:
     fclose(fp_in);
 
@@ -753,7 +813,8 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
 /* Add here */
 static BOOL isValidRdkPath(const char *path)
 {
-    if (path == NULL || path[0] != '/')
+    if (path == NULL || path[0] != '/')
+
         return 0;
 
     while (*path)
