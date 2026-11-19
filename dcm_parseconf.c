@@ -252,6 +252,14 @@ static FILE *dcmSettingOpenTempConf(const char *destination, char *temporary, si
         return NULL;
     }
 
+    mode_t old_umask = umask(077);
+    int fd = mkstemp(temporary);
+    umask(old_umask);
+
+    if (fd < 0) {
+       DCMError("Cannot create temporary configuration for %s: %s\n", destination, strerror(errno));
+       return NULL;
+    }        
     int fd = mkstemp(temporary);
     if (fd < 0) {
         DCMError("Cannot create temporary configuration for %s: %s\n", destination, strerror(errno));
