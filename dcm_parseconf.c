@@ -259,13 +259,8 @@ static FILE *dcmSettingOpenTempConf(const char *destination, char *temporary, si
     if (fd < 0) {
        DCMError("Cannot create temporary configuration for %s: %s\n", destination, strerror(errno));
        return NULL;
-    }        
-    int fd = mkstemp(temporary);
-    if (fd < 0) {
-        DCMError("Cannot create temporary configuration for %s: %s\n", destination, strerror(errno));
-        return NULL;
-    }
-
+    }      
+  
     FILE *stream = NULL;
     if (fchmod(fd, S_IRUSR | S_IWUSR) == 0) {
         stream = fdopen(fd, "w");
