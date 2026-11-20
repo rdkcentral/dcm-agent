@@ -38,9 +38,6 @@ typedef struct _dcmdHandle
     VOID *pLogSchedHandle;
     VOID *pDifdSchedHandle;
     INT8 *pExecBuff;
-    INT8  logCron[DCM_CRON_SIZE];
-    INT8  difdCron[DCM_CRON_SIZE];
-
 } DCMDHandle;
 
 INT32  dcmDaemonMainInit(DCMDHandle *pdcmHandle);
