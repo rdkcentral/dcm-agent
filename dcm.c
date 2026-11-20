@@ -35,8 +35,6 @@
 #include "dcm_parseconf.h"
 #include "dcm.h"
 #include "dcm_rbus.h"
-#include "dcm_cronparse.h"
-#include "dcm_schedjob.h"
 #include "uploadstblogs.h"
 
 /*
@@ -48,82 +46,6 @@
 #define DCM_RELOAD_EVENT_MAX_RETRY 30
 
 static DCMDHandle *g_pdcmHandle = NULL;
-
-/** @brief Call back function from Scheduler. This function
- *         Initiates the job
- *
- *  @param[in]  profileName  Scheduler name
- *
- *  @return  None.
- *  @retval  None.
- */
-static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
-{
-    DCMDHandle *pdcmHandle = (DCMDHandle *)pHandle;
-    if(pHandle == NULL) {
-        DCMError("Input Handle is NULL\n");
-        return;
-    }
-    if(dcmSettingsGetMMFlag()) {
-        DCMInfo("Maintenance manager enabled device - Cron job schedules for maintenance activities are disabled\n");
-        return;
-    }
-
-    INT8 *pRDKPath = dcmSettingsGetRDKPath(pdcmHandle->pDcmSetHandle);
-    INT8 *pExecBuff = pdcmHandle->pExecBuff;
-
-    if(pRDKPath == NULL) {
-        DCMWarn("RDK Patch is NULL, using %s\n", DCM_LIB_PATH);
-        pRDKPath = DCM_LIB_PATH;
-    }
-
-    if(strcmp(profileName, DCM_LOGUPLOAD_SCHED) == 0) {
-        INT8 *pPrctl = dcmSettingsGetUploadProtocol(pdcmHandle->pDcmSetHandle);
-        INT8 *pURL   = dcmSettingsGetUploadURL(pdcmHandle->pDcmSetHandle);
-
-        if(pPrctl == NULL) {
-            DCMWarn("Log Upload protocol is NULL, using HTTP\n");
-            pPrctl = "HTTP";
-        }
-        if(pURL == NULL) {
-            DCMWarn("Log Upload URL is NULL, using %s\n", DCM_DEF_LOG_URL);
-            pURL = DCM_DEF_LOG_URL;
-        }
-
-        DCMInfo("\nStart log upload via library API\n");
-
-        // Call uploadstblogs library API instead of shell script
-        UploadSTBLogsParams params = {
-            .flag = 0,
-            .dcm_flag = 1,
-            .upload_on_reboot = false,
-            .upload_protocol = pPrctl,
-            .upload_http_link = pURL,
-            .trigger_type = TRIGGER_SCHEDULED,
-            .rrd_flag = false,
-            .rrd_file = NULL
-        };
-#ifndef GTEST_ENABLE
-        int result = uploadstblogs_run(&params);
-        if (result != 0) {
-            DCMError("Log upload failed with error code: %d\n", result);
-        } else {
-            DCMInfo("Log upload completed successfully\n");
-        }
-#endif
-    }
-    else if(strcmp(profileName, DCM_DIFD_SCHED) == 0) {
-        DCMInfo("Start FW update Script\n");
-        if(pRDKPath[0] != '/' ||
-              strspn(pRDKPath, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/_-.")!= strlen(pRDKPath)) {
-             DCMError("Invalid RDK Path\n");
-             return;
-    }
-        snprintf(pExecBuff, EXECMD_BUFF_SIZE, "/bin/sh %s/swupdate_utility.sh 0 2 >> /opt/logs/swupdate.log 2>&1",
-                                               pRDKPath);
-         dcmUtilsSysCmdExec(pExecBuff);
-    }
-}
 
 /** @brief Signal handler, un-intializes the module before exiting
  *
@@ -160,7 +82,6 @@ static VOID sig_handler(INT32 sig)
 INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 {
     INT32 ret = DCM_SUCCESS;
-    INT8  t2_ver[32];
 
     /* Check if the Daemon is already running */
     ret = dcmUtilsCheckDaemonStatus();
@@ -189,47 +110,11 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
-    DCMInfo("T2 is enabled\n");
-
-    ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver, sizeof(t2_ver));
-    DCMInfo("T2 Version: %s\n", t2_ver);
-
     /* Initialize Rbus */
     ret = dcmRbusSubscribeEvents(pdcmHandle->pRbusHandle);
     if (ret != DCM_SUCCESS) {
         DCMError("Failed to init rbus\n");
         return ret;
-    }
-
-    pdcmHandle->pExecBuff = calloc(1, EXECMD_BUFF_SIZE);
-    if(pdcmHandle->pExecBuff == NULL) {
-        DCMError("Failed to allocate memeory\n");
-        return DCM_FAILURE;
-    }
-
-    /* Initialize Schecduler */
-    ret = dcmSchedInit();
-    if(ret) {
-        DCMError("Failed to init scheduler\n");
-        return ret;
-    }
-
-    /* Add log upload job to Schecduler */
-    pdcmHandle->pLogSchedHandle  = dcmSchedAddJob(DCM_LOGUPLOAD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
-    if(pdcmHandle->pLogSchedHandle == NULL) {
-        DCMError("Failed to Add Log Scheduler jobs\n");
-        return DCM_FAILURE;
-    }
-
-    /* Add FW update job to Schecduler */
-    pdcmHandle->pDifdSchedHandle = dcmSchedAddJob(DCM_DIFD_SCHED,
-                                                  (DCMSchedCB)dcmRunJobs,
-                                                  (VOID *) pdcmHandle);
-    if(pdcmHandle->pDifdSchedHandle == NULL) {
-        DCMError("Failed to Add FW Updater Scheduler jobs\n");
-        return DCM_FAILURE;
     }
 
     return ret;
@@ -247,17 +132,9 @@ VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
     if(pdcmHandle->isDCMRunning == false) {
         dcmUtilsRemovePIDfile();
     }
-    if(pdcmHandle->pExecBuff) {
-        free(pdcmHandle->pExecBuff);
-    }
 
     dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
     dcmRbusUnInit(pdcmHandle->pRbusHandle);
-    dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
-    dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
-    dcmSchedUnInit();
 
     memset(pdcmHandle, 0, sizeof(DCMDHandle));
 }
@@ -398,7 +275,6 @@ int main(int argc, char* argv[])
 
         /* Wait for event Device.DCM.Processconfig */
         if(dcmRbusSchedJobStatus(g_pdcmHandle->pRbusHandle)) {
-            DCMInfo("Start Scheduling\n");
 
             pconfPath = dcmRbusGetConfPath(g_pdcmHandle->pRbusHandle);
 
@@ -408,13 +284,8 @@ int main(int argc, char* argv[])
                 continue;
             }
 
-            ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
-                                      g_pdcmHandle->logCron,
-                                      g_pdcmHandle->difdCron);
+            ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath);
             if(ret == DCM_SUCCESS) {
-                dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
-                dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
-
                 ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
                 if(ret) {
                     DCMError("Failed to send Event\n");
@@ -449,10 +320,7 @@ exit2:
 #endif
 
 #ifdef GTEST_ENABLE
-void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) 
-{
-    dcmRunJobs(profileName, pHandle);
-}
+
 void get_sig_handler(INT32 sig)
 {
      sig_handler(sig);

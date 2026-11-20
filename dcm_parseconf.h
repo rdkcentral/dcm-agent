@@ -36,8 +36,6 @@ extern "C"
 #define DCM_LOGUPLOAD_PROTOCOL "urn:settings:LogUploadSettings:UploadRepository:uploadProtocol"
 #define DCM_LOGUPLOAD_URL      "urn:settings:LogUploadSettings:UploadRepository:URL"
 #define DCM_LOGUPLOAD_REBOOT   "urn:settings:LogUploadSettings:UploadOnReboot"
-#define DCM_LOGUPLOAD_CRON     "urn:settings:LogUploadSettings:UploadSchedule:cron"
-#define DCM_DIFD_CRON          "urn:settings:CheckSchedule:cron"
 #define DCM_TIMEZONE           "urn:settings:TimeZoneMode"
 
 #define DCM_MAINT_CONF_PATH    "/opt/rdk_maintenance.conf"
@@ -47,7 +45,7 @@ extern "C"
 #endif
 
 #define DCM_DEF_TIMEZONE       "Local Time"
-#define DCM_CRON_SIZE 17
+
 
 typedef struct _dcmSettingsHandle
 {
@@ -62,8 +60,7 @@ typedef struct _dcmSettingsHandle
 
 INT32  dcmSettingsInit(VOID **ppdcmSetHandle);
 VOID   dcmSettingsUnInit(VOID *pdcmSetHandle);
-INT32  dcmSettingParseConf(VOID *pdcmSetHandle, INT8 *pConffile,
-                           INT8 *pLogCron, INT8 *pDifdCron);
+INT32  dcmSettingParseConf(VOID *pdcmSetHandle, INT8 *pConffile);
 INT8*  dcmSettingsGetUploadProtocol(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetUploadURL(VOID *pdcmSetHandle);
 INT8*  dcmSettingsGetRDKPath(VOID *pdcmSetHandle);
