@@ -478,13 +478,13 @@ int main(int argc, char* argv[])
             memset(logCron, 0, sizeof(logCron));
             memset(difdCron, 0, sizeof(difdCron));
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
-                                      g_pdcmHandle->logCron,
-                                      g_pdcmHandle->difdCron);
+                                      logCron,
+                                      difdCron);
 #else
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle,
                                       pconfPath,
-                                      g_pdcmHandle->logCron,
-                                      g_pdcmHandle->difdCron);
+                                      logCron,
+                                      difdCron);
 #endif
             if(ret == DCM_SUCCESS) {
 #ifndef RDKE
