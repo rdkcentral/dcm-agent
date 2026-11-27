@@ -164,11 +164,18 @@ static VOID sig_handler(INT32 sig)
 INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 {
     INT32 ret = DCM_SUCCESS;
-    INT8  t2_ver[32];
+    
+#ifndef RDKE
+    INT8  t2_ver[32]= {0};
+#endif
 
+    if (pdcmHandle == NULL) {
+        DCMError("DCM handle is NULL\n");
+        return DCM_FAILURE;
+    }
     /* Check if the Daemon is already running */
     ret = dcmUtilsCheckDaemonStatus();
-    if(ret) {
+    if(ret != DCM_SUCCESS) {
         pdcmHandle->isDCMRunning = true;
         DCMError("DCM Daemon is already running\n");
         return ret;
@@ -176,7 +183,7 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 
     /* Initialize the Parser */
     ret = dcmSettingsInit(&pdcmHandle->pDcmSetHandle);
-    if(ret) {
+    if(ret != DCM_SUCCESS) {
         DCMError("Failed to init settings\n");
         return ret;
     }
@@ -184,7 +191,6 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
     /* register the signals */
     signal(SIGINT,  sig_handler);
     signal(SIGTERM, sig_handler);
-    signal(SIGKILL, sig_handler);
     signal(SIGABRT, sig_handler);
 
     ret = dcmRbusInit(&pdcmHandle->pRbusHandle);
@@ -193,18 +199,25 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         return ret;
     }
 
+#ifndef RDKE
     DCMInfo("T2 is enabled\n");
 
     ret = dcmRbusGetT2Version(pdcmHandle->pRbusHandle, t2_ver, sizeof(t2_ver));
-    DCMInfo("T2 Version: %s\n", t2_ver);
 
+   if (ret == DCM_SUCCESS) {
+       DCMInfo("T2 Version: %s\n", t2_ver);
+   } 
+    else {
+        DCMWarn("Failed to get T2 version\n");
+    }
+#endif /* !RDKE */
     /* Initialize Rbus */
     ret = dcmRbusSubscribeEvents(pdcmHandle->pRbusHandle);
     if (ret != DCM_SUCCESS) {
-        DCMError("Failed to init rbus\n");
+        DCMError("Failed to subscribe to rbus events\n");
         return ret;
     }
-
+#ifndef RDKE
     pdcmHandle->pExecBuff = calloc(1, EXECMD_BUFF_SIZE);
     if(pdcmHandle->pExecBuff == NULL) {
         DCMError("Failed to allocate memeory\n");
@@ -213,7 +226,7 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
 
     /* Initialize Schecduler */
     ret = dcmSchedInit();
-    if(ret) {
+    if(ret != DCM_SUCCESS) {
         DCMError("Failed to init scheduler\n");
         return ret;
     }
@@ -235,7 +248,7 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
         DCMError("Failed to Add FW Updater Scheduler jobs\n");
         return DCM_FAILURE;
     }
-
+#endif /* !RDKE */
     return ret;
 }
 
@@ -248,23 +261,51 @@ INT32 dcmDaemonMainInit(DCMDHandle *pdcmHandle)
  */
 VOID dcmDaemonMainUnInit(DCMDHandle *pdcmHandle)
 {
+    if (pdcmHandle == NULL) {
+        DCMError("DCM handle is NULL\n");
+        return;
+    }
     if(pdcmHandle->isDCMRunning == false) {
         dcmUtilsRemovePIDfile();
     }
-    if(pdcmHandle->pExecBuff) {
+#ifndef RDKE
+    if (pdcmHandle->pExecBuff != NULL) {
         free(pdcmHandle->pExecBuff);
+        pdcmHandle->pExecBuff = NULL;
     }
 
-    dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
-    dcmRbusUnInit(pdcmHandle->pRbusHandle);
-    dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
-    dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
-    dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
+    if (pdcmHandle->pLogSchedHandle != NULL) {
+        dcmSchedStopJob(pdcmHandle->pLogSchedHandle);
+        dcmSchedRemoveJob(pdcmHandle->pLogSchedHandle);
+        pdcmHandle->pLogSchedHandle = NULL;
+    }
+
+    if (pdcmHandle->pDifdSchedHandle != NULL) {
+        dcmSchedStopJob(pdcmHandle->pDifdSchedHandle);
+        dcmSchedRemoveJob(pdcmHandle->pDifdSchedHandle);
+        pdcmHandle->pDifdSchedHandle = NULL;
+    }
+
     dcmSchedUnInit();
+#endif /* !RDKE */
+
+    /*
+     * These components are initialized on RDKE too,
+     * so their cleanup must remain outside the RDKE guard.
+     */
+    if (pdcmHandle->pDcmSetHandle != NULL) {
+        dcmSettingsUnInit(pdcmHandle->pDcmSetHandle);
+        pdcmHandle->pDcmSetHandle = NULL;
+    }
+
+    if (pdcmHandle->pRbusHandle != NULL) {
+        dcmRbusUnInit(pdcmHandle->pRbusHandle);
+        pdcmHandle->pRbusHandle = NULL;
+    }
 
     memset(pdcmHandle, 0, sizeof(DCMDHandle));
 }
+
 
 /** @brief Main function
  *
@@ -281,6 +322,11 @@ int main(int argc, char* argv[])
     pid_t sid              = 0;
     INT32 ret              = DCM_SUCCESS;
     INT32 count            = 0;
+
+#ifdef RDKE
+    INT8 logCron[DCM_CRON_SIZE] = {0};
+    INT8 difdCron[DCM_CRON_SIZE] = {0};
+#endif
 
     DCMLOGInit();
 
@@ -402,25 +448,51 @@ int main(int argc, char* argv[])
 
         /* Wait for event Device.DCM.Processconfig */
         if(dcmRbusSchedJobStatus(g_pdcmHandle->pRbusHandle)) {
-            DCMInfo("Start Scheduling\n");
-
+#ifdef RDKE     
+           DCMInfo("Processing DCM configuration; cron scheduling is disabled on RDKE\n");
+#else   
+            DCMInfo("Start Scheduling\n");  
+#endif
             pconfPath = dcmRbusGetConfPath(g_pdcmHandle->pRbusHandle);
 
             if(pconfPath == NULL) {
                 DCMWarn("conf file pointer is null\n");
+                /*
+                 * Reset the status so that DCM does not repeatedly process
+                 * the same invalid event state.
+                 */
+                dcmRbusSchedResetStatus(g_pdcmHandle->pRbusHandle);
                 sleep(1);
                 continue;
             }
-
+#ifdef RDKE
+    /*
+     * Parse the complete configuration to preserve:
+     *   - Immediate log upload
+     *   - Reboot-related log upload
+     *   - Upload protocol and URL
+     *   - Maintenance Manager configuration handoff
+     *
+     * RDKE does not store or schedule the cron expressions.
+     */
+            memset(logCron, 0, sizeof(logCron));
+            memset(difdCron, 0, sizeof(difdCron));
             ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle, pconfPath,
                                       g_pdcmHandle->logCron,
                                       g_pdcmHandle->difdCron);
+#else
+            ret = dcmSettingParseConf(g_pdcmHandle->pDcmSetHandle,
+                                      pconfPath,
+                                      g_pdcmHandle->logCron,
+                                      g_pdcmHandle->difdCron);
+#endif
             if(ret == DCM_SUCCESS) {
+#ifndef RDKE
                 dcmSchedStartJob(g_pdcmHandle->pLogSchedHandle, g_pdcmHandle->logCron);
                 dcmSchedStartJob(g_pdcmHandle->pDifdSchedHandle, g_pdcmHandle->difdCron);
-
+#endif /* !RDKE */
                 ret = dcmIARMEvntSend(DCM_IARM_COMPLETE);
-                if(ret) {
+                if(ret != DCM_SUCCESS) {
                     DCMError("Failed to send Event\n");
                 }
             }
@@ -453,10 +525,12 @@ exit2:
 #endif
 
 #ifdef GTEST_ENABLE
+#ifndef RDKE
 void get_dcmRunJobs(const INT8* profileName, VOID *pHandle) 
 {
     dcmRunJobs(profileName, pHandle);
 }
+#endif /* !RDKE */
 void get_sig_handler(INT32 sig)
 {
      sig_handler(sig);
