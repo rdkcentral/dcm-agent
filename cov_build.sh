@@ -64,5 +64,11 @@ make
 make install
 
 cd $WORKDIR
-./configure --prefix=${INSTALL_DIR} CFLAGS="-DRDK_LOGGER -DHAS_MAINTENANCE_MANAGER -DL2_TEST_ENABLED -I$ROOT/iarmmgrs/maintenance/include"
+./configure \
+    --prefix=${INSTALL_DIR} \
+    --enable-rdke \
+    CFLAGS="-DRDK_LOGGER \
+            -DHAS_MAINTENANCE_MANAGER \
+            -DL2_TEST_ENABLED \
+            -I$ROOT/iarmmgrs/maintenance/include"
 make && make install
