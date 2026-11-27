@@ -863,10 +863,12 @@ VOID dcmSettingsUnInit(VOID *pdcmSetHandle)
  }
 
 #ifdef GTEST_ENABLE
+#ifdef HAS_MAINTENANCE_MANAGER
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*)
 {
     return &dcmSettingSaveMaintenance;
 }
+#endif
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **)
 {
     return &dcmSettingJsonInit;
