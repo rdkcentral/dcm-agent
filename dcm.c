@@ -35,8 +35,10 @@
 #include "dcm_parseconf.h"
 #include "dcm.h"
 #include "dcm_rbus.h"
+#ifndef RDKE
 #include "dcm_cronparse.h"
 #include "dcm_schedjob.h"
+#endif
 #include "uploadstblogs.h"
 
 /*
@@ -57,6 +59,7 @@ static DCMDHandle *g_pdcmHandle = NULL;
  *  @return  None.
  *  @retval  None.
  */
+#ifndef RDKE
 static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
 {
     DCMDHandle *pdcmHandle = (DCMDHandle *)pHandle;
@@ -124,6 +127,7 @@ static VOID dcmRunJobs(const INT8* profileName, VOID *pHandle)
          dcmUtilsSysCmdExec(pExecBuff);
     }
 }
+#endif /* !RDKE */
 
 /** @brief Signal handler, un-intializes the module before exiting
  *
