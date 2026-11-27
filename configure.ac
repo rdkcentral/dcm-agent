@@ -117,7 +117,6 @@ AM_CONDITIONAL([IS_TELEMETRY2_ENABLED], [test x$IS_TELEMETRY2_ENABLED = xtrue])
 AC_SUBST(T2_EVENT_FLAG)
 
 IS_LIBRDKCERTSEL_ENABLED=""
-IS_LIBRDKCERTSEL_ENABLED=""
 
 AC_ARG_ENABLE([rdkcertselector],
         AS_HELP_STRING([--enable-rdkcertselector],[enables rdkcertselector replacement (default is no)]),
