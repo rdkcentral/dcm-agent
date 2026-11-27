@@ -32,7 +32,9 @@ extern "C"
 #define DCM_RBUS_SETCONF_EVENT    "Device.DCM.Setconfig"
 #define DCM_RBUS_PROCCONF_EVENT   "Device.DCM.Processconfig"
 #define DCM_RBUS_RELOAD_EVENT     "Device.X_RDKCENTREL-COM.Reloadconfig"
+#ifndef RDKE
 #define DCM_RBUS_T2_VERSION       "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.Version"
+#endif
 #define DCM_RBUS_T2_CONFURL       "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.Telemetry.ConfigURL"
 #define DCM_SET_CONFIG            "dcmSetConfig"
 #define DCM_RE_CONFIG             "dcmReConfig"
@@ -54,7 +56,9 @@ INT32  dcmRbusSchedJobStatus(VOID *pDCMRbusHandle);
 VOID   dcmRbusSchedResetStatus(VOID *pDCMRbusHandle);
 INT8   dcmRbusGetEventSubStatus(VOID *pDCMRbusHandle);
 INT8*  dcmRbusGetConfPath(VOID *pDCMRbusHandle);
+#ifndef RDKE
 INT32  dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *value, size_t valueSize);
+#endif
 
 #ifdef __cplusplus
 }
