@@ -649,13 +649,24 @@ INT32 dcmSettingParseConf(VOID *pHandle, INT8 *pConffile,
 #endif
     }
     else {
+#ifdef RDKE
+    DCMInfo("%s is present; DCM cron scheduling is not applicable on RDKE\n",
+            DCM_LOGUPLOAD_CRON);
+#else
         DCMInfo ("%s is present setting cron jobs\n", DCM_LOGUPLOAD_CRON);
+#endif
     }
-
+#ifdef RDKE
+    if(strlen(pDifdCron) == 0) {
+        DCMWarn("Maintenance schedule is empty\n");
+    } else {
+        DCMInfo("Maintenance schedule received; Maintenance Manager owns the flow\n");
+    }
+#else
     if(strlen(pDifdCron) == 0) {
         DCMWarn ("difdCron is empty\n");
     }
-
+#endif
     dcmSettingJsonUnInit(&pJsonHandle);
 
     /* Parse the conf file and store in opt and tmp folder which is used by other modules */
@@ -753,7 +764,8 @@ INT8* dcmSettingsGetUploadURL(VOID *pHandle)
 /* Add here */
 static BOOL isValidRdkPath(const char *path)
 {
-    if (path == NULL || path[0] != '/')
+    if (path == NULL || path[0] != '/')
+
         return 0;
 
     while (*path)
