@@ -26,8 +26,10 @@ extern "C"
 {
 #endif
 
+#ifndef RDKE
 #define DCM_LOGUPLOAD_SCHED    "DCM_LOG_UPLOAD"
 #define DCM_DIFD_SCHED         "DCM_FW_UPDATE"
+#endif
 
 typedef struct _dcmdHandle
 {
@@ -35,11 +37,13 @@ typedef struct _dcmdHandle
     BOOL  isDCMRunning;
     VOID *pRbusHandle;
     VOID *pDcmSetHandle;
+#ifndef RDKE
     VOID *pLogSchedHandle;
     VOID *pDifdSchedHandle;
     INT8 *pExecBuff;
     INT8  logCron[DCM_CRON_SIZE];
     INT8  difdCron[DCM_CRON_SIZE];
+#endif
 
 } DCMDHandle;
 
