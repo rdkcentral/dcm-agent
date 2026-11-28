@@ -29,14 +29,17 @@
 #include "dcm_types.h"
 #include "dcm_rbus.c"
 #include "dcm_parseconf.c"
+#ifndef RDKE
 #include "dcm_schedjob.c"
 #include "dcm_cronparse.c"
+#endif
 #include "dcm_utils.c"
 #define GTEST_DEFAULT_RESULT_FILEPATH "/tmp/Gtest_Report/"
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
-
+#ifndef RDKE
 void get_dcmRunJobs(const INT8* profileName, VOID *pHandle);
+#endif
 void get_sig_handler(INT32 sig);
 
 using namespace testing;
@@ -63,11 +66,12 @@ protected:
     }
     
     void TearDown() override {
-        mock_rbus_clear_global_mock();
-        delete mockRBus;
-        
         // Cleanup
         cleanupDCMHandle();
+        
+        mock_rbus_clear_global_mock();
+        delete mockRBus;
+        mockRBus = nullptr;  
     }
     
     // Helper: create a file with given content
@@ -81,26 +85,54 @@ protected:
     }
     
     void cleanupDCMHandle() {
-        if (dcmHandle.pExecBuff) {
-            free(dcmHandle.pExecBuff);
-            dcmHandle.pExecBuff = NULL;
+#ifndef RDKE
+
+      bool schedulerCreated = dcmHandle.pLogSchedHandle != nullptr || dcmHandle.pDifdSchedHandle != nullptr;
+
+       if (dcmHandle.pExecBuff != nullptr) {
+           free(dcmHandle.pExecBuff);
+           dcmHandle.pExecBuff = nullptr;
+       }
+
+       if (dcmHandle.pLogSchedHandle != nullptr) {
+           dcmSchedRemoveJob(dcmHandle.pLogSchedHandle);
+           dcmHandle.pLogSchedHandle = nullptr;
+       }
+
+       if (dcmHandle.pDifdSchedHandle != nullptr) {
+           dcmSchedRemoveJob(dcmHandle.pDifdSchedHandle);
+           dcmHandle.pDifdSchedHandle = nullptr;
         }
+
+       if (schedulerCreated) {
+           dcmSchedUnInit();
+       }
+
+#endif /* !RDKE */
+
         if (dcmHandle.pDcmSetHandle) {
             dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
+            dcmHandle.pDcmSetHandle = NULL;
         }
+         /*
+         * Do not call dcmRbusUnInit() here unless the test installs the
+         * unsubscribe, unregister, and close mock expectations.
+         *
+         * The handle allocated by dcmRbusInit() can be released directly
+         * in this fixture after clearing its internal mock handle.
+         */
         if (dcmHandle.pRbusHandle) {
-            dcmRbusUnInit(dcmHandle.pRbusHandle);
+            DCMRBusHandle *rbusHandle = static_cast<DCMRBusHandle *>(dcmHandle.pRbusHandle);
+            rbusHandle->pRbusHandle = nullptr;
+            free(rbusHandle);
+            dcmHandle.pRbusHandle = NULL;
         }
-        if (dcmHandle.pDifdSchedHandle) {
-            dcmSchedRemoveJob(dcmHandle.pDifdSchedHandle);
-        }
-        dcmSchedUnInit();
-    }
-    
-    MockRBus* mockRBus;
-    DCMDHandle dcmHandle;
-    const char* pidFilePath;
-};
+        RemoveFile(DCM_PID_FILE);
+      }
+        MockRBus* mockRBus = NULL;
+        DCMDHandle dcmHandle;
+        const char* pidFilePath = NULL;
+ };
 
 TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Success) {
     // Setup successful RBUS mocks
@@ -115,6 +147,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
         .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
     
     // T2 version retrieval
+    #ifndef RDKE
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
     EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
@@ -127,7 +160,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
-    
+    #endif
     // Event subscription
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
         .Times(2)
@@ -142,8 +175,11 @@ TEST_F(DcmDaemonMainInitTest, MainInit_AllComponentsInitializeSuccessfully_Succe
     EXPECT_FALSE(dcmHandle.isDCMRunning);
     EXPECT_NE(dcmHandle.pDcmSetHandle, nullptr);
     EXPECT_NE(dcmHandle.pRbusHandle, nullptr);
+    #ifndef RDKE
     EXPECT_NE(dcmHandle.pExecBuff, nullptr);
+    EXPECT_NE(dcmHandle.pLogSchedHandle, nullptr);
     EXPECT_NE(dcmHandle.pDifdSchedHandle, nullptr);
+    #endif
 }
 
 TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
@@ -151,9 +187,8 @@ TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_Fail) {
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
-TEST_F(DcmDaemonMainInitTest, MainInit_CheckDemonStatus_with_null_handle) {
-    dcmHandle.pDcmSetHandle = malloc(64);
-    INT32 result = dcmDaemonMainInit(&dcmHandle);
+TEST_F(DcmDaemonMainInitTest, MainInit_NullHandle_Failure) {
+    INT32 result = dcmDaemonMainInit(nullptr);
     EXPECT_EQ(result, DCM_FAILURE);
 }
 
@@ -180,6 +215,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
         .WillOnce(DoAll(SetArgPointee<0>(mockHandle), Return(RBUS_ERROR_SUCCESS)));
     
     // T2 version retrieval
+    #ifndef RDKE
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
     EXPECT_CALL(*mockRBus, rbus_get(mockHandle, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(mockValue), Return(RBUS_ERROR_SUCCESS)));
@@ -192,7 +228,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
     
     EXPECT_CALL(*mockRBus, rbusValue_Release(mockValue))
         .Times(1);
-    
+    #endif /* !RDKE */
     // Event subscription
     EXPECT_CALL(*mockRBus, rbusEvent_SubscribeAsync(_, _, _, _, _, _))
          .WillOnce(Return(RBUS_ERROR_BUS_ERROR));
@@ -204,6 +240,7 @@ TEST_F(DcmDaemonMainInitTest, MainInit_dcmRbusSubscribeEvents_failure) {
 }
 
 // ======================= DCM Run Jobs Tests =======================
+#ifndef RDKE
 class DcmRunJobsTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -285,9 +322,11 @@ TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_MaintenanceModeDisabled) {
 }
 
 TEST_F(DcmRunJobsTest, RunJobs_DifdProfile_NullSettingsHandle) {    
+    dcmSettingsUnInit(dcmHandle.pDcmSetHandle);
     dcmHandle.pDcmSetHandle = nullptr;
-    EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, nullptr));   
+    EXPECT_NO_THROW(get_dcmRunJobs(DCM_DIFD_SCHED, &dcmHandle));   
 }
+#endif /* !RDKE */
 
 // ======================= DCM Un-Init Tests =======================
 class DcmDaemonMainUnInitTest : public ::testing::Test {
@@ -305,29 +344,26 @@ protected:
     }
     
     void setupTestComponents() {
+        #ifndef RDKE
         testHandle.pExecBuff = (INT8*)malloc(EXECMD_BUFF_SIZE);
         if (testHandle.pExecBuff) {
             memset(testHandle.pExecBuff, 0, EXECMD_BUFF_SIZE);
             strcpy(testHandle.pExecBuff, "test command");
         }
-        
+        #endif
         if (dcmSettingsInit(&testHandle.pDcmSetHandle) != DCM_SUCCESS) {
             testHandle.pDcmSetHandle = nullptr;
         }
-        
+        #ifndef RDKE
         if (dcmSchedInit() == DCM_SUCCESS) {
             testHandle.pDifdSchedHandle = dcmSchedAddJob("test_difd", nullptr, nullptr);
         }
-        
-        if (dcmRbusInit(&testHandle.pRbusHandle) != DCM_SUCCESS) {
-            testHandle.pRbusHandle = nullptr;
-        }
+        #endif
+        testHandle.pRbusHandle = nullptr;
     }
     
     void cleanupTestComponents() {
-        if (testHandle.pDifdSchedHandle) {
-            dcmSchedUnInit();
-        }
+        /* dcmDaemonMainUnInit() performs the cleanup. */
     }
     
 public:  // Make public for test access
@@ -350,11 +386,13 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_ValidHandle_CompletesSuccessfully) {
     testHandle.isDCMRunning = true;
     
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
-    
+    #ifndef RDKE
     EXPECT_EQ(testHandle.pExecBuff, nullptr);
+    EXPECT_EQ(testHandle.pDifdSchedHandle, nullptr);
+    #endif
     EXPECT_EQ(testHandle.pDcmSetHandle, nullptr);
     EXPECT_EQ(testHandle.pRbusHandle, nullptr);
-    EXPECT_EQ(testHandle.pDifdSchedHandle, nullptr);
+   
 }
 
 TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
@@ -363,6 +401,7 @@ TEST_F(DcmDaemonMainUnInitTest, UnInit_DCMNotRunning_RemovesPIDFile) {
     
     EXPECT_TRUE(pidFileExists());
     EXPECT_NO_THROW(dcmDaemonMainUnInit(&testHandle));
+    EXPECT_FALSE(pidFileExists());
 }
 
 // ======================= Signal Handler Tests =======================

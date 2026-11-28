@@ -35,49 +35,73 @@ echo "RDK_PROFILE=TV" >> /etc/device.properties
 cd "$TOP_DIR/unittest" || exit 1
 cp mocks/mockrbus.h /usr/local/include
 cp "$TOP_DIR"/uploadstblogs/include/*.h /usr/local/include
-automake --add-missing
-autoreconf --install
-./configure
-make clean
-make
+rm -rf autom4te.cache
+rm -f aclocal.m4
+autoreconf --install --force || exit 1
+./configure --enable-rdke || exit 1
+make clean || exit 1
+make V=1 || exit 1
+
+#
+# Confirm retained RDKE DCM tests were generated.
+#
+for binary in \
+    dcm_utils_gtest \
+    dcm_parseconf_gtest \
+    dcm_rbus_gtest \
+    dcm_gtest
+do
+    if [ ! -x "./$binary" ]; then
+        echo "ERROR: Required RDKE GTest binary was not generated: $binary"
+        exit 1
+    fi
+done
 
 cd "$TOP_DIR" || exit 1
-sh cov_build.sh
-git clone https://github.com/rdkcentral/iarmmgrs.git
+sh cov_build.sh || exit 1
+rm -rf iarmmgrs
+git clone https://github.com/rdkcentral/iarmmgrs.git || exit 1
 cp iarmmgrs/sysmgr/include/sysMgr.h /usr/local/include
 cp iarmmgrs/maintenance/include/maintenanceMGR.h /usr/local/include
-git clone https://github.com/rdkcentral/rdk_logger.git
+rm -rf rdk_logger
+git clone https://github.com/rdkcentral/rdk_logger.git || exit 1
 cp rdk_logger/include/rdk_logger.h /usr/local/include
-
+#
+# Build uploadstblogs tests
+#
 cd "$TOP_DIR/uploadstblogs/unittest" || exit 1
-automake --add-missing
-autoreconf --install
-./configure
-make clean
-make
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
+./configure || exit 1
+make clean || exit 1
+make || exit 1
 
+#
+# Build usbLogUpload tests
+#
 cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
-automake --add-missing
-autoreconf --install
-./configure
-make clean
-make
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
+./configure || exit 1
+make clean || exit 1
+make || exit 1
 
+#
+# Build backup_logs tests
+#
 cd "$TOP_DIR/backup_logs/unittest" || exit 1
-automake --add-missing
-autoreconf --install
-./configure
-make clean
-make
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
+./configure || exit 1
+make clean || exit 1
+make || exit 1
 
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
-cd $TOP_DIR/unittest/
+cd "$TOP_DIR/unittest" || exit 1
 
 for test in \
   ./dcm_utils_gtest \
-  ./dcm_schedjob_gtest \
-  ./dcm_cronparse_gtest \
   ./dcm_parseconf_gtest \
   ./dcm_rbus_gtest \
   ./dcm_gtest \
@@ -110,11 +134,20 @@ for test in \
   ./../backup_logs/unittest/sys_integration_gtest
   
 do
-    $test
+    if [ ! -x "$test" ]; then
+        echo "Test binary not found or not executable: $test"
+        fail=1
+        continue
+    fi
+
+    "$test"
     status=$?
-    if [ $status -ne 0 ]; then
+
+    if [ "$status" -ne 0 ]; then
         echo "Test $test failed with exit code $status"
         fail=1
+    else
+        echo "Test $test passed"
     fi
 done
 

@@ -23,7 +23,7 @@ SUBDIRS = uploadstblogs/src usbLogUpload backup_logs
 backup_logs_confdir = $(sysconfdir)/backup_logs
 backup_logs_conf_DATA = special_files.conf
 
-dcmd_CFLAGS += -fPIC -pthread
+dcmd_CFLAGS += -fPIC -pthread $(RDKE_FLAG)
 
 bin_PROGRAMS = dcmd
 
@@ -31,9 +31,13 @@ dcmd_SOURCES = dcm.c \
                dcm_utils.c \
                dcm_rbus.c \
                dcm_parseconf.c \
-               dcm_schedjob.c \
-               dcm_cronparse.c \
                $(NULL)
+
+if !IS_RDKE_ENABLED
+dcmd_SOURCES += dcm_schedjob.c \
+                dcm_cronparse.c \
+                $(NULL)
+endif
 
 dcmd_LDFLAGS += -shared -fPIC $(GLIB_LIBS)
 dcmd_LDADD = ${top_builddir}/uploadstblogs/src/libuploadstblogs.la

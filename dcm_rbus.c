@@ -282,6 +282,7 @@ INT32 dcmRbusSendEvent(VOID *pDCMRbusHandle)
  *  @return  Returns the status of the operation.
  *  @retval  Returns DCM_SUCCESS on success, DCM_FAILURE otherwise.
  */
+#ifndef RDKE
 INT32 dcmRbusGetT2Version(VOID *pDCMRbusHandle, VOID *pValue, size_t valueSize)
 {
     INT32           ret = DCM_SUCCESS;
@@ -352,7 +353,7 @@ exit:
     }
     return ret;
 }
-
+#endif
 /** @brief This Function returns the Event Subscription status.
  *
  *  @param[in]  pDCMRbusHandle - rbus handle

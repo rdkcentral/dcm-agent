@@ -29,6 +29,35 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
+#Provides -DRDKE compile definition needed by C source guards
+AC_ARG_ENABLE([rdke],
+    AS_HELP_STRING([--enable-rdke],
+                   [build DCM for RDKE without cron scheduler]),
+    [
+        case "${enableval}" in
+            yes)
+                IS_RDKE_ENABLED=true
+                RDKE_FLAG="-DRDKE"
+                ;;
+            no)
+                IS_RDKE_ENABLED=false
+                RDKE_FLAG=""
+                ;;
+            *)
+                AC_MSG_ERROR([bad value ${enableval} for --enable-rdke])
+                ;;
+        esac
+    ],
+    [
+        IS_RDKE_ENABLED=false
+        RDKE_FLAG=""
+    ])
+
+AM_CONDITIONAL([IS_RDKE_ENABLED],
+               [test "x$IS_RDKE_ENABLED" = "xtrue"])
+
+AC_SUBST([RDKE_FLAG])
+
 # Checks for libraries.
 AM_PROG_LIBTOOL
 
@@ -87,7 +116,6 @@ AC_ARG_ENABLE([t2api],
 AM_CONDITIONAL([IS_TELEMETRY2_ENABLED], [test x$IS_TELEMETRY2_ENABLED = xtrue])
 AC_SUBST(T2_EVENT_FLAG)
 
-IS_LIBRDKCERTSEL_ENABLED=""
 IS_LIBRDKCERTSEL_ENABLED=""
 
 AC_ARG_ENABLE([rdkcertselector],
