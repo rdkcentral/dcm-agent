@@ -187,7 +187,10 @@ TEST_F(DcmRbusTest, SendEvent_NullRbusHandle_Failure) {
 
 TEST_F(DcmRbusTest, SendEvent_rbusValueInit_Called_rbusEventPublishFails_Failure) {
     DCMRBusHandle dcmHandle;
+    memset(&dcmHandle, 0, sizeof(dcmHandle));
     dcmHandle.pRbusHandle = mock_rbus_get_mock_handle();
+    extern int g_eventsub;
+    g_eventsub = 1;
     EXPECT_CALL(*mockRBus, rbusValue_Init(_))
         .Times(1);
     
@@ -330,6 +333,7 @@ TEST_F(DcmRbusTest, SubscribeEvents_FirstSubscription_failure) {
     
     EXPECT_EQ(result, DCM_FAILURE);
 }
+#ifndef RDKE
 TEST_F(DcmRbusTest, GetT2Version_ValidInputs_Success) {
     rbusValue_t mockValue = mock_rbus_create_string_value("2.1.5");
     char versionBuffer[256];
@@ -451,6 +455,7 @@ TEST_F(DcmRbusTest, GetT2Version_BufferTooSmall_Fails)
 
     EXPECT_EQ(dcmRbusGetT2Version(&dcmHandle, versionBuffer, sizeof(versionBuffer)), DCM_FAILURE);
 }
+#endif /* !RDKE */
 
 class RbusProcConfTest : public ::testing::Test {
 protected:
