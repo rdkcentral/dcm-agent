@@ -32,7 +32,9 @@
 #define GTEST_DEFAULT_RESULT_FILENAME "dcm_parseconf_gtest_report.json"
 #define GTEST_REPORT_FILEPATH_SIZE 256
 
+#ifdef HAS_MAINTENANCE_MANAGER
 INT32 (*getdcmSettingSaveMaintenance(void))(INT8*, INT8*);
+#endif
 INT32 (*getdcmSettingJsonInit(void))(DCMSettingsHandle *pdcmSetHandle, INT8*, VOID **);
 INT32 (*getdcmSettingJsonGetVal(void))(VOID*, INT8*, INT8*, INT32, INT32*, INT32*);
 
@@ -373,6 +375,9 @@ TEST_F(DcmSettingsInitTest, RDKPathTraversalFallsBackToDefault)
     EXPECT_STREQ(dcmHandle->cRdkPath, DCM_LIB_PATH);
 }
 
+#ifdef GTEST_ENABLE
+
+#ifdef HAS_MAINTENANCE_MANAGER
 class DcmSettingSaveMaintenanceTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -416,7 +421,7 @@ TEST_F(DcmSettingSaveMaintenanceTest, SaveMaintenance_ValidCronAndTimezone_Write
     EXPECT_THAT(fileContent, ::testing::HasSubstr("start_min=\"3\""));
     EXPECT_THAT(fileContent, ::testing::HasSubstr("tz_mode=\"EST\"")); 
 }
-
+#endif /* HAS_MAINTENANCE_MANAGER */
 
 class DcmSettingJsonInitTest : public ::testing::Test {
 protected:
@@ -848,3 +853,4 @@ GTEST_API_ int main(int argc, char *argv[]){
     cout << "Starting DCM GTEST ===================>" << endl;
     return RUN_ALL_TESTS();
 }
+#endif /* GTEST_ENABLE */
