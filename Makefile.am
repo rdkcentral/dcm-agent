@@ -35,8 +35,8 @@ dcmd_SOURCES = dcm.c \
 
 if !IS_RDKE_ENABLED
 dcmd_SOURCES += dcm_schedjob.c \
-    dcm_cronparse.c \
-    $(NULL)
+                dcm_cronparse.c \
+                $(NULL)
 endif
 
 dcmd_LDFLAGS += -shared -fPIC $(GLIB_LIBS)
