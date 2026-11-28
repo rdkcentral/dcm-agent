@@ -35,8 +35,9 @@ echo "RDK_PROFILE=TV" >> /etc/device.properties
 cd "$TOP_DIR/unittest" || exit 1
 cp mocks/mockrbus.h /usr/local/include
 cp "$TOP_DIR"/uploadstblogs/include/*.h /usr/local/include
-automake --add-missing || exit 1
-autoreconf --install || exit 1
+rm -rf autom4te.cache
+rm -f aclocal.m4
+autoreconf --install --force || exit 1
 ./configure --enable-rdke || exit 1
 make clean || exit 1
 make V=1 || exit 1
@@ -69,8 +70,8 @@ cp rdk_logger/include/rdk_logger.h /usr/local/include
 # Build uploadstblogs tests
 #
 cd "$TOP_DIR/uploadstblogs/unittest" || exit 1
-automake --add-missing || exit 1
-autoreconf --install || exit 1
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
 ./configure || exit 1
 make clean || exit 1
 make || exit 1
@@ -79,8 +80,8 @@ make || exit 1
 # Build usbLogUpload tests
 #
 cd "$TOP_DIR/usbLogUpload/unittest" || exit 1
-automake --add-missing || exit 1
-autoreconf --install || exit 1
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
 ./configure || exit 1
 make clean || exit 1
 make || exit 1
@@ -89,15 +90,15 @@ make || exit 1
 # Build backup_logs tests
 #
 cd "$TOP_DIR/backup_logs/unittest" || exit 1
-automake --add-missing || exit 1
-autoreconf --install || exit 1
+rm -rf autom4te.cache
+autoreconf --install --force || exit 1
 ./configure || exit 1
 make clean || exit 1
 make || exit 1
 
 echo "RDK_PROFILE=TV" >> /etc/device.properties
 fail=0
-cd $TOP_DIR/unittest/ || exit 1
+cd "$TOP_DIR/unittest" || exit 1
 
 for test in \
   ./dcm_utils_gtest \
