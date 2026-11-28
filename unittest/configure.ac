@@ -18,17 +18,57 @@
 
 # Initialize Autoconf
 AC_INIT([dcm_main_gtest], [1.0])
+AC_CONFIG_SRCDIR([dcm_gtest.cpp])
 AC_CONFIG_MACRO_DIRS([m4])
-LT_INIT
 
 # Initialize Automake
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
-
-# Check for necessary headers
-AC_CHECK_HEADERS([gtest/gtest.h gmock/gmock.h])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 
 # Checks for programs
+AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_INSTALL
+
+# Initialize Libtool
+LT_INIT
+
+# RDKE build option
+AC_ARG_ENABLE([rdke],
+    AS_HELP_STRING(
+        [--enable-rdke],
+        [build RDKE-compatible DCM unit tests without scheduler tests]),
+    [
+        case "${enableval}" in
+            yes)
+                IS_RDKE_ENABLED=true
+                RDKE_FLAG="-DRDKE"
+                ;;
+            no)
+                IS_RDKE_ENABLED=false
+                RDKE_FLAG=""
+                ;;
+            *)
+                AC_MSG_ERROR(
+                    [bad value ${enableval} for --enable-rdke])
+                ;;
+        esac
+    ],
+    [
+        IS_RDKE_ENABLED=false
+        RDKE_FLAG=""
+    ])
+
+AM_CONDITIONAL(
+    [IS_RDKE_ENABLED],
+    [test "x$IS_RDKE_ENABLED" = "xtrue"])
+
+AC_SUBST([RDKE_FLAG])
+
+# Check for necessary headers
+AC_CHECK_HEADERS([
+    gtest/gtest.h
+    gmock/gmock.h
+])
 
 # Checks for libraries
 AC_CHECK_LIB([stdc++], [main])
