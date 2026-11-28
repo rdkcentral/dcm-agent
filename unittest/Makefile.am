@@ -20,11 +20,32 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 # Define the test executables
-bin_PROGRAMS = dcm_utils_gtest dcm_schedjob_gtest dcm_cronparse_gtest dcm_parseconf_gtest dcm_rbus_gtest dcm_gtest
+bin_PROGRAMS = \
+                dcm_utils_gtest \
+                dcm_parseconf_gtest \
+                dcm_rbus_gtest \
+                dcm_gtest
+
+if !IS_RDKE_ENABLED
+bin_PROGRAMS += \
+                dcm_schedjob_gtest \
+                dcm_cronparse_gtest
+endif
 
 # Common include directories
-COMMON_CPPFLAGS = -I/usr/include/cjson -I../ -I../../ -I/usr/include -I../include -I./mocks\
-                  -I/usr/include/gtest -I/usr/local/include -I/usr/local/include/gtest -DGTEST_ENABLE -DHAS_MAINTENANCE_MANAGER
+COMMON_CPPFLAGS = \
+                  -I/usr/include/cjson \
+                  -I../ \
+                  -I../../ \
+                  -I/usr/include \
+                  -I../include \
+                  -I./mocks \
+                  -I/usr/include/gtest \
+                  -I/usr/local/include \
+                  -I/usr/local/include/gtest \
+                  -DGTEST_ENABLE \
+                  -DHAS_MAINTENANCE_MANAGER \
+                  $(RDKE_FLAG)
 
 AM_CPPFLAGS =  -I$(top_srcdir)/unittest/mocks -I$(top_srcdir)/include -I$(top_srcdir)/mocks -I$(top_srcdir) -I/usr/include 
 AM_CXXFLAGS = -std=c++14
@@ -38,27 +59,14 @@ COMMON_CXXFLAGS = -fprofile-arcs -ftest-coverage -fpermissive -Wno-write-strings
 # Define source files for each test
 
 dcm_utils_gtest_SOURCES = dcm_utils_gtest.cpp 
-dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp 
-dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
 dcm_parseconf_gtest_SOURCES = dcm_parseconf_gtest.cpp 
 dcm_rbus_gtest_SOURCES = dcm_rbus_gtest.cpp ./mocks/mockrbus.cpp
 dcm_gtest_SOURCES = dcm_gtest.cpp ./mocks/mockrbus.cpp
-
-
-dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
-dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-dcm_cronparse_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 dcm_utils_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_utils_gtest_LDADD = $(COMMON_LDADD)
 dcm_utils_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 dcm_utils_gtest_CFLAGS = $(COMMON_CXXFLAGS)
-
-dcm_schedjob_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
-dcm_schedjob_gtest_LDADD = $(COMMON_LDADD)
-dcm_schedjob_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
-dcm_schedjob_gtest_CFLAGS = $(COMMON_CXXFLAGS)
 
 dcm_parseconf_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_parseconf_gtest_LDADD = $(COMMON_LDADD)
@@ -74,4 +82,22 @@ dcm_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
 dcm_gtest_LDADD = $(COMMON_LDADD)
 dcm_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
 dcm_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+# Scheduler and cron-parser tests are non-RDKE only
+if !IS_RDKE_ENABLED
+
+dcm_schedjob_gtest_SOURCES = dcm_schedjob_gtest.cpp 
+dcm_cronparse_gtest_SOURCES = dcm_cronparse_gtest.cpp 
+
+dcm_schedjob_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_schedjob_gtest_LDADD = $(COMMON_LDADD)
+dcm_schedjob_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_schedjob_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+dcm_cronparse_gtest_CPPFLAGS = $(COMMON_CPPFLAGS)
+dcm_cronparse_gtest_LDADD = $(COMMON_LDADD)
+dcm_cronparse_gtest_CXXFLAGS = $(COMMON_CXXFLAGS)
+dcm_cronparse_gtest_CFLAGS = $(COMMON_CXXFLAGS)
+
+endif
 
