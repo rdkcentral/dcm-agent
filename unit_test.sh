@@ -17,7 +17,6 @@
 ##
 ## SPDX-License-Identifier: Apache-2.0
 #
-set -o pipefail
 
 ENABLE_COV=false
 
